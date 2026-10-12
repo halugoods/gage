@@ -56,10 +56,17 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
     final userPhone = user?.phone ?? '0812-3456-7890';
     final userEmail = user?.email ?? 'pengguna@gage.id';
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final sheetBg = isDark ? GageTheme.darkBackground : Colors.white;
+    final cardBg = isDark ? GageTheme.darkSurface : Colors.grey.shade50;
+    final borderCol = isDark ? Colors.white12 : Colors.grey.shade200;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final textSubColor = isDark ? Colors.white60 : Colors.grey.shade600;
+
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: BoxDecoration(
+        color: sheetBg,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom + 20,
@@ -77,7 +84,7 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
                   width: 44,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
+                    color: isDark ? Colors.white24 : Colors.grey.shade300,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -96,8 +103,8 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
                           height: 58,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: Colors.grey.shade100,
-                            border: Border.all(color: GageTheme.primary.withValues(alpha: 0.3), width: 2),
+                            color: isDark ? GageTheme.darkSurface : Colors.grey.shade100,
+                            border: Border.all(color: GageTheme.primary.withValues(alpha: 0.5), width: 2),
                           ),
                           child: ClipOval(
                             child: _buildAvatarImage(user?.avatarUrl),
@@ -112,7 +119,7 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
                             decoration: BoxDecoration(
                               color: const Color(0xFF16A34A),
                               shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2),
+                              border: Border.all(color: isDark ? GageTheme.darkBackground : Colors.white, width: 2),
                             ),
                           ),
                         ),
@@ -130,10 +137,10 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
                               Flexible(
                                 child: Text(
                                   userName,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
-                                    color: Colors.black87,
+                                    color: textColor,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -143,7 +150,7 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: Colors.amber.shade100,
+                                  color: Colors.amber.withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
@@ -151,7 +158,7 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
                                   style: TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.amber.shade900,
+                                    color: isDark ? Colors.amber.shade300 : Colors.amber.shade900,
                                   ),
                                 ),
                               ),
@@ -162,14 +169,14 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
                             userPhone,
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.grey.shade600,
+                              color: textSubColor,
                             ),
                           ),
                           Text(
                             userEmail,
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey.shade500,
+                              color: isDark ? Colors.white38 : Colors.grey.shade500,
                             ),
                           ),
                         ],
@@ -184,7 +191,7 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
                         Navigator.pop(context);
                         Navigator.push(
                           context,
-                          MaterialUriRoute(builder: (ctx) => const EditProfileScreen()),
+                          MaterialPageRoute(builder: (ctx) => const EditProfileScreen()),
                         );
                       },
                     ),
@@ -192,43 +199,49 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
                 ),
               ),
 
-              const Divider(height: 24, thickness: 1),
+              Divider(height: 24, thickness: 1, color: borderCol),
 
-              // 3. Menu Accordion Interaktif
+              // 3. Menu Accordion Interaktif (Profil Saya, Ganti Akun, Hubungi CS WhatsApp, Logout)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   children: [
-                    // Accordion Item 1: Kelola Profil & Alamat
+                    // Accordion Item 1: Profil Saya (Data Profil & Alamat Pengantaran)
                     _buildAccordionCard(
-                      icon: Icons.badge_outlined,
-                      title: 'Data Profil & Alamat Pengantaran',
-                      subtitle: 'Ubah biodata, foto, dan titik antar',
+                      context: context,
+                      icon: Icons.person_outline_rounded,
+                      title: 'Profil Saya & Alamat',
+                      subtitle: 'Biodata akun, alamat pengantaran, dan pengaturan',
+                      cardBg: cardBg,
+                      borderCol: borderCol,
+                      textColor: textColor,
+                      textSubColor: textSubColor,
+                      isDark: isDark,
                       children: [
                         ListTile(
                           dense: true,
-                          leading: const Icon(Icons.person_outline, color: GageTheme.primary, size: 20),
-                          title: const Text('Buka Layar Penuh Ubah Profil', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                          trailing: const Icon(Icons.chevron_right, size: 18),
+                          leading: const Icon(Icons.badge_outlined, color: GageTheme.primary, size: 20),
+                          title: Text('Buka Layar Penuh Ubah Profil', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textColor)),
+                          trailing: Icon(Icons.chevron_right, size: 18, color: textSubColor),
                           onTap: () {
                             Navigator.pop(context);
                             Navigator.push(
                               context,
-                              MaterialUriRoute(builder: (ctx) => const EditProfileScreen()),
+                              MaterialPageRoute(builder: (ctx) => const EditProfileScreen()),
                             );
                           },
                         ),
                         ListTile(
                           dense: true,
                           leading: const Icon(Icons.location_on_outlined, color: Colors.blue, size: 20),
-                          title: const Text('Alamat Pengantaran Utama', style: TextStyle(fontSize: 13)),
-                          subtitle: const Text('Kecamatan Pracimantoro, Wonogiri', style: TextStyle(fontSize: 11)),
-                          trailing: const Icon(Icons.edit_location_alt_outlined, size: 18),
+                          title: Text('Alamat Pengantaran Utama', style: TextStyle(fontSize: 13, color: textColor)),
+                          subtitle: Text('Kecamatan Pracimantoro, Wonogiri', style: TextStyle(fontSize: 11, color: textSubColor)),
+                          trailing: Icon(Icons.edit_location_alt_outlined, size: 18, color: textSubColor),
                           onTap: () {
                             Navigator.pop(context);
                             Navigator.push(
                               context,
-                              MaterialUriRoute(builder: (ctx) => const EditProfileScreen()),
+                              MaterialPageRoute(builder: (ctx) => const EditProfileScreen()),
                             );
                           },
                         ),
@@ -236,8 +249,8 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
                           ListTile(
                             dense: true,
                             leading: const Icon(Icons.account_box_outlined, color: Colors.teal, size: 20),
-                            title: const Text('Buka Tab Pengaturan Akun Lengkap', style: TextStyle(fontSize: 13)),
-                            trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                            title: Text('Buka Tab Pengaturan Akun Lengkap', style: TextStyle(fontSize: 13, color: textColor)),
+                            trailing: Icon(Icons.arrow_forward_ios_rounded, size: 14, color: textSubColor),
                             onTap: () {
                               Navigator.pop(context);
                               widget.onOpenFullProfile!();
@@ -248,11 +261,17 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
 
                     const SizedBox(height: 10),
 
-                    // Accordion Item 2: Ganti Akun / Switch Profile (Sesuai Request User)
+                    // Accordion Item 2: Ganti Akun / Switch Profile
                     _buildAccordionCard(
+                      context: context,
                       icon: Icons.switch_account_outlined,
                       title: 'Ganti Akun / Switch Profile',
-                      subtitle: 'Beralih antar profil pengguna atau bisnis',
+                      subtitle: 'Beralih antar profil pribadi, bisnis toko, atau keluarga',
+                      cardBg: cardBg,
+                      borderCol: borderCol,
+                      textColor: textColor,
+                      textSubColor: textSubColor,
+                      isDark: isDark,
                       children: [
                         ...List.generate(_availableAccounts.length, (idx) {
                           final acc = _availableAccounts[idx];
@@ -274,7 +293,7 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
                                 children: [
                                   Icon(
                                     isCurrent ? Icons.radio_button_checked : Icons.radio_button_off,
-                                    color: isCurrent ? GageTheme.primary : Colors.grey.shade400,
+                                    color: isCurrent ? GageTheme.primary : (isDark ? Colors.white38 : Colors.grey.shade400),
                                     size: 20,
                                   ),
                                   const SizedBox(width: 12),
@@ -287,10 +306,10 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
                                           style: TextStyle(
                                             fontSize: 13,
                                             fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
-                                            color: isCurrent ? GageTheme.primary : Colors.black87,
+                                            color: isCurrent ? GageTheme.primary : textColor,
                                           ),
                                         ),
-                                        Text(acc['subtitle']!, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                                        Text(acc['subtitle']!, style: TextStyle(fontSize: 11, color: textSubColor)),
                                       ],
                                     ),
                                   ),
@@ -326,18 +345,30 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
 
                     const SizedBox(height: 10),
 
-                    // Accordion Item 3: Bantuan & Hubungi Admin CS GAGE
+                    // Accordion Item 3: Hubungi CS WhatsApp
                     _buildAccordionCard(
+                      context: context,
                       icon: Icons.support_agent_rounded,
-                      title: 'Bantuan & Layanan Pelanggan',
-                      subtitle: 'Hubungi admin WhatsApp & panduan order',
+                      title: 'Hubungi CS WhatsApp',
+                      subtitle: 'Bantuan admin WhatsApp & layanan kendala pesanan',
+                      cardBg: cardBg,
+                      borderCol: borderCol,
+                      textColor: textColor,
+                      textSubColor: textSubColor,
+                      isDark: isDark,
                       children: [
                         ListTile(
                           dense: true,
-                          leading: const Icon(Icons.chat_bubble_outline, color: Color(0xFF16A34A), size: 20),
-                          title: const Text('Chat WhatsApp CS GAGE Pracimantoro', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                          subtitle: const Text('Layanan bantuan kendala order & informasi', style: TextStyle(fontSize: 11)),
-                          trailing: const Icon(Icons.open_in_new, size: 16),
+                          leading: const Icon(Icons.chat_bubble_outline_rounded, color: Color(0xFF16A34A), size: 20),
+                          title: Text(
+                            'Chat WhatsApp Admin GAGE Pracimantoro',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textColor),
+                          ),
+                          subtitle: Text(
+                            '0812-3456-7890 • Respons cepat jam operasional',
+                            style: TextStyle(fontSize: 11, color: textSubColor),
+                          ),
+                          trailing: const Icon(Icons.open_in_new_rounded, size: 16, color: Color(0xFF16A34A)),
                           onTap: () async {
                             final uri = Uri.parse('https://wa.me/6281234567890?text=Halo%20Admin%20GAGE,%20saya%20butuh%20bantuan%20terkait%20pesanan.');
                             if (await canLaunchUrl(uri)) {
@@ -352,18 +383,18 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
 
                     // 4. Tombol Log Out / Keluar Akun (Aksen Merah)
                     InkWell(
-                      onTap: () => _showLogoutDialog(context, auth),
+                      onTap: () => _showLogoutDialog(context, auth, isDark),
                       borderRadius: BorderRadius.circular(12),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         decoration: BoxDecoration(
-                          color: Colors.red.shade50,
+                          color: isDark ? const Color(0xFF2A1215) : Colors.red.shade50,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.red.shade200),
+                          border: Border.all(color: isDark ? const Color(0xFF5A1B20) : Colors.red.shade200),
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.logout_rounded, color: Colors.red.shade700, size: 22),
+                            Icon(Icons.logout_rounded, color: Colors.red.shade600, size: 22),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(
@@ -374,12 +405,15 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 13,
-                                      color: Colors.red.shade700,
+                                      color: isDark ? Colors.red.shade300 : Colors.red.shade700,
                                     ),
                                   ),
                                   Text(
                                     'Keluar dari sesi akun aktif di perangkat ini',
-                                    style: TextStyle(fontSize: 11, color: Colors.red.shade400),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: isDark ? Colors.red.shade200.withValues(alpha: 0.7) : Colors.red.shade400,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -400,16 +434,22 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
   }
 
   Widget _buildAccordionCard({
+    required BuildContext context,
     required IconData icon,
     required String title,
     required String subtitle,
+    required Color cardBg,
+    required Color borderCol,
+    required Color textColor,
+    required Color textSubColor,
+    required bool isDark,
     required List<Widget> children,
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: cardBg,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: borderCol),
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -419,19 +459,19 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
           leading: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? GageTheme.darkBackground : Colors.white,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(color: borderCol),
             ),
             child: Icon(icon, color: GageTheme.primary, size: 22),
           ),
           title: Text(
             title,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87),
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: textColor),
           ),
           subtitle: Text(
             subtitle,
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+            style: TextStyle(fontSize: 11, color: textSubColor),
           ),
           children: children,
         ),
@@ -456,26 +496,30 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
     );
   }
 
-  void _showLogoutDialog(BuildContext context, AuthProvider auth) {
+  void _showLogoutDialog(BuildContext context, AuthProvider auth, bool isDark) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.red),
-            SizedBox(width: 8),
-            Text('Keluar Akun?', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Icon(Icons.warning_amber_rounded, color: Colors.red),
+            const SizedBox(width: 8),
+            Text(
+              'Keluar Akun?',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87),
+            ),
           ],
         ),
-        content: const Text(
+        content: Text(
           'Apakah Anda yakin ingin keluar dari akun GAGE ini? Anda dapat masuk kembali kapan saja dengan nomor WhatsApp Anda.',
-          style: TextStyle(fontSize: 13),
+          style: TextStyle(fontSize: 13, color: isDark ? Colors.white70 : Colors.black87),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+            child: Text('Batal', style: TextStyle(color: isDark ? Colors.white60 : Colors.grey)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -484,8 +528,8 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
             onPressed: () {
-              Navigator.pop(ctx); // Tutup dialog
-              Navigator.pop(context); // Tutup sheet
+              Navigator.pop(ctx);
+              Navigator.pop(context);
               auth.signOut();
             },
             child: const Text('Keluar'),
@@ -494,8 +538,4 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
       ),
     );
   }
-}
-
-class MaterialUriRoute<T> extends MaterialPageRoute<T> {
-  MaterialUriRoute({required super.builder});
 }

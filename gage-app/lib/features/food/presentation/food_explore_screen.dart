@@ -301,6 +301,11 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
     final barColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
     final iconBrightness = isDark ? Brightness.light : Brightness.dark;
 
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTablet = screenWidth >= 600;
+    final rawBannerHeight = screenWidth * 9 / 16;
+    final bannerHeight = isTablet ? 260.0 : rawBannerHeight;
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
         statusBarColor: barColor,
@@ -316,18 +321,18 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
             color: barColor,
           ),
 
-          // 2. Full-Width Banner Hero (Edge-to-Edge) dengan Floating Actions & Floating Search
+          // 2. Full-Width Banner Hero 16:9 Murni dengan Floating Actions & Floating Search Overlap 50%
           SizedBox(
-            height: 224, // Tinggi total: banner (200dp) + overlap search bar (24dp)
+            height: bannerHeight + 24.0, // banner height + 24dp for 50% overlapping 48dp search bar
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                // Full Width Banner Photo (Murni Bersih Bebas Vignette & Teks Overlay)
+                // Full Width Banner Photo (Murni 16:9 Bersih Bebas Vignette & Bebas Teks Overlay Kaku)
                 Positioned(
                   top: 0,
                   left: 0,
                   right: 0,
-                  height: 200,
+                  height: bannerHeight,
                   child: Image.asset(
                     'assets/images/food_hero_banner.png',
                     fit: BoxFit.cover,
@@ -888,14 +893,14 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.near_me_rounded, color: GageTheme.primary, size: 14),
+                      const Icon(Icons.access_time_rounded, color: Colors.grey, size: 13),
                       const SizedBox(width: 4),
                       Text(
-                        '📍 ${m['distance'] ?? '1.2 km'} • ${m['eta'] ?? '15-20 min'}',
-                        style: const TextStyle(
+                        'Estimasi ${m['eta'] ?? '15-25 min'}',
+                        style: TextStyle(
                           fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B),
+                          color: Colors.grey.shade700,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
@@ -905,28 +910,21 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
                     spacing: 6,
                     runSpacing: 4,
                     children: [
-                      // Badge Informasi Jarak Riil (Gantikan estimasi ongkir)
+                      // Badge Informasi Jarak Riil (Ubah badge estimasi ongkir menjadi informasi jarak riil)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF0FDF4),
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(color: const Color(0xFFBBF7D0)),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.location_on_rounded, color: Color(0xFF16A34A), size: 11),
-                            const SizedBox(width: 3),
-                            Text(
-                              '📍 ${m['distance'] ?? '1.2 km'} • ${m['eta'] ?? '15 mnt'}',
-                              style: const TextStyle(
-                                color: Color(0xFF16A34A),
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
+                        child: Text(
+                          '📍 ${m['distance'] ?? '1.2 km'} • ${m['eta'] ?? '15 mnt'}',
+                          style: const TextStyle(
+                            color: Color(0xFF16A34A),
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                       if (m['diskonBadge'] != null)

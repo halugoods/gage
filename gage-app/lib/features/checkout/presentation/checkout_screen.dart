@@ -385,7 +385,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Titik Antar Tujuan Universal (Konsisten dengan GAGE Send, Food & Tani)
+                      // Titik Antar Tujuan Universal (Satu Kesatuan Bersih)
                       Card(
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         child: Padding(
@@ -400,15 +400,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                   const Text('Titik Antar Tujuan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                                   const Spacer(),
                                   InkWell(
-                                    onTap: () => _openLocationPicker(),
+                                    onTap: _openLocationPicker,
                                     borderRadius: BorderRadius.circular(8),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: GageTheme.primary.withOpacity(0.08),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
                                       child: Row(
+                                        mainAxisSize: MainAxisSize.min,
                                         children: const [
                                           Icon(Icons.map_rounded, size: 14, color: GageTheme.primary),
                                           SizedBox(width: 4),
-                                          Text('Pilih Peta', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: GageTheme.primary)),
+                                          Text('Pilih di Peta', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: GageTheme.primary)),
                                         ],
                                       ),
                                     ),
@@ -417,42 +422,37 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               ),
                               const SizedBox(height: 10),
 
-                              // Display Titik Terpilih (Tap untuk ubah via peta/pencarian)
-                              InkWell(
-                                onTap: () => _openLocationPicker(),
-                                borderRadius: BorderRadius.circular(10),
-                                child: Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF8FAFC),
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(color: Colors.grey.shade200),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      const Icon(Icons.home_filled, size: 18, color: GageTheme.primary),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              _addressController.text.isNotEmpty
-                                                  ? _addressController.text
-                                                  : 'Kecamatan Pracimantoro (Titik Antar Utama)',
-                                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              'Jarak tempuh antar: ${cart.distanceKm} km',
-                                              style: const TextStyle(fontSize: 11, color: GageTheme.textSecondary),
-                                            ),
-                                          ],
-                                        ),
+                              // Display Titik Terpilih
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: Colors.grey.shade200),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.home_filled, size: 18, color: GageTheme.primary),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            _addressController.text.isNotEmpty
+                                                ? _addressController.text
+                                                : 'Kecamatan Pracimantoro (Titik Antar Utama)',
+                                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            'Jarak tempuh antar: ${cart.distanceKm} km',
+                                            style: const TextStyle(fontSize: 11, color: GageTheme.textSecondary),
+                                          ),
+                                        ],
                                       ),
-                                      const Icon(Icons.chevron_right_rounded, color: Colors.grey, size: 20),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
                               ),
                               const SizedBox(height: 10),
@@ -528,23 +528,32 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                               ? const Color(0xFFDCFCE7)
                                               : item.serviceType == 'shop'
                                                   ? const Color(0xFFE0F2FE)
-                                                  : Colors.grey.shade100,
+                                                  : const Color(0xFFFEE2E2),
                                           borderRadius: BorderRadius.circular(4),
+                                          border: Border.all(
+                                            color: item.serviceType == 'tani'
+                                                ? const Color(0xFF86EFAC)
+                                                : item.serviceType == 'shop'
+                                                    ? const Color(0xFF7DD3FC)
+                                                    : const Color(0xFFFECACA),
+                                            width: 0.6,
+                                          ),
                                         ),
                                         child: Text(
                                           item.serviceType == 'tani'
-                                              ? '🌾 GAGE Tani'
+                                              ? 'GAGE TANI'
                                               : item.serviceType == 'shop'
-                                                  ? '🛍️ GAGE Shop'
-                                                  : '🍔 Kuliner',
+                                                  ? 'GAGE SHOP'
+                                                  : 'KULINER',
                                           style: TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold,
+                                            fontSize: 9.5,
+                                            letterSpacing: 0.5,
+                                            fontWeight: FontWeight.w800,
                                             color: item.serviceType == 'tani'
                                                 ? const Color(0xFF166534)
                                                 : item.serviceType == 'shop'
                                                     ? const Color(0xFF0369A1)
-                                                    : GageTheme.textSecondary,
+                                                    : const Color(0xFFB91C1C),
                                           ),
                                         ),
                                       ),
@@ -682,7 +691,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 }
                               },
                               icon: const Icon(Icons.add_circle_outline_rounded, size: 18),
-                              label: const Text('+ Tambah Pesanan / Menu Lain', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                              label: const Text('Tambah Menu / Pesanan Lain', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                             ),
                           ),
                         ],
@@ -1017,7 +1026,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
-                                'Ketentuan Layanan & Transparansi Biaya',
+                                'Syarat & Ketentuan Layanan',
                                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: GageTheme.accentGreen),
                               ),
                               const SizedBox(height: 2),
@@ -1036,7 +1045,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                   );
                                 },
                                 child: const Text(
-                                  'Baca Ketentuan Layanan & Kebijakan >',
+                                  'Baca Syarat & Ketentuan Layanan >',
                                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: GageTheme.primary),
                                 ),
                               ),

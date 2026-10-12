@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/providers/wallet_provider.dart';
 import 'package:gage_app/features/wallet/presentation/topup_qris_dialog.dart';
@@ -228,13 +229,14 @@ class _OfflineQrisPaySheetState extends State<OfflineQrisPaySheet>
 
   void _showBankAndEwalletSelector(WalletProvider wallet) {
     final apps = [
-      {'name': 'BCA Mobile', 'tag': 'BCA', 'color': const Color(0xFF005BAC), 'icon': Icons.account_balance_rounded},
-      {'name': "Livin' by Mandiri", 'tag': 'Mandiri', 'color': const Color(0xFF003D79), 'icon': Icons.account_balance_rounded},
-      {'name': 'BRImo (Bank BRI)', 'tag': 'BRI', 'color': const Color(0xFF00529C), 'icon': Icons.account_balance_rounded},
-      {'name': 'GoPay (Gojek)', 'tag': 'GoPay', 'color': const Color(0xFF0081A0), 'icon': Icons.phone_android_rounded},
-      {'name': 'OVO', 'tag': 'OVO', 'color': const Color(0xFF4C3494), 'icon': Icons.account_balance_wallet_rounded},
-      {'name': 'ShopeePay', 'tag': 'Shopee', 'color': const Color(0xFFEE4D2D), 'icon': Icons.shopping_bag_rounded},
-      {'name': 'DANA', 'tag': 'DANA', 'color': const Color(0xFF118EEA), 'icon': Icons.account_balance_wallet_rounded},
+      {'name': 'BCA Mobile', 'tag': 'BCA', 'color': const Color(0xFF005BAC), 'icon': Icons.account_balance_rounded, 'scheme': 'bca://', 'fallback': 'https://play.google.com/store/apps/details?id=com.bca'},
+      {'name': "Livin' by Mandiri", 'tag': 'Mandiri', 'color': const Color(0xFF003D79), 'icon': Icons.account_balance_rounded, 'scheme': 'bankmandiri://', 'fallback': 'https://play.google.com/store/apps/details?id=id.co.bankmandiri.livin'},
+      {'name': 'BRImo (Bank BRI)', 'tag': 'BRI', 'color': const Color(0xFF00529C), 'icon': Icons.account_balance_rounded, 'scheme': 'brimo://', 'fallback': 'https://play.google.com/store/apps/details?id=id.co.bri.brimo'},
+      {'name': 'BNI Mobile Banking', 'tag': 'BNI', 'color': const Color(0xFF005E5D), 'icon': Icons.account_balance_rounded, 'scheme': 'bni://', 'fallback': 'https://play.google.com/store/apps/details?id=src.com.bni'},
+      {'name': 'GoPay (Gojek)', 'tag': 'GoPay', 'color': const Color(0xFF0081A0), 'icon': Icons.phone_android_rounded, 'scheme': 'gopay://', 'fallback': 'https://play.google.com/store/apps/details?id=com.gojek.app'},
+      {'name': 'OVO', 'tag': 'OVO', 'color': const Color(0xFF4C3494), 'icon': Icons.account_balance_wallet_rounded, 'scheme': 'ovo://', 'fallback': 'https://play.google.com/store/apps/details?id=ovo.id'},
+      {'name': 'ShopeePay', 'tag': 'Shopee', 'color': const Color(0xFFEE4D2D), 'icon': Icons.shopping_bag_rounded, 'scheme': 'shopeepay://', 'fallback': 'https://play.google.com/store/apps/details?id=com.shopee.id'},
+      {'name': 'DANA', 'tag': 'DANA', 'color': const Color(0xFF118EEA), 'icon': Icons.account_balance_wallet_rounded, 'scheme': 'dana://', 'fallback': 'https://play.google.com/store/apps/details?id=id.dana'},
     ];
 
     showModalBottomSheet(
@@ -309,8 +311,17 @@ class _OfflineQrisPaySheetState extends State<OfflineQrisPaySheet>
                         style: const TextStyle(fontSize: 11, color: Colors.grey),
                       ),
                       trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
-                      onTap: () {
+                      onTap: () async {
                         Navigator.pop(ctx);
+                        final scheme = app['scheme'] as String?;
+                        if (scheme != null) {
+                          try {
+                            final uri = Uri.parse(scheme);
+                            if (await canLaunchUrl(uri)) {
+                              await launchUrl(uri, mode: LaunchMode.externalApplication);
+                            }
+                          } catch (_) {}
+                        }
                         _completePayment(
                           wallet,
                           sourceLabel: '${app['name']} (Interkoneksi QRIS)',

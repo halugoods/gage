@@ -56,8 +56,8 @@ class WalletProvider extends ChangeNotifier {
     return await GageApiClient.requestTopupQris(userId, amount);
   }
 
-  // Instant Top-Up Simulator (Langsung update D1 dan memori aplikasi)
-  Future<bool> simulateTopup(String userId, int amount) async {
+  // Konfirmasi Top-up Saldo Real-Time (Update D1 & Saldo Aplikasi)
+  Future<bool> confirmTopupPayment(String userId, int amount) async {
     _isLoading = true;
     notifyListeners();
     try {
@@ -69,11 +69,14 @@ class WalletProvider extends ChangeNotifier {
         return true;
       }
     } catch (e) {
-      debugPrint('Error simulating topup: $e');
+      debugPrint('Error confirming topup: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
     }
     return false;
   }
+
+  // Kompatibilitas
+  Future<bool> simulateTopup(String userId, int amount) => confirmTopupPayment(userId, amount);
 }

@@ -445,7 +445,9 @@ class _BabeScreenState extends State<BabeScreen> {
                         if (status.toString().contains('Menunggu Review')) {
                           badgeColor = Colors.amber.shade900;
                           badgeBg = const Color(0xFFFEF3C7);
-                        } else if (status.toString().contains('Escrow')) {
+                        } else if (status.toString().contains('Garansi Keamanan') ||
+                            status.toString().contains('Pembayaran') ||
+                            status.toString().contains('WA')) {
                           badgeColor = const Color(0xFF2563EB);
                           badgeBg = const Color(0xFFEFF6FF);
                         }
@@ -1111,9 +1113,9 @@ class _BabeScreenState extends State<BabeScreen> {
                     primaryColor: const Color(0xFF00880C),
                     actionLabel: 'Titip Jual',
                     messages: const [
-                      'Mau jual barang bekas ga kepakai di rumah? Titip di GAGE aja!',
-                      'Tim GAGE siap bantu kurasi dan jemput barang langsung ke rumahmu.',
-                      'Jual gadget, motor, perabot, perkakas tanpa tawar-menawar liar di luar.',
+                      'Punya barang bekas masih bagus di rumah? Titip jual di BaBe GAGE!',
+                      'Tim GAGE siap bantu cek fisik, foto produk, dan jemput barang ke rumah Anda.',
+                      'Jual gadget, motor, perabot & perkakas aman tanpa ribet tawar liar di luar.',
                     ],
                     onTap: () => _showFormTitipJual(context),
                   ),

@@ -342,7 +342,7 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
                             Text(
                               '• Anda menerima 100% penuh harga bersih yang diajukan.\n'
                               '• Komisi 10% otomatis ditambahkan ke harga pembeli untuk inspeksi fisik, garansi toko 48 jam, dan ongkir kurir lokal.\n'
-                              '• Dana diteruskan ke rekening/e-wallet Anda melalui Rekening Escrow Resmi GAGE.',
+                              '• Dana diteruskan ke rekening/e-wallet Anda melalui sistem pembayaran resmi GAGE.',
                               style: TextStyle(fontSize: 11, color: Color(0xFF1E3A8A), height: 1.4),
                             ),
                           ],
@@ -841,7 +841,7 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('Biaya Kurasi, Garansi & Escrow GAGE (+10%):', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                          const Text('Biaya Kurasi, Inspeksi & Garansi Toko (+10%):', style: TextStyle(fontSize: 12, color: Colors.black54)),
                           Text(
                             currencyFormatter.format(_markupFee),
                             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black54),
@@ -959,7 +959,7 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
                       padding: EdgeInsets.only(top: 4.0),
                       child: Text(
                         '1. Penjual dilarang menjual barang yang sedang aktif listing di BaBe secara sepihak di luar sistem GAGE.\n'
-                        '2. Transaksi pembeli menggunakan rekening Escrow GAGE dan dana 100% diteruskan ke penjual setelah 48 jam garansi.\n'
+                        '2. Transaksi pembeli dilindungi Garansi Keamanan Transaksi GAGE dan dana 100% diteruskan ke penjual setelah 48 jam garansi.\n'
                         '3. Konfirmasi lolos atau ditolak akan diputuskan di Portal Admin GAGE dalam kurun waktu 1x24 jam.',
                         style: TextStyle(fontSize: 10.5, color: Colors.black54, height: 1.35),
                       ),

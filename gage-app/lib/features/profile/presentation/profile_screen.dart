@@ -1268,7 +1268,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               _buildListRow(
                 icon: Icons.verified_user_outlined,
-                title: 'Ketentuan Layanan & Transparansi',
+                title: 'Syarat & Ketentuan Layanan',
                 badgeText: 'Resmi',
                 badgeColor: const Color(0xFF00880C),
                 onTap: () {

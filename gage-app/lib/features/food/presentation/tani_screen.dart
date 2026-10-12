@@ -8,6 +8,7 @@ import 'package:gage_app/core/services/banner_manager_service.dart';
 import 'package:gage_app/core/services/location_service.dart';
 import 'package:gage_app/core/services/osm_geocoding_service.dart';
 import 'package:gage_app/providers/cart_provider.dart';
+import 'package:gage_app/core/services/multi_merchant_cart_service.dart';
 import 'package:gage_app/data/models/cart_item_model.dart';
 import 'package:gage_app/features/checkout/presentation/checkout_screen.dart';
 import 'package:gage_app/features/orders/presentation/orders_screen.dart';
@@ -167,6 +168,97 @@ class _TaniScreenState extends State<TaniScreen> {
       return '${addr.substring(0, 18)}...';
     }
     return addr.trim();
+  }
+
+  // ===========================================================================
+  // MANAJEMEN KERANJANG BERSAMA (CartProvider & MultiMerchantCartService)
+  // Direct Stepper add tanpa chat WA
+  // ===========================================================================
+  void _addToCart(BuildContext context, Map<String, dynamic> item) {
+    final cart = context.read<CartProvider>();
+    final multiCart = context.read<MultiMerchantCartService>();
+
+    final storeId = item['kiosId'] as String? ?? 'mch-gage-tani';
+    final storeName = item['kios'] as String? ?? 'Lapak Resmi GAGE Tani & Ternak';
+
+    final cartItem = CartItem(
+      id: item['id'] as String,
+      name: item['name'] as String,
+      price: item['price'] as int,
+      quantity: 1,
+      storeId: storeId,
+      storeName: storeName,
+      category: item['category'] as String? ?? 'Tani',
+      image: item['image'] as String? ?? '',
+      menuOrigin: 'tani',
+    );
+
+    final cartItemModel = CartItemModel(
+      menuId: item['id'] as String,
+      merchantId: storeId,
+      merchantName: storeName,
+      name: item['name'] as String,
+      price: item['price'] as int,
+      quantity: 1,
+      category: item['category'] as String? ?? 'Tani',
+      imageUrl: item['image'] as String?,
+      serviceType: 'tani',
+    );
+
+    final success = multiCart.addItem(cartItem);
+    if (!success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(multiCart.lastErrorMessage ?? 'Maksimal 3 toko berbeda dalam satu keranjang belanja.'),
+          backgroundColor: Colors.orange.shade800,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final addedToProvider = cart.addItem(cartItemModel);
+    if (!addedToProvider) {
+      multiCart.removeItem(storeId, item['id'] as String);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Maksimal 3 toko berbeda dalam satu keranjang.'),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${item['name']} ditambahkan ke keranjang belanja'),
+        duration: const Duration(seconds: 1),
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: 'LIHAT',
+          textColor: Colors.white,
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (ctx) => const CheckoutScreen()),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  void _updateProductQuantity(BuildContext context, Map<String, dynamic> item, int delta) {
+    final cart = context.read<CartProvider>();
+    final multiCart = context.read<MultiMerchantCartService>();
+    final prodId = item['id'] as String;
+    final storeId = item['kiosId'] as String? ?? 'mch-gage-tani';
+
+    cart.updateQuantity(prodId, delta);
+    final currentQty = cart.getItemQuantity(prodId);
+    multiCart.updateQuantity(storeId, prodId, currentQty);
   }
 
   // ===========================================================================
@@ -466,7 +558,8 @@ class _TaniScreenState extends State<TaniScreen> {
   Widget _buildTaniHeroHeader(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isTablet = screenWidth >= 600;
-    final bannerHeight = isTablet ? 260.0 : ((screenWidth * 9 / 16) + 38).clamp(245.0, 265.0);
+    final rawBannerHeight = screenWidth * 9 / 16;
+    final bannerHeight = isTablet ? 260.0 : rawBannerHeight;
     final topPadding = MediaQuery.of(context).padding.top;
     final bannerManager = context.watch<BannerManagerService>();
     final bannerConfig = bannerManager.getBanner('tani');
@@ -901,7 +994,7 @@ class _TaniScreenState extends State<TaniScreen> {
                       ),
                     ),
 
-                    // Stepper Simpel Seperti GoFood (Order Langsung ke Keranjang Tanpa Chat WA)
+                    // Stepper Simpel Seperti GoFood (Order Langsung ke Keranjang Bersama Tanpa Chat WA)
                     itemQty > 0
                         ? Container(
                             height: 32,
@@ -914,7 +1007,7 @@ class _TaniScreenState extends State<TaniScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 InkWell(
-                                  onTap: () => cart.updateQuantity(prodId, -1),
+                                  onTap: () => _updateProductQuantity(context, item, -1),
                                   child: const Padding(
                                     padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                     child: Icon(Icons.remove, color: Color(0xFF16A34A), size: 16),
@@ -928,7 +1021,7 @@ class _TaniScreenState extends State<TaniScreen> {
                                   ),
                                 ),
                                 InkWell(
-                                  onTap: () => cart.updateQuantity(prodId, 1),
+                                  onTap: () => _updateProductQuantity(context, item, 1),
                                   child: const Padding(
                                     padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                     child: Icon(Icons.add, color: Color(0xFF16A34A), size: 16),
@@ -948,30 +1041,7 @@ class _TaniScreenState extends State<TaniScreen> {
                             ),
                             icon: const Icon(Icons.add_shopping_cart_rounded, size: 14),
                             label: const Text('Beli', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
-                            onPressed: () {
-                              final added = cart.addItem(
-                                CartItemModel(
-                                  menuId: prodId,
-                                  merchantId: 'lapak-tani-gage-01',
-                                  merchantName: 'Lapak Resmi GAGE Tani & Ternak',
-                                  name: item['name'] as String,
-                                  price: price,
-                                  quantity: 1,
-                                  category: item['category'] as String,
-                                  imageUrl: item['image'] as String?,
-                                  serviceType: 'tani',
-                                ),
-                              );
-                              if (!added) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    backgroundColor: Colors.orange,
-                                    content: Text('Maksimal 3 toko berbeda dalam 1 keranjang gabungan.'),
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
-                              }
-                            },
+                            onPressed: () => _addToCart(context, item),
                           ),
                   ],
                 ),
@@ -1167,10 +1237,10 @@ class _TaniScreenState extends State<TaniScreen> {
                                   ),
                                   _buildMainTabButton(
                                     id: 'sewa',
-                                    label: 'Sewa Alat',
+                                    label: 'Sewa Mesin Pertanian (Traktor & Pompa)',
                                     icon: Icons.agriculture_rounded,
                                     isActive: _mainCategory == 'sewa',
-                                    badge: 'Coming Soon',
+                                    badge: 'Segera Hadir',
                                   ),
                                 ],
                               ),
@@ -1183,14 +1253,14 @@ class _TaniScreenState extends State<TaniScreen> {
                               Row(
                                 children: [
                                   _buildSubPillButton(
-                                    label: 'Agroshop (Saprotan & Bibit)',
+                                    label: 'Agroshop',
                                     icon: Icons.storefront_rounded,
                                     isActive: _pertanianSubCategory == 'agroshop',
                                     onTap: () => setState(() => _pertanianSubCategory = 'agroshop'),
                                   ),
                                   const SizedBox(width: 8),
                                   _buildSubPillButton(
-                                    label: 'Hasil Bumi (Panen Lokal)',
+                                    label: 'Hasil Bumi',
                                     icon: Icons.rice_bowl_rounded,
                                     isActive: _pertanianSubCategory == 'hasil_bumi',
                                     onTap: () => setState(() => _pertanianSubCategory = 'hasil_bumi'),
@@ -1201,14 +1271,14 @@ class _TaniScreenState extends State<TaniScreen> {
                               Row(
                                 children: [
                                   _buildSubPillButton(
-                                    label: 'Poultry Shop (Pakan & Obat)',
+                                    label: 'Poultry Shop',
                                     icon: Icons.medication_rounded,
                                     isActive: _peternakanSubCategory == 'poultry_shop',
                                     onTap: () => setState(() => _peternakanSubCategory = 'poultry_shop'),
                                   ),
                                   const SizedBox(width: 8),
                                   _buildSubPillButton(
-                                    label: 'Hasil Ternak (Telur & Susu)',
+                                    label: 'Hasil Ternak',
                                     icon: Icons.egg_rounded,
                                     isActive: _peternakanSubCategory == 'hasil_ternak',
                                     onTap: () => setState(() => _peternakanSubCategory = 'hasil_ternak'),
@@ -1246,9 +1316,26 @@ class _TaniScreenState extends State<TaniScreen> {
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    const Text(
-                                      'Katalog Alsintan (Coming Soon)',
-                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Colors.black87),
+                                    Row(
+                                      children: [
+                                        const Text(
+                                          'Sewa Mesin Pertanian (Traktor & Pompa)',
+                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Colors.black87),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFEF3C7),
+                                            borderRadius: BorderRadius.circular(4),
+                                            border: Border.all(color: const Color(0xFFFDE68A)),
+                                          ),
+                                          child: const Text(
+                                            'Segera Hadir',
+                                            style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFFB45309)),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                     Text(
                                       '${_sewaAlsintanItems.length} Alat Terdaftar',
@@ -1360,118 +1447,117 @@ class _TaniScreenState extends State<TaniScreen> {
             ),
           ),
 
-          // 7. Bottom Bar: Cart Summary (Jika Ada Barang di Keranjang)
-          // ATAU Looping Bubble Chat Interaktif Konsultasi Dokter Tani & Ahli Ternak
-          if (cart.items.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, -3)),
-                ],
-              ),
-              child: SafeArea(
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: isTablet ? 680 : double.infinity),
-                    child: Row(
-                      children: [
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${cart.totalItemCount} Barang (${cart.merchantCount} Toko)',
-                              style: const TextStyle(fontSize: 12, color: GageTheme.textSecondary, fontWeight: FontWeight.bold),
-                            ),
-                            Text(
-                              currencyFormatter.format(cart.subtotal),
-                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF16A34A)),
-                            ),
-                          ],
+          // 7. Bottom Bar Area (Looping Bubble Chat Konsultasi Dokter Tani Selalu Aktif + Cart Summary jika ada barang)
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border(top: BorderSide(color: Colors.grey.shade200)),
+              boxShadow: const [
+                BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, -2)),
+              ],
+            ),
+            child: SafeArea(
+              top: false,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: isTablet ? 680 : double.infinity),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Looping Bubble Chat Interaktif Konsultasi Dokter Tani & Ahli Ternak (Selalu Aktif)
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(16, 8, 16, cart.items.isNotEmpty ? 4 : 8),
+                        child: LoopingBubbleChat(
+                          senderName: _mainCategory == 'pertanian'
+                              ? 'Dokter Tanaman GAGE'
+                              : _mainCategory == 'peternakan'
+                                  ? 'Ahli Nutrisi & Dokter Ternak GAGE'
+                                  : 'Koordinator Alsintan GAGE',
+                          subtitle: 'Konsultasi Gratis via WA',
+                          icon: _mainCategory == 'pertanian'
+                              ? Icons.eco_rounded
+                              : _mainCategory == 'peternakan'
+                                  ? Icons.pets_rounded
+                                  : Icons.agriculture_rounded,
+                          primaryColor: const Color(0xFF16A34A),
+                          actionLabel: 'Tanya WA',
+                          messages: _mainCategory == 'pertanian'
+                              ? const [
+                                  '🌾 Padi terserang hama atau ayam drop produksi? Tanya Ahli Tani GAGE! ✍️ Tim agronomis siap membantu...',
+                                  '🌱 Padi atau jagung menguning terserang wereng? Tanya dokter tanaman GAGE gratis!',
+                                  '🧪 Butuh rekomendasi takaran pupuk NPK & obat gulma tepat dosis? Hubungi tim agronomi kami.',
+                                  '🚜 Petani Pracimantoro bisa konsultasi kesuburan tanah & penyakit tanaman via WA resmi.',
+                                ]
+                              : _mainCategory == 'peternakan'
+                                  ? const [
+                                      '🐔 Ayam drop produksi atau sapi kurang nafsu makan? Tanya Ahli Nutrisi & Dokter Ternak GAGE! ✍️',
+                                      '🌾 Padi terserang hama atau ayam drop produksi? Tanya Ahli Tani GAGE! ✍️ Tim dokter hewan siap membantu...',
+                                      '💊 Panduan gratis jadwal vaksinasi unggas & perawatan ternak sapi kambing Pracimantoro.',
+                                      '🥛 Tanya ketersediaan pakan konsentrat & vitamin ternak bergaransi resmi langsung ke ahlinya.',
+                                    ]
+                                  : const [
+                                      '🚜 Butuh sewa traktor bajak sawah, alkon pompa air irigasi, atau perontok padi? Tanya jadwal operator di sini! ✍️',
+                                      '🌾 Padi terserang hama atau ayam drop produksi? Tanya Ahli Tani GAGE! ✍️ Tim kami siap melayani se-Pracimantoro.',
+                                    ],
+                          onTap: _openConsultationWhatsApp,
                         ),
-                        const Spacer(),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF16A34A),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      ),
+                      // Cart Summary Bar (Tampil Jika Ada Barang di Keranjang Bersama)
+                      if (cart.items.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0FDF4),
+                            border: Border(top: BorderSide(color: Colors.green.shade100)),
                           ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (ctx) => const CheckoutScreen()),
-                            );
-                          },
-                          child: const Row(
+                          child: Row(
                             children: [
-                              Text('Lihat Keranjang', style: TextStyle(fontWeight: FontWeight.bold)),
-                              SizedBox(width: 6),
-                              Icon(Icons.arrow_forward_rounded, size: 18),
+                              Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${cart.totalItemCount} Barang (${cart.merchantCount} Toko)',
+                                    style: const TextStyle(fontSize: 11.5, color: GageTheme.textSecondary, fontWeight: FontWeight.bold),
+                                  ),
+                                  Text(
+                                    currencyFormatter.format(cart.subtotal),
+                                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF16A34A)),
+                                  ),
+                                ],
+                              ),
+                              const Spacer(),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF16A34A),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                  elevation: 0,
+                                ),
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (ctx) => const CheckoutScreen()),
+                                  );
+                                },
+                                child: const Row(
+                                  children: [
+                                    Text('Lihat Keranjang', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+                                    SizedBox(width: 4),
+                                    Icon(Icons.arrow_forward_rounded, size: 16),
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            )
-          else
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border(top: BorderSide(color: Colors.grey.shade200)),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, -2)),
-                ],
-              ),
-              child: SafeArea(
-                top: false,
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: isTablet ? 680 : double.infinity),
-                    child: LoopingBubbleChat(
-                      senderName: _mainCategory == 'pertanian'
-                          ? 'Dokter Tanaman GAGE'
-                          : _mainCategory == 'peternakan'
-                              ? 'Ahli Nutrisi & Dokter Ternak GAGE'
-                              : 'Koordinator Alsintan GAGE',
-                      subtitle: 'Konsultasi Gratis via WA',
-                      icon: _mainCategory == 'pertanian'
-                          ? Icons.eco_rounded
-                          : _mainCategory == 'peternakan'
-                              ? Icons.pets_rounded
-                              : Icons.agriculture_rounded,
-                      primaryColor: const Color(0xFF16A34A),
-                      actionLabel: 'Tanya WA',
-                      messages: _mainCategory == 'pertanian'
-                          ? const [
-                              '🌾 Padi terserang hama atau ayam drop produksi? Tanya Ahli Tani GAGE! ✍️ Tim agronomis siap membantu...',
-                              '🌱 Padi atau jagung menguning terserang wereng? Tanya dokter tanaman GAGE gratis!',
-                              '🧪 Butuh rekomendasi takaran pupuk NPK & obat gulma tepat dosis? Hubungi tim agronomi kami.',
-                              '🚜 Petani Pracimantoro bisa konsultasi kesuburan tanah & penyakit tanaman via WA resmi.',
-                            ]
-                          : _mainCategory == 'peternakan'
-                              ? const [
-                                  '🐔 Ayam drop produksi atau sapi kurang nafsu makan? Tanya Ahli Nutrisi & Dokter Ternak GAGE! ✍️',
-                                  '🌾 Padi terserang hama atau ayam drop produksi? Tanya Ahli Tani GAGE! ✍️ Tim dokter hewan siap membantu...',
-                                  '💊 Panduan gratis jadwal vaksinasi unggas & perawatan ternak sapi kambing Pracimantoro.',
-                                  '🥛 Tanya ketersediaan pakan konsentrat & vitamin ternak bergaransi resmi langsung ke ahlinya.',
-                                ]
-                              : const [
-                                  '🚜 Butuh sewa traktor bajak sawah, alkon pompa air irigasi, atau perontok padi? Tanya jadwal operator di sini! ✍️',
-                                  '🌾 Padi terserang hama atau ayam drop produksi? Tanya Ahli Tani GAGE! ✍️ Tim kami siap melayani se-Pracimantoro.',
-                                ],
-                      onTap: _openConsultationWhatsApp,
-                    ),
+                    ],
                   ),
                 ),
               ),
             ),
+          ),
         ],
       ),
     );
@@ -1495,42 +1581,49 @@ class _TaniScreenState extends State<TaniScreen> {
           });
         },
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 9),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
           decoration: BoxDecoration(
             color: isActive ? const Color(0xFF15803D) : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Row(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 16, color: isActive ? Colors.white : Colors.grey.shade600),
-              const SizedBox(width: 5),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: isActive ? Colors.white : Colors.grey.shade700,
-                  ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 15, color: isActive ? Colors.white : Colors.grey.shade600),
+                  if (badge != null) ...[
+                    const SizedBox(width: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: isActive ? Colors.amber.shade300 : Colors.amber.shade100,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        badge,
+                        style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.amber.shade900),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 3),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.bold,
+                  color: isActive ? Colors.white : Colors.grey.shade700,
+                  height: 1.15,
                 ),
               ),
-              if (badge != null) ...[
-                const SizedBox(width: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: isActive ? Colors.amber.shade300 : Colors.amber.shade100,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    badge,
-                    style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.amber.shade900),
-                  ),
-                ),
-              ],
             ],
           ),
         ),

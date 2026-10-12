@@ -2,9 +2,9 @@
 import 'package:flutter/material.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 
-/// Halaman Resmi Ketentuan Layanan, Kebijakan Privasi, dan Transparansi Biaya Layanan GAGE
+/// Halaman Resmi Syarat & Ketentuan Layanan dan Kebijakan Privasi GAGE
 class TermsAndPrivacyScreen extends StatefulWidget {
-  final int initialTabIndex; // 0: Transparansi Biaya, 1: Ketentuan Layanan, 2: Kebijakan Privasi
+  final int initialTabIndex; // 0: Ketentuan Tarif, 1: Syarat & Ketentuan, 2: Kebijakan Privasi
   final bool showAgreeButton;
   final VoidCallback? onAgreed;
 
@@ -44,7 +44,7 @@ class _TermsAndPrivacyScreenState extends State<TermsAndPrivacyScreen> with Sing
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         title: const Text(
-          'Ketentuan Layanan & Transparansi Biaya',
+          'Syarat & Ketentuan Layanan',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         backgroundColor: Colors.white,
@@ -58,16 +58,16 @@ class _TermsAndPrivacyScreenState extends State<TermsAndPrivacyScreen> with Sing
           indicatorWeight: 3,
           labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
           tabs: const [
-            Tab(text: 'Transparansi Biaya'),
-            Tab(text: 'Ketentuan'),
-            Tab(text: 'Privasi'),
+            Tab(text: 'Ketentuan Tarif'),
+            Tab(text: 'Syarat & Ketentuan'),
+            Tab(text: 'Kebijakan Privasi'),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildTransparansiBiayaTab(),
+          _buildKetentuanTarifTab(),
           _buildKetentuanLayananTab(),
           _buildKebijakanPrivasiTab(),
         ],
@@ -109,9 +109,9 @@ class _TermsAndPrivacyScreenState extends State<TermsAndPrivacyScreen> with Sing
   }
 
   // ─────────────────────────────────────────────────────────────
-  // TAB 1: KETENTUAN LAYANAN & TRANSPARANSI BIAYA
+  // TAB 1: KETENTUAN TARIF & STRUKTUR LAYANAN
   // ─────────────────────────────────────────────────────────────
-  Widget _buildTransparansiBiayaTab() {
+  Widget _buildKetentuanTarifTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -144,7 +144,7 @@ class _TermsAndPrivacyScreenState extends State<TermsAndPrivacyScreen> with Sing
                     SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Prinsip Layanan Transparan & Terpercaya',
+                        'Standar Layanan & Ketentuan Tarif',
                         style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                     ),
@@ -152,12 +152,12 @@ class _TermsAndPrivacyScreenState extends State<TermsAndPrivacyScreen> with Sing
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Standar Layanan Komersial Terbuka, Kepastian Tarif & Perlindungan Konsumen',
+                  'Standar Layanan Resmi, Kepastian Tarif & Perlindungan Konsumen',
                   style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600, height: 1.4),
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  'GAGE Pracimantoro berkomitmen menghadirkan ekosistem logistik hyper-lokal yang profesional, transparan, dan adil bagi seluruh pelanggan, mitra pedagang, dan mitra pengemudi.',
+                  'GAGE Pracimantoro berkomitmen menghadirkan ekosistem logistik hyper-lokal yang profesional, tertib, dan andal bagi seluruh pelanggan, mitra pedagang, dan mitra pengemudi.',
                   style: TextStyle(color: Colors.white70, fontSize: 11.5, height: 1.4),
                 ),
               ],
@@ -166,9 +166,9 @@ class _TermsAndPrivacyScreenState extends State<TermsAndPrivacyScreen> with Sing
 
           const SizedBox(height: 18),
 
-          _buildSectionTitle('1. Komitmen Keterbukaan & Integritas Layanan'),
+          _buildSectionTitle('1. Standar dan Integritas Layanan'),
           _buildParagraph(
-            'Layanan GAGE berlandaskan pada prinsip profesionalisme, keterbukaan informasi tarif, keadilan bagi mitra, dan perlindungan konsumen. Seluruh komponen biaya pengantaran dan layanan diinformasikan secara terbuka sebelum konfirmasi pemesanan dilakukan oleh pengguna.',
+            'Layanan GAGE berlandaskan pada prinsip profesionalisme, kepastian informasi tarif, keadilan bagi mitra, dan perlindungan konsumen. Seluruh komponen biaya pengantaran dan layanan diinformasikan secara jelas sebelum konfirmasi pemesanan dilakukan oleh pengguna.',
           ),
 
           _buildSectionTitle('2. Struktur Perjanjian Layanan'),
@@ -185,7 +185,7 @@ class _TermsAndPrivacyScreenState extends State<TermsAndPrivacyScreen> with Sing
             'GAGE Indonesia bertindak sebagai penyedia platform teknologi digital yang memfasilitasi transaksi aman, pemrosesan pesanan otomatis, navigasi rute GPS real-time, dan layanan bantuan pelanggan.',
           ),
 
-          _buildSectionTitle('3. KLAUSUL KHUSUS: Pembulatan Tarif Biaya Antar (Kelipatan Rp 500)'),
+          _buildSectionTitle('3. Ketentuan Pembulatan Tarif Biaya Antar (Kelipatan Rp 500)'),
           Container(
             margin: const EdgeInsets.symmetric(vertical: 8),
             padding: const EdgeInsets.all(14),
@@ -202,7 +202,7 @@ class _TermsAndPrivacyScreenState extends State<TermsAndPrivacyScreen> with Sing
                     Icon(Icons.info_outline_rounded, color: Colors.amber.shade900, size: 20),
                     const SizedBox(width: 8),
                     Text(
-                      'Ketentuan Pembulatan Rp 500 & Alokasi Subsidi Tarif',
+                      'Ketentuan Pembulatan Rp 500 & Subsidi Layanan',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.amber.shade900),
                     ),
                   ],
@@ -210,7 +210,7 @@ class _TermsAndPrivacyScreenState extends State<TermsAndPrivacyScreen> with Sing
                 const SizedBox(height: 8),
                 Text(
                   '• Untuk mempermudah transaksi lapangan, mempercepat transaksi tunai tanpa kendala kembalian uang pecahan kecil, serta standardisasi sistem pembukuan, total biaya pengantaran dibulatkan ke kelipatan Rp 500 ke atas (contoh: Rp 12.100 dibulatkan menjadi Rp 12.500; Rp 12.700 dibulatkan menjadi Rp 13.000).\n\n'
-                  '• Selisih nilai pembulatan (antara Rp 1 hingga Rp 499) dialokasikan secara transparan untuk program subsidi tarif voucher pelanggan, penunjang operasional, dan pemeliharaan performa teknologi aplikasi GAGE.\n\n'
+                  '• Selisih nilai pembulatan (antara Rp 1 hingga Rp 499) dialokasikan untuk program subsidi tarif voucher pelanggan, penunjang operasional, dan pemeliharaan performa teknologi aplikasi GAGE.\n\n'
                   '• Hak penghasilan Mitra Pengemudi (komisi riil) tetap dihitung dan disalurkan secara pasti dan akurat berdasarkan jarak tempuh riil (kilometer aktual) tanpa potongan terselubung.\n\n'
                   '• Dengan melanjutkan pemesanan, pengguna menyatakan telah membaca, memahami, dan menyetujui struktur perhitungan biaya pengantaran ini secara sadar dan mengikat.',
                   style: TextStyle(fontSize: 12, color: Colors.brown.shade900, height: 1.45),

@@ -174,7 +174,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
 
-              // Persetujuan Syarat & Ketentuan serta Transparansi Layanan
+              // Persetujuan Syarat & Ketentuan Layanan
               Container(
                 margin: const EdgeInsets.only(bottom: 20),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -257,7 +257,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               );
                             },
                             child: const Text(
-                              'Ketentuan Layanan & Transparansi Biaya',
+                              'Ketentuan Tarif Layanan',
                               style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: GageTheme.accentGreen, decoration: TextDecoration.underline),
                             ),
                           ),
@@ -292,7 +292,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               backgroundColor: Colors.red,
-                              content: Text('Harap centang persetujuan Ketentuan Layanan & Transparansi Biaya terlebih dahulu.'),
+                              content: Text('Harap centang persetujuan Syarat & Ketentuan Layanan terlebih dahulu.'),
                             ),
                           );
                           return;
@@ -349,7 +349,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               backgroundColor: Colors.red,
-                              content: Text('Harap centang persetujuan Ketentuan Layanan & Transparansi Biaya terlebih dahulu.'),
+                              content: Text('Harap centang persetujuan Syarat & Ketentuan Layanan terlebih dahulu.'),
                             ),
                           );
                           return;

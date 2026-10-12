@@ -46,13 +46,14 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
   double _routeDistanceKm = 1.8;
   int _estimatedMinutes = 12;
 
-  // Driver Realtime Simulation & OSRM Road Snapping
+  // Driver Realtime Movement & OSRM Road Snapping
   late AnimationController _driverPulseAnim;
   Timer? _driverMovementTimer;
-  int _simulatedStep = 0; // 0 = auto dari status API, 1..5 = override testing
+  int _manualStep = 0; // 0 = auto dari status API, 1..5 = override testing
   int _currentRouteIndex = 0;
   double _driverBearing = 0.0;
-  String? _simulatedVehicleType; // null = auto detect, 'MOTOR', 'CAR'
+  String? _manualVehicleType; // null = auto detect, 'MOTOR', 'CAR'
+  bool _isStepperExpanded = false; // Accordion Expand Card State
 
   @override
   void initState() {
@@ -112,6 +113,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
           _estimatedMinutes = routeRes.durationMinutes > 0 ? routeRes.durationMinutes : 12;
           _isLoadingRoute = false;
         });
+        _fitRouteInCamera();
       }
     } catch (_) {
       if (mounted) {
@@ -123,10 +125,43 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
           ];
           _isLoadingRoute = false;
         });
+        _fitRouteInCamera();
       }
     }
 
-    _startDriverRouteSimulation();
+    _startDriverRouteMovement();
+  }
+
+  /// Menyesuaikan kamera peta agar seluruh rute terlihat jelas di layar
+  void _fitRouteInCamera() {
+    if (_routePoints.isEmpty) {
+      _mapController.move(_driverLocation, 15.5);
+      return;
+    }
+
+    double minLat = _driverLocation.latitude;
+    double maxLat = _driverLocation.latitude;
+    double minLng = _driverLocation.longitude;
+    double maxLng = _driverLocation.longitude;
+
+    for (final p in _routePoints) {
+      if (p.latitude < minLat) minLat = p.latitude;
+      if (p.latitude > maxLat) maxLat = p.latitude;
+      if (p.longitude < minLng) minLng = p.longitude;
+      if (p.longitude > maxLng) maxLng = p.longitude;
+    }
+
+    final bounds = LatLngBounds(
+      LatLng(minLat - 0.002, minLng - 0.002),
+      LatLng(maxLat + 0.002, maxLng + 0.002),
+    );
+
+    _mapController.fitCamera(
+      CameraFit.bounds(
+        bounds: bounds,
+        padding: const EdgeInsets.only(top: 130, bottom: 260, left: 24, right: 24),
+      ),
+    );
   }
 
   /// Menghitung sudut rotasi hadap jalan (bearing derajat 0-360) menggunakan formula atan2
@@ -149,7 +184,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
 
   /// Gerakan marker driver menelusuri array titik jalan raya OSRM _routePoints secara berurutan
   /// Snapping 100% pada jalan raya, menghitung sudut rotasi hadap jalan (bearing) secara dinamis
-  void _startDriverRouteSimulation() {
+  void _startDriverRouteMovement() {
     _driverMovementTimer?.cancel();
     if (_routePoints.length < 2) return;
 
@@ -169,7 +204,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
       setState(() {
         _currentRouteIndex++;
         if (_currentRouteIndex >= _routePoints.length - 1) {
-          _currentRouteIndex = 0; // Loop kembali ke awal rute agar simulasi terus berjalan lancar
+          _currentRouteIndex = 0; // Loop kembali ke awal rute agar pergerakan terus aktif di layar
         }
 
         final currentPt = _routePoints[_currentRouteIndex];
@@ -183,8 +218,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
 
   /// Deteksi tipe kendaraan: Mobil (GageCar) vs Sepeda Motor (GageRide/Food/Send)
   bool _isCarVehicle(OrderModel order) {
-    if (_simulatedVehicleType != null) {
-      return _simulatedVehicleType == 'CAR';
+    if (_manualVehicleType != null) {
+      return _manualVehicleType == 'CAR';
     }
     final plate = (order.driverPlate ?? '').toLowerCase();
     final name = (order.driverName ?? '').toLowerCase();
@@ -200,7 +235,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
 
   /// Menentukan tahap lifecycle pesanan (1 sampai 5)
   int _determineLifecycleStage(OrderModel order) {
-    if (_simulatedStep > 0) return _simulatedStep;
+    if (_manualStep > 0) return _manualStep;
 
     switch (order.status) {
       case 'PAYMENT_PENDING':
@@ -340,42 +375,63 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
       appBar: _buildAppBar(order, currentStage),
       body: Stack(
         children: [
-          SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.only(bottom: 110),
+          // 1. PETA LAYAR PENUH (FULL-BLEED MAP)
+          Positioned.fill(
+            child: _buildFullBleedMap(order, currentStage),
+          ),
+
+          if (_isLoadingRoute)
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: LinearProgressIndicator(
+                minHeight: 2.5,
+                backgroundColor: Colors.transparent,
+                color: GageTheme.primary,
+              ),
+            ),
+
+          // 2. TOMBOL KONTROL PETA (ZOOM OUT RUTE & RECENTER) MELAYANG DI ATAS PETA
+          Positioned(
+            right: 16,
+            bottom: 250,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // 1. PETA MINI RUTE INTERAKTIF
-                _buildInteractiveMiniMap(order, currentStage),
-
-                const SizedBox(height: 12),
-
-                // 2. STEPPER LIFECYCLE 5 TAHAP
-                _buildLifecycleStepperCard(order, currentStage),
-
-                const SizedBox(height: 12),
-
-                // 3. DRIVER CARD LENGKAP
-                _buildDriverCard(order),
-
-                const SizedBox(height: 12),
-
-                // 4. RINCIAN MULTI-MERCHANT & PESANAN
-                _buildMerchantAndOrderDetails(order),
-
-                const SizedBox(height: 12),
-
-                // 5. TOOLBAR SIMULASI TAHAP ORDER (UNTUK QA/TESTING)
-                _buildSimulationToolbar(order, currentStage),
-
-                const SizedBox(height: 24),
+                FloatingActionButton.small(
+                  heroTag: 'track_fit_route',
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.black87,
+                  elevation: 3,
+                  onPressed: _fitRouteInCamera,
+                  child: const Icon(Icons.zoom_out_map_rounded, size: 20),
+                ),
+                const SizedBox(height: 8),
+                FloatingActionButton.small(
+                  heroTag: 'track_recenter',
+                  backgroundColor: Colors.white,
+                  foregroundColor: GageTheme.primary,
+                  elevation: 3,
+                  onPressed: () {
+                    _mapController.move(_driverLocation, 16.0);
+                  },
+                  child: const Icon(Icons.my_location_rounded, size: 20),
+                ),
               ],
             ),
           ),
 
-          // 6. BOTTOM BAR: TOMBOL KONFIRMASI TERIMA PESANAN (PoD)
-          _buildBottomActionPoD(order, currentStage),
+          // 3. ACCORDION EXPAND CARD STEPPER TAHAPAN PENGIRIMAN MELAYANG DI ATAS PETA
+          Positioned(
+            top: 12,
+            left: 16,
+            right: 16,
+            child: _buildAccordionStepperCard(order, currentStage),
+          ),
+
+          // 4. BOTTOM SHEET DRAGGABLE: DRIVER CARD, RINCIAN ORDER, POD & KONTROL TAHAP
+          _buildDraggableBottomPanel(order, currentStage),
         ],
       ),
     );
@@ -496,201 +552,76 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
   }
 
   // ──────────────────────────────────────────────────────────────────────────
-  // 2. PETA MINI RUTE INTERAKTIF (FLUTTER MAP GOOGLE RETINA)
+  // 2. PETA LAYAR PENUH (FULL-BLEED MAP FLUTTER MAP GOOGLE RETINA)
   // ──────────────────────────────────────────────────────────────────────────
-  Widget _buildInteractiveMiniMap(OrderModel order, int stage) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      height: 250,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0C000000),
-            blurRadius: 16,
-            offset: Offset(0, 6),
-          ),
-        ],
+  Widget _buildFullBleedMap(OrderModel order, int stage) {
+    return FlutterMap(
+      mapController: _mapController,
+      options: MapOptions(
+        initialCenter: _driverLocation,
+        initialZoom: 15.2,
+        minZoom: 10.0,
+        maxZoom: 21.0,
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Stack(
-          children: [
-            // Peta Google Roadmap Retina TileLayer
-            FlutterMap(
-              mapController: _mapController,
-              options: MapOptions(
-                initialCenter: _driverLocation,
-                initialZoom: 15.2,
-                minZoom: 10.0,
-                maxZoom: 21.0,
+      children: [
+        // Peta Google Roadmap Retina TileLayer
+        TileLayer(
+          urlTemplate: 'https://mt{s}.google.com/vt/lyrs=m&scale=2&hl=id&x={x}&y={y}&z={z}',
+          subdomains: const ['0', '1', '2', '3'],
+          tileDimension: 256,
+          userAgentPackageName: 'com.gage.customer',
+          maxZoom: 21.0,
+          fallbackUrl: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+        ),
+
+        // Polyline Rute Jalan Raya
+        if (_routePoints.isNotEmpty)
+          PolylineLayer(
+            polylines: [
+              // Bayangan Polyline
+              Polyline(
+                points: _routePoints,
+                strokeWidth: 8.0,
+                color: Colors.black.withValues(alpha: 0.12),
               ),
-              children: [
-                TileLayer(
-                  urlTemplate: 'https://mt{s}.google.com/vt/lyrs=m&scale=2&hl=id&x={x}&y={y}&z={z}',
-                  subdomains: const ['0', '1', '2', '3'],
-                  tileDimension: 256,
-                  userAgentPackageName: 'com.gage.customer',
-                  maxZoom: 21.0,
-                ),
+              // Garis Rute Utama
+              Polyline(
+                points: _routePoints,
+                strokeWidth: 5.0,
+                color: stage >= 4 ? const Color(0xFFE52320) : const Color(0xFF16A34A),
+              ),
+            ],
+          ),
 
-                // Polyline Rute Jalan Raya
-                if (_routePoints.isNotEmpty)
-                  PolylineLayer(
-                    polylines: [
-                      // Bayangan Polyline
-                      Polyline(
-                        points: _routePoints,
-                        strokeWidth: 8.0,
-                        color: Colors.black.withValues(alpha: 0.12),
-                      ),
-                      // Garis Rute Utama
-                      Polyline(
-                        points: _routePoints,
-                        strokeWidth: 5.0,
-                        color: stage >= 4 ? const Color(0xFFE52320) : const Color(0xFF16A34A),
-                      ),
-                    ],
-                  ),
-
-                // Marker Lapisan
-                MarkerLayer(
-                  markers: [
-                    // 1. Marker Toko / Titik Jemput
-                    Marker(
-                      point: _storeLocation,
-                      width: 50,
-                      height: 50,
-                      child: _buildStoreMarker(order.merchantName),
-                    ),
-
-                    // 2. Marker Rumah Pemesan / Titik Antar
-                    Marker(
-                      point: _customerLocation,
-                      width: 50,
-                      height: 50,
-                      child: _buildCustomerMarker(),
-                    ),
-
-                    // 3. Marker Driver 3D Bird's-Eye View (Rotasi Bearing & Snapping Jalan Raya)
-                    Marker(
-                      point: _driverLocation,
-                      width: 80,
-                      height: 80,
-                      child: _buildDriverMarker(order),
-                    ),
-                  ],
-                ),
-              ],
+        // Marker Lapisan
+        MarkerLayer(
+          markers: [
+            // 1. Marker Toko / Titik Jemput
+            Marker(
+              point: _storeLocation,
+              width: 50,
+              height: 50,
+              child: _buildStoreMarker(order.merchantName),
             ),
 
-            // Loading overlay halus saat rute sedang dikalkulasi
-            if (_isLoadingRoute)
-              Positioned(
-                bottom: 16,
-                left: 16,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.7),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      SizedBox(
-                        width: 12,
-                        height: 12,
-                        child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.white),
-                      ),
-                      SizedBox(width: 6),
-                      Text('Memuat rute presisi...', style: TextStyle(color: Colors.white, fontSize: 10)),
-                    ],
-                  ),
-                ),
-              ),
-
-            // Overlay Info Banner: Estimasi Waktu Tiba (ETA)
-            Positioned(
-              top: 12,
-              left: 12,
-              right: 12,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.96),
-                  borderRadius: BorderRadius.circular(30),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 3)),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: GageTheme.primary.withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.timer_rounded, color: GageTheme.primary, size: 16),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            stage == 5
-                                ? 'Pesanan Telah Tiba di Lokasi'
-                                : 'Estimasi Tiba: ~$_estimatedMinutes Menit',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w900,
-                              fontSize: 12.5,
-                              color: Color(0xFF0F172A),
-                            ),
-                          ),
-                          Text(
-                            'Jarak antar: ${_routeDistanceKm.toStringAsFixed(1)} km • Jalan Raya Bebas Hambatan',
-                            style: TextStyle(color: Colors.grey.shade600, fontSize: 10.5),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    // Live Pulse Dot
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF16A34A),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            // 2. Marker Rumah Pemesan / Titik Antar
+            Marker(
+              point: _customerLocation,
+              width: 50,
+              height: 50,
+              child: _buildCustomerMarker(),
             ),
 
-            // Tombol Recenter Peta
-            Positioned(
-              bottom: 12,
-              right: 12,
-              child: FloatingActionButton.small(
-                heroTag: 'recenter_map_btn',
-                backgroundColor: Colors.white,
-                foregroundColor: GageTheme.primary,
-                elevation: 4,
-                onPressed: () {
-                  _mapController.move(_driverLocation, 15.5);
-                },
-                child: const Icon(Icons.my_location_rounded, size: 20),
-              ),
+            // 3. Marker Driver 3D Bird's-Eye View (Rotasi Bearing & Berlatar Transparan Menyatu dengan Jalan)
+            Marker(
+              point: _driverLocation,
+              width: 80,
+              height: 80,
+              child: _buildDriverMarker(order),
             ),
           ],
         ),
-      ),
+      ],
     );
   }
 
@@ -752,68 +683,36 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
     );
   }
 
-  /// Marker Kendaraan 3D Bird's-Eye View (Tampak Atas) dengan Rotasi Hadap Jalan & Bayangan Lembut
+  /// Marker Kendaraan 3D Bird's-Eye View (Tampak Atas) Berlatar Transparan Menyatu dengan Rute Jalan Raya
   Widget _buildDriverMarker(OrderModel order) {
     final isCar = _isCarVehicle(order);
 
-    return AnimatedBuilder(
-      animation: _driverPulseAnim,
-      builder: (context, child) {
-        final shadowBlur = 9.0 + (_driverPulseAnim.value * 5.0);
-        final shadowOpacity = 0.28 + (_driverPulseAnim.value * 0.12);
-
-        return Center(
-          child: Transform.rotate(
-            angle: _driverBearing * (math.pi / 180.0),
-            child: Container(
-              decoration: BoxDecoration(
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: shadowOpacity),
-                    blurRadius: shadowBlur,
-                    spreadRadius: 1.2,
-                    offset: const Offset(0, 3.5),
-                  ),
-                ],
+    return Center(
+      child: Transform.rotate(
+        angle: _driverBearing * (math.pi / 180.0),
+        child: isCar
+            ? const GageCarBirdEyeWidget()
+            : Image.asset(
+                'assets/images/motor_3d_topdown.png',
+                width: 34,
+                height: 60,
+                fit: BoxFit.contain,
+                errorBuilder: (ctx, err, st) => Image.asset(
+                  'assets/images/motor_3d_topdown.jpg',
+                  width: 34,
+                  height: 60,
+                  fit: BoxFit.contain,
+                  errorBuilder: (ctx2, err2, st2) => const GageMotorcycleBirdEyeWidget(),
+                ),
               ),
-              child: isCar
-                  ? Image.asset(
-                      'assets/images/car_3d_topdown.png',
-                      width: 40,
-                      height: 68,
-                      fit: BoxFit.contain,
-                      errorBuilder: (ctx, err, st) => Image.asset(
-                        'assets/images/car_3d_topdown.jpg',
-                        width: 40,
-                        height: 68,
-                        fit: BoxFit.contain,
-                        errorBuilder: (ctx2, err2, st2) => const GageCarBirdEyeWidget(),
-                      ),
-                    )
-                  : Image.asset(
-                      'assets/images/motor_3d_topdown.png',
-                      width: 32,
-                      height: 58,
-                      fit: BoxFit.contain,
-                      errorBuilder: (ctx, err, st) => Image.asset(
-                        'assets/images/motor_3d_topdown.jpg',
-                        width: 32,
-                        height: 58,
-                        fit: BoxFit.contain,
-                        errorBuilder: (ctx2, err2, st2) => const GageMotorcycleBirdEyeWidget(),
-                      ),
-                    ),
-            ),
-          ),
-        );
-      },
+      ),
     );
   }
 
   // ──────────────────────────────────────────────────────────────────────────
-  // 3. STEPPER LIFECYCLE STATUS PESANAN (5 TAHAP VISUAL)
+  // 3. ACCORDION EXPAND CARD STEPPER TAHAPAN PENGIRIMAN (MELAYANG DI ATAS PETA)
   // ──────────────────────────────────────────────────────────────────────────
-  Widget _buildLifecycleStepperCard(OrderModel order, int currentStage) {
+  Widget _buildAccordionStepperCard(OrderModel order, int currentStage) {
     final stages = [
       {
         'step': 1,
@@ -847,216 +746,418 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
       },
     ];
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0A000000),
-            blurRadius: 14,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Alur Pengiriman (Lifecycle)',
-                style: TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 15,
-                  color: Color(0xFF0F172A),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  'Tahap $currentStage dari 5',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade700,
-                  ),
-                ),
+    final stageTitle = _getStageTitle(currentStage);
+    final stageSubtitle = _getStageSubtitle(currentStage, order);
+    final stageColor = _getStageColor(currentStage);
+    final stageIcon = _getStageIcon(currentStage);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _isStepperExpanded = !_isStepperExpanded;
+          });
+        },
+        borderRadius: BorderRadius.circular(18),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.97),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.grey.shade200, width: 1.2),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x19000000),
+                blurRadius: 16,
+                offset: Offset(0, 4),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-
-          // Render 5 Tahapan
-          ...stages.asMap().entries.map((entry) {
-            final idx = entry.key;
-            final item = entry.value;
-            final stepNum = item['step'] as int;
-            final isCompleted = currentStage > stepNum;
-            final isCurrent = currentStage == stepNum;
-            final isLast = idx == stages.length - 1;
-
-            Widget stepIndicator = Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: isCompleted
-                    ? const Color(0xFF16A34A)
-                    : (isCurrent ? GageTheme.primary : Colors.grey.shade200),
-                shape: BoxShape.circle,
-                boxShadow: isCurrent
-                    ? [
-                        BoxShadow(
-                          color: GageTheme.primary.withValues(alpha: 0.35),
-                          blurRadius: 8,
-                          spreadRadius: 1,
-                        ),
-                      ]
-                    : null,
-              ),
-              child: Center(
-                child: isCompleted
-                    ? const Icon(Icons.check_rounded, color: Colors.white, size: 18)
-                    : Icon(
-                        item['icon'] as IconData,
-                        color: isCurrent ? Colors.white : Colors.grey.shade500,
-                        size: 17,
-                      ),
-              ),
-            );
-
-            // Berikan animasi denyut halus pada tahap yang sedang aktif
-            if (isCurrent) {
-              stepIndicator = AnimatedBuilder(
-                animation: _driverPulseAnim,
-                builder: (context, child) {
-                  final pulseScale = 1.0 + (_driverPulseAnim.value * 0.08);
-                  final glowAlpha = 0.25 + (_driverPulseAnim.value * 0.20);
-                  return Transform.scale(
-                    scale: pulseScale,
-                    child: Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: GageTheme.primary,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: GageTheme.primary.withValues(alpha: glowAlpha),
-                            blurRadius: 6.0 + (_driverPulseAnim.value * 6.0),
-                            spreadRadius: 1.0 + (_driverPulseAnim.value * 1.5),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header Status Tahap Saat Ini (Default Tampil)
+              Row(
+                children: [
+                  // Icon Status Berdenyut
+                  AnimatedBuilder(
+                    animation: _driverPulseAnim,
+                    builder: (context, child) {
+                      final scale = 1.0 + (_driverPulseAnim.value * 0.08);
+                      return Transform.scale(
+                        scale: scale,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: stageColor.withOpacity(0.12),
+                            shape: BoxShape.circle,
                           ),
-                        ],
-                      ),
-                      child: Center(
-                        child: Icon(
-                          item['icon'] as IconData,
-                          color: Colors.white,
-                          size: 17,
+                          child: Icon(stageIcon, color: stageColor, size: 20),
                         ),
-                      ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 12),
+                  // Teks Status Tahap
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Tahap $currentStage/5: $stageTitle',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 13.5,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          currentStage == 5
+                              ? 'Pesanan tiba di tujuan • Selesai'
+                              : 'ETA ~$_estimatedMinutes Menit • $stageSubtitle',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
-                  );
-                },
-              );
-            }
+                  ),
+                  const SizedBox(width: 8),
+                  // Chip Toggle Accordion
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: GageTheme.primary.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _isStepperExpanded ? 'Tutup' : 'Rincian',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: GageTheme.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        Icon(
+                          _isStepperExpanded
+                              ? Icons.keyboard_arrow_up_rounded
+                              : Icons.keyboard_arrow_down_rounded,
+                          size: 16,
+                          color: GageTheme.primary,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
 
-            return Column(
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Lingkaran Indikator Step
-                    stepIndicator,
-                    const SizedBox(width: 14),
-
-                    // Teks Detail Tahap
-                    Expanded(
-                      child: Column(
+              // Bagian Accordion Mengembang (Expand: 5 Tahapan Rute)
+              AnimatedSize(
+                duration: const Duration(milliseconds: 320),
+                curve: Curves.easeInOutCubic,
+                child: _isStepperExpanded
+                    ? Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  item['title'] as String,
-                                  style: TextStyle(
-                                    fontWeight: isCurrent ? FontWeight.w900 : FontWeight.w600,
-                                    fontSize: 13.5,
-                                    color: isCurrent
-                                        ? const Color(0xFF0F172A)
-                                        : (isCompleted ? Colors.black87 : Colors.grey.shade500),
-                                  ),
-                                ),
+                          const Divider(height: 20),
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 12.0),
+                            child: Text(
+                              'Rincian 5 Tahapan Pengantaran:',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 12.5,
+                                color: Color(0xFF334155),
                               ),
-                              if (isCurrent)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: GageTheme.primary.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: const Text(
-                                    'Aktif',
-                                    style: TextStyle(
-                                      color: GageTheme.primary,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          ...stages.asMap().entries.map((entry) {
+                            final idx = entry.key;
+                            final item = entry.value;
+                            final stepNum = item['step'] as int;
+                            final isCompleted = currentStage > stepNum;
+                            final isCurrent = currentStage == stepNum;
+                            final isLast = idx == stages.length - 1;
+
+                            Widget stepIndicator = Container(
+                              width: 28,
+                              height: 28,
+                              decoration: BoxDecoration(
+                                color: isCompleted
+                                    ? const Color(0xFF16A34A)
+                                    : (isCurrent ? GageTheme.primary : Colors.grey.shade200),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: isCompleted
+                                    ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
+                                    : Icon(
+                                        item['icon'] as IconData,
+                                        color: isCurrent ? Colors.white : Colors.grey.shade500,
+                                        size: 15,
+                                      ),
+                              ),
+                            );
+
+                            return Column(
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    stepIndicator,
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  item['title'] as String,
+                                                  style: TextStyle(
+                                                    fontWeight: isCurrent ? FontWeight.w900 : FontWeight.w600,
+                                                    fontSize: 12.5,
+                                                    color: isCurrent
+                                                        ? const Color(0xFF0F172A)
+                                                        : (isCompleted ? Colors.black87 : Colors.grey.shade500),
+                                                  ),
+                                                ),
+                                              ),
+                                              if (isCurrent)
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                                  decoration: BoxDecoration(
+                                                    color: GageTheme.primary.withOpacity(0.1),
+                                                    borderRadius: BorderRadius.circular(6),
+                                                  ),
+                                                  child: const Text(
+                                                    'Aktif',
+                                                    style: TextStyle(
+                                                      color: GageTheme.primary,
+                                                      fontSize: 9.5,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            item['desc'] as String,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: isCurrent
+                                                  ? Colors.grey.shade700
+                                                  : (isCompleted ? Colors.grey.shade600 : Colors.grey.shade400),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (!isLast)
+                                  Container(
+                                    margin: const EdgeInsets.only(left: 13, top: 3, bottom: 3),
+                                    width: 2.0,
+                                    height: 18,
+                                    decoration: BoxDecoration(
+                                      color: isCompleted ? const Color(0xFF16A34A) : Colors.grey.shade200,
+                                      borderRadius: BorderRadius.circular(1),
                                     ),
                                   ),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            item['desc'] as String,
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              color: isCurrent
-                                  ? Colors.grey.shade700
-                                  : (isCompleted ? Colors.grey.shade600 : Colors.grey.shade400),
+                              ],
+                            );
+                          }),
+                          const SizedBox(height: 8),
+                          Center(
+                            child: Text(
+                              'Ketuk kartu untuk menutup tahapan',
+                              style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
                             ),
                           ),
                         ],
-                      ),
-                    ),
-                  ],
-                ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
-                // Garis Penghubung antar Step dengan animasi mengalir halus ke bawah (durasi 450ms, Curves.easeInOut)
-                if (!isLast)
-                  Container(
-                    margin: const EdgeInsets.only(left: 15, top: 4, bottom: 4),
-                    width: 2.5,
-                    height: 22,
+  String _getStageTitle(int stage) {
+    switch (stage) {
+      case 1:
+        return 'Mencari Driver Terdekat';
+      case 2:
+        return 'Driver Menuju Toko';
+      case 3:
+        return 'Pesanan Sedang Disiapkan';
+      case 4:
+        return 'Pesanan Sedang Diantar';
+      case 5:
+        return 'Pesanan Tiba & Selesai';
+      default:
+        return 'Pesanan Diproses';
+    }
+  }
+
+  String _getStageSubtitle(int stage, OrderModel order) {
+    switch (stage) {
+      case 1:
+        return 'Mencocokkan driver di Pracimantoro';
+      case 2:
+        return '${order.driverName ?? "Driver"} menuju toko';
+      case 3:
+        return 'Pesanan dimasak hangat & rapi';
+      case 4:
+        return 'Menuju alamat Anda (${_routeDistanceKm.toStringAsFixed(1)} km)';
+      case 5:
+        return 'Paket diterima di alamat tujuan';
+      default:
+        return 'Memproses rute';
+    }
+  }
+
+  Color _getStageColor(int stage) {
+    switch (stage) {
+      case 1:
+        return const Color(0xFFD97706);
+      case 2:
+        return const Color(0xFF1D4ED8);
+      case 3:
+        return const Color(0xFFC2410C);
+      case 4:
+        return const Color(0xFFE52320);
+      case 5:
+        return const Color(0xFF16A34A);
+      default:
+        return GageTheme.primary;
+    }
+  }
+
+  IconData _getStageIcon(int stage) {
+    switch (stage) {
+      case 1:
+        return Icons.radar_rounded;
+      case 2:
+        return Icons.two_wheeler_rounded;
+      case 3:
+        return Icons.outdoor_grill_rounded;
+      case 4:
+        return Icons.delivery_dining_rounded;
+      case 5:
+        return Icons.check_circle_rounded;
+      default:
+        return Icons.local_shipping_rounded;
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // 4. BOTTOM SHEET DRAGGABLE (DRIVER CARD, RINCIAN ORDER, POD & KONTROL TAHAP)
+  // ──────────────────────────────────────────────────────────────────────────
+  Widget _buildDraggableBottomPanel(OrderModel order, int currentStage) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.32,
+      minChildSize: 0.20,
+      maxChildSize: 0.88,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0x1F000000),
+                blurRadius: 18,
+                offset: Offset(0, -6),
+              ),
+            ],
+          ),
+          child: SingleChildScrollView(
+            controller: scrollController,
+            physics: const ClampingScrollPhysics(),
+            padding: const EdgeInsets.only(bottom: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Handle Bar drag indicator
+                Center(
+                  child: Container(
+                    margin: const EdgeInsets.only(top: 10, bottom: 8),
+                    width: 44,
+                    height: 4.5,
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                    alignment: Alignment.topCenter,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 450),
-                      curve: Curves.easeInOut,
-                      width: 2.5,
-                      height: isCompleted ? 22 : 0,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF16A34A),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(3),
                     ),
                   ),
+                ),
+
+                // Driver Card Lengkap
+                _buildDriverCard(order),
+
+                const SizedBox(height: 12),
+
+                // Rincian Multi-Merchant & Pesanan
+                _buildMerchantAndOrderDetails(order),
+
+                const SizedBox(height: 12),
+
+                // Toolbar Kontrol Tahap Pengantaran
+                _buildStageControlToolbar(order, currentStage),
+
+                const SizedBox(height: 16),
+
+                // Tombol Konfirmasi Terima Pesanan (PoD)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _buildPoDActionButton(order, currentStage),
+                ),
               ],
-            );
-          }),
-        ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPoDActionButton(OrderModel order, int currentStage) {
+    final isDeliveredOrArrived = currentStage >= 4;
+
+    return ElevatedButton.icon(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: isDeliveredOrArrived
+            ? const Color(0xFF16A34A)
+            : Colors.grey.shade400,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        padding: const EdgeInsets.symmetric(vertical: 14),
       ),
+      icon: const Icon(Icons.verified_rounded, size: 20),
+      label: Text(
+        currentStage == 5 ? 'Pesanan Telah Selesai (Lihat Bukti PoD)' : 'Konfirmasi Pesanan Diterima',
+        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+      ),
+      onPressed: () {
+        _showProofOfDeliveryDialog(order);
+      },
     );
   }
 
@@ -1467,9 +1568,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
   }
 
   // ──────────────────────────────────────────────────────────────────────────
-  // 6. TOOLBAR SIMULASI TAHAP ORDER (UNTUK QA / PENGUJIAN LANGSUNG DI HP)
+  // 6. TOOLBAR KONTROL TAHAP PENGANTARAN
   // ──────────────────────────────────────────────────────────────────────────
-  Widget _buildSimulationToolbar(OrderModel order, int currentStage) {
+  Widget _buildStageControlToolbar(OrderModel order, int currentStage) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(14),
@@ -1483,17 +1584,17 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
         children: [
           Row(
             children: const [
-              Icon(Icons.notifications_active_rounded, color: Color(0xFFD97706), size: 18),
+              Icon(Icons.alt_route_rounded, color: Color(0xFFD97706), size: 18),
               SizedBox(width: 8),
               Text(
-                'Alert Pengiriman',
+                'Kontrol Alur Pengantaran',
                 style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: Color(0xFF92400E)),
               ),
             ],
           ),
           const SizedBox(height: 4),
           Text(
-            'Simulasi Lifecycle Real-time',
+            'Pilih status untuk melihat pergerakan armada & rute navigasi',
             style: TextStyle(fontSize: 11.5, color: Colors.amber.shade900, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 10),
@@ -1501,9 +1602,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                _buildSimChip(1, '1. Cari Driver', currentStage == 1, () {
+                _buildStageChip(1, '1. Cari Driver', currentStage == 1, () {
                   setState(() {
-                    _simulatedStep = 1;
+                    _manualStep = 1;
                     if (_routePoints.isNotEmpty) {
                       _currentRouteIndex = 0;
                       _driverLocation = _routePoints.first;
@@ -1511,9 +1612,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                   });
                 }),
                 const SizedBox(width: 6),
-                _buildSimChip(2, '2. Menuju Resto', currentStage == 2, () {
+                _buildStageChip(2, '2. Menuju Resto', currentStage == 2, () {
                   setState(() {
-                    _simulatedStep = 2;
+                    _manualStep = 2;
                     if (_routePoints.length > 2) {
                       _currentRouteIndex = (_routePoints.length * 0.25).toInt();
                       _driverLocation = _routePoints[_currentRouteIndex];
@@ -1521,9 +1622,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                   });
                 }),
                 const SizedBox(width: 6),
-                _buildSimChip(3, '3. Di Resto', currentStage == 3, () {
+                _buildStageChip(3, '3. Di Resto', currentStage == 3, () {
                   setState(() {
-                    _simulatedStep = 3;
+                    _manualStep = 3;
                     if (_routePoints.length > 2) {
                       _currentRouteIndex = (_routePoints.length * 0.50).toInt();
                       _driverLocation = _routePoints[_currentRouteIndex];
@@ -1531,9 +1632,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                   });
                 }),
                 const SizedBox(width: 6),
-                _buildSimChip(4, '4. Antar ke Rumah', currentStage == 4, () {
+                _buildStageChip(4, '4. Antar ke Rumah', currentStage == 4, () {
                   setState(() {
-                    _simulatedStep = 4;
+                    _manualStep = 4;
                     if (_routePoints.length > 2) {
                       _currentRouteIndex = (_routePoints.length * 0.75).toInt();
                       _driverLocation = _routePoints[_currentRouteIndex];
@@ -1541,9 +1642,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                   });
                 }),
                 const SizedBox(width: 6),
-                _buildSimChip(5, '5. Tiba / Selesai', currentStage == 5, () {
+                _buildStageChip(5, '5. Tiba / Selesai', currentStage == 5, () {
                   setState(() {
-                    _simulatedStep = 5;
+                    _manualStep = 5;
                     if (_routePoints.isNotEmpty) {
                       _currentRouteIndex = math.max(0, _routePoints.length - 2);
                       _driverLocation = _routePoints.last;
@@ -1569,13 +1670,13 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
               _buildVehicleChip(
                 label: '🏍️ Sepeda Motor',
                 isActive: !_isCarVehicle(order),
-                onTap: () => setState(() => _simulatedVehicleType = 'MOTOR'),
+                onTap: () => setState(() => _manualVehicleType = 'MOTOR'),
               ),
               const SizedBox(width: 6),
               _buildVehicleChip(
                 label: '🚗 Mobil (GageCar)',
                 isActive: _isCarVehicle(order),
-                onTap: () => setState(() => _simulatedVehicleType = 'CAR'),
+                onTap: () => setState(() => _manualVehicleType = 'CAR'),
               ),
             ],
           ),
@@ -1613,7 +1714,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
     );
   }
 
-  Widget _buildSimChip(int step, String label, bool isActive, VoidCallback onTap) {
+  Widget _buildStageChip(int step, String label, bool isActive, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
@@ -1632,61 +1733,6 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
             fontSize: 11,
             fontWeight: FontWeight.bold,
             color: isActive ? Colors.white : const Color(0xFF92400E),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // 7. BOTTOM BAR: TOMBOL KONFIRMASI TERIMA PESANAN (PoD)
-  // ──────────────────────────────────────────────────────────────────────────
-  Widget _buildBottomActionPoD(OrderModel order, int currentStage) {
-    final isDeliveredOrArrived = currentStage >= 4;
-
-    return Positioned(
-      bottom: 0,
-      left: 0,
-      right: 0,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x19000000),
-              blurRadius: 16,
-              offset: Offset(0, -4),
-            ),
-          ],
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isDeliveredOrArrived
-                        ? const Color(0xFF16A34A)
-                        : Colors.grey.shade400,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  icon: const Icon(Icons.verified_rounded, size: 20),
-                  label: Text(
-                    currentStage == 5 ? 'Pesanan Telah Selesai (Lihat PoD)' : 'Konfirmasi Pesanan Diterima',
-                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
-                  ),
-                  onPressed: () {
-                    _showProofOfDeliveryDialog(order);
-                  },
-                ),
-              ),
-            ],
           ),
         ),
       ),
@@ -1937,8 +1983,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                       ),
                       onPressed: () {
                         Navigator.pop(ctx);
-                        setState(() => _simulatedStep = 5);
-                        context.read<OrderProvider>().simulateStage(order.id, 'COMPLETED');
+                        setState(() => _manualStep = 5);
+                        context.read<OrderProvider>().updateOrderStage(order.id, 'COMPLETED');
 
                         showDialog(
                           context: context,

@@ -91,12 +91,32 @@ class _ShopScreenState extends State<ShopScreen> {
   // ===========================================================================
   // DATA KATEGORI BELANJA (Persis Sesuai Spesifikasi GAGE Shop)
   // ===========================================================================
-  final List<String> _categories = [
-    'Semua',
-    'Sembako & Beras',
-    'Minyak & Bumbu',
-    'Makanan Ringan',
-    'Sabun & Kebersihan',
+  final List<Map<String, dynamic>> _categories = [
+    {
+      'name': 'Semua',
+      'image': 'assets/images/hero_header_clean_16x9.png',
+      'icon': Icons.all_inclusive_rounded,
+    },
+    {
+      'name': 'Sembako & Beras',
+      'image': 'assets/images/prod_beras.png',
+      'icon': Icons.rice_bowl_rounded,
+    },
+    {
+      'name': 'Minyak & Bumbu',
+      'image': 'assets/images/prod_minyak.png',
+      'icon': Icons.liquor_rounded,
+    },
+    {
+      'name': 'Makanan Ringan',
+      'image': 'assets/images/prod_indomie.png',
+      'icon': Icons.fastfood_rounded,
+    },
+    {
+      'name': 'Sabun & Kebersihan',
+      'image': 'assets/images/hero_promo_1.png',
+      'icon': Icons.cleaning_services_rounded,
+    },
   ];
 
   // Quick Action Buttons (Setara Arsitektur GAGE Food)
@@ -660,37 +680,11 @@ class _ShopScreenState extends State<ShopScreen> {
                       const Icon(Icons.near_me_rounded, color: GageTheme.primary, size: 13),
                       const SizedBox(width: 3),
                       Text(
-                        store['distance'] ?? '1.0 km',
+                        '${store['distance'] ?? '1.0 km'} • ${store['eta'] ?? '15-20 min'}',
                         style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
                           color: Color(0xFF1E293B),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '• ${store['eta'] ?? '15-20 min'}',
-                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                      ),
-                      const SizedBox(width: 6),
-                      // Jam Operasional Toko
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade50,
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: Colors.green.shade200, width: 0.8),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.access_time_filled_rounded, size: 9.5, color: Colors.green.shade700),
-                            const SizedBox(width: 2.5),
-                            Text(
-                              'Buka $openHours',
-                              style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Colors.green.shade800),
-                            ),
-                          ],
                         ),
                       ),
                     ],
@@ -700,6 +694,26 @@ class _ShopScreenState extends State<ShopScreen> {
                     spacing: 6,
                     runSpacing: 4,
                     children: [
+                      // Jam Operasional Toko Mitra Resmi
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.green.shade200, width: 0.8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.access_time_filled_rounded, size: 10, color: Colors.green.shade700),
+                            const SizedBox(width: 3),
+                            Text(
+                              'Buka $openHours',
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.green.shade800),
+                            ),
+                          ],
+                        ),
+                      ),
                       if (store['diskonBadge'] != null)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
@@ -907,7 +921,7 @@ class _ShopScreenState extends State<ShopScreen> {
 
     // Menghitung tinggi banner 16:9 yang proporsional dan bersih
     final rawBannerHeight = screenWidth * 9 / 16;
-    final bannerHeight = isTablet ? 260.0 : rawBannerHeight.clamp(200.0, 260.0);
+    final bannerHeight = isTablet ? 260.0 : rawBannerHeight;
     final topPadding = MediaQuery.of(context).padding.top;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -1240,26 +1254,102 @@ class _ShopScreenState extends State<ShopScreen> {
 
                       const SizedBox(height: 20),
 
-                      // 2. Tab Filter Kategori Belanja (5 Kategori Resmi)
+                      // 2. Kategori Belanja Sembako (Kartu Persegi Rounded Bergambar)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Kategori Belanja Sembako 🛒',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
+                            ),
+                            if (_selectedCategory != 'Semua')
+                              GestureDetector(
+                                onTap: () => setState(() => _selectedCategory = 'Semua'),
+                                child: const Text(
+                                  'Reset',
+                                  style: TextStyle(fontSize: 12, color: GageTheme.primary, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
                       SizedBox(
-                        height: 38,
-                        child: ListView.separated(
+                        height: 104,
+                        child: ListView.builder(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           scrollDirection: Axis.horizontal,
                           itemCount: _categories.length,
-                          separatorBuilder: (context, index) => const SizedBox(width: 8),
                           itemBuilder: (ctx, idx) {
                             final cat = _categories[idx];
-                            final isSel = _selectedCategory == cat;
-                            return ChoiceChip(
-                              label: Text(cat),
-                              selected: isSel,
-                              onSelected: (_) => setState(() => _selectedCategory = cat),
-                              selectedColor: GageTheme.primaryLight,
-                              labelStyle: TextStyle(
-                                color: isSel ? GageTheme.primary : GageTheme.textPrimary,
-                                fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
-                                fontSize: 12,
+                            final name = cat['name'] as String;
+                            final isSel = _selectedCategory == name;
+
+                            return GestureDetector(
+                              onTap: () => setState(() => _selectedCategory = name),
+                              child: Container(
+                                width: 84,
+                                margin: const EdgeInsets.only(right: 10),
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: isSel ? const Color(0xFFE8F5E9) : Colors.white,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: isSel ? const Color(0xFF00880C) : Colors.grey.shade200,
+                                    width: isSel ? 1.8 : 1.0,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: isSel
+                                          ? const Color(0xFF00880C).withValues(alpha: 0.12)
+                                          : Colors.black.withValues(alpha: 0.03),
+                                      blurRadius: 5,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    // Kartu persegi rounded bergambar
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: Container(
+                                        width: 48,
+                                        height: 48,
+                                        color: Colors.grey.shade50,
+                                        child: Image.asset(
+                                          cat['image'] as String,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (c, e, s) => Container(
+                                            color: const Color(0xFFDCFCE7),
+                                            child: Icon(
+                                              cat['icon'] as IconData? ?? Icons.shopping_basket_rounded,
+                                              color: const Color(0xFF00880C),
+                                              size: 24,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      name,
+                                      textAlign: TextAlign.center,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: isSel ? FontWeight.bold : FontWeight.w600,
+                                        color: isSel ? const Color(0xFF0F5132) : GageTheme.textPrimary,
+                                        height: 1.15,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             );
                           },

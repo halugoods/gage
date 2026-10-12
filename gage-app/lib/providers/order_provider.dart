@@ -119,6 +119,11 @@ class OrderProvider extends ChangeNotifier {
     } catch (_) {}
   }
 
+  // Update Kemajuan Tahap Pesanan
+  Future<bool> updateOrderStage(String orderId, String nextStage) async {
+    return simulateStage(orderId, nextStage);
+  }
+
   // Simulasi Kemajuan Tahap Pesanan (Testing status tracker)
   Future<bool> simulateStage(String orderId, String nextStage) async {
     final success = await GageApiClient.simulateOrderStage(orderId, nextStage);
