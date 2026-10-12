@@ -36,10 +36,10 @@ void main() {
 
       // Verify Header & 3 Prinsip Layanan
       expect(find.text('STANDAR LAYANAN RESMI'), findsOneWidget);
-      expect(find.text('Ketentuan Layanan & Transparansi Biaya'), findsOneWidget);
+      expect(find.text('Syarat & Ketentuan Layanan'), findsOneWidget);
       expect(find.text('Perjanjian Layanan Pengantaran Mitra Pengemudi'), findsOneWidget);
       expect(find.text('Kuasa Pembelian Toko Resmi'), findsOneWidget);
-      expect(find.text('Transparansi Pembulatan Biaya Antar Rp 500'), findsOneWidget);
+      expect(find.text('Ketentuan Pembulatan Tarif Pengantaran Rp 500'), findsOneWidget);
       expect(find.text('Saya Memahami & Menyetujui Ketentuan'), findsOneWidget);
 
       // Tap accept button

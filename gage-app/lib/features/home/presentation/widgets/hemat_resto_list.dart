@@ -57,7 +57,7 @@ class HematRestoList extends StatelessWidget {
           )
         else
           SizedBox(
-            height: 230,
+            height: 242,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -72,7 +72,7 @@ class HematRestoList extends StatelessWidget {
                 if (id == 'm-mie-kumis') imageAsset = 'assets/images/resto_mie_ayam.png';
 
                 return Container(
-                  width: 175,
+                  width: 180,
                   margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
                   child: InkWell(
                     onTap: () {
@@ -96,11 +96,11 @@ class HematRestoList extends StatelessWidget {
                             borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                             child: Image.asset(
                               imageAsset,
-                              height: 105,
+                              height: 100,
                               width: double.infinity,
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) => Container(
-                                height: 105,
+                                height: 100,
                                 color: Colors.grey.shade200,
                                 child: const Icon(Icons.restaurant, color: Colors.grey),
                               ),
@@ -108,7 +108,7 @@ class HematRestoList extends StatelessWidget {
                           ),
 
                           Padding(
-                            padding: const EdgeInsets.all(10.0),
+                            padding: const EdgeInsets.all(8.0),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -125,17 +125,23 @@ class HematRestoList extends StatelessWidget {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                const SizedBox(height: 6),
+                                const SizedBox(height: 5),
                                 Row(
                                   children: [
-                                    const Icon(Icons.star_rounded, color: GageTheme.accentYellow, size: 15),
+                                    const Icon(Icons.star_rounded, color: GageTheme.accentYellow, size: 14),
                                     const SizedBox(width: 2),
                                     const Text('4.9', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-                                    const SizedBox(width: 6),
-                                    const Text('•', style: TextStyle(color: Colors.grey, fontSize: 11)),
-                                    const SizedBox(width: 6),
+                                    const SizedBox(width: 4),
+                                    const Text('•', style: TextStyle(color: Colors.grey, fontSize: 10)),
+                                    const SizedBox(width: 4),
                                     const Icon(Icons.location_on, color: GageTheme.primary, size: 12),
-                                    const Text('1.8 km', style: TextStyle(fontSize: 11, color: GageTheme.textSecondary)),
+                                    const Flexible(
+                                      child: Text(
+                                        '1.8 km',
+                                        style: TextStyle(fontSize: 11, color: GageTheme.textSecondary),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
                                   ],
                                 ),
                                 const SizedBox(height: 6),

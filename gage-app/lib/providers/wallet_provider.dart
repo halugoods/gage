@@ -15,7 +15,7 @@ class WalletProvider extends ChangeNotifier {
   // Refresh Saldo & Riwayat Transaksi dari Cloudflare D1
   Future<void> fetchWallet(String userId) async {
     _isLoading = true;
-    notifyListeners();
+    Future.microtask(() => notifyListeners());
     try {
       final res = await GageApiClient.getWallet(userId);
       if (res != null) {
