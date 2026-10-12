@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -924,15 +923,13 @@ class _ShopScreenState extends State<ShopScreen> {
     final bannerHeight = isTablet ? 260.0 : rawBannerHeight;
     final topPadding = MediaQuery.of(context).padding.top;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    // Padding atas efektif agar tidak pernah kecrop oleh status bar / poni HP
-    final effectiveTopPadding = math.max(topPadding, 24.0);
-    final totalHeaderHeight = bannerHeight + effectiveTopPadding + 24.0;
+    final barColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final iconBrightness = isDark ? Brightness.light : Brightness.dark;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
+        statusBarColor: barColor,
+        statusBarIconBrightness: iconBrightness,
         statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
       ),
       child: Scaffold(
@@ -941,11 +938,17 @@ class _ShopScreenState extends State<ShopScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // 1. Drawer Android Atas (Sesuai tema HP: putih di light mode)
+              Container(
+                height: topPadding,
+                color: barColor,
+              ),
+
               // ===============================================================
               // HEADER HERO BANNER 16:9 BERSIH & FLOATING CONTROLS (ANTI-KECROP)
               // ===============================================================
               SizedBox(
-                height: totalHeaderHeight,
+                height: bannerHeight + 24.0,
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
@@ -954,7 +957,7 @@ class _ShopScreenState extends State<ShopScreen> {
                       top: 0,
                       left: 0,
                       right: 0,
-                      height: bannerHeight + effectiveTopPadding,
+                      height: bannerHeight,
                       child: Image.asset(
                         shopBanner.imagePath,
                         fit: BoxFit.cover,
@@ -973,136 +976,128 @@ class _ShopScreenState extends State<ShopScreen> {
                       ),
                     ),
 
-                    // LAYER 2: Floating Action Controls di Atas Banner
-                    // DILINDUNGI SafeArea(top: true) + ekstra padding agar 100% BEBAS KECROP di semua HP!
+                    // LAYER 2: Floating Action Controls di Atas Banner (Persis Layout GoFood Gojek)
                     Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      child: SafeArea(
-                        top: true,
-                        bottom: false,
-                        child: Padding(
-                          padding: EdgeInsets.fromLTRB(14, topPadding > 0 ? 8.0 : 16.0, 14, 0),
-                          child: Row(
-                            children: [
-                              // Tombol Back (X)
-                              GestureDetector(
-                                onTap: () => Navigator.pop(context),
-                                child: Container(
-                                  width: 38,
-                                  height: 38,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
-                                    ],
-                                  ),
-                                  child: const Icon(Icons.close_rounded, color: Colors.black87, size: 22),
-                                ),
+                      top: 10,
+                      left: 14,
+                      right: 14,
+                      child: Row(
+                        children: [
+                          // Tombol Back (X)
+                          GestureDetector(
+                            onTap: () => Navigator.pop(context),
+                            child: Container(
+                              width: 38,
+                              height: 38,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
+                                ],
                               ),
-                              const SizedBox(width: 8),
-
-                              // Pill Alamat Dropdown
-                              Flexible(
-                                child: GestureDetector(
-                                  onTap: _showDeliveryLocationPicker,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(20),
-                                      boxShadow: const [
-                                        BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
-                                      ],
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(Icons.location_on, color: Color(0xFF00880C), size: 16),
-                                        const SizedBox(width: 4),
-                                        Flexible(
-                                          child: Text(
-                                            '${_formatShortAddress(_deliveryLocation)} ▾',
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 12.5,
-                                              color: Colors.black87,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-
-                              const Spacer(),
-
-                              // Pill Favorit Mandiri
-                              GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    _showFavoritesOnly = !_showFavoritesOnly;
-                                  });
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        _showFavoritesOnly
-                                            ? 'Menampilkan toko favorit Anda (${_favoriteStoreIds.length})'
-                                            : 'Menampilkan semua toko mitra resmi',
-                                      ),
-                                      duration: const Duration(seconds: 1),
-                                      behavior: SnackBarBehavior.floating,
-                                    ),
-                                  );
-                                },
-                                child: Container(
-                                  width: 38,
-                                  height: 38,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
-                                    ],
-                                  ),
-                                  child: Icon(
-                                    _showFavoritesOnly ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                                    color: _showFavoritesOnly ? Colors.red : Colors.black87,
-                                    size: 20,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-
-                              // Pill Riwayat Belanja
-                              GestureDetector(
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (ctx) => const OrdersScreen()),
-                                  );
-                                },
-                                child: Container(
-                                  width: 38,
-                                  height: 38,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
-                                    ],
-                                  ),
-                                  child: const Icon(Icons.receipt_long_rounded, color: Color(0xFF00880C), size: 20),
-                                ),
-                              ),
-                            ],
+                              child: const Icon(Icons.close_rounded, color: Colors.black87, size: 22),
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 8),
+
+                          // Pill Alamat Dropdown
+                          Flexible(
+                            child: GestureDetector(
+                              onTap: _showDeliveryLocationPicker,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: const [
+                                    BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.location_on, color: Color(0xFF00880C), size: 16),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        '${_formatShortAddress(_deliveryLocation)} ▾',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12.5,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          const Spacer(),
+
+                          // Pill Favorit Mandiri
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _showFavoritesOnly = !_showFavoritesOnly;
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    _showFavoritesOnly
+                                        ? 'Menampilkan toko favorit Anda (${_favoriteStoreIds.length})'
+                                        : 'Menampilkan semua toko mitra resmi',
+                                  ),
+                                  duration: const Duration(seconds: 1),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            },
+                            child: Container(
+                              width: 38,
+                              height: 38,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
+                                ],
+                              ),
+                              child: Icon(
+                                _showFavoritesOnly ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                                color: _showFavoritesOnly ? Colors.red : Colors.black87,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+
+                          // Pill Riwayat Belanja
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (ctx) => const OrdersScreen()),
+                              );
+                            },
+                            child: Container(
+                              width: 38,
+                              height: 38,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
+                                ],
+                              ),
+                              child: const Icon(Icons.receipt_long_rounded, color: Color(0xFF00880C), size: 20),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
 

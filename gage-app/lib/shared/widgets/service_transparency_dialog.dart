@@ -155,7 +155,7 @@ class ServiceTransparencyDialog extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       const Text(
-                        'Ketentuan Layanan & Transparansi Biaya',
+                        'Syarat & Ketentuan Layanan',
                         style: TextStyle(
                           fontSize: 16.5,
                           fontWeight: FontWeight.w800,
@@ -249,7 +249,7 @@ class ServiceTransparencyDialog extends StatelessWidget {
                     number: '3',
                     badge: 'Ketentuan Tarif Rp 500',
                     badgeColor: GageTheme.accentGreen,
-                    title: 'Transparansi Pembulatan Biaya Antar Rp 500',
+                    title: 'Ketentuan Pembulatan Tarif Pengantaran Rp 500',
                     description:
                         'Untuk mempermudah transaksi pembayaran tunai di lapangan dan penyiapan uang kembalian, total biaya pengantaran dibulatkan ke atas per kelipatan Rp 500. Selisih pembulatan dialokasikan secara transparan untuk subsidi tarif pelanggan, penunjang operasional, dan pemeliharaan performa aplikasi GAGE.',
                     icon: Icons.price_check_rounded,
