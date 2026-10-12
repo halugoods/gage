@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GAGE Customer - Interactive Audit Checklist & Notes</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(0,0,0,0.03); }
+    ::-webkit-scrollbar-thumb { background: rgba(16, 185, 129, 0.4); border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(16, 185, 129, 0.7); }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen p-3 md:p-6">
+  <div class="max-w-4xl mx-auto space-y-6">
+
+    <!-- Header Card -->
+    <header class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold mb-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            GAGE Pracimantoro • Portal Customer
+          </div>
+          <h1 class="text-xl md:text-2xl font-bold text-slate-900">Interactive Audit Checklist & Notes</h1>
+          <p class="text-xs md:text-sm text-slate-500 mt-1">
+            Centang pengujian langsung dari HP / Browser, tulis komentar bila ada kendala, dan salin ringkasan dengan satu klik.
+          </p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center gap-2 flex-wrap">
+          <button onclick="copySummary()" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-medium shadow-sm transition active:scale-95">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+            <span>Salin Ringkasan (Markdown)</span>
+          </button>
+          <button onclick="resetAll()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-medium transition">
+            Reset
+          </button>
+        </div>
+      </div>
+
+      <!-- Live Progress Bar -->
+      <div class="mt-5 pt-4 border-t border-slate-100">
+        <div class="flex items-center justify-between text-xs font-medium text-slate-600 mb-2">
+          <span>Progres Pengujian: <strong id="progressText" class="text-emerald-600">0/0 Selesai</strong></span>
+          <span id="percentText" class="font-bold text-slate-800">0%</span>
+        </div>
+        <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+          <div id="progressBar" class="bg-gradient-to-r from-emerald-500 to-teal-500 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+        <div class="flex items-center justify-between text-[11px] text-slate-400 mt-2">
+          <span id="countOk" class="text-emerald-600 font-medium">✓ 0 Lolos</span>
+          <span id="countIssue" class="text-amber-600 font-medium">⚠ 0 Ada Catatan</span>
+          <span id="countPending" class="text-slate-500">○ 0 Belum Diuji</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Filter Category Pills -->
+    <div class="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+      <button onclick="filterCategory('all')" id="tab-all" class="tab-btn px-3 py-1.5 rounded-xl font-medium bg-emerald-600 text-white shadow-sm whitespace-nowrap">Semua Menu</button>
+      <button onclick="filterCategory('home')" id="tab-home" class="tab-btn px-3 py-1.5 rounded-xl font-medium bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 whitespace-nowrap">Beranda & Dompet</button>
+      <button onclick="filterCategory('services')" id="tab-services" class="tab-btn px-3 py-1.5 rounded-xl font-medium bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 whitespace-nowrap">8 Layanan GAGE</button>
+      <button onclick="filterCategory('tracking')" id="tab-tracking" class="tab-btn px-3 py-1.5 rounded-xl font-medium bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 whitespace-nowrap">Tracking & 3D Map</button>
+      <button onclick="filterCategory('profile')" id="tab-profile" class="tab-btn px-3 py-1.5 rounded-xl font-medium bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 whitespace-nowrap">Profil & Legalitas</button>
+      <button onclick="filterCategory('admin')" id="tab-admin" class="tab-btn px-3 py-1.5 rounded-xl font-medium bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 whitespace-nowrap">Kelola Banner Admin</button>
+    </div>
+
+    <!-- Checklist Container -->
+    <div id="checklistContainer" class="space-y-4"></div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-6 right-6 px-4 py-2.5 bg-slate-900 text-white text-xs font-medium rounded-xl shadow-lg opacity-0 transition-opacity duration-200 pointer-events-none z-50">
+      Notifikasi
+    </div>
+
+  </div>
+
+  <script>
+    const items = [
+      {
+        id: "home_avatar_nav",
+        category: "home",
+        categoryName: "Beranda & Dompet",
+        title: "Avatar Header Beranda Kanan Atas",
+        action: "Ketuk foto profil di kanan atas JogjaHeader di Beranda",
+        expected: "Langsung berpindah ke Tab Profil (Tab 5) secara responsif",
+        status: "pending",
+        note: ""
+      },
+      {
+        id: "home_wallet_qris",
+        category: "home",
+        categoryName: "Beranda & Dompet",
+        title: "Tombol 'Bayar' QRIS Kasir Offline",
+        action: "Ketuk tombol 'Bayar' warna hijau di kartu dompet GAGEPay",
+        expected: "Buka modal bottom sheet bayar QRIS kasir offline (Mockup Scanner & Kode cepat) + potong saldo",
+        status: "pending",
+        note: ""
+      },
+      {
+        id: "home_wallet_topup",
+        category: "home",
+        categoryName: "Beranda & Dompet",
+        title: "Tombol 'Top Up' & 'Riwayat' Dompet",
+        action: "Ketuk tombol Top Up atau Riwayat di kartu GAGEPay",
+        expected: "Buka instruksi isi saldo & riwayat mutasi transaksi",
+        status: "pending",
+        note: ""
+      },
+      {
+        id: "service_food",
+        category: "services",
+        categoryName: "8 Layanan GAGE",
+        title: "GAGE Food - UI 16:9 & Floating Search Bar",
+        action: "Buka menu GAGE Food dari Service Grid",
+        expected: "Hero banner 16:9 di atas, floating controls, floating search bar overlapping 50%, katalog resto & multi-merchant cart",
+        status: "pending",
+        note: ""
+      },
+      {
+        id: "service_shop",
+        category: "services",
+        categoryName: "8 Layanan GAGE",
+        title: "GAGE Shop - UI Setara Food & Multi-Merchant",
+        action: "Buka menu GAGE Shop dari Service Grid",
+        expected: "Hero banner 16:9, search bar sembako toko mitra, multi-merchant cart hingga 3 toko sekaligus, rincian biaya transparan",
+        status: "pending",
+        note: ""
+      },
+      {
+        id: "service_send",
+        category: "services",
+        categoryName: "8 Layanan GAGE",
+        title: "GAGE Send - Banner Grafis Promo 16:9",
+        action: "Buka menu GAGE Send dari Service Grid",
+        expected: "Banner promo grafis resolusi tinggi (bukan gradien kode), input jemput & antar, estimasi flat tarif",
+        status: "pending",
+        note: ""
+      },
+      {
+        id: "service_babe",
+        category: "services",
+        categoryName: "8 Layanan GAGE",
+        title: "GAGE BaBe - Barang Bekas Kurasi Resmi (Ganti Tagihan)",
+        action: "Ketuk ikon GAGE BaBe di Service Grid",
+        expected: "Katalog resmi QC GAGE (bebas merchant liar), badge kondisi riil (mulus 90%), garansi 48 jam, tombol CTA WA titip jual ke Admin GAGE",
+        status: "pending",
+        note: ""
+      },
+      {
+        id: "service_ride",
+        category: "services",
+        categoryName: "8 Layanan GAGE",
+        title: "GAGE Ride - Ojek Motor & Ongkir Per-KM",
+        action: "Buka menu GAGE Ride, tentukan titik jemput & antar",
+        expected: "Kalkulasi tarif per-km riil OSRM, pembulatan transparan per Rp 500 sebagai subsidi tarif",
+        status: "pending",
+        note: ""
+      },
+      {
+        id: "service_car",
+        category: "services",
+        categoryName: "8 Layanan GAGE",
+        title: "GAGE Car - Mobil Penumpang Roda 4",
+        action: "Buka menu GAGE Car",
+        expected: "Peta rute mobil OSRM, kapasitas penumpang 4-6, tarif roda 4",
+        status: "pending",
+        note: ""
+      },
+      {
+        id: "service_tani",
+        category: "services",
+        categoryName: "8 Layanan GAGE",
+        title: "GAGE Tani - Order Bibit/Pupuk & Sewa Alsintan",
+        action: "Buka menu GAGE Tani, ketuk tombol pesan bibit atau sewa traktor/combine",
+        expected: "Terhubung langsung ke WhatsApp resmi kios/petani/operator dengan format pesan otomatis terisi (Bukan gimmick)",
+        status: "pending",
+        note: ""
+      },
+      {
+        id: "service_other",
+        category: "services",
+        categoryName: "8 Layanan GAGE",
+        title: "Layanan Lainnya & Transparansi Biaya",
+        action: "Ketuk menu 'Lainnya' di Service Grid",
+        expected: "Buka modal penjelasan layanan resmi dan transparansi tarif",
+        status: "pending",
+        note: ""
+      },
+      {
+        id: "track_header",
+        category: "tracking",
+        categoryName: "Tracking & 3D Map",
+        title: "Header Alert Pengiriman & Simulasi Lifecycle",
+        action: "Buka pesanan aktif -> Klik 'Lacak Pesanan'",
+        expected: "Toolbar menampilkan tulisan 'Alert Pengiriman' dan subjudul 'Simulasi Lifecycle Real-time'",
+        status: "pending",
+        note: ""
+      },
+      {
+        id: "track_vehicle_toggle",
+        category: "tracking",
+        categoryName: "Tracking & 3D Map",
+        title: "Toggle Switcher Jenis Kendaraan (Toolbar)",
+        action: "Ketuk ikon 🏍️ Sepeda Motor vs 🚗 Mobil di toolbar simulasi",
+        expected: "Marker di peta berganti seketika antara motor 3D dan mobil 3D",
+        status: "pending",
+        note: ""
+      },
+      {
+        id: "track_stepper_anim",
+        category: "tracking",
+        categoryName: "Tracking & 3D Map",
+        title: "Animasi Stepper Proses Garis Hijau Mengalir",
+        action: "Jalankan simulasi stepper tahap 1 -> tahap 2 dst",
+        expected: "Garis vertikal mengalirkan warna hijau #16A34A (450ms) dari atas ke bawah saat tahap selesai, tahap aktif berdenyut halus",
+        status: "pending",
+        note: ""
+      },
+      {
+        id: "track_osrm_snapping",
+        category: "tracking",
+        categoryName: "Tracking & 3D Map",
+        title: "Snapping Lintasan Jalan OSRM (Anti Ngambang)",
+        action: "Perhatikan pergerakan posisi kendaraan pada peta",
+        expected: "Kendaraan menelusuri garis jalan raya OSRM secara berurutan, tidak melayang ke sawah/kebun kosong",
+        status: "pending",
+        note: ""
+      },
+      {
+        id: "track_3d_bearing",
+        category: "tracking",
+        categoryName: "Tracking & 3D Map",
+        title: "Marker 3D Bird's-Eye View & Rotasi Hadap Jalan",
+        action: "Perhatikan moncong kendaraan saat melewati belokan jalan",
+        expected: "Marker render 3D tampak atas (bird's-eye 90°) berotasi otomatis sesuai lekukan arah jalan raya (atan2 bearing) dengan bayangan lembut",
+        status: "pending",
+        note: ""
+      },
+      {
+        id: "track_driver_actions",
+        category: "tracking",
+        categoryName: "Tracking & 3D Map",
+        title: "Aksi Driver Card (Chat WA & Telepon)",
+        action: "Ketuk ikon WhatsApp atau Telepon pada kartu pengemudi",
+        expected: "Buka chat WhatsApp driver atau aplikasi Telepon HP secara presisi",
+        status: "pending",
+        note: ""
+      },
+      {
+        id: "profile_edit_screen",
+        category: "profile",
+        categoryName: "Profil & Legalitas",
+        title: "Layar Penuh Ubah Profil (EditProfileScreen)",
+        action: "Masuk Tab Profil -> Klik tombol pensil di samping nama",
+        expected: "Buka layar penuh (bukan pop-up). Avatar bisa diganti via Kamera, Galeri, atau Preset. Nama, WA, email, alamat bisa disimpan",
+        status: "pending",
+        note: ""
+      },
+      {
+        id: "profile_prefs_toggle",
+        category: "profile",
+        categoryName: "Profil & Legalitas",
+        title: "Persistensi 5 Toggle Preferensi",
+        action: "Ubah toggle (Notif Pesanan, Promo, Obrolan, Kontras, Getar) -> Tutup app & buka lagi",
+        expected: "Posisi toggle tersimpan permanen di SharedPreferences (tidak kembali ke default)",
+        status: "pending",
+        note: ""
+      },
+      {
+        id: "legal_terms_universal",
+        category: "profile",
+        categoryName: "Profil & Legalitas",
+        title: "Ketentuan Layanan & Transparansi Biaya (Non-Syar'i)",
+        action: "Buka menu 'Ketentuan Layanan & Transparansi Biaya' di profil",
+        expected: "Bersih dari istilah syar'i/keagamaan (Thoyib, Ijarah, Wakalah, Bismillah), memuat 3 pilar transparansi komersial universal",
+        status: "pending",
+        note: ""
+      },
+      {
+        id: "legal_data_attribution",
+        category: "profile",
+        categoryName: "Profil & Legalitas",
+        title: "Tentang Aplikasi & Lisensi Data Resmi",
+        action: "Buka menu 'Tentang Aplikasi & Lisensi Data'",
+        expected: "Menjelaskan atribusi resmi data spasial OpenStreetMap (ODbL) dan direktori pendidikan Kemendikbudristek RI",
+        status: "pending",
+        note: ""
+      },
+      {
+        id: "admin_banner_manager",
+        category: "admin",
+        categoryName: "Kelola Banner Admin",
+        title: "Tab Kelola Banner & Live Preview 16:9 Card",
+        action: "Buka Portal Admin -> Masuk tab 'Kelola Banner' -> Ketik teks baru",
+        expected: "Kartu preview 16:9 di atas terupdate seketika (live render). Tombol 'Simpan Banner' menyimpan ke SharedPreferences",
+        status: "pending",
+        note: ""
+      }
+    ];
+
+    let currentFilter = 'all';
+
+    function loadSavedData() {
+      const saved = localStorage.getItem('gage_audit_data_v1');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          items.forEach(item => {
+            if (parsed[item.id]) {
+              item.status = parsed[item.id].status || 'pending';
+              item.note = parsed[item.id].note || '';
+            }
+          });
+        } catch(e) { console.error(e); }
+      }
+    }
+
+    function saveData() {
+      const dataToSave = {};
+      items.forEach(item => {
+        dataToSave[item.id] = { status: item.status, note: item.note };
+      });
+      localStorage.setItem('gage_audit_data_v1', JSON.stringify(dataToSave));
+      updateProgress();
+    }
+
+    function updateProgress() {
+      const total = items.length;
+      const passed = items.filter(i => i.status === 'pass').length;
+      const issue = items.filter(i => i.status === 'issue').length;
+      const done = passed + issue;
+      const percent = Math.round((done / total) * 100);
+
+      document.getElementById('progressText').textContent = `${done}/${total} Diuji`;
+      document.getElementById('percentText').textContent = `${percent}%`;
+      document.getElementById('progressBar').style.width = `${percent}%`;
+
+      document.getElementById('countOk').textContent = `✓ ${passed} Lolos`;
+      document.getElementById('countIssue').textContent = `⚠ ${issue} Ada Catatan`;
+      document.getElementById('countPending').textContent = `○ ${total - done} Belum Diuji`;
+    }
+
+    function filterCategory(cat) {
+      currentFilter = cat;
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('bg-emerald-600', 'text-white');
+        btn.classList.add('bg-white', 'text-slate-600');
+      });
+      const activeBtn = document.getElementById(`tab-${cat}`);
+      if (activeBtn) {
+        activeBtn.classList.remove('bg-white', 'text-slate-600');
+        activeBtn.classList.add('bg-emerald-600', 'text-white');
+      }
+      renderItems();
+    }
+
+    function setStatus(id, newStatus) {
+      const target = items.find(i => i.id === id);
+      if (target) {
+        target.status = (target.status === newStatus) ? 'pending' : newStatus;
+        saveData();
+        renderItems();
+      }
+    }
+
+    function updateNote(id, val) {
+      const target = items.find(i => i.id === id);
+      if (target) {
+        target.note = val;
+        saveData();
+      }
+    }
+
+    function renderItems() {
+      const container = document.getElementById('checklistContainer');
+      container.innerHTML = '';
+
+      const filtered = currentFilter === 'all' ? items : items.filter(i => i.category === currentFilter);
+
+      filtered.forEach(item => {
+        const isPass = item.status === 'pass';
+        const isIssue = item.status === 'issue';
+
+        let cardBorder = 'border-slate-200';
+        let cardBg = 'bg-white';
+        if (isPass) {
+          cardBorder = 'border-emerald-300';
+          cardBg = 'bg-emerald-50/20';
+        } else if (isIssue) {
+          cardBorder = 'border-amber-300';
+          cardBg = 'bg-amber-50/20';
+        }
+
+        const div = document.createElement('div');
+        div.className = `${cardBg} border ${cardBorder} rounded-xl p-4 shadow-sm transition space-y-3`;
+
+        div.innerHTML = `
+          <div class="flex items-start justify-between gap-3">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-600">
+                  ${item.categoryName}
+                </span>
+                <h3 class="font-semibold text-sm text-slate-900">${item.title}</h3>
+              </div>
+              <p class="text-xs text-slate-600"><strong class="text-slate-700">Aksi:</strong> ${item.action}</p>
+              <p class="text-xs text-slate-500"><strong class="text-slate-700">Ekspektasi:</strong> ${item.expected}</p>
+            </div>
+
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button onclick="setStatus('${item.id}', 'pass')"
+                class="px-2.5 py-1.5 rounded-lg text-xs font-medium border transition ${isPass ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}">
+                ✓ Lolos
+              </button>
+              <button onclick="setStatus('${item.id}', 'issue')"
+                class="px-2.5 py-1.5 rounded-lg text-xs font-medium border transition ${isIssue ? 'bg-amber-600 text-white border-amber-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}">
+                ⚠ Catatan
+              </button>
+            </div>
+          </div>
+
+          <div class="pt-2 border-t border-slate-100">
+            <textarea
+              oninput="updateNote('${item.id}', this.value)"
+              placeholder="Tulis catatan / feedback kendala di sini..."
+              rows="1"
+              class="w-full text-xs p-2.5 rounded-lg bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:border-emerald-500 text-slate-700 resize-y transition"
+            >${item.note || ''}</textarea>
+          </div>
+        `;
+
+        container.appendChild(div);
+      });
+    }
+
+    function copySummary() {
+      let md = `# Ringkasan Audit Pengujian GAGE Customer\n\n`;
+      md += `*Waktu:* ${new Date().toLocaleString('id-ID')}\n\n`;
+
+      const passed = items.filter(i => i.status === 'pass');
+      const issues = items.filter(i => i.status === 'issue');
+      const pending = items.filter(i => i.status === 'pending');
+
+      md += `### 📊 Rekapitulasi:\n`;
+      md += `- **Lolos:** ${passed.length} fitur\n`;
+      md += `- **Ada Catatan/Issue:** ${issues.length} fitur\n`;
+      md += `- **Belum Diuji:** ${pending.length} fitur\n\n`;
+
+      if (issues.length > 0) {
+        md += `### ⚠ Fitur dengan Catatan / Kendala:\n`;
+        issues.forEach(i => {
+          md += `- **[${i.categoryName}] ${i.title}**\n`;
+          md += `  - *Catatan:* ${i.note || '(Belum ada detail catatan)'}\n`;
+        });
+        md += `\n`;
+      }
+
+      if (passed.length > 0) {
+        md += `### ✓ Fitur yang Sudah Lolos:\n`;
+        passed.forEach(i => {
+          md += `- [x] **${i.title}** ${i.note ? `*(Catatan: ${i.note})*` : ''}\n`;
+        });
+        md += `\n`;
+      }
+
+      navigator.clipboard.writeText(md).then(() => {
+        showToast("Ringkasan berhasil disalin! Tinggal Paste ke chat.");
+      }).catch(() => {
+        showToast("Gagal menyalin, izin clipboard dibatasi.");
+      });
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.remove('opacity-0');
+      toast.classList.add('opacity-100');
+      setTimeout(() => {
+        toast.classList.remove('opacity-100');
+        toast.classList.add('opacity-0');
+      }, 2500);
+    }
+
+    function resetAll() {
+      if (confirm("Reset seluruh status centang dan catatan?")) {
+        items.forEach(i => {
+          i.status = 'pending';
+          i.note = '';
+        });
+        localStorage.removeItem('gage_audit_data_v1');
+        updateProgress();
+        renderItems();
+        showToast("Checklist direset ke awal.");
+      }
+    }
+
+    loadSavedData();
+    updateProgress();
+    renderItems();
+  </script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+# GAGE Cloud — Cloudflare Worker Configuration
+name = "gage-cloud"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+# ── Durable Object (Realtime GPS Tracking: Zero D1 Write) ─────
+[[durable_objects.bindings]]
+name = "TRACKING_ROOM"
+class_name = "TrackingRoomDO"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["TrackingRoomDO"]
+
+# ── D1 SQLite Database ─────────────────────────────────────────
+[[d1_databases]]
+binding = "DB"
+database_name = "gage-db"
+database_id = "95067e5c-bff5-41fb-b4ea-e5170412caf9"
+
+# ── Environment Variables ──────────────────────────────────────
+[vars]
+GAGE_ENV = "production"
+DEFAULT_STATIC_QRIS = "00020101021126510013ID.SHOPEE.WWW01189360091800216174620208151234565204549953033605802ID5914GAGE INDONESIA6007YOGYAKARTA61055512262070703A016304ED41"
+ADMIN_API_KEY = "gage280303"

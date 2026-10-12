@@ -1,0 +1,46 @@
+# Gage Root .gitignore
+
+# Flutter / Dart
+gage-app/.dart_tool/
+gage-app/.flutter-plugins*
+gage-app/.pub/
+gage-app/.pub-cache/
+gage-app/build/
+gage-app/android/app/debug/
+gage-app/android/app/profile/
+gage-app/android/app/release/
+gage-app/doc/api/
+
+# Cloudflare Wrangler & Node
+gage-cloud/.wrangler/
+gage-cloud/node_modules/
+checklist_web/.wrangler/
+checklist_web/node_modules/
+checklist_web_backup/
+
+# Release binaries (Uploaded directly to GitHub Releases)
+release_apks/
+*.apk
+*.so
+/lib/
+
+
+# Scratch / debug image dumps in root and app
+*.png
+!gage-app/assets/**/*.png
+!gage-cloud/**/*.png
+!checklist_web/**/*.png
+
+# Logs & temp
+*.log
+*.tmp
+audit_dump.json
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
