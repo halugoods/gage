@@ -452,12 +452,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
         stageBadgeTextCol = const Color(0xFFB45309);
         break;
       case 2:
-        stageBadgeText = 'Driver Menuju Resto';
+        stageBadgeText = 'Driver Menuju Lokasi';
         stageBadgeBg = const Color(0xFFDBEAFE);
         stageBadgeTextCol = const Color(0xFF1D4ED8);
         break;
       case 3:
-        stageBadgeText = 'Pesanan Disiapkan';
+        stageBadgeText = 'Sedang Disiapkan';
         stageBadgeBg = const Color(0xFFFFEDD5);
         stageBadgeTextCol = const Color(0xFFC2410C);
         break;
@@ -489,16 +489,20 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
         children: [
           Row(
             children: [
-              Text(
-                order.orderNumber,
-                style: const TextStyle(
-                  color: Colors.black87,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.3,
+              Expanded(
+                child: Text(
+                  order.orderNumber,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.black87,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.3,
+                  ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
@@ -510,7 +514,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                   stageBadgeText,
                   style: TextStyle(
                     color: stageBadgeTextCol,
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -1117,11 +1121,6 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                 // Rincian Multi-Merchant & Pesanan
                 _buildMerchantAndOrderDetails(order),
 
-                const SizedBox(height: 12),
-
-                // Toolbar Kontrol Tahap Pengantaran
-                _buildStageControlToolbar(order, currentStage),
-
                 const SizedBox(height: 16),
 
                 // Tombol Konfirmasi Terima Pesanan (PoD)
@@ -1567,177 +1566,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
     );
   }
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // 6. TOOLBAR KONTROL TAHAP PENGANTARAN
-  // ──────────────────────────────────────────────────────────────────────────
-  Widget _buildStageControlToolbar(OrderModel order, int currentStage) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFBEB),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFDE68A)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: const [
-              Icon(Icons.alt_route_rounded, color: Color(0xFFD97706), size: 18),
-              SizedBox(width: 8),
-              Text(
-                'Kontrol Alur Pengantaran',
-                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: Color(0xFF92400E)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Pilih status untuk melihat pergerakan armada & rute navigasi',
-            style: TextStyle(fontSize: 11.5, color: Colors.amber.shade900, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 10),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _buildStageChip(1, '1. Cari Driver', currentStage == 1, () {
-                  setState(() {
-                    _manualStep = 1;
-                    if (_routePoints.isNotEmpty) {
-                      _currentRouteIndex = 0;
-                      _driverLocation = _routePoints.first;
-                    }
-                  });
-                }),
-                const SizedBox(width: 6),
-                _buildStageChip(2, '2. Menuju Resto', currentStage == 2, () {
-                  setState(() {
-                    _manualStep = 2;
-                    if (_routePoints.length > 2) {
-                      _currentRouteIndex = (_routePoints.length * 0.25).toInt();
-                      _driverLocation = _routePoints[_currentRouteIndex];
-                    }
-                  });
-                }),
-                const SizedBox(width: 6),
-                _buildStageChip(3, '3. Di Resto', currentStage == 3, () {
-                  setState(() {
-                    _manualStep = 3;
-                    if (_routePoints.length > 2) {
-                      _currentRouteIndex = (_routePoints.length * 0.50).toInt();
-                      _driverLocation = _routePoints[_currentRouteIndex];
-                    }
-                  });
-                }),
-                const SizedBox(width: 6),
-                _buildStageChip(4, '4. Antar ke Rumah', currentStage == 4, () {
-                  setState(() {
-                    _manualStep = 4;
-                    if (_routePoints.length > 2) {
-                      _currentRouteIndex = (_routePoints.length * 0.75).toInt();
-                      _driverLocation = _routePoints[_currentRouteIndex];
-                    }
-                  });
-                }),
-                const SizedBox(width: 6),
-                _buildStageChip(5, '5. Tiba / Selesai', currentStage == 5, () {
-                  setState(() {
-                    _manualStep = 5;
-                    if (_routePoints.isNotEmpty) {
-                      _currentRouteIndex = math.max(0, _routePoints.length - 2);
-                      _driverLocation = _routePoints.last;
-                    }
-                  });
-                }),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          // Selector Kendaraan 3D Bird's-Eye View (Motor / Mobil)
-          Row(
-            children: [
-              Text(
-                'Tipe Kendaraan 3D:',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.amber.shade900,
-                ),
-              ),
-              const SizedBox(width: 8),
-              _buildVehicleChip(
-                label: '🏍️ Sepeda Motor',
-                isActive: !_isCarVehicle(order),
-                onTap: () => setState(() => _manualVehicleType = 'MOTOR'),
-              ),
-              const SizedBox(width: 6),
-              _buildVehicleChip(
-                label: '🚗 Mobil (GageCar)',
-                isActive: _isCarVehicle(order),
-                onTap: () => setState(() => _manualVehicleType = 'CAR'),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildVehicleChip({
-    required String label,
-    required bool isActive,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-        decoration: BoxDecoration(
-          color: isActive ? const Color(0xFFD97706) : Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isActive ? const Color(0xFFB45309) : Colors.amber.shade300,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 10.5,
-            fontWeight: FontWeight.bold,
-            color: isActive ? Colors.white : const Color(0xFF92400E),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStageChip(int step, String label, bool isActive, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: isActive ? const Color(0xFFD97706) : Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isActive ? const Color(0xFFB45309) : Colors.amber.shade300,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            color: isActive ? Colors.white : const Color(0xFF92400E),
-          ),
-        ),
-      ),
-    );
-  }
 
   /// Dialog Proof of Delivery (PoD) Interaktif
   void _showProofOfDeliveryDialog(OrderModel order) {

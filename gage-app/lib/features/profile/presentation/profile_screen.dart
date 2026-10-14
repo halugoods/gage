@@ -2,9 +2,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/providers/auth_provider.dart';
 import 'package:gage_app/providers/wallet_provider.dart';
 import 'package:gage_app/features/orders/presentation/orders_screen.dart';
@@ -14,6 +16,7 @@ import 'package:gage_app/features/affiliate/presentation/affiliate_hub_screen.da
 import 'package:gage_app/features/auth/presentation/terms_and_privacy_screen.dart';
 import 'package:gage_app/features/profile/presentation/edit_profile_screen.dart';
 import 'package:gage_app/features/admin/presentation/admin_screen.dart';
+import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -94,7 +97,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildModalTile(
             title: 'PIN Transaksi GAGE',
             subtitle: 'PIN 6-digit aktif untuk verifikasi transaksi',
-            trailing: const Text('Ubah', style: TextStyle(color: Color(0xFF00880C), fontWeight: FontWeight.bold)),
+            trailing: const Text('Ubah', style: TextStyle(color: GageTheme.primary, fontWeight: FontWeight.bold)),
             onTap: () {
               Navigator.pop(ctx);
               ScaffoldMessenger.of(context).showSnackBar(
@@ -108,7 +111,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             subtitle: 'Gunakan sidik jari atau Face ID saat membuka aplikasi',
             trailing: Switch(
               value: true,
-              activeColor: const Color(0xFF00880C),
+              activeColor: GageTheme.primary,
               onChanged: (val) {},
             ),
           ),
@@ -126,6 +129,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // 2. Metode Pembayaran Modal
   void _showPaymentModal() {
     final wallet = context.read<WalletProvider>();
+    final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -133,144 +137,130 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (ctx) => _buildSimpleSheet(
         ctx,
         title: 'Metode Pembayaran',
-        icon: Icons.credit_card_rounded,
+        icon: Icons.account_balance_wallet_outlined,
         children: [
           _buildModalTile(
             title: 'GAGE Pay',
-            subtitle: 'Saldo utama: Rp ${wallet.balance}',
+            subtitle: 'Saldo utama: ${currencyFormatter.format(wallet.balance)}',
             leadingIcon: Icons.account_balance_wallet_rounded,
-            iconColor: const Color(0xFF00880C),
+            iconColor: GageTheme.primary,
             trailing: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(12)),
-              child: const Text('Utama', style: TextStyle(color: Color(0xFF00880C), fontWeight: FontWeight.bold, fontSize: 11)),
+              child: const Text('Aktif', style: TextStyle(color: Color(0xFF16A34A), fontWeight: FontWeight.bold, fontSize: 11)),
             ),
           ),
           const Divider(),
           _buildModalTile(
-            title: 'GoPay / QRIS',
-            subtitle: 'Tersambung otomatis',
+            title: 'QRIS Realtime',
+            subtitle: 'ShopeePay, GoPay, OVO, Dana, BCA Mobile',
             leadingIcon: Icons.qr_code_2_rounded,
-            trailing: const Icon(Icons.check_circle_rounded, color: Color(0xFF00880C), size: 18),
-          ),
-          const Divider(),
-          _buildModalTile(
-            title: 'ShopeePay',
-            subtitle: 'Tersambung',
-            leadingIcon: Icons.shopping_bag_outlined,
-            trailing: const Icon(Icons.check_circle_rounded, color: Color(0xFF00880C), size: 18),
+            iconColor: const Color(0xFF0284C7),
+            trailing: const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 18),
           ),
           const Divider(),
           _buildModalTile(
             title: 'Tunai (COD)',
             subtitle: 'Bayar langsung ke driver saat pesanan tiba',
             leadingIcon: Icons.payments_outlined,
-            trailing: const Icon(Icons.check_circle_rounded, color: Color(0xFF00880C), size: 18),
+            iconColor: const Color(0xFF16A34A),
+            trailing: const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 18),
           ),
         ],
       ),
     );
   }
 
-  // 3. Akun Keluarga Modal
-  void _showFamilyModal() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _buildSimpleSheet(
-        ctx,
-        title: 'Akun Keluarga GAGE',
-        icon: Icons.people_outline_rounded,
-        children: [
-          const Text(
-            'Bagikan metode pembayaran dan kelola pesanan bersama hingga 5 anggota keluarga Anda dengan mudah.',
-            style: TextStyle(fontSize: 12.5, color: Colors.black54, height: 1.3),
-          ),
-          const SizedBox(height: 14),
-          _buildModalTile(
-            title: 'Syams Djuhair (Penyelenggara)',
-            subtitle: 'Admin Akun Keluarga • Metode GAGE Pay Aktif',
-            leadingIcon: Icons.admin_panel_settings_rounded,
-            iconColor: const Color(0xFF00880C),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            height: 44,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Fitur undangan keluarga siap digunakan!')),
-                );
-              },
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Undang Anggota Keluarga', style: TextStyle(fontWeight: FontWeight.bold)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00880C),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // 3. Alamat Tersimpan Modal (Persistent dengan SharedPreferences & LocationPickerSheet)
+  Future<void> _showSavedAddressesModal() async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> list = prefs.getStringList('saved_user_addresses') ?? [
+      'Rumah (Tubokarto)||Dusun Tubokarto RT 02/RW 01, Tubokarto, Pracimantoro, Kab. Wonogiri',
+      'Rumah Etan||WRFV+WCJ, Jl. Perumahan Kota Baru, Sumberjo, Sambiroto, Kec. Pracimantoro',
+      'Kantor / Tempat Usaha||Jalan Raya Pracimantoro - Wonogiri KM 1, Pracimantoro',
+    ];
 
-  // 4. Alamat Tersimpan Modal
-  void _showSavedAddressesModal() {
+    if (!mounted) return;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _buildSimpleSheet(
-        ctx,
-        title: 'Alamat Tersimpan',
-        icon: Icons.bookmark_border_rounded,
-        children: [
-          _buildModalTile(
-            title: 'Rumah (Tubokarto)',
-            subtitle: 'Dusun Tubokarto RT 02/RW 01, Tubokarto, Pracimantoro, Kab. Wonogiri',
-            leadingIcon: Icons.home_rounded,
-            iconColor: const Color(0xFF00880C),
-            trailing: const Icon(Icons.more_horiz),
-          ),
-          const Divider(),
-          _buildModalTile(
-            title: 'rumah etan',
-            subtitle: 'WRFV+WCJ, Jl. Perumahan Kota Baru, Sumberjo, Sambiroto, Kec. Pracimantoro',
-            leadingIcon: Icons.home_outlined,
-            trailing: const Icon(Icons.more_horiz),
-          ),
-          const Divider(),
-          _buildModalTile(
-            title: 'ugm',
-            subtitle: 'Jalan Prof. Drs Notonagoro, Caturtunggal, Sleman, DIY',
-            leadingIcon: Icons.school_outlined,
-            trailing: const Icon(Icons.more_horiz),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            height: 44,
-            child: OutlinedButton.icon(
-              onPressed: () {
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Buka form penambahan alamat baru.')),
+      builder: (ctx) => StatefulBuilder(
+        builder: (c, setModalState) {
+          return _buildSimpleSheet(
+            ctx,
+            title: 'Alamat Tersimpan',
+            icon: Icons.bookmark_border_rounded,
+            children: [
+              ...list.asMap().entries.map((entry) {
+                final idx = entry.key;
+                final parts = entry.value.split('||');
+                final title = parts.isNotEmpty ? parts[0] : 'Alamat';
+                final addr = parts.length > 1 ? parts[1] : '';
+
+                return Column(
+                  children: [
+                    _buildModalTile(
+                      title: title,
+                      subtitle: addr,
+                      leadingIcon: title.toLowerCase().contains('rumah')
+                          ? Icons.home_rounded
+                          : (title.toLowerCase().contains('kantor') ? Icons.business_rounded : Icons.location_on_rounded),
+                      iconColor: GageTheme.primary,
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete_outline_rounded, size: 20, color: Colors.grey),
+                        onPressed: () async {
+                          list.removeAt(idx);
+                          await prefs.setStringList('saved_user_addresses', list);
+                          setModalState(() {});
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Alamat "$title" telah dihapus'), duration: const Duration(seconds: 1)),
+                            );
+                          }
+                        },
+                      ),
+                    ),
+                    if (idx < list.length - 1) const Divider(),
+                  ],
                 );
-              },
-              icon: const Icon(Icons.add_location_alt_rounded, size: 18, color: Color(0xFF00880C)),
-              label: const Text('Tambah Alamat Baru', style: TextStyle(color: Color(0xFF00880C), fontWeight: FontWeight.bold)),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Color(0xFF00880C)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+              }),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    LocationPickerSheet.show(
+                      context,
+                      title: 'Pilih Alamat Baru',
+                      onSelected: (title, fullAddress, latLng) async {
+                        list.add('$title||$fullAddress');
+                        await prefs.setStringList('saved_user_addresses', list);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Alamat "$title" berhasil disimpan!'),
+                              backgroundColor: GageTheme.primary,
+                            ),
+                          );
+                        }
+                      },
+                    );
+                  },
+                  icon: const Icon(Icons.add_location_alt_rounded, size: 18, color: GageTheme.primary),
+                  label: const Text('Tambah Alamat Baru', style: TextStyle(color: GageTheme.primary, fontWeight: FontWeight.bold)),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: GageTheme.primary),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                  ),
+                ),
               ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }
@@ -291,13 +281,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(12)),
             child: const Row(
               children: [
-                Icon(Icons.check_circle_rounded, color: Color(0xFF00880C), size: 28),
+                Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 28),
                 SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Akun Anda 100% Terverifikasi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF00880C))),
+                      Text('Akun Anda 100% Terverifikasi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF16A34A))),
                       SizedBox(height: 2),
                       Text('Semua fitur belanja, dompet, dan pesanan aktif penuh.', style: TextStyle(fontSize: 11.5, color: Colors.black54)),
                     ],
@@ -311,21 +301,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
             title: 'Nomor WhatsApp',
             subtitle: '+6285156955735 (Terverifikasi OTP)',
             leadingIcon: Icons.phone_android_rounded,
-            trailing: const Icon(Icons.check_rounded, color: Color(0xFF00880C)),
+            trailing: const Icon(Icons.check_rounded, color: GageTheme.primary),
           ),
           const Divider(),
           _buildModalTile(
             title: 'Alamat Email',
             subtitle: 'halugoods.indonesia@gmail.com (Terverifikasi)',
             leadingIcon: Icons.email_outlined,
-            trailing: const Icon(Icons.check_rounded, color: Color(0xFF00880C)),
+            trailing: const Icon(Icons.check_rounded, color: GageTheme.primary),
           ),
           const Divider(),
           _buildModalTile(
             title: 'Identitas Diri (KTP)',
             subtitle: 'Data kependudukan terdaftar sah',
             leadingIcon: Icons.badge_outlined,
-            trailing: const Icon(Icons.check_rounded, color: Color(0xFF00880C)),
+            trailing: const Icon(Icons.check_rounded, color: GageTheme.primary),
           ),
         ],
       ),
@@ -348,7 +338,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 title: Text(ic, style: const TextStyle(fontSize: 13.5)),
                 value: ic,
                 groupValue: _selectedAppIcon,
-                activeColor: const Color(0xFF00880C),
+                activeColor: GageTheme.primary,
                 onChanged: (val) {
                   if (val != null) {
                     setState(() => _selectedAppIcon = val);
@@ -382,7 +372,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               title: Text(lang, style: const TextStyle(fontSize: 13.5)),
               value: lang,
               groupValue: _selectedLanguage,
-              activeColor: const Color(0xFF00880C),
+              activeColor: GageTheme.primary,
               onChanged: (val) {
                 if (val != null) {
                   setState(() => _selectedLanguage = val);
@@ -416,7 +406,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               subtitle: 'Update saat resto menyiapkan dan driver berjalan',
               trailing: Switch(
                 value: _notifOrders,
-                activeColor: const Color(0xFF00880C),
+                activeColor: GageTheme.primary,
                 onChanged: (v) {
                   setState(() => _notifOrders = v);
                   _updateSetting(_keyNotifOrders, v);
@@ -430,7 +420,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               subtitle: 'Pemberitahuan voucher hemat harian',
               trailing: Switch(
                 value: _notifPromo,
-                activeColor: const Color(0xFF00880C),
+                activeColor: GageTheme.primary,
                 onChanged: (v) {
                   setState(() => _notifPromo = v);
                   _updateSetting(_keyNotifPromo, v);
@@ -444,7 +434,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               subtitle: 'Pesan langsung mengenai detail pesanan',
               trailing: Switch(
                 value: _notifChat,
-                activeColor: const Color(0xFF00880C),
+                activeColor: GageTheme.primary,
                 onChanged: (v) {
                   setState(() => _notifChat = v);
                   _updateSetting(_keyNotifChat, v);
@@ -475,7 +465,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               subtitle: 'Pertegas garis dan kontras warna elemen teks',
               trailing: Switch(
                 value: _highContrast,
-                activeColor: const Color(0xFF00880C),
+                activeColor: GageTheme.primary,
                 onChanged: (v) {
                   setState(() => _highContrast = v);
                   _updateSetting(_keyHighContrast, v);
@@ -489,7 +479,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               subtitle: 'Getaran halus saat menekan tombol & memilih menu',
               trailing: Switch(
                 value: _hapticEnabled,
-                activeColor: const Color(0xFF00880C),
+                activeColor: GageTheme.primary,
                 onChanged: (v) {
                   setState(() => _hapticEnabled = v);
                   _updateSetting(_keyHapticEnabled, v);
@@ -503,44 +493,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // 10. Profil Bisnis Modal
-  void _showBusinessModal() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _buildSimpleSheet(
-        ctx,
-        title: 'Profil Bisnis GAGE',
-        icon: Icons.business_center_outlined,
-        children: [
-          const Text(
-            'Pisahkan pengeluaran perjalanan dan pesanan konsumsi kantor dari akun pribadi Anda. Dapatkan e-faktur dan laporan pengeluaran bulanan otomatis.',
-            style: TextStyle(fontSize: 12.5, color: Colors.black54, height: 1.3),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            height: 44,
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Profil Bisnis berhasil diaktifkan untuk akun Anda.')),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00880C),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-              ),
-              child: const Text('Aktifkan Mode Bisnis Sekarang', style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   // 11. Gabung Mitra Driver Modal
   void _showDriverModal() {
@@ -569,7 +522,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _launchWaCs();
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00880C),
+                backgroundColor: GageTheme.primary,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
               ),
@@ -590,7 +543,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         title: const Row(
           children: [
-            Icon(Icons.card_giftcard_rounded, color: Color(0xFF00880C)),
+            Icon(Icons.card_giftcard_rounded, color: GageTheme.primary),
             SizedBox(width: 8),
             Text('Ajak Teman, Dapat Voucher', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ],
@@ -615,7 +568,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   const Text(
                     code,
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 1.5, color: Color(0xFF00880C)),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 1.5, color: GageTheme.primary),
                   ),
                   IconButton(
                     icon: const Icon(Icons.copy_rounded, color: Colors.black87),
@@ -671,7 +624,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           actions: [
             TextButton(onPressed: () => Navigator.pop(dlgCtx), child: const Text('Batal')),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00880C), foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(backgroundColor: GageTheme.primary, foregroundColor: Colors.white),
               onPressed: () {
                 Navigator.pop(dlgCtx);
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -760,7 +713,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             child: const Row(
               children: [
-                Icon(Icons.location_on_rounded, color: Color(0xFF00880C), size: 26),
+                Icon(Icons.location_on_rounded, color: GageTheme.primary, size: 26),
                 SizedBox(width: 10),
                 Expanded(
                   child: Column(
@@ -768,7 +721,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       Text(
                         'GAGE Pracimantoro v1.0.2+4',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF00880C)),
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: GageTheme.primary),
                       ),
                       SizedBox(height: 2),
                       Text(
@@ -787,7 +740,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             subtitle:
                 'Peta dan geolokasi rute menggunakan basis data terbuka OpenStreetMap, © Kontributor OpenStreetMap dengan lisensi Open Database License (ODbL).',
             leadingIcon: Icons.map_rounded,
-            iconColor: const Color(0xFF00880C),
+            iconColor: GageTheme.primary,
           ),
           const Divider(),
           _buildModalTile(
@@ -859,7 +812,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 12),
             Row(
               children: [
-                Icon(icon, color: const Color(0xFF00880C), size: 22),
+                Icon(icon, color: GageTheme.primary, size: 22),
                 const SizedBox(width: 8),
                 Text(title, style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.bold, color: Colors.black87)),
                 const Spacer(),
@@ -924,7 +877,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final String userPhone = (user?.phone != null && user!.phone.isNotEmpty) ? user.phone : '+6285156955735';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: Theme.of(context).brightness == Brightness.dark ? GageTheme.darkBackground : const Color(0xFFF8F9FA),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -939,7 +892,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   width: double.infinity,
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Color(0xFF81C784), Color(0xFF4CAF50), Color(0xFF388E3C)],
+                      colors: [GageTheme.primary, Color(0xFFC62828), Color(0xFFB71C1C)],
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                     ),
@@ -978,7 +931,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           borderRadius: BorderRadius.circular(20),
                           child: Container(
                             padding: const EdgeInsets.all(6),
-                            child: const Icon(Icons.arrow_back, color: Colors.black87, size: 24),
+                            child: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -987,7 +940,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: Colors.white,
                           ),
                         ),
                       ],
@@ -999,7 +952,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Container(
                   margin: const EdgeInsets.fromLTRB(16, 95, 16, 0),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Theme.of(context).brightness == Brightness.dark ? GageTheme.darkSurface : Colors.white,
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: const [
                       BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4)),
@@ -1129,7 +1082,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 icon: Icons.event_repeat_rounded,
                 title: 'Langganan',
                 badgeText: 'Promo terbatas 🔥',
-                badgeColor: const Color(0xFF00880C),
+                badgeColor: GageTheme.primary,
                 onTap: () {
                   Navigator.push(
                     context,
@@ -1143,13 +1096,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onTap: _showPaymentModal,
               ),
               _buildListRow(
-                icon: Icons.people_outline_rounded,
-                title: 'Akun Keluarga',
-                badgeText: 'Baru',
-                badgeColor: const Color(0xFF00880C),
-                onTap: _showFamilyModal,
-              ),
-              _buildListRow(
                 icon: Icons.bookmark_border_rounded,
                 title: 'Alamat tersimpan',
                 onTap: _showSavedAddressesModal,
@@ -1158,7 +1104,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 icon: Icons.verified_user_outlined,
                 title: 'Pusat Akun Terverifikasi',
                 badgeText: 'Baru',
-                badgeColor: const Color(0xFF00880C),
+                badgeColor: GageTheme.primary,
                 isLast: true,
                 onTap: _showKycModal,
               ),
@@ -1227,11 +1173,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildSectionHeader('Lebih banyak dari GAGE'),
             _buildGroupedCard([
               _buildListRow(
-                icon: Icons.business_center_outlined,
-                title: 'Profil bisnis',
-                onTap: _showBusinessModal,
-              ),
-              _buildListRow(
                 icon: Icons.electric_moped_rounded,
                 title: 'Gabung jadi Mitra Driver',
                 onTap: _showDriverModal,
@@ -1270,7 +1211,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 icon: Icons.verified_user_outlined,
                 title: 'Syarat & Ketentuan Layanan',
                 badgeText: 'Resmi',
-                badgeColor: const Color(0xFF00880C),
+                badgeColor: GageTheme.primary,
                 onTap: () {
                   Navigator.push(
                     context,
@@ -1321,14 +1262,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // Section Header Label
   Widget _buildSectionHeader(String title) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
       child: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.bold,
-          color: Color(0xFF4B5563),
+          color: isDark ? Colors.white70 : const Color(0xFF4B5563),
         ),
       ),
     );
@@ -1336,12 +1278,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // White Grouped Card Container
   Widget _buildGroupedCard(List<Widget> children) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? GageTheme.darkSurface : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? GageTheme.darkBorder : Colors.grey.shade200),
         boxShadow: const [
           BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 1)),
         ],
@@ -1362,6 +1305,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     bool isLast = false,
     required VoidCallback onTap,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       children: [
         InkWell(
@@ -1371,21 +1316,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
             child: Row(
               children: [
-                Icon(icon, size: 21, color: Colors.black87),
+                Icon(icon, size: 21, color: isDark ? Colors.white70 : Colors.black87),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Row(
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Colors.black87),
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
                       ),
                       if (badgeText != null) ...[
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
                           decoration: BoxDecoration(
-                            color: badgeColor ?? const Color(0xFF00880C),
+                            color: badgeColor ?? GageTheme.primary,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
@@ -1398,10 +1347,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 if (trailingText != null) ...[
-                  Text(trailingText, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                  Text(trailingText, style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : Colors.black54)),
                   const SizedBox(width: 4),
                 ],
-                const Icon(Icons.chevron_right_rounded, size: 20, color: Colors.black45),
+                Icon(Icons.chevron_right_rounded, size: 20, color: isDark ? Colors.white38 : Colors.black45),
               ],
             ),
           ),
@@ -1409,7 +1358,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (!isLast)
           Padding(
             padding: const EdgeInsets.only(left: 50, right: 16),
-            child: Divider(height: 1, color: Colors.grey.shade100),
+            child: Divider(height: 1, color: isDark ? GageTheme.darkBorder : Colors.grey.shade100),
           ),
       ],
     );

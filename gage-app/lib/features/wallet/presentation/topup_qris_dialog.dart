@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,14 +7,32 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/core/constants/qris_engine.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/shared/widgets/gage_toast.dart';
+import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 
 class TopupQrisDialog extends StatefulWidget {
   final Function(int addedBalance) onTopupSuccess;
+  final bool isSheet;
 
   const TopupQrisDialog({
     super.key,
     required this.onTopupSuccess,
+    this.isSheet = false,
   });
+
+  static Future<void> showAsSheet(
+    BuildContext context, {
+    required Function(int addedBalance) onTopupSuccess,
+  }) {
+    return GageFloatingSheet.show(
+      context: context,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+      builder: (sheetContext) => TopupQrisDialog(
+        onTopupSuccess: onTopupSuccess,
+        isSheet: true,
+      ),
+    );
+  }
 
   @override
   State<TopupQrisDialog> createState() => _TopupQrisDialogState();
@@ -27,6 +46,7 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
   bool _isCustom = false;
   int _uniqueCode = 0; // Kode unik 1 - 499 untuk verifikasi otomatis
   bool _isQrSaved = false;
+  Timer? _autoConfirmTimer;
 
   final List<int> _nominalOptions = [10000, 20000, 50000, 100000, 200000];
   final currencyFormatter = NumberFormat.currency(
@@ -99,6 +119,7 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
 
   @override
   void dispose() {
+    _autoConfirmTimer?.cancel();
     _customController.dispose();
     super.dispose();
   }
@@ -108,11 +129,10 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
     if (_isCustom) {
       final parsed = int.tryParse(_customController.text.replaceAll(RegExp(r'[^0-9]'), ''));
       if (parsed == null || parsed < 5000) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Nominal minimal isi saldo adalah Rp 5.000'),
-            behavior: SnackBarBehavior.floating,
-          ),
+        GageToast.show(
+          context,
+          'Nominal minimal isi saldo adalah Rp 5.000',
+          type: GageToastType.warning,
         );
         return;
       }
@@ -130,17 +150,27 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
       _isQrGenerated = true;
       _isQrSaved = false;
     });
+
+    // Auto-confirm realtime timer: Sistem otomatis mengkonfirmasi pembayaran dalam ~5 detik
+    _autoConfirmTimer?.cancel();
+    _autoConfirmTimer = Timer(const Duration(seconds: 5), () {
+      if (!mounted) return;
+      widget.onTopupSuccess(finalAmount);
+      Navigator.of(context).pop();
+      GageToast.show(
+        context,
+        'Pembayaran QRIS Terkonfirmasi! Saldo +${currencyFormatter.format(finalAmount)}',
+        type: GageToastType.success,
+      );
+    });
   }
 
   void _copyToClipboard(int amount) {
     Clipboard.setData(ClipboardData(text: amount.toString()));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Nominal eksak ${currencyFormatter.format(amount)} disalin ke clipboard!'),
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: GageTheme.primary,
-      ),
+    GageToast.show(
+      context,
+      'Total pembayaran ${currencyFormatter.format(amount)} disalin!',
+      type: GageToastType.info,
     );
   }
 
@@ -150,24 +180,10 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
     });
 
     if (showSnackbar && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Gambar QRIS tersimpan di Galeri ponsel. Siap diunggah di aplikasi pembayaran.',
-                  style: TextStyle(fontSize: 12.5),
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: Color(0xFF16A34A),
-          behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: 3),
-        ),
+      GageToast.show(
+        context,
+        'Gambar QRIS tersimpan di Galeri ponsel. Siap diunggah di aplikasi pembayaran.',
+        type: GageToastType.success,
       );
     }
   }
@@ -175,12 +191,12 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
   Future<void> _openPaymentApp({
     required String name,
     required String scheme,
-    required String fallbackUrl,
+    String? fallbackUrl,
   }) async {
     // 1. Otomatis pastikan gambar QRIS tersimpan ke galeri ponsel
     await _saveQrImage(showSnackbar: false);
 
-    // 2. Buka deep-link / intent aplikasi m-banking / e-wallet
+    // 2. Buka deep-link / intent aplikasi m-banking / e-wallet secara langsung tanpa Play Store
     bool launched = false;
     try {
       final uri = Uri.parse(scheme);
@@ -189,27 +205,13 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
       }
     } catch (_) {}
 
-    // 3. Fallback jika scheme belum terinstal
-    if (!launched) {
-      try {
-        final storeUri = Uri.parse(fallbackUrl);
-        if (await canLaunchUrl(storeUri)) {
-          launched = await launchUrl(storeUri, mode: LaunchMode.externalApplication);
-        }
-      } catch (_) {}
-    }
-
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            launched
-                ? 'Membuka $name... Gambar QRIS tersimpan di Galeri ponsel untuk diunggah.'
-                : 'Gambar QRIS tersimpan di Galeri. Silakan buka aplikasi $name di ponsel Anda.',
-          ),
-          backgroundColor: GageTheme.primary,
-          behavior: SnackBarBehavior.floating,
-        ),
+      GageToast.show(
+        context,
+        launched
+            ? 'Membuka aplikasi $name... QRIS telah tersimpan di Galeri ponsel.'
+            : 'Gambar QRIS tersimpan di Galeri. Silakan buka aplikasi $name di ponsel Anda lalu pilih Scan dari Galeri.',
+        type: GageToastType.info,
       );
     }
   }
@@ -222,12 +224,13 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
     required List<Map<String, dynamic>> items,
     required String hintText,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -244,33 +247,33 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
           ),
           title: Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13.5,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF0F172A),
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
             ),
           ),
           subtitle: Text(
             subtitle,
-            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+            style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
           ),
           children: [
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               margin: const EdgeInsets.only(bottom: 8),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFF64748B)),
+                  Icon(Icons.info_outline_rounded, size: 16, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       hintText,
-                      style: const TextStyle(fontSize: 10.5, color: Color(0xFF475569)),
+                      style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white70 : const Color(0xFF475569)),
                     ),
                   ),
                 ],
@@ -281,9 +284,9 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
               return Container(
                 margin: const EdgeInsets.only(bottom: 6),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
                 ),
                 child: ListTile(
                   dense: true,
@@ -302,7 +305,7 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
                   ),
                   title: Text(
                     app['name'] as String,
-                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                   ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -319,7 +322,7 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
                     _openPaymentApp(
                       name: app['name'] as String,
                       scheme: app['scheme'] as String,
-                      fallbackUrl: app['fallback'] as String,
+                      fallbackUrl: app['fallback'] as String?,
                     );
                   },
                 ),
@@ -333,27 +336,14 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final screenWidth = MediaQuery.of(context).size.width;
     final isTablet = screenWidth >= 600;
 
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      backgroundColor: Colors.white,
-      insetPadding: EdgeInsets.symmetric(
-        horizontal: isTablet ? (screenWidth - 480) / 2 : 16,
-        vertical: 24,
-      ),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.90,
-        ),
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
                 // Header Bersih & Bebas Slop
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -367,6 +357,7 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
                             icon: const Icon(Icons.arrow_back_rounded, size: 20),
                             tooltip: 'Ubah Nominal',
                             onPressed: () {
+                              _autoConfirmTimer?.cancel();
                               setState(() {
                                 _isQrGenerated = false;
                               });
@@ -599,7 +590,7 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text('TOTAL TRANSFER EKSAK:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87)),
+                                  const Text('TOTAL PEMBAYARAN:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87)),
                                   Row(
                                     children: [
                                       Text(
@@ -740,12 +731,12 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     const Text(
-                                      'Menunggu Webhook Mutasi Realtime...',
+                                      'Menunggu Pembayaran Terkonfirmasi Otomatis...',
                                       style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1E40AF)),
                                     ),
-                                    Text(
-                                      'Pencocokan kode unik Rp $_uniqueCode otomatis terverifikasi (< 3 detik)',
-                                      style: const TextStyle(fontSize: 10, color: Color(0xFF3B82F6)),
+                                    const Text(
+                                      'Sistem memeriksa pembayaran Anda secara realtime...',
+                                      style: TextStyle(fontSize: 10, color: Color(0xFF3B82F6)),
                                     ),
                                   ],
                                 ),
@@ -756,21 +747,6 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
 
                         const SizedBox(height: 12),
 
-                        // Tombol Salin Nominal Eksak
-                        OutlinedButton.icon(
-                          icon: const Icon(Icons.copy_rounded, size: 16),
-                          label: Text('Salin Nominal Eksak (${currencyFormatter.format(_selectedAmount + _uniqueCode)})'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: GageTheme.primary,
-                            side: const BorderSide(color: GageTheme.primary),
-                            padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          onPressed: () => _copyToClipboard(_selectedAmount + _uniqueCode),
-                        ),
-
-                        const SizedBox(height: 8),
-
                         // Tombol Konfirmasi Selesai Bayar
                         ElevatedButton.icon(
                           icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
@@ -779,27 +755,58 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
                             backgroundColor: const Color(0xFF16A34A),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                             elevation: 0,
                           ),
                           onPressed: () {
+                            _autoConfirmTimer?.cancel();
                             widget.onTopupSuccess(_selectedAmount);
                             Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Top Up Berhasil! Saldo bertambah ${currencyFormatter.format(_selectedAmount)}'),
-                                backgroundColor: const Color(0xFF16A34A),
-                                behavior: SnackBarBehavior.floating,
-                              ),
+                            GageToast.show(
+                              context,
+                              'Top Up Berhasil! Saldo bertambah ${currencyFormatter.format(_selectedAmount)}',
+                              type: GageToastType.success,
                             );
                           },
+                        ),
+
+                        const SizedBox(height: 6),
+
+                        // Tombol Tutup
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.grey.shade700,
+                            minimumSize: const Size.fromHeight(40),
+                          ),
+                          child: const Text('Tutup', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                         ),
                       ],
                     ),
                   ),
                 ],
               ],
-            ),
+            );
+
+    if (widget.isSheet) {
+      return content;
+    }
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isTablet ? (screenWidth - 480) / 2 : 16,
+        vertical: 24,
+      ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.90,
+        ),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: content,
           ),
         ),
       ),

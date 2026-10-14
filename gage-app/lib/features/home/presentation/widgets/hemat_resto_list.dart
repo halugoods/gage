@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
+import 'package:gage_app/features/food/presentation/food_explore_screen.dart';
 
 class HematRestoList extends StatelessWidget {
   final List<Map<String, dynamic>> merchants;
@@ -22,26 +23,37 @@ class HematRestoList extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
-                    'Paket Hemat 20 Ribuan',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      color: GageTheme.textPrimary,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text(
+                      'Paket Hemat 20 Ribuan',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: GageTheme.textPrimary,
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Resto pilihan terdekat & hemat ongkir',
-                    style: TextStyle(fontSize: 12, color: GageTheme.textSecondary),
-                  ),
-                ],
+                    SizedBox(height: 2),
+                    Text(
+                      'Resto pilihan terdekat & hemat ongkir',
+                      style: TextStyle(fontSize: 12, color: GageTheme.textSecondary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
               TextButton(
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (ctx) => const FoodExploreScreen(),
+                    ),
+                  );
+                },
                 child: const Text('Lihat Semua', style: TextStyle(color: GageTheme.primary, fontWeight: FontWeight.bold, fontSize: 12)),
               ),
             ],
@@ -57,7 +69,7 @@ class HematRestoList extends StatelessWidget {
           )
         else
           SizedBox(
-            height: 242,
+            height: 248,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -85,6 +97,7 @@ class HematRestoList extends StatelessWidget {
                     },
                     borderRadius: BorderRadius.circular(16),
                     child: Card(
+                      margin: EdgeInsets.zero,
                       elevation: 2,
                       shadowColor: Colors.black12,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/providers/cart_provider.dart';
 import 'package:gage_app/core/services/multi_merchant_cart_service.dart';
 import 'package:gage_app/data/models/cart_item_model.dart';
-import 'package:gage_app/features/checkout/presentation/checkout_screen.dart';
+import 'package:gage_app/shared/widgets/seamless_floating_cart_bar.dart';
+import 'shop_favorite_screen.dart';
+import 'package:gage_app/shared/widgets/gage_toast.dart';
+import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 
 class ShopStoreDetailScreen extends StatefulWidget {
   final Map<String, dynamic> store;
@@ -21,13 +25,192 @@ class ShopStoreDetailScreen extends StatefulWidget {
 }
 
 class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
+  final ScrollController _scrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
   String _selectedCategory = 'Semua';
+  String _searchQuery = '';
+  bool _isHeaderCollapsed = false;
+  bool _isFavorite = false;
+  final Map<String, String> _tempNotes = {};
   late final List<Map<String, dynamic>> _catalog;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _catalog = _generateStoreCatalog(widget.store['id'] ?? 'ret-berkah-01');
+    _loadFavoriteStatus();
+  }
+
+  void _onScroll() {
+    final offset = _scrollController.hasClients ? _scrollController.offset : 0.0;
+    final isCollapsed = offset > 140;
+    if (isCollapsed != _isHeaderCollapsed) {
+      setState(() {
+        _isHeaderCollapsed = isCollapsed;
+      });
+    }
+  }
+
+  Future<void> _loadFavoriteStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final id = widget.store['id'] ?? 'ret-berkah-01';
+    if (mounted) {
+      setState(() {
+        _isFavorite = prefs.getBool('fav_shop_$id') ?? false;
+      });
+    }
+  }
+
+  Future<void> _toggleFavorite() async {
+    final prefs = await SharedPreferences.getInstance();
+    final id = widget.store['id'] ?? 'ret-berkah-01';
+    final newVal = !_isFavorite;
+    await prefs.setBool('fav_shop_$id', newVal);
+    if (mounted) {
+      setState(() => _isFavorite = newVal);
+      GageToast.show(
+        context,
+        newVal ? 'Toko disimpan ke Favorit' : 'Toko dihapus dari Favorit',
+        type: newVal ? GageToastType.success : GageToastType.info,
+      );
+    }
+  }
+
+  void _showShareBottomSheet(BuildContext context, String storeName, String storeAddress) {
+    GageFloatingSheet.show(
+      context: context,
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: GageTheme.primary.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.share_rounded, color: GageTheme.primary, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Bagikan $storeName',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15.5,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        storeAddress,
+                        style: TextStyle(fontSize: 11.5, color: isDark ? Colors.grey.shade400 : Colors.black54),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                InkWell(
+                  onTap: () => Navigator.pop(ctx),
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.close_rounded, size: 18, color: isDark ? Colors.white70 : Colors.black54),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildShareAction(
+                  icon: Icons.chat_bubble_rounded,
+                  label: 'WhatsApp',
+                  color: const Color(0xFF25D366),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    GageToast.show(context, 'Tautan dibagikan ke WhatsApp', type: GageToastType.success);
+                  },
+                ),
+                _buildShareAction(
+                  icon: Icons.copy_rounded,
+                  label: 'Salin Tautan',
+                  color: const Color(0xFF3B82F6),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    GageToast.show(context, 'Tautan toko berhasil disalin!', type: GageToastType.success);
+                  },
+                ),
+                _buildShareAction(
+                  icon: Icons.share_location_rounded,
+                  label: 'Bagikan Lokasi',
+                  color: const Color(0xFFF97316),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    GageToast.show(context, 'Lokasi toko siap dibagikan', type: GageToastType.info);
+                  },
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildShareAction({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(height: 8),
+            Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    _searchController.dispose();
+    super.dispose();
   }
 
   List<Map<String, dynamic>> _generateStoreCatalog(String storeId) {
@@ -352,8 +535,19 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
   }
 
   List<Map<String, dynamic>> get _filteredCatalog {
-    if (_selectedCategory == 'Semua') return _catalog;
-    return _catalog.where((p) => p['category'] == _selectedCategory).toList();
+    var list = _selectedCategory == 'Semua'
+        ? _catalog
+        : _catalog.where((p) => p['category'] == _selectedCategory).toList();
+    if (_searchQuery.trim().isNotEmpty) {
+      final q = _searchQuery.toLowerCase().trim();
+      list = list.where((p) {
+        final name = (p['name'] ?? '').toString().toLowerCase();
+        final desc = (p['desc'] ?? '').toString().toLowerCase();
+        final cat = (p['category'] ?? '').toString().toLowerCase();
+        return name.contains(q) || desc.contains(q) || cat.contains(q);
+      }).toList();
+    }
+    return list;
   }
 
   Future<void> _openWhatsApp() async {
@@ -365,10 +559,280 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
     }
   }
 
+  void _showJadwalinSheet(BuildContext context, CartProvider cart) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    DateTime? selectedTime = cart.scheduledDeliveryTime;
+
+    GageFloatingSheet.show(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            final options = [
+              {'label': 'Kirim Sekarang', 'sub': 'Estimasi tiba 20-30 menit', 'time': null},
+              {
+                'label': 'Hari Ini, 1 Jam Lagi',
+                'sub': DateFormat('HH:mm').format(DateTime.now().add(const Duration(hours: 1))),
+                'time': DateTime.now().add(const Duration(hours: 1)),
+              },
+              {
+                'label': 'Siang Ini (12:00 WIB)',
+                'sub': 'Pesanan belanja disiapkan tepat waktu',
+                'time': DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day, 12, 0),
+              },
+              {
+                'label': 'Besok Pagi (08:00 WIB)',
+                'sub': 'Sembako dan sayur segar langsung diantar',
+                'time': DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day + 1, 8, 0),
+              },
+            ];
+
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Jadwal Pengantaran Belanja',
+                      style: TextStyle(
+                        fontSize: 16.5,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () => Navigator.pop(ctx),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
+                        ),
+                        child: Icon(
+                          Icons.close_rounded,
+                          size: 16,
+                          color: isDark ? Colors.white70 : Colors.black87,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Pilih kapan toko harus menyiapkan dan mengantar pesanan belanja Anda.',
+                  style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                ),
+                const SizedBox(height: 16),
+                ...options.map((opt) {
+                  final target = opt['time'] as DateTime?;
+                  final isSelected = (target == null && selectedTime == null) ||
+                      (target != null && selectedTime != null &&
+                          target.hour == selectedTime!.hour &&
+                          target.day == selectedTime!.day);
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? (isDark ? const Color(0xFF2C1E1E) : const Color(0xFFFFF1F0))
+                          : (isDark ? const Color(0xFF1E293B) : Colors.white),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isSelected ? GageTheme.primary : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+                        width: isSelected ? 1.5 : 1.0,
+                      ),
+                    ),
+                    child: ListTile(
+                      onTap: () => setSheetState(() => selectedTime = target),
+                      leading: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? GageTheme.primary.withValues(alpha: 0.12)
+                              : (isDark ? const Color(0xFF27272A) : const Color(0xFFF3F4F6)),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          target == null ? Icons.bolt_rounded : Icons.schedule_rounded,
+                          color: isSelected ? GageTheme.primary : Colors.grey.shade600,
+                          size: 19,
+                        ),
+                      ),
+                      title: Text(
+                        opt['label'] as String,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13.5,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                      subtitle: Text(
+                        opt['sub'] as String,
+                        style: TextStyle(fontSize: 11.5, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                      ),
+                      trailing: Icon(
+                        isSelected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
+                        color: isSelected ? GageTheme.primary : Colors.grey,
+                        size: 20,
+                      ),
+                    ),
+                  );
+                }),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: GageTheme.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      elevation: 0,
+                    ),
+                    onPressed: () {
+                      cart.setScheduledDeliveryTime(selectedTime);
+                      Navigator.pop(ctx);
+                      GageToast.show(
+                        context,
+                        selectedTime != null
+                            ? 'Pengantaran belanja dijadwalkan pukul ${DateFormat('HH:mm').format(selectedTime!)} WIB'
+                            : 'Pengantaran diatur langsung (Kirim Sekarang)',
+                        type: GageToastType.info,
+                      );
+                    },
+                    child: const Text('Simpan Jadwal', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildInteractiveVoucherCard({
+    required BuildContext context,
+    required CartProvider cart,
+    required String code,
+    required String title,
+    required String sub,
+    required int discount,
+    required bool isFood,
+    required bool isDark,
+  }) {
+    final isApplied = isFood ? (cart.foodPromoCode == code) : (cart.deliveryPromoCode == code);
+
+    return Container(
+      width: 260,
+      margin: const EdgeInsets.only(right: 12),
+      decoration: BoxDecoration(
+        color: isDark ? GageTheme.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isApplied ? GageTheme.primary : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+          width: isApplied ? 1.5 : 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: InkWell(
+        onTap: () {
+          if (isApplied) {
+            if (isFood) {
+              cart.removeFoodPromo();
+            } else {
+              cart.removeDeliveryPromo();
+            }
+            GageToast.show(
+              context,
+              'Voucher $code dilepas',
+              type: GageToastType.info,
+            );
+          } else {
+            if (isFood) {
+              cart.setFoodPromo(code, discount);
+            } else {
+              cart.setDeliveryPromo(code, discount);
+            }
+            GageToast.show(
+              context,
+              'Voucher $code berhasil diterapkan!',
+              type: GageToastType.success,
+            );
+          }
+        },
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: isApplied ? const Color(0xFF16A34A) : GageTheme.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  isApplied ? Icons.check_rounded : Icons.percent_rounded,
+                  color: Colors.white,
+                  size: 13,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      sub,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: isDark ? Colors.grey.shade400 : Colors.black54,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                isApplied ? 'Batal' : 'Pakai',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.bold,
+                  color: isApplied ? Colors.red.shade700 : GageTheme.primary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cart = context.watch<CartProvider>();
     final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final storeName = widget.store['name'] ?? 'Toko Mitra Resmi';
     final storeAddress = widget.store['address'] ?? 'Kecamatan Pracimantoro';
@@ -378,121 +842,528 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
     final storeImage = widget.store['image'] ?? 'assets/images/shop_banner_1.png';
 
     return Scaffold(
-      backgroundColor: GageTheme.background,
-      body: CustomScrollView(
-        slivers: [
-          // Header Sliver AppBar 16:9
-          SliverAppBar(
-            expandedHeight: 200.0,
-            pinned: true,
-            backgroundColor: GageTheme.primary,
-            foregroundColor: Colors.white,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.asset(
-                    storeImage,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(color: GageTheme.primaryLight),
-                  ),
-                  Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Colors.black38, Colors.black87],
+      backgroundColor: isDark ? GageTheme.darkBackground : const Color(0xFFF8F9FA),
+      body: Stack(
+        children: [
+          CustomScrollView(
+            controller: _scrollController,
+            slivers: [
+              // Header Sliver AppBar dengan Scroll Morphing Header
+              SliverAppBar(
+                expandedHeight: 180.0,
+                pinned: true,
+                backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
+                foregroundColor: _isHeaderCollapsed ? (isDark ? Colors.white : Colors.black87) : Colors.white,
+                elevation: _isHeaderCollapsed ? 1.0 : 0.0,
+                leading: Padding(
+                  padding: const EdgeInsets.only(left: 14.0),
+                  child: Center(
+                    child: GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: _isHeaderCollapsed ? (isDark ? GageTheme.darkCard : Colors.white) : Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isDark ? GageTheme.darkBorder : Colors.black12,
+                            width: 0.8,
+                          ),
+                          boxShadow: const [
+                            BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2)),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.arrow_back_rounded,
+                          color: isDark ? Colors.white : Colors.black87,
+                          size: 20,
+                        ),
                       ),
                     ),
                   ),
-                ],
+                ),
+                titleSpacing: _isHeaderCollapsed ? 8 : NavigationToolbar.kMiddleSpacing,
+                title: _isHeaderCollapsed
+                    ? Padding(
+                        padding: const EdgeInsets.only(right: 14.0),
+                        child: Container(
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF1E293B) : Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                              width: 0.8,
+                            ),
+                          ),
+                          child: TextField(
+                            controller: _searchController,
+                            autofocus: false,
+                            textAlignVertical: TextAlignVertical.center,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: 'Cari produk di $storeName...',
+                              hintStyle: TextStyle(
+                                fontSize: 12.5,
+                                color: isDark ? Colors.grey.shade500 : Colors.grey.shade400,
+                              ),
+                              prefixIcon: const Icon(Icons.search_rounded, size: 18, color: GageTheme.primary),
+                              suffixIcon: _searchQuery.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.close_rounded, size: 16),
+                                      onPressed: () {
+                                        _searchController.clear();
+                                        setState(() => _searchQuery = '');
+                                      },
+                                    )
+                                  : null,
+                              border: InputBorder.none,
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                            ),
+                            onChanged: (val) {
+                              setState(() => _searchQuery = val);
+                            },
+                          ),
+                        ),
+                      )
+                    : null,
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.asset(
+                        storeImage,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(color: GageTheme.primaryLight),
+                      ),
+                      Container(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Colors.black38, Colors.black87],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                actions: _isHeaderCollapsed
+                    ? const []
+                    : [
+                        Padding(
+                          padding: const EdgeInsets.only(right: 14.0),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              GestureDetector(
+                                onTap: () {
+                                  if (_scrollController.hasClients) {
+                                    _scrollController.animateTo(
+                                      150,
+                                      duration: const Duration(milliseconds: 300),
+                                      curve: Curves.easeOut,
+                                    );
+                                  }
+                                },
+                                child: Container(
+                                  width: 38,
+                                  height: 38,
+                                  decoration: BoxDecoration(
+                                    color: isDark ? GageTheme.darkCard : Colors.white,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: isDark ? GageTheme.darkBorder : Colors.black12,
+                                      width: 0.8,
+                                    ),
+                                    boxShadow: const [
+                                      BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2)),
+                                    ],
+                                  ),
+                                  child: Icon(
+                                    Icons.search_rounded,
+                                    color: isDark ? Colors.white : Colors.black87,
+                                    size: 20,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (ctx) => const ShopFavoriteScreen()),
+                                  );
+                                },
+                                child: Container(
+                                  width: 38,
+                                  height: 38,
+                                  decoration: BoxDecoration(
+                                    color: isDark ? GageTheme.darkCard : Colors.white,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: isDark ? GageTheme.darkBorder : Colors.black12,
+                                      width: 0.8,
+                                    ),
+                                    boxShadow: const [
+                                      BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2)),
+                                    ],
+                                  ),
+                                  child: Icon(
+                                    _isFavorite ? Icons.favorite_rounded : Icons.favorite_outline_rounded,
+                                    color: _isFavorite ? GageTheme.primary : (isDark ? Colors.white : Colors.black87),
+                                    size: 20,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                onTap: () => _showShareBottomSheet(context, storeName, storeAddress),
+                                child: Container(
+                                  width: 38,
+                                  height: 38,
+                                  decoration: BoxDecoration(
+                                    color: isDark ? GageTheme.darkCard : Colors.white,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: isDark ? GageTheme.darkBorder : Colors.black12,
+                                      width: 0.8,
+                                    ),
+                                    boxShadow: const [
+                                      BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2)),
+                                    ],
+                                  ),
+                                  child: Icon(
+                                    Icons.share_outlined,
+                                    color: isDark ? Colors.white : Colors.black87,
+                                    size: 20,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
               ),
-              title: Text(
-                storeName,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: Colors.white,
-                  shadows: [
-                    Shadow(color: Colors.black87, blurRadius: 6, offset: Offset(0, 1)),
-                  ],
+
+              // Detail Toko Info Card
+              SliverToBoxAdapter(
+                child: Container(
+                  margin: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: isDark ? GageTheme.darkSurface : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              storeName,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              _isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                              color: _isFavorite ? GageTheme.primary : (isDark ? Colors.white60 : Colors.black45),
+                              size: 22,
+                            ),
+                            onPressed: _toggleFavorite,
+                            visualDensity: VisualDensity.compact,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          const Icon(Icons.star_rounded, color: Color(0xFFF97316), size: 18),
+                          const SizedBox(width: 4),
+                          Text(
+                            '$storeRating (40+)',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87),
+                          ),
+                          const SizedBox(width: 8),
+                          Text('•', style: TextStyle(color: Colors.grey.shade400)),
+                          const SizedBox(width: 8),
+                          Text(
+                            '15-25 min ($storeDistance)',
+                            style: TextStyle(fontSize: 12.5, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(Icons.location_on_outlined, size: 15, color: Colors.grey.shade500),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              storeAddress,
+                              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Switcher Delivery vs Pickup (10px Rounded)
+                      Container(
+                        height: 42,
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            // Tab Delivery
+                            Expanded(
+                              child: InkWell(
+                                onTap: () {
+                                  if (cart.isPickup) {
+                                    cart.setIsPickup(false);
+                                    GageToast.show(
+                                      context,
+                                      'Mode: Pesan Antar (Delivery) aktif',
+                                      type: GageToastType.info,
+                                    );
+                                  }
+                                },
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: !cart.isPickup ? GageTheme.primary : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Image.asset(
+                                        'assets/images/gage_ride_3d.png',
+                                        width: 18,
+                                        height: 18,
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (c, e, s) => Icon(
+                                          Icons.two_wheeler_rounded,
+                                          size: 16,
+                                          color: !cart.isPickup ? Colors.white : Colors.grey.shade600,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Delivery',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                          color: !cart.isPickup ? Colors.white : (isDark ? Colors.grey.shade300 : Colors.grey.shade700),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            // Tab Pickup
+                            Expanded(
+                              child: InkWell(
+                                onTap: () {
+                                  if (!cart.isPickup) {
+                                    cart.setIsPickup(true);
+                                    GageToast.show(
+                                      context,
+                                      'Mode: Ambil Sendiri (Pickup - Bebas Ongkir) aktif',
+                                      type: GageToastType.info,
+                                    );
+                                  }
+                                },
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: cart.isPickup ? GageTheme.primary : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.shopping_bag_outlined,
+                                        size: 16,
+                                        color: cart.isPickup ? Colors.white : Colors.grey.shade600,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Pickup',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                          color: cart.isPickup ? Colors.white : (isDark ? Colors.grey.shade300 : Colors.grey.shade700),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Actions: Jadwalin & Chat Toko (10px Rounded)
+                      Row(
+                        children: [
+                          // Jadwalin
+                          InkWell(
+                            onTap: () => _showJadwalinSheet(context, cart),
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                              decoration: BoxDecoration(
+                                color: cart.scheduledDeliveryTime != null
+                                    ? (isDark ? const Color(0xFF2C1E1E) : const Color(0xFFFFF1F0))
+                                    : (isDark ? GageTheme.darkSurface : Colors.white),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: cart.scheduledDeliveryTime != null ? GageTheme.primary : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                                  width: cart.scheduledDeliveryTime != null ? 1.5 : 1.0,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.calendar_month_outlined,
+                                    size: 16,
+                                    color: cart.scheduledDeliveryTime != null ? GageTheme.primary : (isDark ? Colors.white70 : Colors.black87),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    cart.scheduledDeliveryTime != null
+                                        ? 'Jadwal: ${DateFormat('HH:mm').format(cart.scheduledDeliveryTime!)}'
+                                        : 'Jadwalin',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: cart.scheduledDeliveryTime != null ? GageTheme.primary : (isDark ? Colors.white : Colors.black87),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+
+                          // Chat Toko
+                          InkWell(
+                            onTap: _openWhatsApp,
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                              decoration: BoxDecoration(
+                                color: isDark ? GageTheme.darkSurface : Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                                  width: 1.0,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.chat_bubble_outline_rounded, size: 15, color: GageTheme.accentGreen),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Chat Toko',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? Colors.white : Colors.black87,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.share_outlined),
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Tautan $storeName siap dibagikan!')),
-                  );
-                },
-              ),
-            ],
-          ),
 
-          // Detail Toko Info Card
-          SliverToBoxAdapter(
-            child: Container(
-              color: Colors.white,
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: GageTheme.primaryLight,
-                          borderRadius: BorderRadius.circular(6),
+              // Interactive Voucher Slider
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        _buildInteractiveVoucherCard(
+                          context: context,
+                          cart: cart,
+                          code: 'BELANJAHEMAT',
+                          title: 'Diskon belanja Rp 8.000',
+                          sub: 'Min. pembelian Rp 25.000',
+                          discount: 8000,
+                          isFood: true,
+                          isDark: isDark,
                         ),
-                        child: const Text(
-                          'MITRA RESMI GAGE',
-                          style: TextStyle(color: GageTheme.primary, fontSize: 10.5, fontWeight: FontWeight.bold),
+                        _buildInteractiveVoucherCard(
+                          context: context,
+                          cart: cart,
+                          code: 'SEMBAKOMURAH',
+                          title: 'Diskon belanja Rp 10.000',
+                          sub: 'Min. pembelian Rp 40.000',
+                          discount: 10000,
+                          isFood: true,
+                          isDark: isDark,
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade50,
-                          borderRadius: BorderRadius.circular(6),
+                        _buildInteractiveVoucherCard(
+                          context: context,
+                          cart: cart,
+                          code: 'ONGKIRSHOP',
+                          title: 'Diskon Ongkir Rp 5.000',
+                          sub: 'Khusus pengantaran Delivery',
+                          discount: 5000,
+                          isFood: false,
+                          isDark: isDark,
                         ),
-                        child: Text(
-                          'BUKA',
-                          style: TextStyle(color: Colors.green.shade700, fontSize: 11, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      const Spacer(),
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: GageTheme.accentGreen,
-                          side: const BorderSide(color: GageTheme.accentGreen),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        onPressed: _openWhatsApp,
-                        icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
-                        label: const Text('Chat Toko', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      const Icon(Icons.location_on_outlined, size: 16, color: GageTheme.textSecondary),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(storeAddress, style: const TextStyle(color: GageTheme.textSecondary, fontSize: 12)),
-                      ),
-                      Text('• $storeDistance (⭐ $storeRating)', style: const TextStyle(color: GageTheme.accentGreen, fontSize: 12, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
 
           // Kategori Filter Chips
           SliverToBoxAdapter(
@@ -548,32 +1419,18 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Thumbnail Produk
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: SizedBox(
-                              width: 78,
-                              height: 78,
-                              child: Image.asset(
-                                prod['image'] ?? 'assets/images/prod_beras.png',
-                                fit: BoxFit.cover,
-                                errorBuilder: (c, e, s) => Container(
-                                  color: GageTheme.primaryLight,
-                                  child: const Icon(Icons.shopping_bag_rounded, color: GageTheme.primary),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-
-                          // Info Produk & Harga
+                          // KIRI: Info Produk & Harga
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   prod['name'],
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14.5,
+                                    color: isDark ? Colors.white : Colors.black87,
+                                  ),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
@@ -582,7 +1439,7 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                                 ),
                                 if (prod['desc'] != null)
                                   Padding(
-                                    padding: const EdgeInsets.only(top: 2.0),
+                                    padding: const EdgeInsets.only(top: 3.0),
                                     child: Text(
                                       prod['desc'],
                                       style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
@@ -590,18 +1447,73 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
-                                const SizedBox(height: 6),
+                                const SizedBox(height: 8),
                                 Text(
                                   currencyFormatter.format(price),
-                                  style: const TextStyle(fontWeight: FontWeight.w900, color: GageTheme.primary, fontSize: 14),
+                                  style: const TextStyle(fontWeight: FontWeight.w900, color: GageTheme.primary, fontSize: 14.5),
                                 ),
                               ],
                             ),
                           ),
+                          const SizedBox(width: 14),
 
-                          // Tombol Tambah / Stepper
+                          // KANAN: Thumbnail Produk (86x86) + Favorite Heart Badge + Stepper / '+ Tambah'
                           Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
+                              Stack(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: SizedBox(
+                                      width: 86,
+                                      height: 86,
+                                      child: Image.asset(
+                                        prod['image'] ?? 'assets/images/prod_beras.png',
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (c, e, s) => Container(
+                                          color: GageTheme.primaryLight,
+                                          child: const Icon(Icons.shopping_bag_rounded, color: GageTheme.primary),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: 4,
+                                    right: 4,
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        final favKey = 'fav_prod_$prodId';
+                                        final isFav = _tempNotes[favKey] == 'true';
+                                        setState(() {
+                                          _tempNotes[favKey] = isFav ? 'false' : 'true';
+                                        });
+                                        GageToast.show(
+                                          context,
+                                          !isFav ? '${prod['name']} disukai!' : '${prod['name']} dihapus dari favorit',
+                                          type: !isFav ? GageToastType.success : GageToastType.info,
+                                        );
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: const BoxDecoration(
+                                          color: Colors.white,
+                                          shape: BoxShape.circle,
+                                          boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                                        ),
+                                        child: Icon(
+                                          _tempNotes['fav_prod_$prodId'] == 'true' ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                                          size: 14,
+                                          color: _tempNotes['fav_prod_$prodId'] == 'true' ? GageTheme.primary : Colors.black45,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+
+                              // Tombol Tambah / Stepper (10px Rounded)
                               itemQty > 0
                                   ? Container(
                                       height: 32,
@@ -672,11 +1584,10 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                                             ),
                                           );
                                           if (!added) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(
-                                                backgroundColor: Colors.orange,
-                                                content: Text('Maksimal 3 toko berbeda dalam satu kali pengantaran.'),
-                                              ),
+                                            GageToast.show(
+                                              context,
+                                              'Maksimal 3 toko berbeda dalam satu kali pengantaran.',
+                                              type: GageToastType.warning,
                                             );
                                           } else {
                                             MultiMerchantCartService.instance.addItem(
@@ -712,61 +1623,14 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
           const SliverToBoxAdapter(child: SizedBox(height: 90)),
         ],
       ),
-
-      // Sticky Bottom Cart Bar
-      bottomNavigationBar: cart.totalItemCount > 0
-          ? Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, -3)),
-                ],
-              ),
-              child: SafeArea(
-                child: Row(
-                  children: [
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${cart.totalItemCount} Barang (${cart.merchantCount} Toko)',
-                          style: const TextStyle(fontSize: 12, color: GageTheme.textSecondary, fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          currencyFormatter.format(cart.subtotal),
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: GageTheme.primary),
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: GageTheme.primary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      ),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (ctx) => const CheckoutScreen()),
-                        );
-                      },
-                      child: const Row(
-                        children: [
-                          Text('Lihat Keranjang', style: TextStyle(fontWeight: FontWeight.bold)),
-                          SizedBox(width: 6),
-                          Icon(Icons.arrow_forward_rounded, size: 18),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          : null,
-    );
+      const Positioned(
+        bottom: 0,
+        left: 0,
+        right: 0,
+        child: SeamlessFloatingCartBar(),
+      ),
+    ],
+  ),
+);
   }
 }

@@ -122,14 +122,14 @@ class _TermsAndPrivacyScreenState extends State<TermsAndPrivacyScreen> with Sing
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [const Color(0xFF00880C), Colors.teal.shade800],
+                colors: [GageTheme.primary, const Color(0xFFB71C1C)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.green.shade900.withOpacity(0.2),
+                  color: GageTheme.primary.withOpacity(0.2),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),

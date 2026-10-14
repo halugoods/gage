@@ -66,7 +66,7 @@ class BannerConfig {
       title: map['title'] as String? ?? '',
       subtitle: map['subtitle'] as String? ?? '',
       badge: map['badge'] as String? ?? 'PROMO',
-      imagePath: map['imagePath'] as String? ?? 'assets/images/hero_banner_1.png',
+      imagePath: map['imagePath'] as String? ?? 'assets/images/home_hero_banner.png',
       ctaText: map['ctaText'] as String? ?? 'Lihat Promo',
       isActive: map['isActive'] as bool? ?? true,
     );
@@ -102,7 +102,7 @@ class BannerManagerService extends ChangeNotifier {
       title: 'GAGE Pracimantoro SuperApp',
       subtitle: 'Pesan kuliner, sembako, dan kirim barang se-kecamatan',
       badge: 'PROMO UTAMA',
-      imagePath: 'assets/images/hero_banner_1.png',
+      imagePath: 'assets/images/home_hero_banner.png',
       ctaText: 'Eksplor Layanan',
     );
 
@@ -122,7 +122,7 @@ class BannerManagerService extends ChangeNotifier {
       title: 'Belanja Sembako Multi-Merchant',
       subtitle: 'Bisa gabung hingga 3 toko mitra resmi Pracimantoro!',
       badge: 'SEMBAKO HEMAT',
-      imagePath: 'assets/images/promo_food_clean_16x9.png',
+      imagePath: 'assets/images/shop_hero_banner.png',
       ctaText: 'Mulai Belanja',
     );
 
@@ -132,7 +132,7 @@ class BannerManagerService extends ChangeNotifier {
       title: 'Kirim Kilat Se-Kecamatan',
       subtitle: 'Tarif flat mulai Rp 4.000 • Dijemput & diantar langsung sampai pintu',
       badge: 'KIRIM INSTAN',
-      imagePath: 'assets/images/promo_banner_1.png',
+      imagePath: 'assets/images/send_hero_banner.png',
       ctaText: 'Panggil Kurir',
     );
 
@@ -142,7 +142,7 @@ class BannerManagerService extends ChangeNotifier {
       title: 'GAGE BaBe - Lapak Barang Bekas Resmi GAGE',
       subtitle: 'Barang terverifikasi tim kurir • Bebas transaksi gelap • Jaminan garansi 48 jam',
       badge: 'LAPAK RESMI GAGE',
-      imagePath: 'assets/images/hero_promo_1.png',
+      imagePath: 'assets/images/babe_hero_banner.png',
       ctaText: 'Titip Jual Sekarang',
     );
 
@@ -152,18 +152,28 @@ class BannerManagerService extends ChangeNotifier {
       title: 'Antar Jemput Cepat & Nyaman',
       subtitle: 'Driver lokal ramah Pracimantoro, tarif jujur tanpa argo siluman',
       badge: 'TARIF FLAT KECAMATAN',
-      imagePath: 'assets/images/hero_header_gage_1.png',
+      imagePath: 'assets/images/ride_hero_banner.png',
       ctaText: 'Pesan Perjalanan',
     );
 
     _banners['tani'] = const BannerConfig(
       menuKey: 'tani',
-      menuName: 'GAGE Tani & Ternak',
-      title: 'Lapak Agro & Livestock Resmi GAGE',
-      subtitle: 'Saprotan, pakan ternak, hasil bumi & konsultasi gratis ahli',
-      badge: 'AGRO & TERNAK RESMI',
-      imagePath: 'assets/images/hero_promo_2.png',
+      menuName: 'GAGE Tani',
+      title: 'Lapak Agro Pertanian Resmi GAGE',
+      subtitle: 'Saprotan, pupuk, benih, hasil bumi & konsultasi gratis ahli',
+      badge: 'AGRO TANI RESMI',
+      imagePath: 'assets/images/tani_hero_banner.png',
       ctaText: 'Belanja Tani',
+    );
+
+    _banners['ternak'] = const BannerConfig(
+      menuKey: 'ternak',
+      menuName: 'GAGE Ternak',
+      title: 'Lapak Peternakan & Pasar Hewan Resmi GAGE',
+      subtitle: 'Pakan ternak, vitamin, kambing, sapi & konsultasi dokter hewan',
+      badge: 'PETERNAKAN RESMI',
+      imagePath: 'assets/images/ternak_hero_banner.png',
+      ctaText: 'Belanja Ternak',
     );
   }
 
@@ -211,7 +221,7 @@ class BannerManagerService extends ChangeNotifier {
       title: 'Promo Spesial GAGE',
       subtitle: 'Nikmati kemudahan layanan lokal Pracimantoro',
       badge: 'PROMO GAGE',
-      imagePath: 'assets/images/hero_banner_1.png',
+      imagePath: 'assets/images/home_hero_banner.png',
     );
   }
 

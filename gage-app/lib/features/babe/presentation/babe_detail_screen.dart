@@ -80,7 +80,6 @@ class _BabeDetailScreenState extends State<BabeDetailScreen> {
           final rawDigits = ctrl.text.replaceAll(RegExp(r'[^0-9]'), '');
           final parsedOffer = int.tryParse(rawDigits) ?? 0;
           final diff = basePrice - parsedOffer;
-          final pctDiff = basePrice > 0 ? ((diff / basePrice) * 100).round() : 0;
 
           return Padding(
             padding: EdgeInsets.only(
@@ -116,12 +115,12 @@ class _BabeDetailScreenState extends State<BabeDetailScreen> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF00880C).withValues(alpha: 0.1),
+                            color: GageTheme.primary.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(
                             Icons.handshake_rounded,
-                            color: Color(0xFF00880C),
+                            color: GageTheme.primary,
                             size: 22,
                           ),
                         ),
@@ -226,7 +225,7 @@ class _BabeDetailScreenState extends State<BabeDetailScreen> {
                         border: Border.all(
                           color: validationError != null
                               ? Colors.red.shade400
-                              : const Color(0xFF00880C).withValues(alpha: 0.5),
+                              : GageTheme.primary.withValues(alpha: 0.5),
                           width: 1.5,
                         ),
                       ),
@@ -251,7 +250,7 @@ class _BabeDetailScreenState extends State<BabeDetailScreen> {
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
-                                  color: Color(0xFF00880C),
+                                  color: GageTheme.primary,
                                 ),
                               ),
                             ),
@@ -304,10 +303,10 @@ class _BabeDetailScreenState extends State<BabeDetailScreen> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.trending_down_rounded, size: 16, color: Color(0xFF16A34A)),
+                            const Icon(Icons.check_circle_outline_rounded, size: 16, color: Color(0xFF16A34A)),
                             const SizedBox(width: 6),
                             Text(
-                              'Hemat Rp ${NumberFormat('#,###', 'id_ID').format(diff)} (-$pctDiff% dari harga awal)',
+                              'Nominal Hemat: Rp ${NumberFormat('#,###', 'id_ID').format(diff)}',
                               style: const TextStyle(
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.bold,
@@ -322,21 +321,21 @@ class _BabeDetailScreenState extends State<BabeDetailScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEFF6FF),
+                        color: const Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFBFDBFE)),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
                       ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.shield_outlined, size: 18, color: Color(0xFF2563EB)),
+                          const Icon(Icons.info_outline_rounded, size: 18, color: GageTheme.primary),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Transaksi sah dan aman melalui sistem pembayaran resmi GAGE. Dilindungi Garansi Toko 48 Jam.\nPenawaran resmi akan diteruskan ke WhatsApp Admin BaBe untuk dicek bersama penjual.',
+                              'Penawaran harga Anda akan langsung dikirimkan ke WhatsApp untuk konfirmasi kesepakatan harga.',
                               style: TextStyle(
                                 fontSize: 11,
-                                color: Colors.blue.shade900,
+                                color: Colors.grey.shade700,
                                 height: 1.35,
                               ),
                             ),
@@ -350,7 +349,7 @@ class _BabeDetailScreenState extends State<BabeDetailScreen> {
                       height: 50,
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF00880C),
+                          backgroundColor: GageTheme.primary,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
@@ -403,7 +402,7 @@ class _BabeDetailScreenState extends State<BabeDetailScreen> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('Penawaran Rp $hargaTawaranFormatted sedang dikirim ke WhatsApp Admin BaBe.'),
-                              backgroundColor: const Color(0xFF00880C),
+                              backgroundColor: GageTheme.primary,
                               behavior: SnackBarBehavior.floating,
                             ),
                           );
@@ -550,12 +549,12 @@ class _BabeDetailScreenState extends State<BabeDetailScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF00880C).withValues(alpha: 0.1),
+                          color: GageTheme.primary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           item['category'] as String? ?? 'Barang Bekas',
-                          style: const TextStyle(color: Color(0xFF00880C), fontWeight: FontWeight.bold, fontSize: 11),
+                          style: const TextStyle(color: GageTheme.primary, fontWeight: FontWeight.bold, fontSize: 11),
                         ),
                       ),
                       Container(
@@ -803,7 +802,7 @@ class _BabeDetailScreenState extends State<BabeDetailScreen> {
                       children: [
                         const Row(
                           children: [
-                            Icon(Icons.support_agent_rounded, color: Color(0xFF00880C), size: 20),
+                            Icon(Icons.support_agent_rounded, color: GageTheme.primary, size: 20),
                             SizedBox(width: 8),
                             Text(
                               'Tanya Jawab Seputar Produk',
@@ -819,8 +818,8 @@ class _BabeDetailScreenState extends State<BabeDetailScreen> {
                         const SizedBox(height: 12),
                         OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF00880C),
-                            side: const BorderSide(color: Color(0xFF00880C)),
+                            foregroundColor: GageTheme.primary,
+                            side: const BorderSide(color: GageTheme.primary),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                             minimumSize: const Size(double.infinity, 42),
                           ),
@@ -864,8 +863,8 @@ class _BabeDetailScreenState extends State<BabeDetailScreen> {
                   flex: 2,
                   child: OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF00880C),
-                      side: const BorderSide(color: Color(0xFF00880C)),
+                      foregroundColor: GageTheme.primary,
+                      side: const BorderSide(color: GageTheme.primary),
                       minimumSize: const Size(double.infinity, 50),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     ),

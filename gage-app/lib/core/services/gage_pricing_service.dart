@@ -4,17 +4,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Service perhitungan tarif & komisi GAGE (Dinamis, siap diatur via Portal Admin)
 class GagePricingService {
   // Config Default (Dapat diperbarui dinamis dari Admin Portal via SharedPreferences / API)
-  static int rideHematBase = 4000;
-  static int rideHematPerKm = 2000;
+  static int rideHematBase = 6000; // Flat 1-2 km pertama Rp 6.000
+  static int rideHematPerKm = 3000; // Km berikutnya (>2 km)
 
-  static int rideRegulerBase = 5000;
-  static int rideRegulerPerKm = 2500;
+  static int rideRegulerBase = 6000; // Flat 1-2 km pertama Rp 6.000
+  static int rideRegulerPerKm = 4000; // Km berikutnya (>2 km)
 
-  static int carBase = 12000;
-  static int carPerKm = 4000;
+  static int carBase = 8000; // Flat 1 km pertama Rp 8.000
+  static int carPerKm = 5000; // Km ke-2 dan seterusnya (>1 km)
 
-  static int deliveryBase = 6000;
-  static int deliveryPerKm = 2500;
+  static int deliveryBase = 6000; // Flat 1-2 km pertama Rp 6.000 (Food, Shop, Tani, Send)
+  static int deliveryPerKm = 3000; // Km berikutnya (>2 km)
   static int multiMerchantStopBonus = 2500; // Komisi tambahan driver per merchant ekstra
 
   // Biaya Admin Toko (Dapat disesuaikan dinamis via Portal Admin)
@@ -34,18 +34,32 @@ class GagePricingService {
   }
 
   /// Hitung tarif GAGE Ride / Car untuk CUSTOMER (Dibulatkan per 500 perak)
+  /// Non-Car: <= 2 km = Rp 6.000 flat. > 2 km = Rp 6.000 + ((km - 2) * perKm)
+  /// Car: <= 1 km = Rp 8.000 flat. > 1 km = Rp 8.000 + ((km - 1) * perKm)
   static int calculateCustomerRideFare({
     required String serviceType, // 'hemat', 'reguler', 'car'
     required double distanceKm,
   }) {
     if (distanceKm <= 0) return 0;
     int rawFare;
-    if (serviceType == 'hemat') {
-      rawFare = (rideHematBase + (distanceKm * rideHematPerKm)).round();
-    } else if (serviceType == 'car') {
-      rawFare = (carBase + (distanceKm * carPerKm)).round();
+    if (serviceType == 'car') {
+      if (distanceKm <= 1.0) {
+        rawFare = carBase;
+      } else {
+        rawFare = (carBase + ((distanceKm - 1.0) * carPerKm)).round();
+      }
+    } else if (serviceType == 'hemat') {
+      if (distanceKm <= 2.0) {
+        rawFare = rideHematBase;
+      } else {
+        rawFare = (rideHematBase + ((distanceKm - 2.0) * rideHematPerKm)).round();
+      }
     } else {
-      rawFare = (rideRegulerBase + (distanceKm * rideRegulerPerKm)).round();
+      if (distanceKm <= 2.0) {
+        rawFare = rideRegulerBase;
+      } else {
+        rawFare = (rideRegulerBase + ((distanceKm - 2.0) * rideRegulerPerKm)).round();
+      }
     }
     return roundUpTo500(rawFare);
   }
@@ -57,40 +71,61 @@ class GagePricingService {
   }) {
     if (distanceKm <= 0) return 0;
     int rawFare;
-    if (serviceType == 'hemat') {
-      rawFare = (rideHematBase + (distanceKm * rideHematPerKm)).round();
-    } else if (serviceType == 'car') {
-      rawFare = (carBase + (distanceKm * carPerKm)).round();
+    if (serviceType == 'car') {
+      if (distanceKm <= 1.0) {
+        rawFare = carBase;
+      } else {
+        rawFare = (carBase + ((distanceKm - 1.0) * carPerKm)).round();
+      }
+    } else if (serviceType == 'hemat') {
+      if (distanceKm <= 2.0) {
+        rawFare = rideHematBase;
+      } else {
+        rawFare = (rideHematBase + ((distanceKm - 2.0) * rideHematPerKm)).round();
+      }
     } else {
-      rawFare = (rideRegulerBase + (distanceKm * rideRegulerPerKm)).round();
+      if (distanceKm <= 2.0) {
+        rawFare = rideRegulerBase;
+      } else {
+        rawFare = (rideRegulerBase + ((distanceKm - 2.0) * rideRegulerPerKm)).round();
+      }
     }
     return (rawFare * driverCommissionRatio).round();
   }
 
-  /// Hitung ongkir pengantaran belanja (Food, Shop, Tani) untuk CUSTOMER
+  /// Hitung ongkir pengantaran belanja (Food, Shop, Tani, Send) untuk CUSTOMER
+  /// Skema adil: Berbasis akumulasi jarak riil kurir (antar toko + ke customer),
+  /// TANPA membebani pembeli dengan biaya mampir flat Rp 2.500.
+  /// Jarak <= 2 km flat Rp 6.000. Jarak > 2 km = Rp 6.000 + ((km - 2) * Rp 3.000)
   /// Dibulatkan per Rp 500
   static int calculateCustomerShippingFee({
     required double distanceKm,
     int merchantCount = 1,
   }) {
-    if (distanceKm <= 0) return roundUpTo500(deliveryBase);
-    int extraMerchantFee = 0;
-    if (merchantCount > 1) {
-      extraMerchantFee = (merchantCount - 1) * 2500; // Kompensasi rute mampir multi-merchant
+    // Akumulasi jarak tempuh riil antar-toko jika multi-merchant (+0.8 km per extra stop toko)
+    final effectiveDistance = distanceKm + (merchantCount > 1 ? (merchantCount - 1) * 0.8 : 0.0);
+    int rawShipping;
+    if (effectiveDistance <= 2.0) {
+      rawShipping = deliveryBase;
+    } else {
+      rawShipping = (deliveryBase + ((effectiveDistance - 2.0) * deliveryPerKm)).round();
     }
-    final rawFee = (deliveryBase + (distanceKm * deliveryPerKm) + extraMerchantFee).round();
-    return roundUpTo500(rawFee);
+    return roundUpTo500(rawShipping);
   }
 
-  /// Hitung komisi driver untuk pengantaran belanja (Exact aktual + insentif multi-pickup)
+  /// Hitung komisi driver untuk pengantaran belanja berbasis jarak rute riil (80% bagi hasil)
   static int calculateDriverShippingCommission({
     required double distanceKm,
     int merchantCount = 1,
   }) {
-    final rawShipping = (deliveryBase + (distanceKm * deliveryPerKm)).round();
-    final baseCommission = (rawShipping * driverCommissionRatio).round();
-    final multiPickupBonus = merchantCount > 1 ? (merchantCount - 1) * multiMerchantStopBonus : 0;
-    return baseCommission + multiPickupBonus;
+    final effectiveDistance = distanceKm + (merchantCount > 1 ? (merchantCount - 1) * 0.8 : 0.0);
+    int rawShipping;
+    if (effectiveDistance <= 2.0) {
+      rawShipping = deliveryBase;
+    } else {
+      rawShipping = (deliveryBase + ((effectiveDistance - 2.0) * deliveryPerKm)).round();
+    }
+    return (rawShipping * driverCommissionRatio).round();
   }
 
   /// Biaya Admin per Merchant yang adil:

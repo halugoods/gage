@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,8 +10,12 @@ import 'package:gage_app/core/services/location_service.dart';
 import 'package:gage_app/core/services/osm_geocoding_service.dart';
 import 'package:gage_app/features/babe/presentation/babe_detail_screen.dart';
 import 'package:gage_app/features/babe/presentation/babe_sell_form_screen.dart';
+import 'package:gage_app/features/babe/presentation/babe_favorite_screen.dart';
 import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
 import 'package:gage_app/shared/widgets/looping_bubble_chat.dart';
+import 'package:gage_app/shared/widgets/adaptive_speech_bubble.dart';
+import 'package:gage_app/shared/widgets/seamless_floating_cart_bar.dart';
+import 'package:gage_app/shared/widgets/gage_service_header.dart';
 
 class BabeScreen extends StatefulWidget {
   const BabeScreen({super.key});
@@ -24,10 +27,11 @@ class BabeScreen extends StatefulWidget {
 class _BabeScreenState extends State<BabeScreen> {
   String _selectedCategory = 'Semua';
   String _searchQuery = '';
+  final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchCtrl = TextEditingController();
   String _deliveryLocation = 'Mendeteksi titik GPS Anda...';
   final Set<String> _favoriteItemIds = {};
-  bool _showFavoritesOnly = false;
+  final bool _showFavoritesOnly = false;
   List<Map<String, dynamic>> _babeHistory = [];
   final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
@@ -248,6 +252,7 @@ class _BabeScreenState extends State<BabeScreen> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -364,7 +369,7 @@ class _BabeScreenState extends State<BabeScreen> {
                 const SizedBox(height: 14),
                 Row(
                   children: [
-                    const Icon(Icons.receipt_long_rounded, color: Color(0xFF00880C), size: 24),
+                    const Icon(Icons.receipt_long_rounded, color: GageTheme.primary, size: 24),
                     const SizedBox(width: 10),
                     const Text(
                       'Riwayat Belanja & Titip Jual BaBe',
@@ -392,10 +397,10 @@ class _BabeScreenState extends State<BabeScreen> {
                               width: 70,
                               height: 70,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF00880C).withValues(alpha: 0.1),
+                                color: GageTheme.primary.withValues(alpha: 0.1),
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(Icons.history_rounded, size: 36, color: Color(0xFF00880C)),
+                              child: const Icon(Icons.history_rounded, size: 36, color: GageTheme.primary),
                             ),
                             const SizedBox(height: 14),
                             const Text(
@@ -412,8 +417,8 @@ class _BabeScreenState extends State<BabeScreen> {
                             const SizedBox(height: 20),
                             OutlinedButton.icon(
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFF00880C),
-                                side: const BorderSide(color: Color(0xFF00880C)),
+                                foregroundColor: GageTheme.primary,
+                                side: const BorderSide(color: GageTheme.primary),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               ),
                               icon: const Icon(Icons.explore_rounded, size: 18),
@@ -532,11 +537,11 @@ class _BabeScreenState extends State<BabeScreen> {
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(Icons.chat_outlined, size: 13, color: Color(0xFF00880C)),
+                                      const Icon(Icons.chat_outlined, size: 13, color: GageTheme.primary),
                                       const SizedBox(width: 4),
-                                      Text(
+                                      const Text(
                                         'Tanya Admin CS GAGE',
-                                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green.shade800),
+                                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: GageTheme.primary),
                                       ),
                                     ],
                                   ),
@@ -554,7 +559,7 @@ class _BabeScreenState extends State<BabeScreen> {
                   width: double.infinity,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00880C),
+                      backgroundColor: GageTheme.primary,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -583,223 +588,7 @@ class _BabeScreenState extends State<BabeScreen> {
     return addr.trim();
   }
 
-  // Hero Header 16:9 Bersih (Bebas Vignette & Teks Overlay)
-  Widget _buildBabeHeroHeader(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isTablet = screenWidth >= 600;
-    final bannerHeight = isTablet ? 260.0 : ((screenWidth * 9 / 16) + 38).clamp(245.0, 265.0);
-    final topPadding = MediaQuery.of(context).padding.top;
-    final bannerManager = context.watch<BannerManagerService>();
-    final babeBanner = bannerManager.getBanner('babe');
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle(
-        statusBarColor: isDark ? const Color(0xFF0F172A) : Colors.white,
-        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
-        statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            height: topPadding,
-            color: isDark ? const Color(0xFF0F172A) : Colors.white,
-          ),
-          SizedBox(
-            height: bannerHeight + 24, // Ekstra ruang untuk floating search bar overlap 50%
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                // 1. Banner Hero 16:9 Bersih (Murni gambar bebas teks overlay & bebas vignette)
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: bannerHeight,
-                  child: Image.asset(
-                    babeBanner.imagePath,
-                    fit: BoxFit.cover,
-                    errorBuilder: (c, e, s) => Container(color: const Color(0xFF1E293B)),
-                  ),
-                ),
-
-                // 2. Floating Action Controls di Atas Banner
-                Positioned(
-                  top: 16,
-                  left: 14,
-                  right: 14,
-                  child: Row(
-                    children: [
-                      // Tombol X Back
-                      GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Container(
-                          width: 38,
-                          height: 38,
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
-                            ],
-                          ),
-                          child: const Icon(Icons.close_rounded, color: Colors.black87, size: 22),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-
-                      // Pill Lokasi Mandiri
-                      Flexible(
-                        child: GestureDetector(
-                          onTap: _showLocationPicker,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: const [
-                                BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.location_on_rounded, color: Color(0xFF00880C), size: 16),
-                                const SizedBox(width: 4),
-                                Flexible(
-                                  child: Text(
-                                    '${_formatShortAddress(_deliveryLocation)} ▾',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
-                                      color: Colors.black87,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      const Spacer(),
-
-                      // Pill Favorit Mandiri
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _showFavoritesOnly = !_showFavoritesOnly;
-                          });
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                _showFavoritesOnly
-                                    ? 'Menampilkan barang favorit BaBe Anda (${_favoriteItemIds.length})'
-                                    : 'Menampilkan semua barang BaBe',
-                              ),
-                              duration: const Duration(seconds: 1),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        },
-                        child: Container(
-                          width: 38,
-                          height: 38,
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
-                            ],
-                          ),
-                          child: Icon(
-                            _showFavoritesOnly ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                            color: _showFavoritesOnly ? Colors.red : Colors.black87,
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-
-                      // Pill Riwayat Mandiri
-                      GestureDetector(
-                        onTap: _showHistoryModal,
-                        child: Container(
-                          width: 38,
-                          height: 38,
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
-                            ],
-                          ),
-                          child: const Icon(Icons.receipt_long_rounded, color: Color(0xFF00880C), size: 20),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // 3. Floating Search Bar Overlapping 50% di Perbatasan Banner
-                Positioned(
-                  bottom: 0,
-                  left: 16,
-                  right: 16,
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: isTablet ? 680 : double.infinity),
-                      child: Container(
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 10,
-                              offset: Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: TextField(
-                          controller: _searchCtrl,
-                          textAlignVertical: TextAlignVertical.center,
-                          onChanged: (val) {
-                            setState(() => _searchQuery = val);
-                          },
-                          decoration: InputDecoration(
-                            hintText: 'Cari barang bekas (Gadget, Sepeda, Perkakas, Mebel)...',
-                            hintStyle: const TextStyle(fontSize: 12.5, color: Colors.black45),
-                            prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF00880C), size: 22),
-                            suffixIcon: _searchQuery.isNotEmpty
-                                ? IconButton(
-                                    icon: const Icon(Icons.close_rounded, size: 18, color: Colors.grey),
-                                    onPressed: () {
-                                      _searchCtrl.clear();
-                                      setState(() => _searchQuery = '');
-                                    },
-                                  )
-                                : null,
-                            border: InputBorder.none,
-                            isDense: true,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildProductCard(Map<String, dynamic> item) {
     final itemId = item['id'] as String;
@@ -943,8 +732,11 @@ class _BabeScreenState extends State<BabeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bannerManager = context.watch<BannerManagerService>();
+    final babeBanner = bannerManager.getBanner('babe');
     final screenWidth = MediaQuery.of(context).size.width;
     final isTablet = screenWidth >= 600;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final filteredItems = _babeItems.where((item) {
       final matchesCat = _selectedCategory == 'Semua' || item['category'] == _selectedCategory;
@@ -957,171 +749,205 @@ class _BabeScreenState extends State<BabeScreen> {
     }).toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
-      body: Column(
+      backgroundColor: isDark ? GageTheme.darkBackground : GageTheme.background,
+      body: Stack(
         children: [
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 1. Unified 16:9 Hero Header + Overlapping Search Bar
-                  _buildBabeHeroHeader(context),
-
-                  const SizedBox(height: 16),
-
-                  // Responsive container wrapper for Tablet & Phone
-                  Center(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: isTablet ? 760 : double.infinity),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // 2. Category Horizontal Filter Chips
-                          SizedBox(
-                            height: 44,
-                            child: ListView.separated(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                              scrollDirection: Axis.horizontal,
-                              itemCount: _categories.length,
-                              separatorBuilder: (ctx, i) => const SizedBox(width: 8),
-                              itemBuilder: (ctx, idx) {
-                                final cat = _categories[idx];
-                                final isSelected = _selectedCategory == cat;
-                                return ChoiceChip(
-                                  label: Text(cat),
-                                  selected: isSelected,
-                                  onSelected: (_) => setState(() => _selectedCategory = cat),
-                                  selectedColor: const Color(0xFF00880C).withValues(alpha: 0.15),
-                                  labelStyle: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                    color: isSelected ? const Color(0xFF00880C) : Colors.black87,
-                                  ),
-                                  backgroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    side: BorderSide(
-                                      color: isSelected ? const Color(0xFF00880C) : Colors.grey.shade300,
-                                    ),
-                                  ),
-                                  visualDensity: VisualDensity.compact,
-                                );
-                              },
-                            ),
-                          ),
-
-                          const SizedBox(height: 10),
-
-                          // 3. Section Title
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Koleksi Barang (${filteredItems.length})',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Colors.black87),
-                                ),
-                                const Text(
-                                  'Diantar Langsung via GAGE',
-                                  style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.bold),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          const SizedBox(height: 8),
-
-                          // 4. List Barang Bekas (Adaptif Multi-Kolom saat Tablet)
-                          if (filteredItems.isEmpty)
-                            Container(
-                              padding: const EdgeInsets.all(32),
-                              alignment: Alignment.center,
-                              child: Column(
-                                children: [
-                                  Icon(Icons.search_off_rounded, size: 48, color: Colors.grey.shade400),
-                                  const SizedBox(height: 10),
-                                  const Text(
-                                    'Tidak ada barang ditemukan',
-                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _showFavoritesOnly
-                                        ? 'Belum ada barang yang ditandai favorit di menu BaBe.'
-                                        : 'Coba ganti kata kunci pencarian atau kategori.',
-                                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                                  ),
-                                ],
-                              ),
-                            )
-                          else if (isTablet)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              child: GridView.builder(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: screenWidth > 900 ? 3 : 2,
-                                  crossAxisSpacing: 12,
-                                  mainAxisSpacing: 12,
-                                  mainAxisExtent: 138,
-                                ),
-                                itemCount: filteredItems.length,
-                                itemBuilder: (ctx, idx) => _buildProductCard(filteredItems[idx]),
-                              ),
-                            )
-                          else
-                            ListView.builder(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: filteredItems.length,
-                              itemBuilder: (ctx, idx) => _buildProductCard(filteredItems[idx]),
-                            ),
-
-                          const SizedBox(height: 16),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // 5. Sticky Bottom Bar CTA Titip Jual: Looping Bubble Chat + Typing Indicator
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: Colors.grey.shade200)),
-              boxShadow: const [
-                BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, -2)),
-              ],
-            ),
-            child: SafeArea(
-              top: false,
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: isTablet ? 680 : double.infinity),
-                  child: LoopingBubbleChat(
-                    senderName: 'Admin Titip Jual GAGE',
-                    subtitle: 'Lapak Resmi BaBe',
+          // 1. Scrollable Content
+          SingleChildScrollView(
+            controller: _scrollController,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Full-bleed Banner 16:9 ke batas atas status bar dengan Typing Bubble di atas search bar
+                GageServiceHeroBanner(
+                  imageAsset: babeBanner.imagePath,
+                  fallbackTitle: 'GAGE BABE',
+                  scrollController: _scrollController,
+                  overlayChild: AdaptiveSpeechBubble(
+                    fullText: 'Titip jual barang bekas gratis di BaBe, klik di sini',
+                    backgroundColor: const Color(0xFF4F46E5),
                     icon: Icons.sell_rounded,
-                    primaryColor: const Color(0xFF00880C),
-                    actionLabel: 'Titip Jual',
-                    messages: const [
-                      'Punya barang bekas masih bagus di rumah? Titip jual di BaBe GAGE!',
-                      'Tim GAGE siap bantu cek fisik, foto produk, dan jemput barang ke rumah Anda.',
-                      'Jual gadget, motor, perabot & perkakas aman tanpa ribet tawar liar di luar.',
-                    ],
                     onTap: () => _showFormTitipJual(context),
                   ),
                 ),
-              ),
+
+                const SizedBox(height: 38),
+
+                // Responsive container wrapper for Tablet & Phone
+                Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: isTablet ? 760 : double.infinity),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 2. Category Horizontal Filter Chips
+                        SizedBox(
+                          height: 44,
+                          child: ListView.separated(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _categories.length,
+                            separatorBuilder: (ctx, i) => const SizedBox(width: 8),
+                            itemBuilder: (ctx, idx) {
+                              final cat = _categories[idx];
+                              final isSelected = _selectedCategory == cat;
+                              return ChoiceChip(
+                                label: Text(cat),
+                                selected: isSelected,
+                                onSelected: (_) => setState(() => _selectedCategory = cat),
+                                selectedColor: GageTheme.primary.withValues(alpha: 0.15),
+                                labelStyle: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  color: isSelected ? GageTheme.primary : (isDark ? Colors.white70 : Colors.black87),
+                                ),
+                                backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  side: BorderSide(
+                                    color: isSelected ? GageTheme.primary : (isDark ? Colors.white12 : Colors.grey.shade300),
+                                  ),
+                                ),
+                                visualDensity: VisualDensity.compact,
+                              );
+                            },
+                          ),
+                        ),
+
+                        const SizedBox(height: 10),
+
+                        // 3. Section Title
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Koleksi Barang (${filteredItems.length})',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13.5,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                              ),
+                              const Text(
+                                'Diantar Langsung via GAGE',
+                                style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 8),
+
+                        // 4. List Barang Bekas (Adaptif Multi-Kolom saat Tablet)
+                        if (filteredItems.isEmpty)
+                          Container(
+                            padding: const EdgeInsets.all(32),
+                            alignment: Alignment.center,
+                            child: Column(
+                              children: [
+                                Icon(Icons.search_off_rounded, size: 48, color: Colors.grey.shade400),
+                                const SizedBox(height: 10),
+                                Text(
+                                  'Tidak ada barang ditemukan',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: isDark ? Colors.white : Colors.black87,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  _showFavoritesOnly
+                                      ? 'Belum ada barang yang ditandai favorit di menu BaBe.'
+                                      : 'Coba ganti kata kunci pencarian atau kategori.',
+                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                ),
+                              ],
+                            ),
+                          )
+                        else if (isTablet)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: screenWidth > 900 ? 3 : 2,
+                                crossAxisSpacing: 12,
+                                mainAxisSpacing: 12,
+                                mainAxisExtent: 138,
+                              ),
+                              itemCount: filteredItems.length,
+                              itemBuilder: (ctx, idx) => _buildProductCard(filteredItems[idx]),
+                            ),
+                          )
+                        else
+                          ListView.builder(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: filteredItems.length,
+                            itemBuilder: (ctx, idx) => _buildProductCard(filteredItems[idx]),
+                          ),
+
+                        const SizedBox(height: 16),
+
+                        // 5. CTA Titip Jual: Looping Bubble Chat
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: LoopingBubbleChat(
+                            senderName: 'Admin Titip Jual GAGE',
+                            subtitle: 'Lapak Resmi BaBe',
+                            icon: Icons.sell_rounded,
+                            primaryColor: GageTheme.primary,
+                            actionLabel: 'Titip Jual',
+                            messages: const [
+                              'Punya barang bekas masih bagus di rumah? Titip jual di BaBe GAGE!',
+                              'Tim GAGE siap bantu cek fisik, foto produk, dan jemput barang ke rumah Anda.',
+                              'Jual gadget, motor, perabot & perkakas aman tanpa ribet tawar liar di luar.',
+                            ],
+                            onTap: () => _showFormTitipJual(context),
+                          ),
+                        ),
+
+                        const SizedBox(height: 90),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
+          ),
+
+          // 2. Sticky Header: Action Buttons & Seamless Docking Search Bar
+          Positioned.fill(
+            child: GageServiceStickyHeader(
+              scrollController: _scrollController,
+              locationText: _formatShortAddress(_deliveryLocation),
+              onLocationTap: _showLocationPicker,
+              onBackTap: () => Navigator.pop(context),
+              onFavoriteTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (ctx) => const BabeFavoriteScreen()),
+                );
+              },
+              onHistoryTap: _showHistoryModal,
+              searchHint: 'Cari gadget, motor, perabot bekas...',
+              searchController: _searchCtrl,
+              onSearchChanged: (val) => setState(() => _searchQuery = val),
+              serviceIcon: Icons.recycling_rounded,
+            ),
+          ),
+
+          // 3. Floating Cart Overlay Melayang Murni
+          const Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: SeamlessFloatingCartBar(),
           ),
         ],
       ),

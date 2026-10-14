@@ -17,7 +17,7 @@ class LoopingBubbleChat extends StatefulWidget {
     required this.senderName,
     this.subtitle,
     required this.icon,
-    this.primaryColor = const Color(0xFF00880C),
+    this.primaryColor = const Color(0xFFE52320),
     this.backgroundColor = Colors.white,
     this.actionLabel,
     required this.onTap,
@@ -151,21 +151,29 @@ class _LoopingBubbleChatState extends State<LoopingBubbleChat>
                   children: [
                     Row(
                       children: [
-                        Text(
-                          widget.senderName,
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.bold,
-                            color: widget.primaryColor,
+                        Flexible(
+                          child: Text(
+                            widget.senderName,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.bold,
+                              color: widget.primaryColor,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         if (widget.subtitle != null) ...[
                           const SizedBox(width: 6),
-                          Text(
-                            '• ${widget.subtitle}',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.grey.shade600,
+                          Flexible(
+                            child: Text(
+                              '• ${widget.subtitle}',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey.shade600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],

@@ -206,12 +206,12 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   children: [
-                    // Accordion Item 1: Profil Saya (Data Profil & Alamat Pengantaran)
+                    // Item 1: Profil Saya
                     _buildAccordionCard(
                       context: context,
                       icon: Icons.person_outline_rounded,
-                      title: 'Profil Saya & Alamat',
-                      subtitle: 'Biodata akun, alamat pengantaran, dan pengaturan',
+                      title: 'Profil Saya',
+                      subtitle: 'Biodata akun, data diri, dan nomor handphone',
                       cardBg: cardBg,
                       borderCol: borderCol,
                       textColor: textColor,
@@ -221,22 +221,8 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
                         ListTile(
                           dense: true,
                           leading: const Icon(Icons.badge_outlined, color: GageTheme.primary, size: 20),
-                          title: Text('Buka Layar Penuh Ubah Profil', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textColor)),
+                          title: Text('Buka Layar Ubah Profil', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textColor)),
                           trailing: Icon(Icons.chevron_right, size: 18, color: textSubColor),
-                          onTap: () {
-                            Navigator.pop(context);
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (ctx) => const EditProfileScreen()),
-                            );
-                          },
-                        ),
-                        ListTile(
-                          dense: true,
-                          leading: const Icon(Icons.location_on_outlined, color: Colors.blue, size: 20),
-                          title: Text('Alamat Pengantaran Utama', style: TextStyle(fontSize: 13, color: textColor)),
-                          subtitle: Text('Kecamatan Pracimantoro, Wonogiri', style: TextStyle(fontSize: 11, color: textSubColor)),
-                          trailing: Icon(Icons.edit_location_alt_outlined, size: 18, color: textSubColor),
                           onTap: () {
                             Navigator.pop(context);
                             Navigator.push(
@@ -249,7 +235,7 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
                           ListTile(
                             dense: true,
                             leading: const Icon(Icons.account_box_outlined, color: Colors.teal, size: 20),
-                            title: Text('Buka Tab Pengaturan Akun Lengkap', style: TextStyle(fontSize: 13, color: textColor)),
+                            title: Text('Buka Tab Profil Lengkap', style: TextStyle(fontSize: 13, color: textColor)),
                             trailing: Icon(Icons.arrow_forward_ios_rounded, size: 14, color: textSubColor),
                             onTap: () {
                               Navigator.pop(context);
@@ -261,7 +247,74 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
 
                     const SizedBox(height: 10),
 
-                    // Accordion Item 2: Ganti Akun / Switch Profile
+                    // Item 2: Alamat Tersimpan
+                    _buildAccordionCard(
+                      context: context,
+                      icon: Icons.location_on_outlined,
+                      title: 'Alamat Tersimpan',
+                      subtitle: 'Kelola alamat rumah, kantor, & titik antar GPS',
+                      cardBg: cardBg,
+                      borderCol: borderCol,
+                      textColor: textColor,
+                      textSubColor: textSubColor,
+                      isDark: isDark,
+                      children: [
+                        ListTile(
+                          dense: true,
+                          leading: const Icon(Icons.home_outlined, color: Colors.blue, size: 20),
+                          title: Text('Titik Antar Utama: Pracimantoro', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textColor)),
+                          subtitle: Text('Kecamatan Pracimantoro, Kab. Wonogiri', style: TextStyle(fontSize: 11, color: textSubColor)),
+                          trailing: Icon(Icons.edit_location_alt_outlined, size: 18, color: textSubColor),
+                          onTap: () {
+                            Navigator.pop(context);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (ctx) => const EditProfileScreen()),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    // Item 3: Pusat Bantuan
+                    _buildAccordionCard(
+                      context: context,
+                      icon: Icons.support_agent_rounded,
+                      title: 'Pusat Bantuan',
+                      subtitle: 'Bantuan CS WhatsApp resmi & layanan kendala pesanan',
+                      cardBg: cardBg,
+                      borderCol: borderCol,
+                      textColor: textColor,
+                      textSubColor: textSubColor,
+                      isDark: isDark,
+                      children: [
+                        ListTile(
+                          dense: true,
+                          leading: const Icon(Icons.chat_bubble_outline_rounded, color: Color(0xFF16A34A), size: 20),
+                          title: Text(
+                            'Chat WhatsApp CS GAGE Pracimantoro',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textColor),
+                          ),
+                          subtitle: Text(
+                            '0812-3456-7890 • Respons cepat jam operasional',
+                            style: TextStyle(fontSize: 11, color: textSubColor),
+                          ),
+                          trailing: const Icon(Icons.open_in_new_rounded, size: 16, color: Color(0xFF16A34A)),
+                          onTap: () async {
+                            final uri = Uri.parse('https://wa.me/6281234567890?text=Halo%20Admin%20GAGE,%20saya%20butuh%20bantuan%20terkait%20pesanan.');
+                            if (await canLaunchUrl(uri)) {
+                              await launchUrl(uri, mode: LaunchMode.externalApplication);
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    // Item 4: Ganti Akun / Switch Profile
                     _buildAccordionCard(
                       context: context,
                       icon: Icons.switch_account_outlined,
@@ -343,45 +396,9 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
                       ],
                     ),
 
-                    const SizedBox(height: 10),
-
-                    // Accordion Item 3: Hubungi CS WhatsApp
-                    _buildAccordionCard(
-                      context: context,
-                      icon: Icons.support_agent_rounded,
-                      title: 'Hubungi CS WhatsApp',
-                      subtitle: 'Bantuan admin WhatsApp & layanan kendala pesanan',
-                      cardBg: cardBg,
-                      borderCol: borderCol,
-                      textColor: textColor,
-                      textSubColor: textSubColor,
-                      isDark: isDark,
-                      children: [
-                        ListTile(
-                          dense: true,
-                          leading: const Icon(Icons.chat_bubble_outline_rounded, color: Color(0xFF16A34A), size: 20),
-                          title: Text(
-                            'Chat WhatsApp Admin GAGE Pracimantoro',
-                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textColor),
-                          ),
-                          subtitle: Text(
-                            '0812-3456-7890 • Respons cepat jam operasional',
-                            style: TextStyle(fontSize: 11, color: textSubColor),
-                          ),
-                          trailing: const Icon(Icons.open_in_new_rounded, size: 16, color: Color(0xFF16A34A)),
-                          onTap: () async {
-                            final uri = Uri.parse('https://wa.me/6281234567890?text=Halo%20Admin%20GAGE,%20saya%20butuh%20bantuan%20terkait%20pesanan.');
-                            if (await canLaunchUrl(uri)) {
-                              await launchUrl(uri, mode: LaunchMode.externalApplication);
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-
                     const SizedBox(height: 14),
 
-                    // 4. Tombol Log Out / Keluar Akun (Aksen Merah)
+                    // 5. Tombol Keluar (Logout)
                     InkWell(
                       onTap: () => _showLogoutDialog(context, auth, isDark),
                       borderRadius: BorderRadius.circular(12),
@@ -401,7 +418,7 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Keluar Akun (Log Out)',
+                                    'Keluar (Logout)',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 13,

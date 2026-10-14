@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:gage_app/core/theme/gage_theme.dart';
 
 class MembershipScreen extends StatefulWidget {
   final String initialTier;
@@ -92,7 +93,7 @@ class _MembershipScreenState extends State<MembershipScreen> {
                 color: Color(0xFFE8F5E9),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.check_circle_rounded, color: Color(0xFF00880C), size: 42),
+              child: const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 42),
             ),
             const SizedBox(height: 16),
             Text(
@@ -113,7 +114,7 @@ class _MembershipScreenState extends State<MembershipScreen> {
               child: ElevatedButton(
                 onPressed: () => Navigator.pop(dlgCtx),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF00880C),
+                  backgroundColor: GageTheme.primary,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
                 ),
@@ -283,13 +284,13 @@ class _MembershipScreenState extends State<MembershipScreen> {
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
-                                color: _selectedTier == 'plus' ? const Color(0xFF00880C) : Colors.grey.shade200,
+                                color: _selectedTier == 'plus' ? GageTheme.primary : Colors.grey.shade200,
                                 width: _selectedTier == 'plus' ? 2 : 1,
                               ),
                               boxShadow: [
                                 BoxShadow(
                                   color: _selectedTier == 'plus'
-                                      ? const Color(0xFF00880C).withValues(alpha: 0.15)
+                                      ? GageTheme.primary.withValues(alpha: 0.15)
                                       : Colors.black.withValues(alpha: 0.04),
                                   blurRadius: 8,
                                   offset: const Offset(0, 3),
@@ -307,7 +308,7 @@ class _MembershipScreenState extends State<MembershipScreen> {
                                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
                                     ),
                                     if (_selectedTier == 'plus')
-                                      const Icon(Icons.check_circle_rounded, color: Color(0xFF00880C), size: 18)
+                                      const Icon(Icons.check_circle_rounded, color: GageTheme.primary, size: 18)
                                     else
                                       Icon(Icons.circle_outlined, color: Colors.grey.shade400, size: 18),
                                   ],
@@ -316,18 +317,18 @@ class _MembershipScreenState extends State<MembershipScreen> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFE8F5E9),
+                                    color: const Color(0xFFFFEBEE),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: const Text(
                                     'Paling Populer 🔥',
-                                    style: TextStyle(color: Color(0xFF00880C), fontSize: 9.5, fontWeight: FontWeight.bold),
+                                    style: TextStyle(color: GageTheme.primary, fontSize: 9.5, fontWeight: FontWeight.bold),
                                   ),
                                 ),
                                 const SizedBox(height: 10),
                                 Text(
                                   currencyFormatter.format(_getPriceFor('plus', _selectedDuration)),
-                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF00880C)),
+                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: GageTheme.primary),
                                 ),
                                 Text(
                                   _getPerMonthNote('plus', _selectedDuration),
@@ -458,7 +459,7 @@ class _MembershipScreenState extends State<MembershipScreen> {
                 children: [
                   const Row(
                     children: [
-                      Icon(Icons.table_chart_rounded, size: 18, color: Color(0xFF00880C)),
+                      Icon(Icons.table_chart_rounded, size: 18, color: GageTheme.primary),
                       SizedBox(width: 6),
                       Text(
                         'Tabel Perbandingan Keuntungan',
@@ -499,7 +500,7 @@ class _MembershipScreenState extends State<MembershipScreen> {
                             ),
                             Padding(
                               padding: EdgeInsets.symmetric(horizontal: 4, vertical: 10),
-                              child: Text('Plus', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF00880C))),
+                              child: Text('Plus', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: GageTheme.primary)),
                             ),
                             Padding(
                               padding: EdgeInsets.symmetric(horizontal: 4, vertical: 10),
@@ -554,10 +555,10 @@ class _MembershipScreenState extends State<MembershipScreen> {
                     const SizedBox(height: 2),
                     Text(
                       currencyFormatter.format(_calculatedPrice),
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w900,
-                        color: _selectedTier == 'plus' ? const Color(0xFF00880C) : const Color(0xFFE52320),
+                        color: GageTheme.primary,
                       ),
                     ),
                   ],
@@ -566,7 +567,7 @@ class _MembershipScreenState extends State<MembershipScreen> {
               ElevatedButton(
                 onPressed: _showQrisPaymentSheet,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _selectedTier == 'plus' ? const Color(0xFF00880C) : const Color(0xFFE52320),
+                  backgroundColor: GageTheme.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
@@ -596,10 +597,10 @@ class _MembershipScreenState extends State<MembershipScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: isSel ? const Color(0xFFE8F5E9) : Colors.white,
+            color: isSel ? const Color(0xFFFFEBEE) : Colors.white,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isSel ? const Color(0xFF00880C) : Colors.grey.shade300,
+              color: isSel ? GageTheme.primary : Colors.grey.shade300,
               width: isSel ? 1.5 : 1,
             ),
           ),
@@ -611,7 +612,7 @@ class _MembershipScreenState extends State<MembershipScreen> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  color: isSel ? const Color(0xFF00880C) : Colors.black87,
+                  color: isSel ? GageTheme.primary : Colors.black87,
                 ),
               ),
               const SizedBox(height: 2),
@@ -620,7 +621,7 @@ class _MembershipScreenState extends State<MembershipScreen> {
                 style: TextStyle(
                   fontSize: 9.5,
                   fontWeight: FontWeight.w600,
-                  color: isSel ? const Color(0xFF00880C) : Colors.grey.shade600,
+                  color: isSel ? GageTheme.primary : Colors.grey.shade600,
                 ),
               ),
             ],
@@ -643,7 +644,7 @@ class _MembershipScreenState extends State<MembershipScreen> {
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 9),
-          child: Text(plus, textAlign: TextAlign.center, style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF00880C))),
+          child: Text(plus, textAlign: TextAlign.center, style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: GageTheme.primary)),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 9),
@@ -752,7 +753,7 @@ class _QrisPaymentSheetState extends State<_QrisPaymentSheet> {
                   const SizedBox(height: 2),
                   Text(
                     '${widget.planTitle} (${widget.duration})',
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF00880C), fontWeight: FontWeight.w600),
+                    style: const TextStyle(fontSize: 12, color: GageTheme.primary, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
@@ -783,7 +784,7 @@ class _QrisPaymentSheetState extends State<_QrisPaymentSheet> {
                         const Text('Total Pembayaran:', style: TextStyle(fontSize: 13, color: Colors.black54)),
                         Text(
                           widget.currencyFormatter.format(widget.totalAmount),
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF00880C)),
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: GageTheme.primary),
                         ),
                       ],
                     ),
@@ -795,17 +796,17 @@ class _QrisPaymentSheetState extends State<_QrisPaymentSheet> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE8F5E9),
+                      color: const Color(0xFFFFEBEE),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.qr_code_scanner_rounded, size: 18, color: Color(0xFF00880C)),
+                        const Icon(Icons.qr_code_scanner_rounded, size: 18, color: GageTheme.primary),
                         const SizedBox(width: 8),
                         const Expanded(
                           child: Text(
                             'Cukup bayar pakai QRIS dari m-Banking atau E-Wallet apa saja.',
-                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF00880C)),
+                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: GageTheme.primary),
                           ),
                         ),
                         Text(
@@ -896,7 +897,7 @@ class _QrisPaymentSheetState extends State<_QrisPaymentSheet> {
             child: ElevatedButton(
               onPressed: _isChecking ? null : _checkPayment,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00880C),
+                backgroundColor: GageTheme.primary,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
               ),
@@ -969,7 +970,7 @@ class _QrisMatrixPainter extends CustomPainter {
     }
 
     // Centered GAGE Logo Dot
-    final centerPaint = Paint()..color = const Color(0xFF00880C);
+    final centerPaint = Paint()..color = GageTheme.primary;
     canvas.drawCircle(Offset(w / 2, h / 2), 16, centerPaint);
     final textPainter = TextPainter(
       text: const TextSpan(

@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/food/presentation/food_explore_screen.dart';
+import 'package:gage_app/features/food/presentation/shop_screen.dart';
 import 'package:gage_app/features/ride/presentation/ride_booking_screen.dart';
 import 'package:gage_app/features/ride/presentation/send_booking_screen.dart';
 import 'package:gage_app/features/membership/presentation/membership_screen.dart';
 import 'package:gage_app/providers/wallet_provider.dart';
+import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 
 class PromoCarousel extends StatefulWidget {
   const PromoCarousel({super.key});
@@ -20,19 +22,24 @@ class _PromoCarouselState extends State<PromoCarousel> {
 
   final List<Map<String, dynamic>> _promoBanners = [
     {
-      'image': 'assets/images/promo_banner_1.png',
+      'image': 'assets/images/food_hero_banner.png',
       'title': 'Pesta Kuliner Spesial',
       'desc': 'Diskon 50% & Gratis Ongkir Pesanan',
     },
     {
-      'image': 'assets/images/promo_banner_2.png',
+      'image': 'assets/images/send_hero_banner.png',
       'title': 'Kirim Kilat GAGE Send',
       'desc': 'Tarif Hemat Kirim Paket Instan',
     },
     {
-      'image': 'assets/images/promo_banner_3.png',
+      'image': 'assets/images/ride_hero_banner.png',
       'title': 'GAGE Ride & Car',
       'desc': 'Perjalanan Nyaman dengan Tarif Hemat',
+    },
+    {
+      'image': 'assets/images/shop_hero_banner.png',
+      'title': 'Belanja Sembako Lengkap',
+      'desc': 'Grosir & Eceran Pasar Pracimantoro',
     },
   ];
 
@@ -52,6 +59,11 @@ class _PromoCarouselState extends State<PromoCarousel> {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (ctx) => const RideBookingScreen(initialTab: 'ride')),
+      );
+    } else if (index == 3) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (ctx) => const ShopScreen()),
       );
     } else {
       Navigator.push(
@@ -138,26 +150,26 @@ class _PromoCarouselState extends State<PromoCarousel> {
             },
             borderRadius: BorderRadius.circular(12),
             child: Container(
-              height: 48,
+              constraints: const BoxConstraints(minHeight: 48),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFFE8F5E9), Color(0xFFC8E6C9)],
+                  colors: [Color(0xFFFFEBEE), Color(0xFFFFCDD2)],
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
                 ),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFA5D6A7), width: 1),
+                border: Border.all(color: const Color(0xFFEF9A9A), width: 1),
                 boxShadow: const [
                   BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 1)),
                 ],
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(5),
                     decoration: const BoxDecoration(
-                      color: Color(0xFF00880C),
+                      color: GageTheme.primary,
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.star_rounded, color: Colors.white, size: 14),
@@ -169,7 +181,7 @@ class _PromoCarouselState extends State<PromoCarousel> {
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
-                        color: Color(0xFF00880C),
+                        color: GageTheme.primary,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -177,7 +189,7 @@ class _PromoCarouselState extends State<PromoCarousel> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF00880C),
+                      color: GageTheme.primary,
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: const Row(
@@ -238,37 +250,39 @@ class _DailyCheckInCardState extends State<DailyCheckInCard> {
 
     context.read<WalletProvider>().addPoints(100);
 
-    showDialog(
+    GageFloatingSheet.show(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.celebration_rounded, color: Colors.amber, size: 56),
-            const SizedBox(height: 12),
-            const Text(
-              'Hore! +100 Koin GAGE',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Kamu berhasil check-in hari ke-$_currentStreak. Koin sudah ditambahkan ke saldo dompet GAGE Cuan!',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
-            ),
-            const SizedBox(height: 18),
-            ElevatedButton(
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.celebration_rounded, color: Colors.amber, size: 56),
+          const SizedBox(height: 12),
+          const Text(
+            'Hore! +100 Koin GAGE',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Kamu berhasil check-in hari ke-$_currentStreak. Koin sudah ditambahkan ke saldo dompet GAGE Cuan!',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: ElevatedButton(
               onPressed: () => Navigator.pop(ctx),
               style: ElevatedButton.styleFrom(
                 backgroundColor: GageTheme.primary,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                elevation: 0,
               ),
-              child: const Text('Mantap!'),
+              child: const Text('Mantap!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -356,7 +370,7 @@ class _DailyCheckInCardState extends State<DailyCheckInCard> {
                 return Expanded(
                   child: Container(
                     margin: const EdgeInsets.symmetric(horizontal: 2),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    padding: const EdgeInsets.symmetric(vertical: 6),
                     decoration: BoxDecoration(
                       color: isClaimed
                           ? Colors.grey.shade100
@@ -410,7 +424,7 @@ class _DailyCheckInCardState extends State<DailyCheckInCard> {
             // Tombol Klaim Hadiah Hari Ini
             SizedBox(
               width: double.infinity,
-              height: 38,
+              height: 40,
               child: ElevatedButton(
                 onPressed: _claimedToday ? null : () => _claimReward(context),
                 style: ElevatedButton.styleFrom(
@@ -429,14 +443,18 @@ class _DailyCheckInCardState extends State<DailyCheckInCard> {
                       color: _claimedToday ? Colors.grey.shade600 : Colors.white,
                     ),
                     const SizedBox(width: 6),
-                    Text(
-                      _claimedToday
-                          ? 'Sudah Klaim Hari Ini (Besok +150 Koin)'
-                          : 'Klaim Hadiah Hari Ini (+100 Koin)',
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.bold,
-                        color: _claimedToday ? Colors.grey.shade600 : Colors.white,
+                    Flexible(
+                      child: Text(
+                        _claimedToday
+                            ? 'Sudah Klaim Hari Ini'
+                            : 'Klaim Hadiah Hari Ini (+100 Koin)',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.bold,
+                          color: _claimedToday ? Colors.grey.shade600 : Colors.white,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/food/data/food_categories_data.dart';
@@ -12,9 +11,10 @@ import 'package:latlong2/latlong.dart';
 import 'dart:async';
 import 'package:gage_app/core/services/osm_geocoding_service.dart';
 import 'package:gage_app/core/services/location_service.dart';
-import 'package:gage_app/features/home/presentation/promo_screen.dart';
 import 'package:gage_app/features/orders/presentation/orders_screen.dart';
 import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
+import 'package:gage_app/shared/widgets/seamless_floating_cart_bar.dart';
+import 'package:gage_app/shared/widgets/gage_service_header.dart';
 
 class FoodExploreScreen extends StatefulWidget {
   const FoodExploreScreen({super.key});
@@ -24,11 +24,21 @@ class FoodExploreScreen extends StatefulWidget {
 }
 
 class _FoodExploreScreenState extends State<FoodExploreScreen> {
+  final ScrollController _scrollController = ScrollController();
+  final TextEditingController _searchCtrl = TextEditingController();
+
   String _selectedLocation = 'Mendeteksi lokasi...';
   final String _selectedCategory = 'Semua';
   String _searchQuery = '';
   List<Map<String, dynamic>> _merchants = [];
   bool _isLoading = true;
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _searchCtrl.dispose();
+    super.dispose();
+  }
 
 
   void _showAddressPicker() {
@@ -51,37 +61,6 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
   String _activeFilter = 'Semua';
   final bool _showFavoritesOnly = false;
   final Set<String> _favoriteRestoIds = {'mch-dimsum-01'};
-
-  final List<Map<String, dynamic>> _quickButtons = [
-    {
-      'title': 'Resto\nTerdekat',
-      'icon': Icons.near_me_rounded,
-      'color': Color(0xFF00880C),
-      'badge': null,
-      'action': 'nearest',
-    },
-    {
-      'title': 'Ongkir\nMURAAAH',
-      'icon': Icons.delivery_dining_rounded,
-      'color': Color(0xFFE65100),
-      'badge': null,
-      'action': 'cheap_ongkir',
-    },
-    {
-      'title': 'Group\nOrder',
-      'icon': Icons.group_rounded,
-      'color': Color(0xFFE52320),
-      'badge': '-50%',
-      'action': 'group',
-    },
-    {
-      'title': 'GAGE Food\nHEMAT',
-      'icon': Icons.thumb_up_alt_rounded,
-      'color': Color(0xFFC62828),
-      'badge': '30rb',
-      'action': 'budget',
-    },
-  ];
 
   final List<String> _filterChips = [
     'Semua',
@@ -203,414 +182,139 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isTablet = screenWidth >= 600;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: RefreshIndicator(
-        onRefresh: _loadMerchants,
-        color: GageTheme.primary,
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Unified GoFood Hero Header (Drawer + Full Banner + Floating Actions & Search)
-              _buildGoFoodHeroHeader(context),
-
-              const SizedBox(height: 18),
-
-              Center(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: isTablet ? 760 : double.infinity),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 3. 4 Quick Filter Buttons (Resto Terdekat, Ongkir Murah, Group Order, Hemat)
-                      _buildQuickButtons(),
-
-                      const SizedBox(height: 24),
-
-                      // 4. Kategori Kuliner Bulat ("Kuliner sesuai seleramu")
-                      _buildCulinaryCategoriesSection(),
-
-                      const SizedBox(height: 20),
-
-                      // 5. Horizontal Filter Chips
-                      _buildFilterChips(),
-
-                      const SizedBox(height: 16),
-
-                      // 6. Section Headline & Daftar Resto Mitra Terdaftar
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Makan enak buat kamu di Pracimantoro 🍜',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: GageTheme.textPrimary,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Pilihan resto mitra resmi dengan rating terbaik',
-                              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      // List Kartu Resto
-                      _buildMerchantList(),
-
-                      const SizedBox(height: 16),
-
-                      // Banner Iklan Sponsor Kuliner di Tengah List
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: Image.asset(
-                            'assets/images/promo_banner_1.png',
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                            errorBuilder: (c, e, s) => const SizedBox(),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 32),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGoFoodHeroHeader(BuildContext context) {
-    final topPadding = MediaQuery.of(context).padding.top;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final barColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
-    final iconBrightness = isDark ? Brightness.light : Brightness.dark;
-
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isTablet = screenWidth >= 600;
-    final rawBannerHeight = screenWidth * 9 / 16;
-    final bannerHeight = isTablet ? 260.0 : rawBannerHeight;
-
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle(
-        statusBarColor: barColor,
-        statusBarIconBrightness: iconBrightness,
-        statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      backgroundColor: isDark ? GageTheme.darkBackground : Colors.white,
+      body: Stack(
         children: [
-          // 1. Drawer Android Atas (Sesuai tema HP: putih di light mode)
-          Container(
-            height: topPadding,
-            color: barColor,
-          ),
-
-          // 2. Full-Width Banner Hero 16:9 Murni dengan Floating Actions & Floating Search Overlap 50%
-          SizedBox(
-            height: bannerHeight + 24.0, // banner height + 24dp for 50% overlapping 48dp search bar
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                // Full Width Banner Photo (Murni 16:9 Bersih Bebas Vignette & Bebas Teks Overlay Kaku)
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: bannerHeight,
-                  child: Image.asset(
-                    'assets/images/food_hero_banner.png',
-                    fit: BoxFit.cover,
-                    errorBuilder: (c, e, s) => Container(color: GageTheme.primary),
+          // 1. Scrollable Content
+          RefreshIndicator(
+            onRefresh: _loadMerchants,
+            color: GageTheme.primary,
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Full-bleed Banner 16:9 ke batas atas status bar dengan smooth fade-out
+                  GageServiceHeroBanner(
+                    imageAsset: 'assets/images/food_hero_banner.png',
+                    fallbackTitle: 'GAGE FOOD',
+                    scrollController: _scrollController,
                   ),
-                ),
 
-                // Floating Actions di Atas Banner (Persis Layout GoFood Gojek)
-                Positioned(
-                  top: 10,
-                  left: 14,
-                  right: 14,
-                  child: Row(
-                    children: [
-                      // Tombol X (Lingkaran Card Putih)
-                      GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Container(
-                          width: 38,
-                          height: 38,
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
-                            ],
-                          ),
-                          child: const Icon(Icons.close_rounded, color: Colors.black87, size: 22),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
+                  const SizedBox(height: 38),
 
-                      // Card Alamat (HANYA membungkus teks alamat, tidak memanjang!)
-                      Flexible(
-                        child: GestureDetector(
-                          onTap: _showAddressPicker,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: const [
-                                BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: isTablet ? 760 : double.infinity),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Kategori Kuliner Bulat ("Kuliner sesuai seleramu")
+                          _buildCulinaryCategoriesSection(),
+
+                          const SizedBox(height: 20),
+
+                          // Horizontal Filter Chips
+                          _buildFilterChips(),
+
+                          const SizedBox(height: 16),
+
+                          // Section Headline & Daftar Resto Mitra Terdaftar
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Icon(Icons.location_on, color: GageTheme.primary, size: 16),
-                                const SizedBox(width: 4),
-                                Flexible(
-                                  child: Text(
-                                    '${_formatShortAddress(_selectedLocation)} ▾',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12.5,
-                                      color: Colors.black87,
-                                    ),
+                                Text(
+                                  'Makan enak buat kamu di Pracimantoro 🍜',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? Colors.white : GageTheme.textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Pilihan resto mitra resmi dengan rating terbaik',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                        ),
-                      ),
 
-                      const Spacer(),
+                          const SizedBox(height: 12),
 
-                      // Tombol Favorit (Lingkaran Card Putih)
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (ctx) => const FavoriteRestoScreen()),
-                          );
-                        },
-                        child: Container(
-                          width: 38,
-                          height: 38,
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
-                            ],
-                          ),
-                          child: const Icon(Icons.favorite_rounded, color: Colors.red, size: 20),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
+                          // List Kartu Resto
+                          _buildMerchantList(),
 
-                      // Tombol Riwayat Pesanan (Lingkaran Card Putih)
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (ctx) => const OrdersScreen()),
-                          );
-                        },
-                        child: Container(
-                          width: 38,
-                          height: 38,
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
-                            ],
-                          ),
-                          child: const Icon(Icons.receipt_long_rounded, color: Colors.black87, size: 20),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                          const SizedBox(height: 16),
 
-                // Floating Search Bar ("Lagi mau mamam apa?") Overlap 50% di Batas Bawah Banner
-                Positioned(
-                  bottom: 0,
-                  left: 16,
-                  right: 16,
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: MediaQuery.of(context).size.width >= 600 ? 680 : double.infinity,
-                      ),
-                      child: Container(
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 10,
-                              offset: Offset(0, 4),
+                          // Banner Iklan Sponsor Kuliner di Tengah List
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(16),
+                              child: Image.asset(
+                                'assets/images/food_hero_banner.png',
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                errorBuilder: (c, e, s) => const SizedBox(),
+                              ),
                             ),
-                          ],
-                        ),
-                        child: TextField(
-                      textAlignVertical: TextAlignVertical.center,
-                      onChanged: (val) {
-                        setState(() => _searchQuery = val);
-                      },
-                      decoration: const InputDecoration(
-                        isDense: true,
-                        hintText: 'Lagi mau mamam apa?',
-                        hintStyle: TextStyle(fontSize: 13.5, color: Colors.grey),
-                        prefixIcon: Icon(Icons.search_rounded, color: Colors.grey, size: 21),
-                        prefixIconConstraints: BoxConstraints(minWidth: 44, minHeight: 48),
-                        suffixIcon: Icon(Icons.restaurant_rounded, color: GageTheme.primary, size: 20),
-                        suffixIconConstraints: BoxConstraints(minWidth: 44, minHeight: 48),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(vertical: 14),
+                          ),
+
+                          const SizedBox(height: 90),
+                        ],
                       ),
                     ),
                   ),
-                ),
+                ],
               ),
-            ),
-          ],
             ),
           ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildQuickButtons() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: _quickButtons.map((btn) {
-          final badge = btn['badge'] as String?;
-          final title = btn['title'] as String;
-          final action = btn['action'] as String?;
-
-          return Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4.0),
-              child: InkWell(
-                onTap: () {
-                  if (action == 'nearest' || title.contains('Terdekat')) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (ctx) => const CategoryMerchantListScreen(
-                          categoryName: 'Resto Terdekat',
-                          filterMode: 'nearest',
-                        ),
-                      ),
-                    );
-                  } else if (action == 'cheap_ongkir' || title.contains('MURAAAH') || title.contains('Ongkir')) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (ctx) => const CategoryMerchantListScreen(
-                          categoryName: 'Promo Ongkir Hemat',
-                          filterMode: 'cheap_ongkir',
-                        ),
-                      ),
-                    );
-                  } else if (action == 'group' || title.contains('Group')) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (ctx) => const PromoScreen(),
-                      ),
-                    );
-                  } else if (action == 'budget' || title.contains('HEMAT')) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (ctx) => const CategoryMerchantListScreen(
-                          categoryName: 'GAGE Food Hemat',
-                          filterMode: 'budget',
-                        ),
-                      ),
-                    );
-                  }
-                },
-                borderRadius: BorderRadius.circular(14),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.grey.shade200),
-                    boxShadow: const [
-                      BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
-                    ],
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Icon(btn['icon'] as IconData, color: btn['color'] as Color, size: 26),
-                          if (badge != null)
-                            Positioned(
-                              top: -8,
-                              right: -12,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                decoration: BoxDecoration(
-                                  color: Colors.black87,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  badge,
-                                  style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        title,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                          height: 1.15,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+          // 2. Sticky Header: Action Buttons & Seamless Docking Search Bar
+          Positioned.fill(
+            child: GageServiceStickyHeader(
+              scrollController: _scrollController,
+              locationText: _formatShortAddress(_selectedLocation),
+              onLocationTap: _showAddressPicker,
+              onBackTap: () => Navigator.pop(context),
+              onFavoriteTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (ctx) => const FavoriteRestoScreen()),
+                );
+              },
+              onHistoryTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (ctx) => const OrdersScreen()),
+                );
+              },
+              searchHint: 'Lagi mau mamam apa?',
+              searchController: _searchCtrl,
+              onSearchChanged: (val) {
+                setState(() => _searchQuery = val);
+              },
+              serviceIcon: Icons.restaurant_rounded,
             ),
-          );
-        }).toList(),
+          ),
+
+          // 3. Floating Cart Overlay Melayang Murni (Bebas blok bar)
+          const Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: SeamlessFloatingCartBar(),
+          ),
+        ],
       ),
     );
   }
@@ -814,6 +518,7 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
   }
 
   Widget _buildRestoCard(Map<String, dynamic> m) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return InkWell(
       onTap: () {
         // KLIK OUTLET RESTO -> BARU MEMBUKA MENU RESTO
@@ -890,44 +595,21 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(Icons.access_time_rounded, color: Colors.grey, size: 13),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Estimasi ${m['eta'] ?? '15-25 min'}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey.shade700,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: 3),
+                  Text(
+                    '${m['eta'] ?? '20-30 min'} (${m['distance'] ?? '1.2 km'})',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                      fontWeight: FontWeight.normal,
+                    ),
                   ),
                   const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    children: [
-                      // Badge Informasi Jarak Riil (Ubah badge estimasi ongkir menjadi informasi jarak riil)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF0FDF4),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: const Color(0xFFBBF7D0)),
-                        ),
-                        child: Text(
-                          '📍 ${m['distance'] ?? '1.2 km'} • ${m['eta'] ?? '15 mnt'}',
-                          style: const TextStyle(
-                            color: Color(0xFF16A34A),
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      if (m['diskonBadge'] != null)
+                  if (m['diskonBadge'] != null)
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                           decoration: BoxDecoration(
@@ -1158,7 +840,7 @@ class _MapPickerSheetState extends State<_MapPickerSheet> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.touch_app_rounded, size: 15, color: Color(0xFF00880C)),
+                          const Icon(Icons.touch_app_rounded, size: 15, color: GageTheme.primary),
                           const SizedBox(width: 6),
                           Text(
                             _isReverseGeocoding ? 'Mendeteksi alamat...' : 'Geser peta untuk menentukan titik',
@@ -1218,7 +900,7 @@ class _MapPickerSheetState extends State<_MapPickerSheet> {
                     heroTag: 'gps_map_picker',
                     onPressed: _resetToGPS,
                     backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xFF00880C),
+                    foregroundColor: GageTheme.primary,
                     elevation: 3,
                     child: const Icon(Icons.my_location_rounded, size: 22),
                   ),
@@ -1286,7 +968,7 @@ class _MapPickerSheetState extends State<_MapPickerSheet> {
                         Navigator.pop(context);
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF00880C),
+                        backgroundColor: GageTheme.primary,
                         foregroundColor: Colors.white,
                         elevation: 0,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(23)),

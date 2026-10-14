@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/providers/wallet_provider.dart';
 import 'package:gage_app/features/wallet/presentation/topup_qris_dialog.dart';
+import 'package:gage_app/features/wallet/presentation/qris_pay_screen.dart';
 
 /// Layanan QRIS Pay Resmi Independen GAGE Pracimantoro
 /// Real Camera Scanner 1:1, Mendukung Pembayaran Saldo GAGEPay & Semua e-Wallet/m-Banking
@@ -15,11 +16,9 @@ class OfflineQrisPaySheet extends StatefulWidget {
   const OfflineQrisPaySheet({super.key});
 
   static Future<void> show(BuildContext context) {
-    return showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => const OfflineQrisPaySheet(),
+    return Navigator.push(
+      context,
+      MaterialPageRoute(builder: (ctx) => const QrisPayScreen()),
     );
   }
 
@@ -41,8 +40,8 @@ class _OfflineQrisPaySheetState extends State<OfflineQrisPaySheet>
   String _detectedMerchantLocation = 'Pasar Pracimantoro Los A No. 4';
   String _detectedMerchantNmid = 'ID1024395819028';
 
-  // 'GAGEPAY' vs 'OTHER_EWALLET'
-  String _fundingSource = 'GAGEPAY';
+  // Closed loop GAGEPay
+  final String _fundingSource = 'GAGEPAY';
 
   final currencyFormatter =
       NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
@@ -1025,142 +1024,50 @@ class _OfflineQrisPaySheetState extends State<OfflineQrisPaySheet>
 
                           const SizedBox(height: 14),
 
-                          // Pilihan Sumber Dana (GAGEPay vs Semua e-Wallet / m-Banking)
-                          Text(
-                            'Pilih Sumber Dana:',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white70 : Colors.black87,
+                          // Sumber Dana: Saldo GAGEPay (Closed Loop)
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: GageTheme.primary.withValues(alpha: 0.3),
+                                width: 1.2,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-
-                          Row(
-                            children: [
-                              // 1. Saldo GAGEPay
-                              Expanded(
-                                child: InkWell(
-                                  onTap: () => setState(() => _fundingSource = 'GAGEPAY'),
-                                  borderRadius: BorderRadius.circular(14),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 10),
-                                    decoration: BoxDecoration(
-                                      color: _fundingSource == 'GAGEPAY'
-                                          ? GageTheme.primary.withValues(alpha: 0.1)
-                                          : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
-                                      borderRadius: BorderRadius.circular(14),
-                                      border: Border.all(
-                                        color: _fundingSource == 'GAGEPAY'
-                                            ? GageTheme.primary
-                                            : Colors.grey.shade300,
-                                        width: _fundingSource == 'GAGEPAY' ? 1.5 : 1,
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: GageTheme.primary.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Icon(Icons.account_balance_wallet_rounded, color: GageTheme.primary, size: 20),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Sumber Dana: Saldo GAGEPay',
+                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
                                       ),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Icon(
-                                              Icons.account_balance_wallet_rounded,
-                                              size: 16,
-                                              color: _fundingSource == 'GAGEPAY'
-                                                  ? GageTheme.primary
-                                                  : Colors.grey,
-                                            ),
-                                            const SizedBox(width: 6),
-                                            Expanded(
-                                              child: Text(
-                                                'Saldo GAGEPay',
-                                                style: TextStyle(
-                                                  fontSize: 11.5,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: _fundingSource == 'GAGEPAY'
-                                                      ? GageTheme.primary
-                                                      : (isDark ? Colors.white70 : Colors.black87),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Sisa Saldo: ${currencyFormatter.format(wallet.balance)} • 0% Fee',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: wallet.balance >= _selectedAmount ? const Color(0xFF16A34A) : Colors.red.shade600,
+                                          fontWeight: FontWeight.w600,
                                         ),
-                                        const SizedBox(height: 3),
-                                        Text(
-                                          '0% Fee • Instan',
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            color: isDark ? Colors.white38 : Colors.grey.shade500,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-
-                              // 2. Semua e-Wallet / m-Banking
-                              Expanded(
-                                child: InkWell(
-                                  onTap: () => setState(() => _fundingSource = 'OTHER_EWALLET'),
-                                  borderRadius: BorderRadius.circular(14),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 10),
-                                    decoration: BoxDecoration(
-                                      color: _fundingSource == 'OTHER_EWALLET'
-                                          ? const Color(0xFF1D4ED8).withValues(alpha: 0.1)
-                                          : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
-                                      borderRadius: BorderRadius.circular(14),
-                                      border: Border.all(
-                                        color: _fundingSource == 'OTHER_EWALLET'
-                                            ? const Color(0xFF1D4ED8)
-                                            : Colors.grey.shade300,
-                                        width: _fundingSource == 'OTHER_EWALLET' ? 1.5 : 1,
-                                      ),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Icon(
-                                              Icons.account_balance_rounded,
-                                              size: 16,
-                                              color: _fundingSource == 'OTHER_EWALLET'
-                                                  ? const Color(0xFF1D4ED8)
-                                                  : Colors.grey,
-                                            ),
-                                            const SizedBox(width: 6),
-                                            Expanded(
-                                              child: Text(
-                                                'm-Banking & e-Wallet',
-                                                style: TextStyle(
-                                                  fontSize: 11.5,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: _fundingSource == 'OTHER_EWALLET'
-                                                      ? const Color(0xFF1D4ED8)
-                                                      : (isDark ? Colors.white70 : Colors.black87),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 3),
-                                        Text(
-                                          'BCA, Mandiri, GoPay, OVO',
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            color: isDark ? Colors.white38 : Colors.grey.shade500,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
 
                           const SizedBox(height: 14),
@@ -1233,12 +1140,10 @@ class _OfflineQrisPaySheetState extends State<OfflineQrisPaySheet>
 
                           const SizedBox(height: 18),
 
-                          // Tombol Konfirmasi Bayar Sesuai Sumber Dana
+                          // Tombol Konfirmasi Bayar Saldo GAGEPay
                           ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: _fundingSource == 'GAGEPAY'
-                                  ? GageTheme.primary
-                                  : const Color(0xFF1D4ED8),
+                              backgroundColor: GageTheme.primary,
                               foregroundColor: Colors.white,
                               minimumSize: const Size(double.infinity, 48),
                               elevation: 2,
@@ -1248,17 +1153,13 @@ class _OfflineQrisPaySheetState extends State<OfflineQrisPaySheet>
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(
-                                  _fundingSource == 'GAGEPAY'
-                                      ? Icons.account_balance_wallet_rounded
-                                      : Icons.open_in_new_rounded,
+                                const Icon(
+                                  Icons.account_balance_wallet_rounded,
                                   size: 18,
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  _fundingSource == 'GAGEPAY'
-                                      ? 'Bayar Sekarang • ${currencyFormatter.format(_selectedAmount)}'
-                                      : 'Buka di m-Banking / e-Wallet',
+                                  'Bayar Sekarang • ${currencyFormatter.format(_selectedAmount)}',
                                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
                                 ),
                               ],

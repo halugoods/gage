@@ -66,7 +66,6 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
   final ImagePicker _picker = ImagePicker();
   final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
   int _sellerPrice = 0;
-  int _markupFee = 0;
   int _finalListingPrice = 0;
 
   @override
@@ -105,9 +104,7 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
     final numVal = int.tryParse(clean) ?? 0;
     setState(() {
       _sellerPrice = numVal;
-      // Markup 10% komisi resmi GAGE
-      _markupFee = (numVal * 0.10).round();
-      _finalListingPrice = _sellerPrice + _markupFee;
+      _finalListingPrice = numVal;
     });
   }
 
@@ -258,8 +255,7 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
                   children: [
                     Text('Produk: ${_nameCtrl.text.trim()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
                     const SizedBox(height: 4),
-                    Text('Harga Bersih Diterima Anda: ${currencyFormatter.format(_sellerPrice)}', style: const TextStyle(fontSize: 11.5, color: Color(0xFF16A34A), fontWeight: FontWeight.bold)),
-                    Text('Harga Listing Aplikasi (+10%): ${currencyFormatter.format(_finalListingPrice)}', style: const TextStyle(fontSize: 11.5, color: Colors.black87)),
+                    Text('Harga Bersih Diterima Anda: ${currencyFormatter.format(_sellerPrice)}', style: const TextStyle(fontSize: 12, color: Color(0xFF16A34A), fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
                     Text('Nomor WhatsApp: ${_phoneCtrl.text.trim()}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
                     const SizedBox(height: 4),
@@ -335,14 +331,14 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Titip Jual Resmi & Transparan via GAGE',
+                              'Titip Jual Resmi via GAGE BaBe',
                               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1E40AF)),
                             ),
                             SizedBox(height: 3),
                             Text(
-                              '• Anda menerima 100% penuh harga bersih yang diajukan.\n'
-                              '• Komisi 10% otomatis ditambahkan ke harga pembeli untuk inspeksi fisik, garansi toko 48 jam, dan ongkir kurir lokal.\n'
-                              '• Dana diteruskan ke rekening/e-wallet Anda melalui sistem pembayaran resmi GAGE.',
+                              '• Anda menerima penuh nominal harga bersih yang Anda tentukan.\n'
+                              '• Barang dicek tim kurasi sebelum ditayangkan ke calon pembeli.\n'
+                              '• Dana ditransfer langsung ke rekening/e-wallet Anda setelah transaksi selesai.',
                               style: TextStyle(fontSize: 11, color: Color(0xFF1E3A8A), height: 1.4),
                             ),
                           ],
@@ -817,48 +813,39 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
 
                 const SizedBox(height: 12),
 
-                // Card Kalkulator Transparan Markup 10%
+                // Card Konfirmasi Nominal Bersih
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
+                    color: const Color(0xFFF0FDF4),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.shade300),
+                    border: Border.all(color: const Color(0xFFBBF7D0)),
                   ),
-                  child: Column(
+                  child: Row(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Harga Bersih Diterima Anda (100%):', style: TextStyle(fontSize: 12, color: Colors.black87)),
-                          Text(
-                            currencyFormatter.format(_sellerPrice),
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF16A34A)),
-                          ),
-                        ],
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFDCFCE7),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFF16A34A), size: 20),
                       ),
-                      const SizedBox(height: 6),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Biaya Kurasi, Inspeksi & Garansi Toko (+10%):', style: TextStyle(fontSize: 12, color: Colors.black54)),
-                          Text(
-                            currencyFormatter.format(_markupFee),
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black54),
-                          ),
-                        ],
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Nominal Bersih yang Anda Terima:', style: TextStyle(fontSize: 11.5, color: Colors.black54)),
+                            const SizedBox(height: 2),
+                            Text(
+                              currencyFormatter.format(_sellerPrice),
+                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF16A34A)),
+                            ),
+                          ],
+                        ),
                       ),
-                      const Divider(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Harga Listing Final di Aplikasi:', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
-                          Text(
-                            currencyFormatter.format(_finalListingPrice),
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: GageTheme.primary),
-                          ),
-                        ],
-                      ),
+                      const Text('100% Utuh', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF15803D))),
                     ],
                   ),
                 ),

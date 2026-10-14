@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/food/presentation/shop_screen.dart';
 import 'package:gage_app/features/food/presentation/tani_screen.dart';
+import 'package:gage_app/features/food/presentation/ternak_screen.dart';
 import 'package:gage_app/features/ride/presentation/ride_booking_screen.dart';
 import 'package:gage_app/features/ride/presentation/send_booking_screen.dart';
 import 'package:gage_app/features/affiliate/presentation/affiliate_hub_screen.dart';
 
 import 'package:gage_app/features/babe/presentation/babe_screen.dart';
+import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 
 class ServiceGridClay extends StatelessWidget {
   final VoidCallback onFoodTap;
@@ -18,16 +20,10 @@ class ServiceGridClay extends StatelessWidget {
 
   static final List<Map<String, dynamic>> services = [
     {
-      'id': 'ride',
-      'name': 'GAGE Ride',
+      'id': 'ride_car',
+      'name': 'Ride & Car',
       'icon': 'assets/icons/ic_ride.png',
-      'desc': 'Antar jemput motor cepat & praktis',
-    },
-    {
-      'id': 'car',
-      'name': 'GAGE Car',
-      'icon': 'assets/icons/ic_car.png',
-      'desc': 'Mobil nyaman rombongan & keluarga',
+      'desc': 'Antar jemput motor & mobil se-Pracimantoro',
     },
     {
       'id': 'food',
@@ -51,7 +47,13 @@ class ServiceGridClay extends StatelessWidget {
       'id': 'tani',
       'name': 'GAGE Tani',
       'icon': 'assets/icons/ic_tani.png',
-      'desc': 'Pupuk, bibit, pakan & hasil panen warga',
+      'desc': 'Pupuk, benih & hasil bumi panen lokal',
+    },
+    {
+      'id': 'ternak',
+      'name': 'GAGE Ternak',
+      'icon': 'assets/icons/ic_ternak.png',
+      'desc': 'Pakan konsentrat, vitamin & pasar hewan',
     },
     {
       'id': 'babe',
@@ -90,15 +92,10 @@ class ServiceGridClay extends StatelessWidget {
               final id = item['id'];
               if (id == 'food') {
                 onFoodTap();
-              } else if (id == 'ride') {
+              } else if (id == 'ride_car') {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (ctx) => const RideBookingScreen(initialTab: 'ride')),
-                );
-              } else if (id == 'car') {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (ctx) => const RideBookingScreen(initialTab: 'car')),
                 );
               } else if (id == 'send') {
                 Navigator.push(
@@ -114,6 +111,11 @@ class ServiceGridClay extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (ctx) => const TaniScreen()),
+                );
+              } else if (id == 'ternak') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (ctx) => const TernakScreen()),
                 );
               } else if (id == 'cuan') {
                 Navigator.push(
@@ -176,49 +178,50 @@ class ServiceGridClay extends StatelessWidget {
 
 
   void _showServiceInfo(BuildContext context, Map<String, dynamic> item) {
-    showModalBottomSheet(
+    GageFloatingSheet.show(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: Image.asset(item['icon'], fit: BoxFit.contain),
-                ),
-                const SizedBox(width: 14),
-                Column(
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              SizedBox(
+                width: 48,
+                height: 48,
+                child: Image.asset(item['icon'], fit: BoxFit.contain),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('${item['name']}', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 2),
                     Text(item['desc'], style: const TextStyle(fontSize: 13, color: GageTheme.textSecondary)),
                   ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: GageTheme.primary,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                minimumSize: const Size(double.infinity, 48),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                elevation: 0,
               ),
               onPressed: () {
                 Navigator.pop(ctx);
               },
-              child: Text('Buka ${item['name']}'),
+              child: Text('Tutup', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

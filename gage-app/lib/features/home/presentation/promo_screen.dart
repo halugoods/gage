@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/providers/cart_provider.dart';
+import 'package:gage_app/features/food/presentation/food_explore_screen.dart';
+import 'package:gage_app/features/food/presentation/shop_screen.dart';
+import 'package:gage_app/features/ride/presentation/ride_booking_screen.dart';
+import 'package:gage_app/features/ride/presentation/send_booking_screen.dart';
+import 'package:gage_app/shared/widgets/gage_toast.dart';
+import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 
 class PromoScreen extends StatefulWidget {
   const PromoScreen({super.key});
@@ -37,7 +43,7 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
       'discountText': 'Diskon 50% (Maks. Rp 15.000)',
       'minOrder': 20000,
       'expiry': '31 Des 2026',
-      'image': 'assets/images/promo_banner_1.png',
+      'image': 'assets/images/food_hero_banner.png',
       'terms': [
         'Diskon 50% hingga maksimal potongan Rp 15.000.',
         'Berlaku untuk semua resto & merchant kuliner di GAGE Food.',
@@ -55,7 +61,7 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
       'discountText': 'Potongan Ongkir s.d. Rp 7.000',
       'minOrder': 25000,
       'expiry': '31 Des 2026',
-      'image': 'assets/images/voucher_art_ongkir.png',
+      'image': 'assets/images/food_hero_banner.png',
       'terms': [
         'Potongan ongkir gratis hingga maksimal Rp 7.000.',
         'Berlaku untuk pengantaran kurir motor GAGE Food.',
@@ -73,7 +79,7 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
       'discountText': 'Potongan Langsung Rp 15.000',
       'minOrder': 30000,
       'expiry': '31 Des 2026',
-      'image': 'assets/images/promo_banner_3.png',
+      'image': 'assets/images/ride_hero_banner.png',
       'terms': [
         'Potongan langsung Rp 15.000 untuk pemesanan armada GAGE Car.',
         'Minimal tarif perjalanan Rp 30.000.',
@@ -90,7 +96,7 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
       'discountText': 'Potongan Langsung Rp 4.000',
       'minOrder': 10000,
       'expiry': '31 Des 2026',
-      'image': 'assets/images/promo_banner_2.png',
+      'image': 'assets/images/ride_hero_banner.png',
       'terms': [
         'Potongan Rp 4.000 untuk perjalanan ojek motor GAGE Ride.',
         'Minimal transaksi Rp 10.000.',
@@ -107,7 +113,7 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
       'discountText': 'Potongan Belanja Rp 10.000',
       'minOrder': 35000,
       'expiry': '31 Des 2026',
-      'image': 'assets/images/promo_banner_1.png',
+      'image': 'assets/images/shop_hero_banner.png',
       'terms': [
         'Potongan langsung Rp 10.000 di toko mitra resmi GAGE Mart.',
         'Minimal total belanja sembako Rp 35.000.',
@@ -123,7 +129,7 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
       'discountText': 'Potongan Ongkir Rp 5.000',
       'minOrder': 12000,
       'expiry': '31 Des 2026',
-      'image': 'assets/images/voucher_art_ongkir.png',
+      'image': 'assets/images/send_hero_banner.png',
       'terms': [
         'Subsidi ongkir Rp 5.000 untuk pengiriman barang dan dokumen kilat.',
         'Tarif hemat khusus wilayah Pracimantoro dan sekitarnya.',
@@ -167,198 +173,207 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
     return _vouchers.where((v) => v['service'] == _activeServiceFilter).toList();
   }
 
+  void _applyAndRedirect(BuildContext context, Map<String, dynamic> voucher, CartProvider cart) {
+    final code = voucher['code'] as String;
+    final service = voucher['service'] as String;
+    final isOrder = voucher['type'] == 'order';
+
+    if (isOrder) {
+      final disc = code == 'DISKON50'
+          ? 15000
+          : (code == 'GAGECAR15'
+              ? 15000
+              : (code == 'RIDEHEMAT' ? 4000 : 10000));
+      cart.setFoodPromo(code, disc);
+    } else {
+      final disc = code == 'ONGKIRGRATIS' ? 7000 : 5000;
+      cart.setDeliveryPromo(code, disc);
+    }
+
+    GageToast.show(
+      context,
+      'Voucher $code berhasil dipasang! Mengalihkan ke $service...',
+      type: GageToastType.success,
+    );
+
+    switch (service) {
+      case 'GAGE Food':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (ctx) => const FoodExploreScreen()),
+        );
+        break;
+      case 'GAGE Ride':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (ctx) => const RideBookingScreen(initialTab: 'ride')),
+        );
+        break;
+      case 'GAGE Car':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (ctx) => const RideBookingScreen(initialTab: 'car')),
+        );
+        break;
+      case 'GAGE Mart':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (ctx) => const ShopScreen()),
+        );
+        break;
+      case 'GAGE Send':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (ctx) => const SendBookingScreen()),
+        );
+        break;
+      default:
+        break;
+    }
+  }
+
   void _showVoucherDetail(BuildContext context, Map<String, dynamic> voucher) {
     final cart = context.read<CartProvider>();
-    final isOrderDiscount = voucher['type'] == 'order';
-    final isApplied = isOrderDiscount
-        ? cart.foodPromoCode == voucher['code']
-        : cart.deliveryPromoCode == voucher['code'];
 
-    showModalBottomSheet(
+    GageFloatingSheet.show(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 44,
-                  height: 4.5,
+      builder: (ctx) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Banner Voucher
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: AspectRatio(
+                aspectRatio: 2.7,
+                child: Image.asset(
+                  voucher['image'],
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(color: GageTheme.primaryLight),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Kategori Layanan & Masa Berlaku
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(3),
+                    color: const Color(0xFFFFEBEE),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Banner Voucher
-              ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: AspectRatio(
-                  aspectRatio: 2.7,
-                  child: Image.asset(
-                    voucher['image'],
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(color: GageTheme.primaryLight),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Kategori Layanan & Masa Berlaku
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE8F5E9),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      voucher['service'],
-                      style: const TextStyle(
-                        color: Color(0xFF00880C),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    'Berlaku s.d. ${voucher['expiry']}',
-                    style: const TextStyle(fontSize: 11, color: Colors.grey),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-
-              Text(
-                voucher['title'],
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                voucher['discountText'],
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFF00880C),
-                ),
-              ),
-
-              const Divider(height: 24),
-
-              // Syarat & Ketentuan
-              const Text('Syarat & Ketentuan:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-              const SizedBox(height: 8),
-              ...((voucher['terms'] as List<String>).map((t) => Padding(
-                    padding: const EdgeInsets.only(bottom: 6.0),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('• ', style: TextStyle(fontWeight: FontWeight.bold)),
-                        Expanded(child: Text(t, style: const TextStyle(fontSize: 12, color: GageTheme.textSecondary))),
-                      ],
-                    ),
-                  ))),
-
-              const SizedBox(height: 12),
-
-              // Cara Menggunakan
-              const Text('Cara Menggunakan:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-              const SizedBox(height: 6),
-              Text(
-                voucher['howToUse'],
-                style: const TextStyle(fontSize: 12, color: GageTheme.textSecondary, height: 1.3),
-              ),
-
-              const SizedBox(height: 22),
-
-              // Tombol Pasang / Lepas Voucher
-              SizedBox(
-                width: double.infinity,
-                height: 44,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isApplied ? Colors.grey.shade300 : const Color(0xFF00880C),
-                    foregroundColor: isApplied ? Colors.black87 : Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    if (isApplied) {
-                      if (isOrderDiscount) {
-                        cart.removeFoodPromo();
-                      } else {
-                        cart.removeDeliveryPromo();
-                      }
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Voucher ${voucher['code']} dilepas dari keranjang')),
-                      );
-                    } else {
-                      if (isOrderDiscount) {
-                        final disc = voucher['code'] == 'DISKON50'
-                            ? 15000
-                            : (voucher['code'] == 'GAGECAR15'
-                                ? 15000
-                                : (voucher['code'] == 'RIDEHEMAT' ? 4000 : 10000));
-                        cart.setFoodPromo(voucher['code'], disc);
-                      } else {
-                        final disc = voucher['code'] == 'ONGKIRGRATIS' ? 7000 : 5000;
-                        cart.setDeliveryPromo(voucher['code'], disc);
-                      }
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          backgroundColor: const Color(0xFF00880C),
-                          content: Text('Voucher ${voucher['code']} berhasil dipasang di keranjang!'),
-                        ),
-                      );
-                    }
-                  },
                   child: Text(
-                    isApplied ? 'Lepas Voucher' : 'Gunakan Voucher (${voucher['code']})',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    voucher['service'],
+                    style: const TextStyle(
+                      color: GageTheme.primary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                    ),
                   ),
                 ),
+                const Spacer(),
+                Text(
+                  'Berlaku s.d. ${voucher['expiry']}',
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            Text(
+              voucher['title'],
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              voucher['discountText'],
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w900,
+                color: GageTheme.primary,
               ),
-            ],
-          ),
-        ),
-      ),
+            ),
+
+            const Divider(height: 24),
+
+            // Syarat & Ketentuan
+            const Text('Syarat & Ketentuan:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            const SizedBox(height: 8),
+            ...((voucher['terms'] as List<String>).map((t) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6.0),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('• ', style: TextStyle(fontWeight: FontWeight.bold)),
+                      Expanded(child: Text(t, style: const TextStyle(fontSize: 12, color: GageTheme.textSecondary))),
+                    ],
+                  ),
+                ))),
+
+            const SizedBox(height: 12),
+
+            // Cara Menggunakan
+            const Text('Cara Menggunakan:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            const SizedBox(height: 6),
+            Text(
+              voucher['howToUse'],
+              style: const TextStyle(fontSize: 12, color: GageTheme.textSecondary, height: 1.3),
+            ),
+
+            const SizedBox(height: 22),
+
+            // Tombol Gunakan Voucher & Redirect
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: GageTheme.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  elevation: 0,
+                ),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _applyAndRedirect(context, voucher, cart);
+                },
+                child: Text(
+                  'Pakai Voucher (${voucher['code']})',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final cart = context.watch<CartProvider>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: isDark ? GageTheme.darkBackground : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Voucher & paket voucher',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: Colors.black87),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: isDark ? Colors.white : Colors.black87),
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
+        foregroundColor: isDark ? Colors.white : Colors.black87,
         elevation: 0,
         bottom: TabBar(
           controller: _tabController,
-          labelColor: Colors.black87,
-          unselectedLabelColor: Colors.grey.shade600,
+          labelColor: GageTheme.primary,
+          unselectedLabelColor: isDark ? Colors.white60 : Colors.grey.shade600,
           labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
           unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 14),
-          indicatorColor: const Color(0xFF00880C),
+          indicatorColor: GageTheme.primary,
           indicatorWeight: 3,
           indicatorSize: TabBarIndicatorSize.tab,
           tabs: const [
@@ -368,42 +383,17 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
           ],
         ),
       ),
-      body: Column(
+      body: TabBarView(
+        controller: _tabController,
         children: [
-          // Banner Status Dual Voucher yang Sedang Aktif di Keranjang
-          if (cart.foodPromoCode != null || cart.deliveryPromoCode != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              color: const Color(0xFFE8F5E9),
-              child: Row(
-                children: [
-                  const Icon(Icons.check_circle_rounded, color: Color(0xFF00880C), size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Voucher Aktif: ${cart.foodPromoCode != null ? "Diskon Belanja (${cart.foodPromoCode})" : ""}${cart.foodPromoCode != null && cart.deliveryPromoCode != null ? " + " : ""}${cart.deliveryPromoCode != null ? "Diskon Ongkir (${cart.deliveryPromoCode})" : ""}',
-                      style: const TextStyle(color: Color(0xFF00880C), fontWeight: FontWeight.bold, fontSize: 11.5),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          // TAB 1: VOUCHER (Dengan Filter Pills Gojek Style)
+          _buildVouchersTab(cart),
 
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                // TAB 1: VOUCHER (Dengan Filter Pills Gojek Style)
-                _buildVouchersTab(cart),
+          // TAB 2: GAGE PLUS (Membership Hemat)
+          _buildGagePlusTab(),
 
-                // TAB 2: GAGE PLUS (Membership Hemat)
-                _buildGagePlusTab(),
-
-                // TAB 3: GAGE MAX (Membership Sultan & Priority)
-                _buildGageMaxTab(),
-              ],
-            ),
-          ),
+          // TAB 3: GAGE MAX (Membership Sultan & Priority)
+          _buildGageMaxTab(),
         ],
       ),
     );
@@ -411,6 +401,7 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
 
   // Widget Tab 1: Voucher & Horizontal Filter Pills
   Widget _buildVouchersTab(CartProvider cart) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       children: [
         // Horizontal Service Filter Pills
@@ -433,14 +424,14 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
                   labelStyle: TextStyle(
                     fontSize: 12.5,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    color: isSelected ? Colors.black87 : Colors.grey.shade700,
+                    color: isSelected ? (isDark ? Colors.white : Colors.black87) : (isDark ? Colors.white60 : Colors.grey.shade700),
                   ),
-                  backgroundColor: Colors.white,
-                  selectedColor: Colors.grey.shade100,
+                  backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
+                  selectedColor: isDark ? GageTheme.darkBorder : Colors.grey.shade100,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(10),
                     side: BorderSide(
-                      color: isSelected ? Colors.black87 : Colors.grey.shade300,
+                      color: isSelected ? GageTheme.primary : (isDark ? GageTheme.darkBorder : Colors.grey.shade300),
                       width: isSelected ? 1.5 : 1,
                     ),
                   ),
@@ -461,19 +452,15 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
             itemCount: _filteredVouchers.length,
             itemBuilder: (ctx, idx) {
               final v = _filteredVouchers[idx];
-              final isOrder = v['type'] == 'order';
-              final isApplied = isOrder
-                  ? cart.foodPromoCode == v['code']
-                  : cart.deliveryPromoCode == v['code'];
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: isDark ? GageTheme.darkSurface : Colors.white,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.grey.shade200),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 1)),
+                  border: Border.all(color: isDark ? GageTheme.darkBorder : Colors.grey.shade200),
+                  boxShadow: [
+                    BoxShadow(color: isDark ? Colors.black38 : Colors.black12, blurRadius: 4, offset: const Offset(0, 1)),
                   ],
                 ),
                 child: InkWell(
@@ -486,7 +473,7 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
                       ClipRRect(
                         borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
                         child: AspectRatio(
-                          aspectRatio: 2.7,
+                           aspectRatio: 2.7,
                           child: Image.asset(
                             v['image'],
                             fit: BoxFit.cover,
@@ -503,63 +490,37 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
                           children: [
                             Text(
                               v['title'],
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13.5,
-                                color: Colors.black87,
+                                color: isDark ? Colors.white : Colors.black87,
                                 height: 1.25,
                               ),
                             ),
                             const SizedBox(height: 10),
                             Row(
                               children: [
-                                const Icon(Icons.calendar_today_rounded, size: 13, color: Colors.black54),
+                                Icon(Icons.calendar_today_rounded, size: 13, color: isDark ? Colors.white60 : Colors.black54),
                                 const SizedBox(width: 6),
                                 Text(
                                   'Berlaku hingga ${v['expiry']}',
-                                  style: const TextStyle(fontSize: 11.5, color: Colors.black54),
+                                  style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white60 : Colors.black54),
                                 ),
                                 const Spacer(),
                                 SizedBox(
                                   height: 32,
                                   child: ElevatedButton(
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: isApplied ? Colors.grey.shade200 : const Color(0xFF00880C),
-                                      foregroundColor: isApplied ? Colors.black87 : Colors.white,
+                                      backgroundColor: GageTheme.primary,
+                                      foregroundColor: Colors.white,
                                       elevation: 0,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                       padding: const EdgeInsets.symmetric(horizontal: 16),
                                     ),
-                                    onPressed: () {
-                                      if (isApplied) {
-                                        if (isOrder) {
-                                          cart.removeFoodPromo();
-                                        } else {
-                                          cart.removeDeliveryPromo();
-                                        }
-                                      } else {
-                                        if (isOrder) {
-                                          final disc = v['code'] == 'DISKON50'
-                                              ? 15000
-                                              : (v['code'] == 'GAGECAR15'
-                                                  ? 15000
-                                                  : (v['code'] == 'RIDEHEMAT' ? 4000 : 10000));
-                                          cart.setFoodPromo(v['code'], disc);
-                                        } else {
-                                          final disc = v['code'] == 'ONGKIRGRATIS' ? 7000 : 5000;
-                                          cart.setDeliveryPromo(v['code'], disc);
-                                        }
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            backgroundColor: const Color(0xFF00880C),
-                                            content: Text('Voucher ${v['code']} dipasang di keranjang!'),
-                                          ),
-                                        );
-                                      }
-                                    },
-                                    child: Text(
-                                      isApplied ? 'Terpasang' : 'Pakai',
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                    onPressed: () => _applyAndRedirect(context, v, cart),
+                                    child: const Text(
+                                      'Pakai',
+                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                                     ),
                                   ),
                                 ),
@@ -588,7 +549,7 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFF00880C), Color(0xFF059669)],
+              colors: [GageTheme.primary, Color(0xFFB91C1C)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -611,7 +572,7 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
                     ),
                     child: const Text(
                       'GAGE PLUS',
-                      style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF00880C), fontSize: 12),
+                      style: TextStyle(fontWeight: FontWeight.w900, color: GageTheme.primary, fontSize: 12),
                     ),
                   ),
                   const Text('Langganan Hemat 30 Hari', style: TextStyle(color: Colors.white70, fontSize: 11)),
@@ -656,14 +617,16 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
                   ),
                   ElevatedButton(
                     onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Fitur Membership GAGE Plus akan segera hadir!')),
+                      GageToast.show(
+                        context,
+                        'Fitur Membership GAGE Plus akan segera hadir!',
+                        type: GageToastType.info,
                       );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
-                      foregroundColor: const Color(0xFF00880C),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      foregroundColor: GageTheme.primary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                     ),
                     child: const Text('Beli Paket', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -763,14 +726,16 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
                   ),
                   ElevatedButton(
                     onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Fitur Membership GAGE Max akan segera hadir!')),
+                      GageToast.show(
+                        context,
+                        'Fitur Membership GAGE Max akan segera hadir!',
+                        type: GageToastType.info,
                       );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.amber.shade400,
                       foregroundColor: Colors.black87,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                     ),
                     child: const Text('Beli Paket VIP', style: TextStyle(fontWeight: FontWeight.bold)),

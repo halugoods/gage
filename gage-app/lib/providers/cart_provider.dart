@@ -10,8 +10,13 @@ class CartProvider extends ChangeNotifier {
   String? _merchantName;
   double _distanceKm = 1.8;
   String _deliveryAddress = 'Jl. Wates Km 3, Kadipiro, Kasihan';
+  String _addressNotes = '';
   String? _promoCode;
   String _paymentMethod = 'GAGEPAY'; // 'GAGEPAY', 'QRIS', 'CASH_COD'
+  bool _isPickup = false;
+  String _deliveryOption = 'REGULER'; // 'REGULER', 'HEMAT'
+  DateTime? _scheduledDeliveryTime;
+  String? _groupOrderId;
 
   List<CartItemModel> get items => List.unmodifiable(_items);
   List<String> get merchantIds => _items.map((i) => i.merchantId).where((id) => id.isNotEmpty).toSet().toList();
@@ -25,9 +30,39 @@ class CartProvider extends ChangeNotifier {
     return '${merchantNames.length} Merchant (${merchantNames.join(", ")})';
   }
   double get distanceKm => _distanceKm;
-  String get deliveryAddress => _deliveryAddress;
+  String get deliveryAddress => _isPickup ? 'Ambil di Toko / Resto Mitra' : _deliveryAddress;
+  String get addressNotes => _addressNotes;
   String? get promoCode => _promoCode;
   String get paymentMethod => _paymentMethod;
+  bool get isPickup => _isPickup;
+  String get deliveryOption => _deliveryOption;
+  DateTime? get scheduledDeliveryTime => _scheduledDeliveryTime;
+  String? get groupOrderId => _groupOrderId;
+
+  void setIsPickup(bool value) {
+    _isPickup = value;
+    notifyListeners();
+  }
+
+  void setAddressNotes(String notes) {
+    _addressNotes = notes;
+    notifyListeners();
+  }
+
+  void setDeliveryOption(String option) {
+    _deliveryOption = option;
+    notifyListeners();
+  }
+
+  void setScheduledDeliveryTime(DateTime? time) {
+    _scheduledDeliveryTime = time;
+    notifyListeners();
+  }
+
+  void setGroupOrderId(String? id) {
+    _groupOrderId = id;
+    notifyListeners();
+  }
 
   CartProvider() {
     _loadSavedCart();
@@ -217,6 +252,8 @@ class CartProvider extends ChangeNotifier {
     _foodPromoDiscount = 0;
     _deliveryPromoCode = null;
     _deliveryPromoDiscount = 0;
+    _scheduledDeliveryTime = null;
+    _groupOrderId = null;
     _saveCart();
     notifyListeners();
   }
@@ -236,7 +273,11 @@ class CartProvider extends ChangeNotifier {
 
   int get totalShippingDiscount => _deliveryPromoDiscount.clamp(0, rawShippingFee);
 
-  int get finalShippingFee => (rawShippingFee - totalShippingDiscount).clamp(0, 50000);
+  int get finalShippingFee {
+    if (_isPickup) return 0;
+    final expressSurcharge = _deliveryOption == 'EXPRESS' ? 2000 : 0;
+    return ((rawShippingFee + expressSurcharge) - totalShippingDiscount).clamp(0, 50000);
+  }
 
   // Biaya Layanan & Penanganan per Merchant (Cashless: 1rb x toko | COD: 3rb + 1rb x toko tambahan)
   int get adminFee => GagePricingService.calculateAdminFee(

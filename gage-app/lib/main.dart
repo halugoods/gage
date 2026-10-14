@@ -12,11 +12,34 @@ import 'package:gage_app/features/profile/presentation/profile_screen.dart';
 import 'package:gage_app/features/video/presentation/video_feed_screen.dart';
 import 'package:gage_app/features/home/presentation/promo_screen.dart';
 import 'package:gage_app/core/services/multi_merchant_cart_service.dart';
-
 import 'package:gage_app/core/services/banner_manager_service.dart';
+import 'package:gage_app/shared/widgets/seamless_floating_cart_bar.dart';
 
+import 'dart:ui';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    debugPrint('CRITICAL_FLUTTER_ERROR: ${details.exceptionAsString()}');
+    debugPrint(details.stack.toString());
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('CRITICAL_ASYNC_ERROR: $error');
+    debugPrint(stack.toString());
+    return true;
+  };
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    debugPrint('SAFE_RENDER_FALLBACK: ${details.exceptionAsString()}');
+    return Material(
+      color: Colors.transparent,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(4.0),
+          child: Icon(Icons.info_outline, color: Colors.grey.shade400, size: 20),
+        ),
+      ),
+    );
+  };
   runApp(const GageApp());
 }
 
@@ -108,8 +131,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isTablet = screenWidth >= 600;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final List<Widget> pages = [
       HomeScreen(
@@ -123,34 +145,49 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      body: IndexedStack(
-        index: _currentIndex,
-        children: pages,
+      body: Stack(
+        children: [
+          IndexedStack(
+            index: _currentIndex,
+            children: pages,
+          ),
+          // Floating Cart Melayang Murni tepat di atas Navbar tanpa blok bar
+          const Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: SeamlessFloatingCartBar(),
+          ),
+        ],
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Colors.grey.shade200, width: 1)),
-          boxShadow: const [
-            BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, -1)),
+          color: isDark ? GageTheme.darkSurface : Colors.white,
+          border: Border(
+            top: BorderSide(
+              color: isDark ? GageTheme.darkBorder : Colors.grey.shade200,
+              width: 1,
+            ),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isDark ? Colors.black54 : Colors.black12,
+              blurRadius: 4,
+              offset: const Offset(0, -1),
+            ),
           ],
         ),
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: SafeArea(
           top: false,
-          child: Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: isTablet ? 640 : double.infinity),
-              child: Row(
-                children: [
-                  _buildNavItem(0, 'assets/images/nav_home_active.png', 'assets/images/nav_home_inactive.png', 'Beranda'),
-                  _buildNavItem(1, 'assets/images/nav_orders_active.png', 'assets/images/nav_orders_inactive.png', 'Pesanan'),
-                  _buildNavItem(2, 'assets/images/nav_promo_active.png', 'assets/images/nav_promo_inactive.png', 'Promo', hasBadge: true),
-                  _buildNavItem(3, 'assets/images/nav_video_active.png', 'assets/images/nav_video_inactive.png', 'Video'),
-                  _buildNavItem(4, 'assets/images/nav_profile_active.png', 'assets/images/nav_profile_inactive.png', 'Profil'),
-                ],
-              ),
-            ),
+          child: Row(
+            children: [
+              _buildNavItem(0, 'assets/images/nav_home_active.png', 'assets/images/nav_home_inactive.png', 'Beranda', isDark: isDark),
+              _buildNavItem(1, 'assets/images/nav_orders_active.png', 'assets/images/nav_orders_inactive.png', 'Pesanan', isDark: isDark),
+              _buildNavItem(2, 'assets/images/nav_promo_active.png', 'assets/images/nav_promo_inactive.png', 'Promo', hasBadge: true, isDark: isDark),
+              _buildNavItem(3, 'assets/images/nav_video_active.png', 'assets/images/nav_video_inactive.png', 'Video', isDark: isDark),
+              _buildNavItem(4, 'assets/images/nav_profile_active.png', 'assets/images/nav_profile_inactive.png', 'Profil', isDark: isDark),
+            ],
           ),
         ),
       ),
@@ -163,10 +200,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     String inactiveAsset,
     String label, {
     bool hasBadge = false,
+    bool isDark = false,
   }) {
     final isSelected = _currentIndex == index;
     final activeColor = GageTheme.primary;
-    final inactiveColor = const Color(0xFF64748B);
+    final inactiveColor = isDark ? Colors.grey.shade400 : const Color(0xFF64748B);
 
     return Expanded(
       child: InkWell(
@@ -203,18 +241,20 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     ),
                 ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                  color: isSelected ? activeColor : inactiveColor,
-                  height: 1.1,
+              const SizedBox(height: 3),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    color: isSelected ? activeColor : inactiveColor,
+                    height: 1.1,
+                  ),
+                  maxLines: 1,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),

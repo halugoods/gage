@@ -58,5 +58,34 @@ void main() {
     expect(find.byType(MainNavigationScreen), findsOneWidget);
     expect(find.byType(HomeScreen), findsOneWidget);
   });
+
+  testWidgets('MainNavigationScreen on Flip3 (411x1005) positions navbar at bottom', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2640);
+    tester.view.devicePixelRatio = 2.625; // 420 dpi
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => AuthProvider()),
+          ChangeNotifierProvider(create: (_) => WalletProvider()),
+          ChangeNotifierProvider(create: (_) => CartProvider()),
+          ChangeNotifierProvider(create: (_) => OrderProvider()),
+          ChangeNotifierProvider(create: (_) => MultiMerchantCartService()),
+          ChangeNotifierProvider.value(value: BannerManagerService.instance),
+        ],
+        child: const MaterialApp(
+          home: MainNavigationScreen(),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    final navHome = tester.getCenter(find.text('Beranda'));
+    debugPrint('*** NAV HOME POSITION ON FLIP3: Y=${navHome.dy} (screen height is 1005.7) ***');
+    expect(navHome.dy, greaterThan(900.0));
+  });
 }
 

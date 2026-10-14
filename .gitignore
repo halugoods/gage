@@ -34,6 +34,7 @@ release_apks/
 # Logs & temp
 *.log
 *.tmp
+/*.xml
 audit_dump.json
 .DS_Store
 Thumbs.db

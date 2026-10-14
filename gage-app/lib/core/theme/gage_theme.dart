@@ -22,6 +22,7 @@ class GageTheme {
   static const Color darkBackground = Color(0xFF0F172A); // Dark Slate 900
   static const Color darkSurface = Color(0xFF1E293B);    // Slate 800
   static const Color darkCard = Color(0xFF1E293B);
+  static const Color darkBorder = Color(0xFF334155);    // Slate 700
   static const Color darkTextPrimary = Color(0xFFF8FAFC);
 
   static ThemeData get lightTheme {

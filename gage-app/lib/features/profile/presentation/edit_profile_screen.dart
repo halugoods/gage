@@ -201,10 +201,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   borderRadius: BorderRadius.circular(14),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFFE8F5E9) : const Color(0xFFF8F9FA),
+                      color: isSelected ? const Color(0xFFFFEBEE) : const Color(0xFFF8F9FA),
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
-                        color: isSelected ? const Color(0xFF00880C) : Colors.grey.shade200,
+                        color: isSelected ? GageTheme.primary : Colors.grey.shade200,
                         width: isSelected ? 2 : 1,
                       ),
                     ),
@@ -223,7 +223,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                            color: isSelected ? const Color(0xFF00880C) : GageTheme.textPrimary,
+                            color: isSelected ? GageTheme.primary : GageTheme.textPrimary,
                           ),
                           textAlign: TextAlign.center,
                           maxLines: 1,
@@ -278,10 +278,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE8F5E9),
+                    color: const Color(0xFFFFEBEE),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.camera_alt_rounded, color: Color(0xFF00880C), size: 22),
+                  child: const Icon(Icons.camera_alt_rounded, color: GageTheme.primary, size: 22),
                 ),
                 title: const Text('Ambil dari Kamera', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                 subtitle: const Text('Gunakan kamera langsung untuk potret diri', style: TextStyle(fontSize: 12)),
@@ -373,7 +373,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Profil berhasil diperbarui!'),
-          backgroundColor: Color(0xFF00880C),
+          backgroundColor: Color(0xFF16A34A),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -433,7 +433,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         height: 104,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(color: const Color(0xFF00880C), width: 3),
+                          border: Border.all(color: GageTheme.primary, width: 3),
                           boxShadow: const [
                             BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4)),
                           ],
@@ -451,7 +451,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         child: Container(
                           padding: const EdgeInsets.all(7),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF00880C),
+                            color: GageTheme.primary,
                             shape: BoxShape.circle,
                             border: Border.all(color: Colors.white, width: 2.5),
                             boxShadow: const [
@@ -472,13 +472,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               const SizedBox(height: 10),
               TextButton.icon(
                 onPressed: _showAvatarOptionsSheet,
-                icon: const Icon(Icons.edit_rounded, size: 16, color: Color(0xFF00880C)),
+                icon: const Icon(Icons.edit_rounded, size: 16, color: GageTheme.primary),
                 label: const Text(
                   'Ganti Foto Profil',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF00880C),
+                    color: GageTheme.primary,
                   ),
                 ),
               ),
@@ -594,7 +594,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00880C),
+                    backgroundColor: GageTheme.primary,
                     foregroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
@@ -667,7 +667,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
-            prefixIcon: Icon(icon, color: const Color(0xFF00880C), size: 20),
+            prefixIcon: Icon(icon, color: GageTheme.primary, size: 20),
             filled: true,
             fillColor: const Color(0xFFF9FAFB),
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -681,7 +681,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF00880C), width: 1.5),
+              borderSide: const BorderSide(color: GageTheme.primary, width: 1.5),
             ),
           ),
         ),
