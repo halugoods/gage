@@ -7,6 +7,8 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/providers/auth_provider.dart';
+import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
+import 'package:gage_app/shared/widgets/gage_toast.dart';
 
 /// Layar Penuh Formulir Pengajuan Titip Jual GAGE BaBe (Bukan Modal Drawer)
 /// Dilengkapi Field Dinamis per Kategori, Validasi Nomor WhatsApp,
@@ -125,37 +127,39 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
   }
 
   void _showPresetPhotoPicker() {
-    showModalBottomSheet(
+    GageFloatingSheet.show(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Pilih Foto Barang', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 12),
-            ListTile(
-              leading: const Icon(Icons.add_photo_alternate_rounded, color: GageTheme.primary),
-              title: const Text('Gunakan Template Foto Realistis'),
-              subtitle: const Text('Tambahkan sampel sudut foto beresolusi tinggi'),
-              onTap: () {
-                Navigator.pop(ctx);
-                setState(() {
-                  _attachedPhotos.add('assets/images/babe_smart_tv.jpg');
-                });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Foto multi-angle berhasil ditambahkan.'),
-                    behavior: SnackBarBehavior.floating,
-                    duration: Duration(seconds: 1),
-                  ),
-                );
-              },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Pilih Foto Barang', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const SizedBox(height: 12),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: GageTheme.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.add_photo_alternate_rounded, color: GageTheme.primary),
             ),
-          ],
-        ),
+            title: const Text('Gunakan Template Foto Realistis', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            subtitle: const Text('Tambahkan sampel sudut foto beresolusi tinggi', style: TextStyle(fontSize: 12, color: Colors.grey)),
+            onTap: () {
+              Navigator.pop(context);
+              setState(() {
+                _attachedPhotos.add('assets/images/babe_smart_tv.jpg');
+              });
+              GageToast.show(
+                context,
+                'Foto multi-angle berhasil ditambahkan.',
+                type: GageToastType.success,
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -166,31 +170,28 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
     }
 
     if (!_agreedToTerms) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Harap setujui ketentuan akad titip jual resmi GAGE BaBe.'),
-          behavior: SnackBarBehavior.floating,
-        ),
+      GageToast.show(
+        context,
+        'Harap setujui ketentuan akad titip jual resmi GAGE BaBe.',
+        type: GageToastType.warning,
       );
       return;
     }
 
     if (_sellerPrice < 20000) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Harga minimal pengajuan titip jual adalah Rp 20.000'),
-          behavior: SnackBarBehavior.floating,
-        ),
+      GageToast.show(
+        context,
+        'Harga minimal pengajuan titip jual adalah Rp 20.000',
+        type: GageToastType.warning,
       );
       return;
     }
 
     if (_attachedPhotos.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Wajib lampirkan minimal 1 foto barang.'),
-          behavior: SnackBarBehavior.floating,
-        ),
+      GageToast.show(
+        context,
+        'Wajib lampirkan minimal 1 foto barang.',
+        type: GageToastType.warning,
       );
       return;
     }
@@ -221,68 +222,68 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
 
     if (!mounted) return;
 
-    showDialog(
+    GageFloatingSheet.show(
       context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Row(
-          children: [
-            Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 26),
-            SizedBox(width: 10),
-            Text('Pengajuan Diterima!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
             children: [
-              const Text(
-                'Barang bekas Anda berhasil masuk antrean review kurasi Admin GAGE.',
-                style: TextStyle(fontSize: 13),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade200),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Produk: ${_nameCtrl.text.trim()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
-                    const SizedBox(height: 4),
-                    Text('Harga Bersih Diterima Anda: ${currencyFormatter.format(_sellerPrice)}', style: const TextStyle(fontSize: 12, color: Color(0xFF16A34A), fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
-                    Text('Nomor WhatsApp: ${_phoneCtrl.text.trim()}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                    const SizedBox(height: 4),
-                    Text('Status: Menunggu Review Kurasi Admin GAGE', style: TextStyle(fontSize: 11, color: Colors.amber.shade900, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Konfirmasi lolos atau ditolak akan diproses tim kurator di Portal Admin GAGE. Admin kami akan menghubungi WhatsApp Anda dalam 1x24 jam untuk verifikasi foto dan janji inspeksi fisik barang.',
-                style: TextStyle(fontSize: 11.5, color: Colors.black54, height: 1.35),
+              Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 26),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text('Pengajuan Diterima!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               ),
             ],
           ),
-        ),
-        actions: [
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: GageTheme.primary,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          const SizedBox(height: 12),
+          const Text(
+            'Barang bekas Anda berhasil masuk antrean review kurasi Admin GAGE.',
+            style: TextStyle(fontSize: 13, color: Colors.black87),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
             ),
-            onPressed: () {
-              Navigator.pop(ctx);
-              Navigator.pop(context);
-            },
-            child: const Text('Selesai'),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Produk: ${_nameCtrl.text.trim()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                const SizedBox(height: 6),
+                Text('Harga Bersih Diterima: ${currencyFormatter.format(_sellerPrice)}', style: const TextStyle(fontSize: 12, color: Color(0xFF16A34A), fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text('Nomor WhatsApp: ${_phoneCtrl.text.trim()}', style: const TextStyle(fontSize: 11.5, color: Colors.grey)),
+                const SizedBox(height: 4),
+                Text('Status: Menunggu Review Kurasi Admin GAGE', style: TextStyle(fontSize: 11.5, color: Colors.amber.shade900, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Konfirmasi lolos atau ditolak akan diproses tim kurator di Portal Admin GAGE. Admin kami akan menghubungi WhatsApp Anda dalam 1x24 jam untuk verifikasi foto dan janji inspeksi fisik barang.',
+            style: TextStyle(fontSize: 11.5, color: Colors.black54, height: 1.35),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: GageTheme.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.pop(context);
+              },
+              child: const Text('Selesai', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
           ),
         ],
       ),
@@ -292,7 +293,7 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0.5,
@@ -309,7 +310,7 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
         child: Form(
           key: _formKey,
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -348,74 +349,247 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 18),
-
-                // 1. Pilih Kategori
-                const Text('Pilih Kategori Barang Bekas:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      isExpanded: true,
-                      value: _selectedCategory,
-                      items: const [
-                        DropdownMenuItem(value: 'Gadget & Elektronik', child: Text('Gadget & Elektronik')),
-                        DropdownMenuItem(value: 'Sepeda & Otomotif', child: Text('Sepeda & Otomotif')),
-                        DropdownMenuItem(value: 'Perkakas & Alat Rumah', child: Text('Perkakas & Alat Pertukangan')),
-                        DropdownMenuItem(value: 'Perabotan', child: Text('Perabotan & Mebel')),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) setState(() => _selectedCategory = val);
-                      },
-                    ),
-                  ),
-                ),
-
                 const SizedBox(height: 16),
 
-                // 2. Nama Barang
-                const Text('Nama Lengkap Barang:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _nameCtrl,
-                  decoration: InputDecoration(
-                    hintText: 'Contoh: iPhone 11 128GB Black / Polygon Heist 2.0',
-                    hintStyle: TextStyle(fontSize: 12, color: Colors.grey.shade400),
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey.shade300)),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey.shade300)),
-                  ),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Wajib isi nama barang' : null,
-                ),
-
-                const SizedBox(height: 16),
-
-                // 3. Form Field Spesifik Berdasarkan Kategori
+                // 1. TOP HERO: Foto Fisik Barang (Top Upload Card)
                 Container(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.shade200),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.tune_rounded, size: 16, color: GageTheme.primary),
-                          const SizedBox(width: 6),
-                          Text('Spesifikasi Khusus: $_selectedCategory', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: GageTheme.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.camera_alt_outlined, size: 18, color: GageTheme.primary),
+                          ),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Foto Fisik Barang',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '${_attachedPhotos.length} Foto Terpilih',
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                            ),
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Lampirkan foto fisik asli dari berbagai sudut (depan, belakang, kelengkapan, minus bila ada).',
+                        style: TextStyle(fontSize: 11.5, color: Colors.black54),
+                      ),
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        height: 96,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _attachedPhotos.length + 1,
+                          separatorBuilder: (context, index) => const SizedBox(width: 10),
+                          itemBuilder: (ctx, idx) {
+                            if (idx == _attachedPhotos.length) {
+                              return InkWell(
+                                onTap: _pickImages,
+                                borderRadius: BorderRadius.circular(14),
+                                child: Container(
+                                  width: 86,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF8FAFC),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: GageTheme.primary.withValues(alpha: 0.4), width: 1.2),
+                                  ),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: GageTheme.primary.withValues(alpha: 0.1),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(Icons.add_a_photo_outlined, color: GageTheme.primary, size: 20),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      const Text('Upload', style: TextStyle(fontSize: 11, color: GageTheme.primary, fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }
+
+                            final photo = _attachedPhotos[idx];
+                            return ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: Stack(
+                                children: [
+                                  SizedBox(
+                                    width: 86,
+                                    height: 96,
+                                    child: photo.startsWith('assets/')
+                                        ? Image.asset(photo, fit: BoxFit.cover)
+                                        : Image.network(photo, fit: BoxFit.cover, errorBuilder: (c, e, s) => Container(color: Colors.grey.shade200)),
+                                  ),
+                                  Positioned(
+                                    top: 4,
+                                    right: 4,
+                                    child: GestureDetector(
+                                      onTap: () => setState(() => _attachedPhotos.removeAt(idx)),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(3),
+                                        decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                                        child: const Icon(Icons.close_rounded, color: Colors.white, size: 14),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 14),
+
+                // 2. iOS Inset Group: Informasi Barang
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.inventory_2_outlined, size: 18, color: Color(0xFF2563EB)),
+                          ),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Informasi Barang',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+
+                      const Text('Kategori Barang:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Colors.black87)),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            isExpanded: true,
+                            value: _selectedCategory,
+                            items: const [
+                              DropdownMenuItem(value: 'Gadget & Elektronik', child: Text('Gadget & Elektronik')),
+                              DropdownMenuItem(value: 'Sepeda & Otomotif', child: Text('Sepeda & Otomotif')),
+                              DropdownMenuItem(value: 'Perkakas & Alat Rumah', child: Text('Perkakas & Alat Pertukangan')),
+                              DropdownMenuItem(value: 'Perabotan', child: Text('Perabotan & Mebel')),
+                            ],
+                            onChanged: (val) {
+                              if (val != null) setState(() => _selectedCategory = val);
+                            },
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 14),
+
+                      const Text('Nama Lengkap Barang:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Colors.black87)),
+                      const SizedBox(height: 6),
+                      TextFormField(
+                        controller: _nameCtrl,
+                        decoration: InputDecoration(
+                          hintText: 'Contoh: iPhone 11 128GB Black / Polygon Heist 2.0',
+                          hintStyle: TextStyle(fontSize: 12, color: Colors.grey.shade400),
+                          filled: true,
+                          fillColor: const Color(0xFFF8FAFC),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                        ),
+                        validator: (v) => (v == null || v.trim().isEmpty) ? 'Wajib isi nama barang' : null,
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 14),
+
+                // 3. iOS Inset Group: Spesifikasi Khusus Kategori
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.tune_rounded, size: 18, color: Color(0xFF059669)),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Spesifikasi: $_selectedCategory',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
 
                       if (_selectedCategory == 'Gadget & Elektronik') ...[
                         Row(
@@ -424,14 +598,17 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text('Merk & Model:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                  const Text('Merk & Model:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                                   const SizedBox(height: 4),
                                   TextFormField(
                                     controller: _gadgetBrandCtrl,
                                     decoration: InputDecoration(
-                                      hintText: 'Misal: Apple iPhone 11',
+                                      hintText: 'Apple iPhone 11',
+                                      filled: true,
+                                      fillColor: const Color(0xFFF8FAFC),
                                       isDense: true,
-                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                                     ),
                                   ),
                                 ],
@@ -442,14 +619,17 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text('RAM / Internal:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                  const Text('RAM / Internal:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                                   const SizedBox(height: 4),
                                   TextFormField(
                                     controller: _gadgetRamStorageCtrl,
                                     decoration: InputDecoration(
-                                      hintText: 'Misal: 4GB / 128GB',
+                                      hintText: '4GB / 128GB',
+                                      filled: true,
+                                      fillColor: const Color(0xFFF8FAFC),
                                       isDense: true,
-                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                                     ),
                                   ),
                                 ],
@@ -464,14 +644,17 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text('Battery Health:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                  const Text('Battery Health:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                                   const SizedBox(height: 4),
                                   TextFormField(
                                     controller: _gadgetBatteryCtrl,
                                     decoration: InputDecoration(
                                       hintText: 'Misal: 87%',
+                                      filled: true,
+                                      fillColor: const Color(0xFFF8FAFC),
                                       isDense: true,
-                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                                     ),
                                   ),
                                 ],
@@ -482,14 +665,17 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text('Kelengkapan:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                  const Text('Kelengkapan:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                                   const SizedBox(height: 4),
                                   DropdownButtonFormField<String>(
                                     initialValue: _gadgetKelengkapan,
                                     isExpanded: true,
                                     decoration: InputDecoration(
+                                      filled: true,
+                                      fillColor: const Color(0xFFF8FAFC),
                                       isDense: true,
-                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                                     ),
                                     items: const [
                                       DropdownMenuItem(value: 'Fullset Box Original', child: Text('Fullset Box')),
@@ -504,12 +690,15 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
                           ],
                         ),
                         const SizedBox(height: 8),
-                        CheckboxListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: const Text('IMEI Terdaftar Resmi / Sinyal All Operator Aman', style: TextStyle(fontSize: 11.5)),
-                          value: _gadgetImeiAman,
-                          onChanged: (v) => setState(() => _gadgetImeiAman = v ?? true),
-                          controlAffinity: ListTileControlAffinity.leading,
+                        Material(
+                          color: Colors.transparent,
+                          child: CheckboxListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('IMEI Terdaftar Resmi / Sinyal All Operator Aman', style: TextStyle(fontSize: 11.5)),
+                            value: _gadgetImeiAman,
+                            onChanged: (v) => setState(() => _gadgetImeiAman = v ?? true),
+                            controlAffinity: ListTileControlAffinity.leading,
+                          ),
                         ),
                       ] else if (_selectedCategory == 'Sepeda & Otomotif') ...[
                         Row(
@@ -518,14 +707,17 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text('Merk & Seri:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                  const Text('Merk & Seri:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                                   const SizedBox(height: 4),
                                   TextFormField(
                                     controller: _otoBrandCtrl,
                                     decoration: InputDecoration(
-                                      hintText: 'Misal: Polygon Heist 2.0',
+                                      hintText: 'Polygon Heist 2.0',
+                                      filled: true,
+                                      fillColor: const Color(0xFFF8FAFC),
                                       isDense: true,
-                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                                     ),
                                   ),
                                 ],
@@ -536,14 +728,17 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text('Tahun Pembelian:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                  const Text('Tahun Pembelian:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                                   const SizedBox(height: 4),
                                   TextFormField(
                                     controller: _otoTahunCtrl,
                                     decoration: InputDecoration(
                                       hintText: 'Misal: 2022',
+                                      filled: true,
+                                      fillColor: const Color(0xFFF8FAFC),
                                       isDense: true,
-                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                                     ),
                                   ),
                                 ],
@@ -558,14 +753,17 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text('Ukuran Rangka / CC:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                  const Text('Ukuran Rangka / CC:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                                   const SizedBox(height: 4),
                                   TextFormField(
                                     controller: _otoFrameSizeCtrl,
                                     decoration: InputDecoration(
                                       hintText: 'Misal: Size M 17"',
+                                      filled: true,
+                                      fillColor: const Color(0xFFF8FAFC),
                                       isDense: true,
-                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                                     ),
                                   ),
                                 ],
@@ -576,14 +774,17 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text('Groupset / Mesin:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                  const Text('Groupset / Mesin:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                                   const SizedBox(height: 4),
                                   TextFormField(
                                     controller: _otoGroupsetCtrl,
                                     decoration: InputDecoration(
                                       hintText: 'Misal: Shimano Altus',
+                                      filled: true,
+                                      fillColor: const Color(0xFFF8FAFC),
                                       isDense: true,
-                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                                     ),
                                   ),
                                 ],
@@ -597,8 +798,11 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
                           isExpanded: true,
                           decoration: InputDecoration(
                             labelText: 'Kelengkapan Surat / Dokumen:',
+                            filled: true,
+                            fillColor: const Color(0xFFF8FAFC),
                             isDense: true,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                           ),
                           items: const [
                             DropdownMenuItem(value: 'Lengkap BPKB & STNK', child: Text('BPKB & STNK Lengkap (Motor)')),
@@ -614,14 +818,17 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text('Merk & Tipe Perkakas:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                  const Text('Merk & Tipe Perkakas:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                                   const SizedBox(height: 4),
                                   TextFormField(
                                     controller: _perkakasBrandCtrl,
                                     decoration: InputDecoration(
                                       hintText: 'Misal: Maktec MT80B',
+                                      filled: true,
+                                      fillColor: const Color(0xFFF8FAFC),
                                       isDense: true,
-                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                                     ),
                                   ),
                                 ],
@@ -632,14 +839,17 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text('Konsumsi Daya / Baterai:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                  const Text('Konsumsi Daya / Baterai:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                                   const SizedBox(height: 4),
                                   TextFormField(
                                     controller: _perkakasDayaCtrl,
                                     decoration: InputDecoration(
                                       hintText: 'Misal: 500W / Baterai 18V',
+                                      filled: true,
+                                      fillColor: const Color(0xFFF8FAFC),
                                       isDense: true,
-                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                                     ),
                                   ),
                                 ],
@@ -653,8 +863,11 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
                           isExpanded: true,
                           decoration: InputDecoration(
                             labelText: 'Tipe Sumber Daya:',
+                            filled: true,
+                            fillColor: const Color(0xFFF8FAFC),
                             isDense: true,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                           ),
                           items: const [
                             DropdownMenuItem(value: 'Listrik AC (Colokan 220V)', child: Text('Listrik AC (Colokan 220V)')),
@@ -669,8 +882,11 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
                           decoration: InputDecoration(
                             labelText: 'Kelengkapan Aksesoris / Box Koper:',
                             hintText: 'Misal: Koper box asli + 5 bonus mata bor',
+                            filled: true,
+                            fillColor: const Color(0xFFF8FAFC),
                             isDense: true,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                           ),
                         ),
                       ] else if (_selectedCategory == 'Perabotan') ...[
@@ -680,14 +896,17 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text('Bahan Kayu / Material:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                  const Text('Bahan Kayu / Material:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                                   const SizedBox(height: 4),
                                   TextFormField(
                                     controller: _mebelBahanCtrl,
                                     decoration: InputDecoration(
                                       hintText: 'Misal: Kayu Jati Belanda',
+                                      filled: true,
+                                      fillColor: const Color(0xFFF8FAFC),
                                       isDense: true,
-                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                                     ),
                                   ),
                                 ],
@@ -698,14 +917,17 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text('Dimensi PxLxT:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                  const Text('Dimensi PxLxT:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                                   const SizedBox(height: 4),
                                   TextFormField(
                                     controller: _mebelDimensiCtrl,
                                     decoration: InputDecoration(
                                       hintText: 'Misal: 120x60x75 cm',
+                                      filled: true,
+                                      fillColor: const Color(0xFFF8FAFC),
                                       isDense: true,
-                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                                     ),
                                   ),
                                 ],
@@ -722,8 +944,11 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
                                 decoration: InputDecoration(
                                   labelText: 'Finishing / Cat:',
                                   hintText: 'Misal: Vernis Natural',
+                                  filled: true,
+                                  fillColor: const Color(0xFFF8FAFC),
                                   isDense: true,
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                                 ),
                               ),
                             ),
@@ -734,8 +959,11 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
                                 isExpanded: true,
                                 decoration: InputDecoration(
                                   labelText: 'Kekokohan Rangka:',
+                                  filled: true,
+                                  fillColor: const Color(0xFFF8FAFC),
                                   isDense: true,
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                                 ),
                                 items: const [
                                   DropdownMenuItem(value: 'Sangat Kokoh Anti Goyang', child: Text('Anti Goyang')),
@@ -751,229 +979,275 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
 
-                // 4. Deskripsi Minus / Riwayat Pemakaian
-                const Text('Minus & Kondisi Fisik Riil:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _minusCtrl,
-                  maxLines: 3,
-                  decoration: InputDecoration(
-                    hintText: 'Jelaskan kondisi riil, goresan fisik, kelengkapan minus, atau riwayat servis pemakaian...',
-                    hintStyle: TextStyle(fontSize: 12, color: Colors.grey.shade400),
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey.shade300)),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey.shade300)),
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // 5. Nomor WhatsApp Wajib
-                const Text('Nomor WhatsApp Penjual (Wajib):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                const SizedBox(height: 4),
-                const Text('Untuk koordinasi kurasi kurir GAGE, tanya jawab customer (via proxy CS), dan pencairan transfer dana.', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _phoneCtrl,
-                  keyboardType: TextInputType.phone,
-                  decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.phone_android_rounded, color: Color(0xFF16A34A)),
-                    hintText: '08xxxxxxxxxx',
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey.shade300)),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey.shade300)),
-                  ),
-                  validator: (v) => (v == null || v.trim().length < 9) ? 'Nomor WhatsApp wajib diisi & valid' : null,
-                ),
-
-                const SizedBox(height: 16),
-
-                // 6. Input Harga & Kalkulator Otomatis Markup 10%
-                const Text('Harga Harapan Penjual (Yang Anda Terima Bersih):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _priceCtrl,
-                  keyboardType: TextInputType.number,
-                  onChanged: _onPriceChanged,
-                  decoration: InputDecoration(
-                    prefixText: 'Rp ',
-                    prefixStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
-                    hintText: '0',
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey.shade300)),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey.shade300)),
-                  ),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Wajib isi nominal harga bersih yang Anda inginkan' : null,
-                ),
-
-                const SizedBox(height: 12),
-
-                // Card Konfirmasi Nominal Bersih
+                // 4. iOS Inset Group: Deskripsi Minus & Kondisi Riil
                 Container(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF0FDF4),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFBBF7D0)),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
                   ),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFDCFCE7),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFF16A34A), size: 20),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Nominal Bersih yang Anda Terima:', style: TextStyle(fontSize: 11.5, color: Colors.black54)),
-                            const SizedBox(height: 2),
-                            Text(
-                              currencyFormatter.format(_sellerPrice),
-                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF16A34A)),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                          ],
+                            child: const Icon(Icons.assignment_outlined, size: 18, color: Color(0xFFD97706)),
+                          ),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Minus & Kondisi Fisik Riil',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        controller: _minusCtrl,
+                        maxLines: 3,
+                        decoration: InputDecoration(
+                          hintText: 'Jelaskan kondisi riil, goresan fisik, kelengkapan minus, atau riwayat servis pemakaian...',
+                          hintStyle: TextStyle(fontSize: 12, color: Colors.grey.shade400),
+                          filled: true,
+                          fillColor: const Color(0xFFF8FAFC),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                         ),
                       ),
-                      const Text('100% Utuh', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF15803D))),
                     ],
                   ),
                 ),
 
-                const SizedBox(height: 18),
+                const SizedBox(height: 14),
 
-                // 7. Foto Produk (Slide Multi-Image)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Foto Fisik Barang (Multi-Slide):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    Text('${_attachedPhotos.length} Foto Terpilih', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                  ],
-                ),
-                const SizedBox(height: 10),
-
-                SizedBox(
-                  height: 90,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _attachedPhotos.length + 1,
-                    separatorBuilder: (context, index) => const SizedBox(width: 10),
-                    itemBuilder: (ctx, idx) {
-                      if (idx == _attachedPhotos.length) {
-                        return InkWell(
-                          onTap: _pickImages,
-                          borderRadius: BorderRadius.circular(14),
-                          child: Container(
-                            width: 80,
+                // 5. iOS Inset Group: Kontak Penjual (WhatsApp)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: Colors.grey.shade300),
+                              color: const Color(0xFF16A34A).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.add_a_photo_outlined, color: GageTheme.primary, size: 24),
-                                SizedBox(height: 4),
-                                Text('Tambah', style: TextStyle(fontSize: 11, color: GageTheme.primary, fontWeight: FontWeight.bold)),
-                              ],
+                            child: const Icon(Icons.phone_android_rounded, size: 18, color: Color(0xFF16A34A)),
+                          ),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Nomor WhatsApp Penjual (Wajib)',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                        );
-                      }
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Untuk koordinasi kurasi kurir GAGE dan pencairan transfer dana ke rekening Anda.',
+                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        controller: _phoneCtrl,
+                        keyboardType: TextInputType.phone,
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.phone_android_rounded, color: Color(0xFF16A34A)),
+                          hintText: '08xxxxxxxxxx',
+                          filled: true,
+                          fillColor: const Color(0xFFF8FAFC),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                        ),
+                        validator: (v) => (v == null || v.trim().length < 9) ? 'Nomor WhatsApp wajib diisi & valid' : null,
+                      ),
+                    ],
+                  ),
+                ),
 
-                      final photo = _attachedPhotos[idx];
-                      return ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
-                        child: Stack(
-                          children: [
-                            SizedBox(
-                              width: 80,
-                              height: 90,
-                              child: photo.startsWith('assets/')
-                                  ? Image.asset(photo, fit: BoxFit.cover)
-                                  : Image.network(photo, fit: BoxFit.cover, errorBuilder: (c, e, s) => Container(color: Colors.grey.shade200)),
+                const SizedBox(height: 14),
+
+                // 6. iOS Inset Group: Input Harga & Nominal Bersih
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            Positioned(
-                              top: 4,
-                              right: 4,
-                              child: GestureDetector(
-                                onTap: () => setState(() => _attachedPhotos.removeAt(idx)),
-                                child: Container(
-                                  padding: const EdgeInsets.all(2),
-                                  decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-                                  child: const Icon(Icons.close_rounded, color: Colors.white, size: 14),
-                                ),
+                            child: const Icon(Icons.payments_outlined, size: 18, color: Color(0xFF7C3AED)),
+                          ),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Harga Harapan Penjual',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        controller: _priceCtrl,
+                        keyboardType: TextInputType.number,
+                        onChanged: _onPriceChanged,
+                        decoration: InputDecoration(
+                          prefixText: 'Rp ',
+                          prefixStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
+                          hintText: '0',
+                          filled: true,
+                          fillColor: const Color(0xFFF8FAFC),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                        ),
+                        validator: (v) => (v == null || v.trim().isEmpty) ? 'Wajib isi nominal harga bersih yang Anda inginkan' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF0FDF4),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFFBBF7D0)),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFDCFCE7),
+                                borderRadius: BorderRadius.circular(10),
                               ),
+                              child: const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFF16A34A), size: 18),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Nominal Bersih yang Anda Terima:',
+                                    style: TextStyle(fontSize: 11, color: Colors.black54),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    currencyFormatter.format(_sellerPrice),
+                                    style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: Color(0xFF16A34A)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFDCFCE7),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text('100% Utuh', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF15803D))),
                             ),
                           ],
                         ),
-                      );
-                    },
+                      ),
+                    ],
                   ),
                 ),
 
-                const SizedBox(height: 18),
+                const SizedBox(height: 14),
 
-                // 8. Ketentuan Akad Titip Jual Resmi & Proteksi Anti-Curang
+                // 7. iOS Inset Group: Akad Titip Jual Resmi
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.grey.shade200),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
                   ),
-                  child: CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    activeColor: GageTheme.primary,
-                    value: _agreedToTerms,
-                    onChanged: (v) => setState(() => _agreedToTerms = v ?? false),
-                    title: const Text(
-                      'Saya menyetujui Ketentuan Akad Titip Jual Resmi GAGE BaBe:',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5),
-                    ),
-                    subtitle: const Padding(
-                      padding: EdgeInsets.only(top: 4.0),
-                      child: Text(
-                        '1. Penjual dilarang menjual barang yang sedang aktif listing di BaBe secara sepihak di luar sistem GAGE.\n'
-                        '2. Transaksi pembeli dilindungi Garansi Keamanan Transaksi GAGE dan dana 100% diteruskan ke penjual setelah 48 jam garansi.\n'
-                        '3. Konfirmasi lolos atau ditolak akan diputuskan di Portal Admin GAGE dalam kurun waktu 1x24 jam.',
-                        style: TextStyle(fontSize: 10.5, color: Colors.black54, height: 1.35),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      activeColor: GageTheme.primary,
+                      value: _agreedToTerms,
+                      onChanged: (v) => setState(() => _agreedToTerms = v ?? false),
+                      title: const Text(
+                        'Saya menyetujui Ketentuan Akad Titip Jual Resmi GAGE BaBe:',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5),
                       ),
+                      subtitle: const Padding(
+                        padding: EdgeInsets.only(top: 4.0),
+                        child: Text(
+                          '1. Penjual dilarang menjual barang yang sedang aktif listing di BaBe secara sepihak di luar sistem GAGE.\n'
+                          '2. Transaksi pembeli dilindungi Garansi Keamanan Transaksi GAGE dan dana 100% diteruskan ke penjual setelah 48 jam garansi.\n'
+                          '3. Konfirmasi lolos atau ditolak akan diputuskan di Portal Admin GAGE dalam kurun waktu 1x24 jam.',
+                          style: TextStyle(fontSize: 10.5, color: Colors.black54, height: 1.35),
+                        ),
+                      ),
+                      controlAffinity: ListTileControlAffinity.leading,
                     ),
-                    controlAffinity: ListTileControlAffinity.leading,
                   ),
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
 
-                // Tombol Submit
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: GageTheme.primary,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    elevation: 2,
-                  ),
-                  onPressed: _submitForm,
-                  child: const Text(
-                    'Kirim Pengajuan Titip Jual',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                // Tombol Submit (BorderRadius.circular(10))
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: GageTheme.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      elevation: 1,
+                    ),
+                    onPressed: _submitForm,
+                    child: const Text(
+                      'Kirim Pengajuan Titip Jual',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
                   ),
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 28),
               ],
             ),
           ),

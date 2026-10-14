@@ -12,7 +12,7 @@ import 'package:gage_app/features/babe/presentation/babe_detail_screen.dart';
 import 'package:gage_app/features/babe/presentation/babe_sell_form_screen.dart';
 import 'package:gage_app/features/babe/presentation/babe_favorite_screen.dart';
 import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
-import 'package:gage_app/shared/widgets/looping_bubble_chat.dart';
+import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/adaptive_speech_bubble.dart';
 import 'package:gage_app/shared/widgets/seamless_floating_cart_bar.dart';
 import 'package:gage_app/shared/widgets/gage_service_header.dart';
@@ -337,36 +337,15 @@ class _BabeScreenState extends State<BabeScreen> {
   }
 
   void _showHistoryModal() {
-    showModalBottomSheet(
+    GageFloatingSheet.show(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
+      builder: (sheetCtx) => StatefulBuilder(
         builder: (sheetCtx, setSheetState) {
-          return Container(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.75,
-            ),
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
                 Row(
                   children: [
                     const Icon(Icons.receipt_long_rounded, color: GageTheme.primary, size: 24),
@@ -378,7 +357,7 @@ class _BabeScreenState extends State<BabeScreen> {
                     const Spacer(),
                     IconButton(
                       icon: const Icon(Icons.close_rounded),
-                      onPressed: () => Navigator.pop(ctx),
+                      onPressed: () => Navigator.pop(sheetCtx),
                     ),
                   ],
                 ),
@@ -419,11 +398,11 @@ class _BabeScreenState extends State<BabeScreen> {
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: GageTheme.primary,
                                 side: const BorderSide(color: GageTheme.primary),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               ),
                               icon: const Icon(Icons.explore_rounded, size: 18),
                               label: const Text('Jelajahi Produk BaBe', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                              onPressed: () => Navigator.pop(ctx),
+                              onPressed: () => Navigator.pop(sheetCtx),
                             ),
                           ],
                         ),
@@ -561,16 +540,16 @@ class _BabeScreenState extends State<BabeScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: GageTheme.primary,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       padding: const EdgeInsets.symmetric(vertical: 12),
+                      elevation: 0,
                     ),
-                    onPressed: () => Navigator.pop(ctx),
+                    onPressed: () => Navigator.pop(sheetCtx),
                     child: const Text('Tutup', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
-            ),
-          );
+            );
         },
       ),
     );
@@ -891,26 +870,6 @@ class _BabeScreenState extends State<BabeScreen> {
                             itemCount: filteredItems.length,
                             itemBuilder: (ctx, idx) => _buildProductCard(filteredItems[idx]),
                           ),
-
-                        const SizedBox(height: 16),
-
-                        // 5. CTA Titip Jual: Looping Bubble Chat
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                          child: LoopingBubbleChat(
-                            senderName: 'Admin Titip Jual GAGE',
-                            subtitle: 'Lapak Resmi BaBe',
-                            icon: Icons.sell_rounded,
-                            primaryColor: GageTheme.primary,
-                            actionLabel: 'Titip Jual',
-                            messages: const [
-                              'Punya barang bekas masih bagus di rumah? Titip jual di BaBe GAGE!',
-                              'Tim GAGE siap bantu cek fisik, foto produk, dan jemput barang ke rumah Anda.',
-                              'Jual gadget, motor, perabot & perkakas aman tanpa ribet tawar liar di luar.',
-                            ],
-                            onTap: () => _showFormTitipJual(context),
-                          ),
-                        ),
 
                         const SizedBox(height: 90),
                       ],

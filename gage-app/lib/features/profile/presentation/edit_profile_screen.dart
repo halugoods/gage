@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/providers/auth_provider.dart';
+import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
+import 'package:gage_app/shared/widgets/gage_toast.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -110,8 +112,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal mengakses kamera: $e')),
+        GageToast.show(
+          context,
+          'Gagal mengakses kamera: $e',
+          type: GageToastType.error,
         );
       }
     }
@@ -134,8 +138,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal memilih foto dari galeri: $e')),
+        GageToast.show(
+          context,
+          'Gagal memilih foto dari galeri: $e',
+          type: GageToastType.error,
         );
       }
     }
@@ -143,190 +149,187 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   // Pilih dari Preset Avatar
   void _showPresetAvatarPicker() {
-    showModalBottomSheet(
+    GageFloatingSheet.show(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 44,
-                height: 4,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(4),
+                  color: GageTheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.face_rounded, color: GageTheme.primary, size: 20),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Pilih Preset Avatar',
+                  style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.bold, color: GageTheme.textPrimary),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Pilih Preset Avatar',
-              style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.bold, color: GageTheme.textPrimary),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Gunakan karakter resmi GAGE Pracimantoro untuk profil Anda',
-              style: TextStyle(fontSize: 12, color: GageTheme.textSecondary),
-            ),
-            const SizedBox(height: 16),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 0.8,
+              IconButton(
+                icon: const Icon(Icons.close_rounded, size: 20),
+                onPressed: () => Navigator.pop(context),
               ),
-              itemCount: _presetAvatars.length,
-              itemBuilder: (c, idx) {
-                final preset = _presetAvatars[idx];
-                final isSelected = _selectedPreset == preset['path'];
-                return InkWell(
-                  onTap: () {
-                    setState(() {
-                      _selectedPreset = preset['path'];
-                      _imageFile = null;
-                    });
-                    Navigator.pop(ctx);
-                  },
-                  borderRadius: BorderRadius.circular(14),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFFFFEBEE) : const Color(0xFFF8F9FA),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: isSelected ? GageTheme.primary : Colors.grey.shade200,
-                        width: isSelected ? 2 : 1,
-                      ),
-                    ),
-                    padding: const EdgeInsets.all(8),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircleAvatar(
-                          radius: 24,
-                          backgroundColor: Colors.white,
-                          backgroundImage: AssetImage(preset['path']!),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          preset['name']!,
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                            color: isSelected ? GageTheme.primary : GageTheme.textPrimary,
-                          ),
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Gunakan karakter resmi GAGE Pracimantoro untuk profil Anda',
+            style: TextStyle(fontSize: 12, color: GageTheme.textSecondary),
+          ),
+          const SizedBox(height: 16),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 0.8,
+            ),
+            itemCount: _presetAvatars.length,
+            itemBuilder: (c, idx) {
+              final preset = _presetAvatars[idx];
+              final isSelected = _selectedPreset == preset['path'];
+              return InkWell(
+                onTap: () {
+                  setState(() {
+                    _selectedPreset = preset['path'];
+                    _imageFile = null;
+                  });
+                  Navigator.pop(context);
+                },
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isSelected ? const Color(0xFFFFEBEE) : const Color(0xFFF8F9FA),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isSelected ? GageTheme.primary : Colors.grey.shade200,
+                      width: isSelected ? 2 : 1,
                     ),
                   ),
-                );
-              },
-            ),
-          ],
-        ),
+                  padding: const EdgeInsets.all(8),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircleAvatar(
+                        radius: 24,
+                        backgroundColor: Colors.white,
+                        backgroundImage: AssetImage(preset['path']!),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        preset['name']!,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          color: isSelected ? GageTheme.primary : GageTheme.textPrimary,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
 
   // Modal Sheet Opsi Ganti Avatar
   void _showAvatarOptionsSheet() {
-    showModalBottomSheet(
+    GageFloatingSheet.show(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Center(
-                child: Container(
-                  width: 44,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: GageTheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.camera_alt_rounded, color: GageTheme.primary, size: 20),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Ubah Foto Profil',
+                  style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.bold, color: GageTheme.textPrimary),
                 ),
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Ubah Foto Profil',
-                style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.bold, color: GageTheme.textPrimary),
-              ),
-              const SizedBox(height: 14),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFEBEE),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.camera_alt_rounded, color: GageTheme.primary, size: 22),
-                ),
-                title: const Text('Ambil dari Kamera', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                subtitle: const Text('Gunakan kamera langsung untuk potret diri', style: TextStyle(fontSize: 12)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _pickImageFromCamera();
-                },
-              ),
-              const Divider(height: 8),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE3F2FD),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.photo_library_rounded, color: Color(0xFF1976D2), size: 22),
-                ),
-                title: const Text('Pilih dari Galeri', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                subtitle: const Text('Pilih foto tersimpan dari memori ponsel', style: TextStyle(fontSize: 12)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _pickImageFromGallery();
-                },
-              ),
-              const Divider(height: 8),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF3E0),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.face_rounded, color: Color(0xFFE65100), size: 22),
-                ),
-                title: const Text('Pilih dari Preset Avatar', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                subtitle: const Text('Pilihan avatar_user.png dan karakter GAGE', style: TextStyle(fontSize: 12)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _showPresetAvatarPicker();
-                },
+              IconButton(
+                icon: const Icon(Icons.close_rounded, size: 20),
+                onPressed: () => Navigator.pop(context),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 14),
+          ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFEBEE),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.camera_alt_rounded, color: GageTheme.primary, size: 22),
+            ),
+            title: const Text('Ambil dari Kamera', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            subtitle: const Text('Gunakan kamera langsung untuk potret diri', style: TextStyle(fontSize: 12)),
+            onTap: () {
+              Navigator.pop(context);
+              _pickImageFromCamera();
+            },
+          ),
+          const Divider(height: 8),
+          ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE3F2FD),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.photo_library_rounded, color: Color(0xFF1976D2), size: 22),
+            ),
+            title: const Text('Pilih dari Galeri', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            subtitle: const Text('Pilih foto tersimpan dari memori ponsel', style: TextStyle(fontSize: 12)),
+            onTap: () {
+              Navigator.pop(context);
+              _pickImageFromGallery();
+            },
+          ),
+          const Divider(height: 8),
+          ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF3E0),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.face_rounded, color: Color(0xFFE65100), size: 22),
+            ),
+            title: const Text('Pilih dari Preset Avatar', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            subtitle: const Text('Pilihan avatar_user.png dan karakter GAGE', style: TextStyle(fontSize: 12)),
+            onTap: () {
+              Navigator.pop(context);
+              _showPresetAvatarPicker();
+            },
+          ),
+        ],
       ),
     );
   }
@@ -370,19 +373,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Profil berhasil diperbarui!'),
-          backgroundColor: Color(0xFF16A34A),
-          behavior: SnackBarBehavior.floating,
-        ),
+      GageToast.show(
+        context,
+        'Profil berhasil diperbarui!',
+        type: GageToastType.success,
       );
 
       Navigator.pop(context, true);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Terjadi kesalahan: $e'), backgroundColor: Colors.red),
+        GageToast.show(
+          context,
+          'Terjadi kesalahan: $e',
+          type: GageToastType.error,
         );
       }
     } finally {
@@ -598,7 +601,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     foregroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                 ),

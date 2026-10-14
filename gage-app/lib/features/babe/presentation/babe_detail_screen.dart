@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
+import 'package:gage_app/shared/widgets/gage_toast.dart';
 
 /// Layar Penuh Detail Produk GAGE BaBe (Bukan Modal Drawer)
 /// Dilengkapi Image Carousel Slider, Rincian Kondisi Fisik Riil,
@@ -69,11 +71,10 @@ class _BabeDetailScreenState extends State<BabeDetailScreen> {
     );
     String? validationError;
 
-    showModalBottomSheet(
+    GageFloatingSheet.show(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
+      builder: (sheetCtx) => StatefulBuilder(
         builder: (sheetCtx, setSheetState) {
           final itemName = widget.item['name'] as String? ?? 'Barang BaBe';
           final hargaAwalFormatted = NumberFormat('#,###', 'id_ID').format(basePrice);
@@ -81,35 +82,10 @@ class _BabeDetailScreenState extends State<BabeDetailScreen> {
           final parsedOffer = int.tryParse(rawDigits) ?? 0;
           final diff = basePrice - parsedOffer;
 
-          return Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(sheetCtx).viewInsets.bottom,
-            ),
-            child: Container(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.85,
-              ),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 36,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
                     Row(
                       children: [
                         Container(
@@ -352,9 +328,9 @@ class _BabeDetailScreenState extends State<BabeDetailScreen> {
                           backgroundColor: GageTheme.primary,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          elevation: 1,
+                          elevation: 0,
                         ),
                         icon: const Icon(Icons.chat_rounded, size: 20),
                         label: const Text(
@@ -399,22 +375,16 @@ class _BabeDetailScreenState extends State<BabeDetailScreen> {
 
                           _openWhatsApp(phone: '6281234567890', message: message);
 
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Penawaran Rp $hargaTawaranFormatted sedang dikirim ke WhatsApp Admin BaBe.'),
-                              backgroundColor: GageTheme.primary,
-                              behavior: SnackBarBehavior.floating,
-                            ),
+                          GageToast.show(
+                            context,
+                            'Penawaran Rp $hargaTawaranFormatted sedang dikirim ke WhatsApp Admin BaBe.',
                           );
                         },
                       ),
                     ),
                     const SizedBox(height: 8),
                   ],
-                ),
-              ),
-            ),
-          );
+                );
         },
       ),
     );
@@ -543,8 +513,11 @@ class _BabeDetailScreenState extends State<BabeDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Label Kategori & Kondisi Riil
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -592,70 +565,77 @@ class _BabeDetailScreenState extends State<BabeDetailScreen> {
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _isNegoAccepted ? 'HARGA NEGO DISETUJUI ✓' : 'HARGA PASAR RESMI GAGE',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: _isNegoAccepted ? const Color(0xFF16A34A) : Colors.grey,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            if (_isNegoAccepted) ...[
-                              Row(
-                                children: [
-                                  Text(
-                                    currencyFormatter.format(listingPrice),
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.bold,
-                                      decoration: TextDecoration.lineThrough,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFDCFCE7),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: const Text(
-                                      'Berlaku 2 Jam',
-                                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF16A34A)),
-                                    ),
-                                  ),
-                                ],
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _isNegoAccepted ? 'HARGA NEGO DISETUJUI ✓' : 'HARGA PASAR RESMI GAGE',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: _isNegoAccepted ? const Color(0xFF16A34A) : Colors.grey,
+                                  letterSpacing: 0.5,
+                                ),
                               ),
                               const SizedBox(height: 2),
-                              Text(
-                                currencyFormatter.format(_negotiatedPrice!),
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w900,
-                                  color: Color(0xFF16A34A),
+                              if (_isNegoAccepted) ...[
+                                Row(
+                                  children: [
+                                    Text(
+                                      currencyFormatter.format(listingPrice),
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        decoration: TextDecoration.lineThrough,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFDCFCE7),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Text(
+                                        'Berlaku 2 Jam',
+                                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF16A34A)),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            ] else
-                              Text(
-                                currencyFormatter.format(listingPrice),
-                                style: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w900,
-                                  color: Color(0xFFE52320),
+                                const SizedBox(height: 2),
+                                Text(
+                                  currencyFormatter.format(_negotiatedPrice!),
+                                  style: const TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFF16A34A),
+                                  ),
                                 ),
+                              ] else
+                                Text(
+                                  currencyFormatter.format(listingPrice),
+                                  style: const TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFFE52320),
+                                  ),
+                                ),
+                              const SizedBox(height: 4),
+                              const Text(
+                                'Harga resmi bersahabat • Dilindungi garansi toko 48 jam & ongkir lokal',
+                                style: TextStyle(fontSize: 10.5, color: Colors.grey),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                            const Text(
-                              'Harga resmi bersahabat • Dilindungi garansi toko 48 jam & ongkir lokal',
-                              style: TextStyle(fontSize: 10.5, color: Colors.grey),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                           decoration: BoxDecoration(
@@ -804,9 +784,13 @@ class _BabeDetailScreenState extends State<BabeDetailScreen> {
                           children: [
                             Icon(Icons.support_agent_rounded, color: GageTheme.primary, size: 20),
                             SizedBox(width: 8),
-                            Text(
-                              'Tanya Jawab Seputar Produk',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                            Expanded(
+                              child: Text(
+                                'Tanya Jawab Seputar Produk',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                              ),
                             ),
                           ],
                         ),
@@ -865,8 +849,8 @@ class _BabeDetailScreenState extends State<BabeDetailScreen> {
                     style: OutlinedButton.styleFrom(
                       foregroundColor: GageTheme.primary,
                       side: const BorderSide(color: GageTheme.primary),
-                      minimumSize: const Size(double.infinity, 50),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      minimumSize: const Size(double.infinity, 48),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                     icon: const Icon(Icons.handshake_rounded, size: 18),
                     label: Text(
@@ -884,9 +868,9 @@ class _BabeDetailScreenState extends State<BabeDetailScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _isNegoAccepted ? const Color(0xFF16A34A) : GageTheme.accentGreen,
                     foregroundColor: Colors.white,
-                    minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    elevation: 2,
+                    minimumSize: const Size(double.infinity, 48),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    elevation: 0,
                   ),
                   onPressed: () {
                     final finalPrice = _negotiatedPrice ?? listingPrice;
@@ -913,13 +897,17 @@ class _BabeDetailScreenState extends State<BabeDetailScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.shopping_bag_outlined, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        _isNegoAccepted
-                            ? 'Beli Harga Nego (${currencyFormatter.format(_negotiatedPrice!)})'
-                            : 'Beli Sekarang (${currencyFormatter.format(listingPrice)})',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                      const Icon(Icons.shopping_bag_outlined, size: 18),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          _isNegoAccepted
+                              ? 'Beli (${currencyFormatter.format(_negotiatedPrice!)})'
+                              : 'Beli (${currencyFormatter.format(listingPrice)})',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ],
                   ),
