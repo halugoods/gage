@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 class MembershipScreen extends StatefulWidget {
   final String initialTier;
@@ -20,11 +21,21 @@ class _MembershipScreenState extends State<MembershipScreen> {
   late String _selectedTier; // 'plus' or 'max'
   String _selectedDuration = '1 Bulan'; // '1 Bulan', '3 Bulan', '1 Tahun'
   String _currentActivePlan = 'GAGE Basic (Gratis)';
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _selectedTier = widget.initialTier;
+    _loadMembership();
+  }
+
+  Future<void> _loadMembership() async {
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   int _getPriceFor(String tier, String duration) {
@@ -139,10 +150,16 @@ class _MembershipScreenState extends State<MembershipScreen> {
         foregroundColor: Colors.black87,
         elevation: 0.5,
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      body: RefreshIndicator(
+        onRefresh: _loadMembership,
+        color: GageTheme.primary,
+        child: _isLoading
+            ? const GageSkeletonMembership()
+            : SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
             // 1. Hero Header Banner (Luxury Emerald & Gold VIP Card)
             Container(
               width: double.infinity,
@@ -529,10 +546,13 @@ class _MembershipScreenState extends State<MembershipScreen> {
           ],
         ),
       ),
+    ),
 
       // 5. Bottom Sticky Bar & Checkout CTA
-      bottomSheet: Container(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      bottomSheet: _isLoading
+          ? null
+          : Container(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
         decoration: BoxDecoration(
           color: Colors.white,
           boxShadow: [

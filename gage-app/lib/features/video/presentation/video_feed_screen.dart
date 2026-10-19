@@ -5,6 +5,8 @@ import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/data/models/cart_item_model.dart';
 import 'package:gage_app/providers/cart_provider.dart';
 import 'package:gage_app/features/checkout/presentation/checkout_screen.dart';
+import 'package:gage_app/shared/widgets/gage_bottom_nav_bar.dart';
+import 'package:gage_app/features/home/presentation/home_screen.dart';
 
 class VideoFeedScreen extends StatefulWidget {
   const VideoFeedScreen({super.key});
@@ -161,8 +163,21 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => const HomeScreen(),
+            transitionDuration: Duration.zero,
+            reverseTransitionDuration: Duration.zero,
+          ),
+        );
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black,
       body: PageView.builder(
         controller: _pageController,
         scrollDirection: Axis.vertical,
@@ -303,7 +318,9 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> {
           );
         },
       ),
-    );
+      bottomNavigationBar: const GageBottomNavBar(currentIndex: 3),
+    ),
+  );
   }
 
   Widget _buildActionButton(IconData icon, String label, Color iconColor) {

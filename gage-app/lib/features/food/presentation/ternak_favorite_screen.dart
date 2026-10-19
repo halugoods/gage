@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 class TernakFavoriteScreen extends StatefulWidget {
   const TernakFavoriteScreen({super.key});
@@ -9,6 +10,7 @@ class TernakFavoriteScreen extends StatefulWidget {
 
 class _TernakFavoriteScreenState extends State<TernakFavoriteScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  bool _isLoading = true;
 
   final List<Map<String, dynamic>> _favoriteShops = [
     {
@@ -58,6 +60,15 @@ class _TernakFavoriteScreenState extends State<TernakFavoriteScreen> with Single
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _loadFavorites();
+  }
+
+  Future<void> _loadFavorites() async {
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(milliseconds: 250));
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -91,17 +102,26 @@ class _TernakFavoriteScreenState extends State<TernakFavoriteScreen> with Single
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          // Tab 1: Toko Favorit
-          _favoriteShops.isEmpty
-              ? _buildEmptyState('Belum Ada Toko Favorit', 'Poultry shop langganan Anda akan tersimpan di sini.')
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _favoriteShops.length,
-                  itemBuilder: (ctx, idx) {
-                    final shop = _favoriteShops[idx];
+      body: RefreshIndicator(
+        onRefresh: _loadFavorites,
+        color: const Color(0xFFD97706),
+        child: TabBarView(
+          controller: _tabController,
+          children: [
+            // Tab 1: Toko Favorit
+            _isLoading
+                ? ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: 3,
+                    itemBuilder: (ctx, idx) => const GageSkeletonStoreCard(),
+                  )
+                : _favoriteShops.isEmpty
+                    ? _buildEmptyState('Belum Ada Toko Favorit', 'Poultry shop langganan Anda akan tersimpan di sini.')
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _favoriteShops.length,
+                        itemBuilder: (ctx, idx) {
+                          final shop = _favoriteShops[idx];
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -153,13 +173,19 @@ class _TernakFavoriteScreenState extends State<TernakFavoriteScreen> with Single
                 ),
 
           // Tab 2: Pakan Favorit
-          _favoriteItems.isEmpty
-              ? _buildEmptyState('Belum Ada Pakan Favorit', 'Pakan konsentrat & suplemen yang sering Anda pesan akan tersimpan di sini.')
-              : ListView.builder(
+          _isLoading
+              ? ListView.builder(
                   padding: const EdgeInsets.all(16),
-                  itemCount: _favoriteItems.length,
-                  itemBuilder: (ctx, idx) {
-                    final item = _favoriteItems[idx];
+                  itemCount: 4,
+                  itemBuilder: (ctx, idx) => const GageSkeletonTaniItem(),
+                )
+              : _favoriteItems.isEmpty
+                  ? _buildEmptyState('Belum Ada Pakan Favorit', 'Pakan konsentrat & suplemen yang sering Anda pesan akan tersimpan di sini.')
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _favoriteItems.length,
+                      itemBuilder: (ctx, idx) {
+                        final item = _favoriteItems[idx];
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -210,8 +236,9 @@ class _TernakFavoriteScreenState extends State<TernakFavoriteScreen> with Single
                 ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildEmptyState(String title, String desc) {
     return Center(

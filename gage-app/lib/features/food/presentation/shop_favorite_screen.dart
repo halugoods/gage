@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/food/presentation/shop_store_detail_screen.dart';
+import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 class ShopFavoriteScreen extends StatefulWidget {
   const ShopFavoriteScreen({super.key});
@@ -11,6 +12,7 @@ class ShopFavoriteScreen extends StatefulWidget {
 
 class _ShopFavoriteScreenState extends State<ShopFavoriteScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  bool _isLoading = true;
 
   final List<Map<String, dynamic>> _favoriteStores = [
     {
@@ -67,6 +69,15 @@ class _ShopFavoriteScreenState extends State<ShopFavoriteScreen> with SingleTick
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _loadFavorites();
+  }
+
+  Future<void> _loadFavorites() async {
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(milliseconds: 250));
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -100,17 +111,26 @@ class _ShopFavoriteScreenState extends State<ShopFavoriteScreen> with SingleTick
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          // Tab 1: Toko Favorit
-          _favoriteStores.isEmpty
-              ? _buildEmptyState('Belum Ada Toko Favorit', 'Toko sembako yang Anda sukai akan muncul di sini.')
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _favoriteStores.length,
-                  itemBuilder: (ctx, idx) {
-                    final store = _favoriteStores[idx];
+      body: RefreshIndicator(
+        onRefresh: _loadFavorites,
+        color: GageTheme.primary,
+        child: TabBarView(
+          controller: _tabController,
+          children: [
+            // Tab 1: Toko Favorit
+            _isLoading
+                ? ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: 3,
+                    itemBuilder: (ctx, idx) => const GageSkeletonStoreCard(),
+                  )
+                : _favoriteStores.isEmpty
+                    ? _buildEmptyState('Belum Ada Toko Favorit', 'Toko sembako yang Anda sukai akan muncul di sini.')
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _favoriteStores.length,
+                        itemBuilder: (ctx, idx) {
+                          final store = _favoriteStores[idx];
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -186,13 +206,19 @@ class _ShopFavoriteScreenState extends State<ShopFavoriteScreen> with SingleTick
                 ),
 
           // Tab 2: Barang Sembako Favorit
-          _favoriteProducts.isEmpty
-              ? _buildEmptyState('Belum Ada Sembako Favorit', 'Barang belanjaan yang sering Anda pesan akan tersimpan di sini.')
-              : ListView.builder(
+          _isLoading
+              ? ListView.builder(
                   padding: const EdgeInsets.all(16),
-                  itemCount: _favoriteProducts.length,
-                  itemBuilder: (ctx, idx) {
-                    final item = _favoriteProducts[idx];
+                  itemCount: 4,
+                  itemBuilder: (ctx, idx) => const GageSkeletonMenuItem(),
+                )
+              : _favoriteProducts.isEmpty
+                  ? _buildEmptyState('Belum Ada Sembako Favorit', 'Barang belanjaan yang sering Anda pesan akan tersimpan di sini.')
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _favoriteProducts.length,
+                      itemBuilder: (ctx, idx) {
+                        final item = _favoriteProducts[idx];
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -250,8 +276,9 @@ class _ShopFavoriteScreenState extends State<ShopFavoriteScreen> with SingleTick
                 ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildEmptyState(String title, String desc) {
     return Center(

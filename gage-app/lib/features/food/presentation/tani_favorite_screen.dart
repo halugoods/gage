@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 class TaniFavoriteScreen extends StatefulWidget {
   const TaniFavoriteScreen({super.key});
@@ -9,6 +10,7 @@ class TaniFavoriteScreen extends StatefulWidget {
 
 class _TaniFavoriteScreenState extends State<TaniFavoriteScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  bool _isLoading = true;
 
   final List<Map<String, dynamic>> _favoriteKios = [
     {
@@ -57,6 +59,15 @@ class _TaniFavoriteScreenState extends State<TaniFavoriteScreen> with SingleTick
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _loadFavorites();
+  }
+
+  Future<void> _loadFavorites() async {
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(milliseconds: 250));
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -90,17 +101,26 @@ class _TaniFavoriteScreenState extends State<TaniFavoriteScreen> with SingleTick
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          // Tab 1: Kios Favorit
-          _favoriteKios.isEmpty
-              ? _buildEmptyState('Belum Ada Kios Favorit', 'Kios saprotan langganan Anda akan tersimpan di sini.')
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _favoriteKios.length,
-                  itemBuilder: (ctx, idx) {
-                    final kios = _favoriteKios[idx];
+      body: RefreshIndicator(
+        onRefresh: _loadFavorites,
+        color: const Color(0xFF16A34A),
+        child: TabBarView(
+          controller: _tabController,
+          children: [
+            // Tab 1: Kios Favorit
+            _isLoading
+                ? ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: 3,
+                    itemBuilder: (ctx, idx) => const GageSkeletonStoreCard(),
+                  )
+                : _favoriteKios.isEmpty
+                    ? _buildEmptyState('Belum Ada Kios Favorit', 'Kios saprotan langganan Anda akan tersimpan di sini.')
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _favoriteKios.length,
+                        itemBuilder: (ctx, idx) {
+                          final kios = _favoriteKios[idx];
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -155,13 +175,19 @@ class _TaniFavoriteScreenState extends State<TaniFavoriteScreen> with SingleTick
                 ),
 
           // Tab 2: Bibit & Pupuk Favorit
-          _favoriteItems.isEmpty
-              ? _buildEmptyState('Belum Ada Pupuk/Bibit Favorit', 'Sarana tani yang sering Anda pesan akan tersimpan di sini.')
-              : ListView.builder(
+          _isLoading
+              ? ListView.builder(
                   padding: const EdgeInsets.all(16),
-                  itemCount: _favoriteItems.length,
-                  itemBuilder: (ctx, idx) {
-                    final item = _favoriteItems[idx];
+                  itemCount: 4,
+                  itemBuilder: (ctx, idx) => const GageSkeletonTaniItem(),
+                )
+              : _favoriteItems.isEmpty
+                  ? _buildEmptyState('Belum Ada Pupuk/Bibit Favorit', 'Sarana tani yang sering Anda pesan akan tersimpan di sini.')
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _favoriteItems.length,
+                      itemBuilder: (ctx, idx) {
+                        final item = _favoriteItems[idx];
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -216,8 +242,9 @@ class _TaniFavoriteScreenState extends State<TaniFavoriteScreen> with SingleTick
                 ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildEmptyState(String title, String desc) {
     return Center(

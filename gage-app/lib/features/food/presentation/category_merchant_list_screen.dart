@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
+import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 class CategoryMerchantListScreen extends StatefulWidget {
   final String categoryName;
@@ -45,6 +46,8 @@ class _CategoryMerchantListScreenState extends State<CategoryMerchantListScreen>
   }
 
   Future<void> _loadMerchants() async {
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(milliseconds: 300));
     final list = await GageApiClient.getMerchants();
 
     // Default fallback directory merchant Pracimantoro
@@ -290,58 +293,75 @@ class _CategoryMerchantListScreenState extends State<CategoryMerchantListScreen>
             color: Colors.white,
             padding: const EdgeInsets.only(bottom: 12),
             height: 46,
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              scrollDirection: Axis.horizontal,
-              itemCount: _chips.length,
-              separatorBuilder: (ctx, i) => const SizedBox(width: 8),
-              itemBuilder: (ctx, i) {
-                final chip = _chips[i];
-                final isSel = _activeChip == chip;
-                return ChoiceChip(
-                  label: Text(chip),
-                  selected: isSel,
-                  onSelected: (_) => setState(() => _activeChip = chip),
-                  selectedColor: GageTheme.primaryLight,
-                  backgroundColor: Colors.grey.shade50,
-                  side: BorderSide(color: isSel ? GageTheme.primary : Colors.grey.shade300),
-                  labelStyle: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
-                    color: isSel ? GageTheme.primary : GageTheme.textPrimary,
+            child: _isLoading
+                ? const GageSkeletonCategoryPillsRow(count: 5)
+                : ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _chips.length,
+                    separatorBuilder: (ctx, i) => const SizedBox(width: 8),
+                    itemBuilder: (ctx, i) {
+                      final chip = _chips[i];
+                      final isSel = _activeChip == chip;
+                      return ChoiceChip(
+                        label: Text(chip),
+                        selected: isSel,
+                        onSelected: (_) => setState(() => _activeChip = chip),
+                        selectedColor: GageTheme.primaryLight,
+                        backgroundColor: Colors.grey.shade50,
+                        side: BorderSide(color: isSel ? GageTheme.primary : Colors.grey.shade300),
+                        labelStyle: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
+                          color: isSel ? GageTheme.primary : GageTheme.textPrimary,
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
           ),
 
           const Divider(height: 1),
 
           // Merchant List
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: GageTheme.primary))
-                : filtered.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
+            child: RefreshIndicator(
+              onRefresh: _loadMerchants,
+              color: GageTheme.primary,
+              child: _isLoading
+                  ? ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(16),
+                      itemCount: 4,
+                      itemBuilder: (context, index) => const GageSkeletonRestoCard(),
+                    )
+                  : filtered.isEmpty
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
                           children: [
-                            Icon(Icons.storefront_outlined, size: 54, color: Colors.grey.shade400),
-                            const SizedBox(height: 12),
-                            Text(
-                              'Belum ada resto untuk kategori "${widget.categoryName}"',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                            ),
-                            const SizedBox(height: 4),
-                            const Text(
-                              'Coba ganti filter atau cari kata kunci lain.',
-                              style: TextStyle(fontSize: 12, color: Colors.grey),
+                            SizedBox(height: MediaQuery.of(context).size.height * 0.2),
+                            Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.storefront_outlined, size: 54, color: Colors.grey.shade400),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'Belum ada resto untuk kategori "${widget.categoryName}"',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  const Text(
+                                    'Coba ganti filter atau cari kata kunci lain.',
+                                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
+                        )
+                      : ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.all(16),
                         itemCount: filtered.length,
                         itemBuilder: (ctx, idx) {
                           final m = filtered[idx];
@@ -462,6 +482,7 @@ class _CategoryMerchantListScreenState extends State<CategoryMerchantListScreen>
                           );
                         },
                       ),
+            ),
           ),
         ],
       ),

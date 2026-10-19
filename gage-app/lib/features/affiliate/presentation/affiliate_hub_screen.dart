@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/shared/widgets/gage_toast.dart';
+import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
+import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 class AffiliateHubScreen extends StatefulWidget {
   const AffiliateHubScreen({super.key});
@@ -14,57 +18,20 @@ class AffiliateHubScreen extends StatefulWidget {
 
 class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  bool _isLoading = false;
-  bool _isRegistered = true; // State registrasi mitra kreator afiliasi
 
-  String _affiliateHandle = '@ratih_kuliner';
-  String _voucherCode = 'GAGERATIH';
-  final String _bioToken = 'GAGE-AFF-8821';
-
-  final TextEditingController _tiktokCtrl = TextEditingController();
-  final TextEditingController _waCtrl = TextEditingController();
-  final TextEditingController _voucherReqCtrl = TextEditingController();
+  final String _voucherCode = 'GAGECUAN-SYAMS';
 
   int _totalClicks = 142;
   int _totalOrders = 38;
   double _conversionRate = 26.8;
-  int _totalCommission = 57000;
+  int _totalCommission = 185000;
+  int _availableBalance = 85000;
+  bool _isLoadingStats = true;
 
   // State navigasi merchant first di katalog
   Map<String, dynamic>? _selectedMerchantForAffiliate;
 
   final List<Map<String, dynamic>> _affiliateMerchants = [
-    {
-      'id': 'mch-rc-01',
-      'name': 'Rocket Chicken Pracimantoro',
-      'category': 'Ayam Goreng & Cepat Saji',
-      'rating': 5.0,
-      'commissionRate': '10%',
-      'image': 'assets/images/resto_rocket_chicken.png',
-      'products': [
-        {
-          'id': 'rc-01',
-          'name': 'Paket Rocket 1 (Ayam Dada + Nasi + Es Teh)',
-          'price': 18000,
-          'commission': 1800,
-          'image': 'assets/images/dish_rocket_1.png',
-        },
-        {
-          'id': 'rc-02',
-          'name': 'Ayam Geprek Sambal Korek Pedas Nampol',
-          'price': 16000,
-          'commission': 1600,
-          'image': 'assets/images/dish_rocket_1.png',
-        },
-        {
-          'id': 'rc-03',
-          'name': 'Burger Crispy Cheese Spesial',
-          'price': 14000,
-          'commission': 1400,
-          'image': 'assets/images/dish_rocket_1.png',
-        },
-      ],
-    },
     {
       'id': 'mch-dimsum-01',
       'name': 'Dimsum Sewu - Bejo Halal Food',
@@ -97,6 +64,30 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
       ],
     },
     {
+      'id': 'mch-rc-01',
+      'name': 'Rocket Chicken Sambiroto',
+      'category': 'Ayam Goreng & Cepat Saji',
+      'rating': 5.0,
+      'commissionRate': '10%',
+      'image': 'assets/images/resto_rocket_chicken.png',
+      'products': [
+        {
+          'id': 'rc-01',
+          'name': 'Paket Rocket 1 (Ayam Dada + Nasi + Es Teh)',
+          'price': 18000,
+          'commission': 1800,
+          'image': 'assets/images/resto_rocket_chicken.png',
+        },
+        {
+          'id': 'rc-02',
+          'name': 'Ayam Geprek Sambal Korek Pedas',
+          'price': 16000,
+          'commission': 1600,
+          'image': 'assets/images/resto_rocket_chicken.png',
+        },
+      ],
+    },
+    {
       'id': 'mch-mie-01',
       'name': 'Mie Ayam & Bakso Pak Kumis',
       'category': 'Mie Ayam & Bakso Urat Jumbo',
@@ -109,7 +100,7 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
           'name': 'Mie Ayam Pangsit Komplit Porsi Jumbo',
           'price': 15000,
           'commission': 1500,
-          'image': 'assets/images/dish_mie_ayam.png',
+          'image': 'assets/images/resto_mie_ayam.png',
         },
         {
           'id': 'mk-02',
@@ -121,45 +112,59 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
       ],
     },
     {
-      'id': 'mch-seblak-01',
-      'name': 'Seblak Prasmanan Nyentrik',
-      'category': 'Seblak Prasmanan & Jajanan Pedas',
+      'id': 'mch-shop-01',
+      'name': 'Toko Sembako Barokah Pracimantoro',
+      'category': 'Sembako & Kebutuhan Dapur',
       'rating': 4.9,
-      'commissionRate': '10%',
-      'image': 'assets/images/resto_seblak.png',
+      'commissionRate': '5%',
+      'image': 'assets/images/prod_beras.png',
       'products': [
         {
-          'id': 'sb-01',
-          'name': 'Mangkuk Seblak Komplit Seafood & Cikuwa',
-          'price': 20000,
-          'commission': 2000,
-          'image': 'assets/images/dish_mie_ayam.png',
+          'id': 'sh-01',
+          'name': 'Beras Rojolele Delanggu 5 Kg',
+          'price': 72000,
+          'commission': 3600,
+          'image': 'assets/images/prod_beras.png',
+        },
+        {
+          'id': 'sh-02',
+          'name': 'Minyak Goreng Sawit 2 Liter Pouch',
+          'price': 34000,
+          'commission': 1700,
+          'image': 'assets/images/prod_beras.png',
         },
       ],
     },
+  ];
+
+  final List<Map<String, dynamic>> _commissionHistory = [
     {
-      'id': 'mch-roti-01',
-      'name': 'Roti Gembong Gedhe Pracimantoro',
-      'category': 'Roti & Bakery Fresh Oven',
-      'rating': 4.9,
-      'commissionRate': '10%',
-      'image': 'assets/images/resto_roti_gembong.png',
-      'products': [
-        {
-          'id': 'rg-01',
-          'name': 'Roti Gembong Cokelat Meises Lumer',
-          'price': 18000,
-          'commission': 1800,
-          'image': 'assets/images/dish_roti_cokelat.png',
-        },
-        {
-          'id': 'rg-02',
-          'name': 'Roti Gembong Keju Spesial Susu',
-          'price': 19000,
-          'commission': 1900,
-          'image': 'assets/images/dish_roti_keju.png',
-        },
-      ],
+      'title': 'Komisi Pembelian Dimsum Mentai',
+      'source': 'Referral @ratna_warga',
+      'amount': 3600,
+      'date': 'Hari ini, 13:42',
+      'status': 'MASUK',
+    },
+    {
+      'title': 'Komisi Paket Rocket 1 x2',
+      'source': 'Referral @budi_praci',
+      'amount': 3600,
+      'date': 'Kemarin, 19:15',
+      'status': 'MASUK',
+    },
+    {
+      'title': 'Penarikan Saldo Cuan ke GagePay',
+      'source': 'Pencairan Otomatis Saldo Dompet',
+      'amount': -100000,
+      'date': '14 Okt 2026, 10:00',
+      'status': 'SELESAI',
+    },
+    {
+      'title': 'Komisi Belanja Sembako Beras 5Kg',
+      'source': 'Referral @siti_maryam',
+      'amount': 3600,
+      'date': '13 Okt 2026, 09:20',
+      'status': 'MASUK',
     },
   ];
 
@@ -175,89 +180,165 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
   @override
   void dispose() {
     _tabController.dispose();
-    _tiktokCtrl.dispose();
-    _waCtrl.dispose();
-    _voucherReqCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _loadAffiliateData() async {
-    setState(() => _isLoading = true);
-    final stats = await GageApiClient.getAffiliateStats(_voucherCode);
-
-    if (!mounted) return;
-    setState(() {
-      if (stats.isNotEmpty) {
-        _totalClicks = (stats['total_clicks'] as num?)?.toInt() ?? _totalClicks;
-        _totalOrders = (stats['total_orders'] as num?)?.toInt() ?? _totalOrders;
-        _conversionRate = (stats['conversion_rate'] as num?)?.toDouble() ?? _conversionRate;
-        _totalCommission = (stats['total_commission_earned'] as num?)?.toInt() ?? _totalCommission;
+    try {
+      final stats = await GageApiClient.getAffiliateStats(_voucherCode);
+      if (mounted && stats.isNotEmpty) {
+        setState(() {
+          _totalClicks = (stats['total_clicks'] as num?)?.toInt() ?? _totalClicks;
+          _totalOrders = (stats['total_orders'] as num?)?.toInt() ?? _totalOrders;
+          _conversionRate = (stats['conversion_rate'] as num?)?.toDouble() ?? _conversionRate;
+          _totalCommission = (stats['total_commission_earned'] as num?)?.toInt() ?? _totalCommission;
+          _isLoadingStats = false;
+        });
+      } else if (mounted) {
+        setState(() => _isLoadingStats = false);
       }
-      _isLoading = false;
-    });
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingStats = false);
+    }
   }
 
-  void _registerAffiliate() {
-    final tiktok = _tiktokCtrl.text.trim();
-    final wa = _waCtrl.text.trim();
-    final vCode = _voucherReqCtrl.text.trim().toUpperCase();
+  void _copyReferralCode() {
+    Clipboard.setData(ClipboardData(text: _voucherCode));
+    GageToast.show(
+      context,
+      'Kode referral $_voucherCode berhasil disalin!',
+      type: GageToastType.success,
+    );
+  }
 
-    if (tiktok.isEmpty || wa.isEmpty || vCode.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lengkapi username media sosial, WhatsApp, dan kode voucher pilihan Anda.')),
-      );
+  Future<void> _shareToWhatsApp() async {
+    final text = 'Halo lur! Mau pesan makanan, belanja sembako, atau kirim paket di Pracimantoro makin hemat dan praktis pakai aplikasi *GAGE*. '
+        'Pakai kode referral saya *$_voucherCode* saat daftar buat klaim voucher diskon Rp 10.000 langsung! '
+        'Download aplikasi GAGE di sini: https://gage.id/cuan/$_voucherCode';
+    final url = 'https://wa.me/?text=${Uri.encodeComponent(text)}';
+    try {
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        Clipboard.setData(ClipboardData(text: text));
+        if (mounted) {
+          GageToast.show(context, 'Teks ajakan berhasil disalin ke clipboard!', type: GageToastType.info);
+        }
+      }
+    } catch (_) {
+      Clipboard.setData(ClipboardData(text: text));
+      if (mounted) {
+        GageToast.show(context, 'Teks ajakan berhasil disalin ke clipboard!', type: GageToastType.info);
+      }
+    }
+  }
+
+  void _withdrawCommission() {
+    if (_availableBalance <= 0) {
+      GageToast.show(context, 'Saldo komisi belum mencukupi untuk ditarik.', type: GageToastType.warning);
       return;
     }
 
-    setState(() {
-      _affiliateHandle = tiktok.startsWith('@') ? tiktok : '@$tiktok';
-      _voucherCode = vCode;
-      _isRegistered = true;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: GageTheme.accentGreen,
-        content: Text('Selamat! Akun kreator $_affiliateHandle aktif dengan kode voucher $_voucherCode.'),
+    GageFloatingSheet.show(
+      context: context,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: const BoxDecoration(
+                  color: GageTheme.primaryLight,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.account_balance_wallet_rounded, color: GageTheme.primary, size: 24),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Tarik Saldo Cuan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    SizedBox(height: 2),
+                    Text('Pindahkan komisi langsung ke saldo GagePay', style: TextStyle(fontSize: 12, color: GageTheme.textSecondary)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Jumlah Penarikan:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                Text(
+                  currencyFormatter.format(_availableBalance),
+                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: GageTheme.primary),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Saldo akan langsung masuk ke dompet GagePay dan dapat dipakai untuk transaksi atau ditarik ke rekening bank lokal.',
+            style: TextStyle(fontSize: 11.5, color: GageTheme.textSecondary, height: 1.35),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: GageTheme.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+              onPressed: () {
+                Navigator.pop(ctx);
+                setState(() {
+                  _availableBalance = 0;
+                  _commissionHistory.insert(0, {
+                    'title': 'Penarikan Saldo Cuan ke GagePay',
+                    'source': 'Pencairan Mandiri oleh Pengguna',
+                    'amount': -85000,
+                    'date': 'Baru saja',
+                    'status': 'SELESAI',
+                  });
+                });
+                GageToast.show(
+                  context,
+                  'Berhasil! Komisi Rp 85.000 telah masuk ke saldo GagePay Anda.',
+                  type: GageToastType.success,
+                );
+              },
+              child: const Text('Konfirmasi & Pindahkan ke GagePay', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  void _copyYellowCartLink(Map<String, dynamic> prod, String merchantName) {
+  void _copyProductLink(Map<String, dynamic> prod, String merchantName) {
     final prodName = prod['name'] ?? 'Menu';
     final targetUrl = 'https://gage.id/c/${prod['id']}-$_voucherCode'.toLowerCase();
 
     Clipboard.setData(ClipboardData(text: targetUrl));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: GageTheme.accentGreen,
-        content: Text('Link Keranjang Kuning untuk "$prodName" berhasil disalin! Tempel di video TikTok/Instagram Anda.'),
-      ),
-    );
-  }
-
-  void _copyCaption(Map<String, dynamic> prod, String merchantName) {
-    final name = prod['name'] ?? 'Menu Pilihan';
-    final price = prod['price'] ?? 15000;
-    final link = 'https://gage.id/c/${prod['id']}-$_voucherCode'.toLowerCase();
-
-    final caption = '''
-Cobain $name dari $merchantName cuma ${currencyFormatter.format(price)}!
-Pesan antar cepat langsung lewat aplikasi GAGE.
-
-Klik Keranjang Kuning atau link berikut:
-$link
-
-Gunakan kode voucher $_voucherCode saat checkout untuk klaim potongan ongkir ekstra!
-#gage #gagedelivery #kuliner #reviewmakanan
-''';
-
-    Clipboard.setData(ClipboardData(text: caption));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        backgroundColor: GageTheme.accentGreen,
-        content: Text('Teks caption ulasan siap pakai disalin ke clipboard!'),
-      ),
+    GageToast.show(
+      context,
+      'Link komisi untuk "$prodName" berhasil disalin!',
+      type: GageToastType.success,
     );
   }
 
@@ -265,383 +346,315 @@ Gunakan kode voucher $_voucherCode saat checkout untuk klaim potongan ongkir eks
     final name = prod['name'] ?? 'Menu Pilihan';
     final targetUrl = 'https://gage.id/c/${prod['id']}-$_voucherCode'.toLowerCase();
 
-    showModalBottomSheet(
+    GageFloatingSheet.show(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 44,
-              height: 4,
-              decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10)),
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Flyer QR Menu: $name', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          const SizedBox(height: 4),
+          Text('Dari $merchantName • Scan untuk beli dengan diskon.', style: const TextStyle(fontSize: 12, color: GageTheme.textSecondary)),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.shade300),
+              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4))],
             ),
-            const SizedBox(height: 16),
-            Text('Flyer QR Menu: $name', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 6),
-            Text('Dari $merchantName • Scan untuk beli dengan diskon.', style: const TextStyle(fontSize: 12, color: GageTheme.textSecondary)),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade300),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4)),
-                ],
-              ),
-              child: Column(
-                children: [
-                  const Text('GAGE DELIVERY', style: TextStyle(color: GageTheme.primary, fontWeight: FontWeight.w900, fontSize: 14)),
-                  const SizedBox(height: 4),
-                  Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15), textAlign: TextAlign.center),
-                  const SizedBox(height: 14),
-                  QrImageView(
-                    data: targetUrl,
-                    version: QrVersions.auto,
-                    size: 150.0,
-                    gapless: false,
-                  ),
-                  const SizedBox(height: 10),
-                  Text('Voucher Diskon: $_voucherCode', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: GageTheme.primary)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
+            child: Column(
               children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: targetUrl));
-                      Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tautan berhasil disalin.')));
-                    },
-                    child: const Text('Salin Tautan'),
-                  ),
+                const Text('GAGE PRACIMANTORO', style: TextStyle(color: GageTheme.primary, fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 1.2)),
+                const SizedBox(height: 4),
+                Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14), textAlign: TextAlign.center),
+                const SizedBox(height: 12),
+                QrImageView(
+                  data: targetUrl,
+                  version: QrVersions.auto,
+                  size: 140.0,
+                  gapless: false,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: GageTheme.primary),
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Flyer siap dibagikan ke status WhatsApp/Instagram.')));
-                    },
-                    child: const Text('Bagikan Flyer', style: TextStyle(color: Colors.white)),
-                  ),
-                ),
+                const SizedBox(height: 8),
+                Text('Kode Promo: $_voucherCode', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: GageTheme.primary)),
               ],
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: GageTheme.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: targetUrl));
+                Navigator.pop(ctx);
+                GageToast.show(context, 'Tautan flyer berhasil disalin!', type: GageToastType.success);
+              },
+              icon: const Icon(Icons.copy_rounded, size: 16),
+              label: const Text('Salin Tautan Flyer', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: GageTheme.primary)),
-      );
-    }
-    if (!_isRegistered) {
-      return _buildRegistrationView();
-    }
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: GageTheme.background,
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Studio Kreator Afiliasi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: const Text(
+          'GAGE Cuan',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, letterSpacing: -0.3),
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Bagikan ke WhatsApp',
+            icon: const Icon(Icons.share_rounded),
+            onPressed: _shareToWhatsApp,
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: GageTheme.primary,
-          unselectedLabelColor: GageTheme.textSecondary,
+          unselectedLabelColor: isDark ? Colors.white60 : GageTheme.textSecondary,
           indicatorColor: GageTheme.primary,
           indicatorWeight: 3,
           labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
           tabs: const [
-            Tab(text: 'Pilih Menu Resto'),
-            Tab(text: 'Statistik Komisi'),
-            Tab(text: 'Kode Referral'),
+            Tab(text: 'Produk Cuan'),
+            Tab(text: 'Riwayat Komisi'),
+            Tab(text: 'Panduan & Banner'),
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          _buildMerchantFirstCatalogTab(),
-          _buildAnalyticsTab(),
-          _buildReferralTab(),
+          // HERO BANNER SALDO CUAN
+          _buildHeroCuanCard(isDark),
+
+          // TAB CONTENT
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                setState(() => _isLoadingStats = true);
+                await _loadAffiliateData();
+              },
+              color: GageTheme.primary,
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildProductCatalogTab(isDark),
+                  _buildHistoryTab(isDark),
+                  _buildReferralGuideTab(isDark),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildRegistrationView() {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Daftar Kreator Afiliasi GAGE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(22.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 70,
-                height: 70,
-                decoration: const BoxDecoration(
-                  color: GageTheme.primaryLight,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.auto_awesome_rounded, color: GageTheme.primary, size: 38),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Center(
-              child: Text(
-                'Dapatkan Komisi 10% Tiap Penjualan!',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: GageTheme.textPrimary),
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Center(
-              child: Text(
-                'Daftar gratis sebagai kreator afiliasi resmi GAGE. Tempel link produk di bio TikTok / keranjang kuning dan terima komisi instan langsung ke saldo dompet.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12.5, color: GageTheme.textSecondary),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            TextField(
-              controller: _tiktokCtrl,
-              decoration: InputDecoration(
-                labelText: 'Username TikTok / Instagram',
-                hintText: '@ratih_kuliner',
-                prefixIcon: const Icon(Icons.alternate_email_rounded),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-            const SizedBox(height: 14),
-
-            TextField(
-              controller: _waCtrl,
-              keyboardType: TextInputType.phone,
-              decoration: InputDecoration(
-                labelText: 'Nomor WhatsApp Aktif',
-                hintText: '08123456789',
-                prefixIcon: const Icon(Icons.phone_rounded),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-            const SizedBox(height: 14),
-
-            TextField(
-              controller: _voucherReqCtrl,
-              textCapitalization: TextCapitalization.characters,
-              decoration: InputDecoration(
-                labelText: 'Kode Voucher Pilihan (Untuk Followers)',
-                hintText: 'Misal: GAGERATIH',
-                prefixIcon: const Icon(Icons.confirmation_number_rounded),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: GageTheme.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: _registerAffiliate,
-                child: const Text('Aktifkan Akun Kreator', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-              ),
-            ),
-          ],
+  Widget _buildHeroCuanCard(bool isDark) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark
+              ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
+              : [const Color(0xFFEF4444), const Color(0xFFDC2626)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: (isDark ? Colors.black : GageTheme.primary).withValues(alpha: 0.25),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.monetization_on_rounded, color: Colors.white, size: 18),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Saldo Cuan Siap Tarik',
+                    style: TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  _voucherCode,
+                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_isLoadingStats) ...[
+                    const GageSkeletonBox(width: 140, height: 26),
+                    const SizedBox(height: 6),
+                    const GageSkeletonBox(width: 180, height: 13),
+                  ] else ...[
+                    Text(
+                      currencyFormatter.format(_availableBalance),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Total Cuan Diperoleh: ${currencyFormatter.format(_totalCommission)}',
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 11.5),
+                    ),
+                  ],
+                ],
+              ),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: GageTheme.primary,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: _withdrawCommission,
+                icon: const Icon(Icons.arrow_forward_rounded, size: 15),
+                label: const Text('Tarik Cuan', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12.5)),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  // TAMPILAN KATALOG AFFILIATE DENGAN FLOW: DAFTAR MERCHANT DULU -> KLIK MERCHANT -> DAFTAR PRODUK
-  Widget _buildMerchantFirstCatalogTab() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        // Kartu Identitas Kreator & Kode Bio TikTok
-        Card(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildProductCatalogTab(bool isDark) {
+    if (_selectedMerchantForAffiliate == null) {
+      if (_isLoadingStats) {
+        return ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    const CircleAvatar(
-                      radius: 24,
-                      backgroundColor: Colors.black87,
-                      child: Icon(Icons.person, color: Colors.white),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(_affiliateHandle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                              const SizedBox(width: 4),
-                              const Icon(Icons.verified, color: Colors.blue, size: 16),
-                            ],
-                          ),
-                          const Text('Kreator Resmi GAGE (Komisi 10% per pesanan)', style: TextStyle(fontSize: 11.5, color: GageTheme.textSecondary)),
-                          Text('Voucher Diskon: $_voucherCode', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: GageTheme.primary)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // Token Khusus Bio TikTok
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Kode Unik Bio TikTok:', style: TextStyle(fontSize: 10.5, color: GageTheme.textSecondary)),
-                          Text(_bioToken, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: Colors.black87)),
-                        ],
-                      ),
-                      TextButton.icon(
-                        style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
-                        onPressed: () {
-                          Clipboard.setData(ClipboardData(text: 'Dapatkan diskon via GAGE: https://gage.id/bio/$_bioToken'));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Tautan bio TikTok disalin! Tempel di bio profil media sosial Anda.')),
-                          );
-                        },
-                        icon: const Icon(Icons.copy_rounded, size: 16),
-                        label: const Text('Salin Link Bio', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Saldo Komisi & Penarikan
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: GageTheme.primaryLight, borderRadius: BorderRadius.circular(12)),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Saldo Komisi Terkumpul', style: TextStyle(fontSize: 11, color: GageTheme.textSecondary)),
-                          Text(currencyFormatter.format(_totalCommission), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: GageTheme.primary)),
-                        ],
-                      ),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(backgroundColor: GageTheme.primary),
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Permintaan pencairan komisi ke GAGEPay berhasil diajukan.')),
-                          );
-                        },
-                        child: const Text('Tarik Komisi', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-                      ),
-                    ],
-                  ),
-                ),
+                const Text('Katalog Toko Berkomisi', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold)),
+                Text('Komisi s/d 10%', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green.shade700)),
               ],
             ),
-          ),
-        ),
-        const SizedBox(height: 20),
+            const SizedBox(height: 4),
+            const Text(
+              'Pilih toko mitra untuk membagikan link produk menu dan raih komisi instan setiap pesanan.',
+              style: TextStyle(fontSize: 11.5, color: GageTheme.textSecondary),
+            ),
+            const SizedBox(height: 12),
+            for (int i = 0; i < 4; i++) const GageSkeletonStoreCard(),
+          ],
+        );
+      }
 
-        // JIKA SEDANG MEMILIH MERCHANT: TAMPILKAN DAFTAR MERCHANT TERLEBIH DAHULU
-        if (_selectedMerchantForAffiliate == null) ...[
-          const Text('Pilih Toko / Resto Mitra', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+      return ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Katalog Toko Berkomisi', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold)),
+              Text('Komisi s/d 10%', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green.shade700)),
+            ],
+          ),
           const SizedBox(height: 4),
-          const Text('Pilih resto untuk melihat daftar menu yang siap dipromosikan ke keranjang kuning.', style: TextStyle(fontSize: 12, color: GageTheme.textSecondary)),
-          const SizedBox(height: 14),
+          const Text(
+            'Pilih toko mitra untuk membagikan link produk menu dan raih komisi instan setiap pesanan.',
+            style: TextStyle(fontSize: 11.5, color: GageTheme.textSecondary),
+          ),
+          const SizedBox(height: 12),
 
           for (var m in _affiliateMerchants)
             Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              margin: const EdgeInsets.only(bottom: 10),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+                side: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade200),
+              ),
               child: InkWell(
                 borderRadius: BorderRadius.circular(14),
-                onTap: () {
-                  setState(() {
-                    _selectedMerchantForAffiliate = m;
-                  });
-                },
+                onTap: () => setState(() => _selectedMerchantForAffiliate = m),
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Row(
                     children: [
                       ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                         child: Image.asset(
                           m['image'],
-                          width: 65,
-                          height: 65,
+                          width: 58,
+                          height: 58,
                           fit: BoxFit.cover,
                           errorBuilder: (c, e, s) => Container(
-                            width: 65,
-                            height: 65,
+                            width: 58,
+                            height: 58,
                             color: Colors.grey.shade200,
                             child: const Icon(Icons.storefront_rounded),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 14),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(m['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                            Text(m['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
                             const SizedBox(height: 2),
-                            Text(m['category'], style: const TextStyle(fontSize: 12, color: GageTheme.textSecondary)),
+                            Text(m['category'], style: const TextStyle(fontSize: 11.5, color: GageTheme.textSecondary)),
                             const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(6)),
-                                  child: Text('Komisi ${m['commissionRate']}', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Colors.green.shade700)),
-                                ),
-                                const SizedBox(width: 8),
-                                Text('${(m['products'] as List).length} Menu Siap Promosi', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                              ],
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(6)),
+                              child: Text('Komisi ${m['commissionRate']}', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.green.shade700)),
                             ),
                           ],
                         ),
@@ -652,213 +665,322 @@ Gunakan kode voucher $_voucherCode saat checkout untuk klaim potongan ongkir eks
                 ),
               ),
             ),
-        ] else ...[
-          // JIKA MERCHANT SUDAH DIPILIH: TAMPILKAN MENU-MENU SIAP PROMOSI DARI MERCHANT TERSEBUT
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back_rounded),
-                onPressed: () {
-                  setState(() {
-                    _selectedMerchantForAffiliate = null;
-                  });
-                },
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(_selectedMerchantForAffiliate!['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                    Text('Pilih menu untuk diambil link keranjang kuning atau caption', style: const TextStyle(fontSize: 11.5, color: GageTheme.textSecondary)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
+        ],
+      );
+    }
 
-          for (var prod in (_selectedMerchantForAffiliate!['products'] as List))
-            Card(
-              margin: const EdgeInsets.only(bottom: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: Image.asset(
-                            prod['image'] ?? 'assets/images/dish_dimsum_original.png',
-                            width: 60,
-                            height: 60,
-                            fit: BoxFit.cover,
-                            errorBuilder: (c, e, s) => Container(
-                              width: 60,
-                              height: 60,
-                              color: Colors.grey.shade200,
-                              child: const Icon(Icons.restaurant_rounded),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(prod['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                              const SizedBox(height: 2),
-                              Text('Harga Menu: ${currencyFormatter.format(prod['price'])}', style: const TextStyle(fontSize: 12, color: GageTheme.textSecondary)),
-                              const SizedBox(height: 4),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(6)),
-                                child: Text('Estimasi Cuan: ${currencyFormatter.format(prod['commission'])} / pesanan',
-                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.orange.shade800)),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Divider(height: 20),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: GageTheme.accentYellow,
-                              foregroundColor: Colors.black87,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                            ),
-                            onPressed: () => _copyYellowCartLink(prod, _selectedMerchantForAffiliate!['name']),
-                            icon: const Icon(Icons.shopping_bag_rounded, size: 16),
-                            label: const Text('Keranjang Kuning', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          tooltip: 'Salin Teks Ulasan',
-                          icon: const Icon(Icons.copy_all_rounded, color: GageTheme.primary, size: 20),
-                          onPressed: () => _copyCaption(prod, _selectedMerchantForAffiliate!['name']),
-                        ),
-                        IconButton(
-                          tooltip: 'Flyer QR',
-                          icon: const Icon(Icons.qr_code_2_rounded, color: Colors.black87, size: 20),
-                          onPressed: () => _showQrPosterModal(prod, _selectedMerchantForAffiliate!['name']),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      children: [
+        Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.arrow_back_rounded, size: 20),
+              onPressed: () => setState(() => _selectedMerchantForAffiliate = null),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_selectedMerchantForAffiliate!['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5)),
+                  const Text('Pilih produk untuk salin link komisi', style: TextStyle(fontSize: 11, color: GageTheme.textSecondary)),
+                ],
               ),
             ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildAnalyticsTab() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        const Text('Statistik Performa Kreator', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 4),
-        const Text('Statistik pesanan yang masuk melalui link afiliasi & kode voucher Anda.', style: TextStyle(fontSize: 12, color: GageTheme.textSecondary)),
-        const SizedBox(height: 14),
-
-        GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 1.45,
-          children: [
-            _buildStatCard('Klik Tautan', '$_totalClicks', 'Total klik dari media sosial', Icons.touch_app_rounded, Colors.blue),
-            _buildStatCard('Pesanan Berhasil', '$_totalOrders', 'Checkout dengan voucher Anda', Icons.shopping_bag_outlined, GageTheme.accentGreen),
-            _buildStatCard('Konversi', '$_conversionRate%', 'Rasio order dibanding klik', Icons.trending_up_rounded, Colors.orange),
-            _buildStatCard('Total Komisi', currencyFormatter.format(_totalCommission), 'Penghasilan bersih', Icons.account_balance_wallet_outlined, GageTheme.primary),
           ],
         ),
+        const SizedBox(height: 8),
+
+        for (var prod in (_selectedMerchantForAffiliate!['products'] as List))
+          Card(
+            margin: const EdgeInsets.only(bottom: 10),
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+              side: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade200),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.asset(
+                      prod['image'],
+                      width: 58,
+                      height: 58,
+                      fit: BoxFit.cover,
+                      errorBuilder: (c, e, s) => Container(
+                        width: 58,
+                        height: 58,
+                        color: Colors.grey.shade200,
+                        child: const Icon(Icons.fastfood_rounded),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(prod['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        const SizedBox(height: 2),
+                        Text(currencyFormatter.format(prod['price']), style: const TextStyle(fontSize: 11.5, color: GageTheme.textSecondary)),
+                        const SizedBox(height: 4),
+                        Text('Cuan: +${currencyFormatter.format(prod['commission'])}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: GageTheme.primary)),
+                      ],
+                    ),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: 'Salin Link Komisi',
+                        icon: const Icon(Icons.link_rounded, color: GageTheme.primary, size: 22),
+                        onPressed: () => _copyProductLink(prod, _selectedMerchantForAffiliate!['name']),
+                      ),
+                      IconButton(
+                        tooltip: 'Flyer QR',
+                        icon: const Icon(Icons.qr_code_2_rounded, size: 22),
+                        onPressed: () => _showQrPosterModal(prod, _selectedMerchantForAffiliate!['name']),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
       ],
     );
   }
 
-  Widget _buildReferralTab() {
+  Widget _buildHistoryTab(bool isDark) {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       children: [
+        // Ringkasan Statistik Grid (Skeleton Shimmer saat loading)
+        if (_isLoadingStats)
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            childAspectRatio: 2.1,
+            children: const [
+              GageSkeletonStatBox(),
+              GageSkeletonStatBox(),
+              GageSkeletonStatBox(),
+              GageSkeletonStatBox(),
+            ],
+          )
+        else
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            childAspectRatio: 2.1,
+            children: [
+              _buildMiniStat('Total Klik', '$_totalClicks kali', Icons.touch_app_rounded, Colors.blue),
+              _buildMiniStat('Pesanan Berhasil', '$_totalOrders order', Icons.shopping_bag_outlined, GageTheme.accentGreen),
+              _buildMiniStat('Rasio Konversi', '$_conversionRate%', Icons.trending_up_rounded, Colors.orange),
+              _buildMiniStat('Referral Aktif', '32 Pengguna', Icons.group_rounded, GageTheme.primary),
+            ],
+          ),
+
+        const SizedBox(height: 16),
+        const Text('Riwayat Komisi & Penarikan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5)),
+        const SizedBox(height: 8),
+
+        if (_isLoadingStats)
+          for (int i = 0; i < 4; i++) const GageSkeletonTransactionTile()
+        else
+          for (var item in _commissionHistory)
+            Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: (item['amount'] as int) > 0 ? Colors.green.shade50 : Colors.red.shade50,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    (item['amount'] as int) > 0 ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+                    color: (item['amount'] as int) > 0 ? Colors.green.shade700 : Colors.red.shade700,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(item['title'] as String, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+                      const SizedBox(height: 2),
+                      Text('${item['source']} • ${item['date']}', style: const TextStyle(fontSize: 10.5, color: GageTheme.textSecondary)),
+                    ],
+                  ),
+                ),
+                Text(
+                  (item['amount'] as int) > 0
+                      ? '+${currencyFormatter.format(item['amount'])}'
+                      : currencyFormatter.format(item['amount']),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 13,
+                    color: (item['amount'] as int) > 0 ? Colors.green.shade700 : Colors.red.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildReferralGuideTab(bool isDark) {
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      children: [
+        // Kode Referral Card
         Card(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade200),
+          ),
           child: Padding(
-            padding: const EdgeInsets.all(18.0),
+            padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                const Icon(Icons.card_giftcard_rounded, color: GageTheme.primary, size: 48),
-                const SizedBox(height: 10),
-                const Text('Program Referral GAGE', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 6),
+                const Icon(Icons.celebration_rounded, color: GageTheme.primary, size: 36),
+                const SizedBox(height: 8),
+                const Text('Kode Referral Unik Anda', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                const SizedBox(height: 4),
                 const Text(
-                  'Bagikan kode referral Anda ke teman atau keluarga. Setiap kali ada pengguna baru yang mendaftar menggunakan kode Anda dan melakukan transaksi pertama, Anda berdua mendapatkan saldo reward GAGEPay Rp 5.000.',
+                  'Ajak tetangga & warung sekitar Pracimantoro bergabung. Mereka dapat diskon Rp 10.000, Anda dapat komisi selamanya.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: GageTheme.textSecondary, height: 1.4),
+                  style: TextStyle(fontSize: 11.5, color: GageTheme.textSecondary, height: 1.35),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
+                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade300),
+                    border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade300),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(_voucherCode, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, letterSpacing: 2, color: GageTheme.primary)),
+                      Text(
+                        _voucherCode,
+                        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 1.5, color: GageTheme.primary),
+                      ),
                       IconButton(
-                        icon: const Icon(Icons.copy),
-                        onPressed: () {
-                          Clipboard.setData(ClipboardData(text: _voucherCode));
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Kode referral berhasil disalin!')));
-                        },
+                        icon: const Icon(Icons.copy_rounded, size: 20),
+                        onPressed: _copyReferralCode,
                       ),
                     ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF25D366),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: _shareToWhatsApp,
+                    icon: const Icon(Icons.share_rounded, size: 16),
+                    label: const Text('Bagikan ke WhatsApp Warga', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   ),
                 ),
               ],
             ),
           ),
         ),
+
+        const SizedBox(height: 16),
+        const Text('3 Langkah Mudah Cuan di GAGE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5)),
+        const SizedBox(height: 8),
+
+        _buildStepItem('1', 'Bagikan Kode Referral', 'Kirim kode Anda ke grup WhatsApp keluarga, tetangga, atau status WA.'),
+        _buildStepItem('2', 'Teman Daftar & Belanja', 'Teman Anda mendapatkan potongan diskon Rp 10.000 untuk pesanan pertama.'),
+        _buildStepItem('3', 'Terima Komisi Mengalir', 'Setiap kali teman bertransaksi, komisi 10% masuk otomatis ke saldo dompet Anda.'),
       ],
     );
   }
 
-  Widget _buildStatCard(String title, String val, String sub, IconData icon, Color color) {
+  Widget _buildStepItem(String num, String title, String desc) {
     return Container(
+      margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade200),
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(title, style: const TextStyle(fontSize: 11.5, color: GageTheme.textSecondary)),
-              Icon(icon, color: color, size: 18),
-            ],
+          CircleAvatar(
+            radius: 12,
+            backgroundColor: GageTheme.primary,
+            child: Text(num, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
           ),
-          Text(val, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
-          Text(sub, style: const TextStyle(fontSize: 9.5, color: GageTheme.textMuted)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                const SizedBox(height: 2),
+                Text(desc, style: const TextStyle(fontSize: 11.5, color: GageTheme.textSecondary)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMiniStat(String title, String val, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(title, style: const TextStyle(fontSize: 10.5, color: GageTheme.textSecondary)),
+                Text(val, style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w900, color: color)),
+              ],
+            ),
+          ),
         ],
       ),
     );

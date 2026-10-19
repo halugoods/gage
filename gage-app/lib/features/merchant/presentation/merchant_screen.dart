@@ -1,8 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
+import 'package:gage_app/features/merchant/presentation/widgets/merchant_bottom_nav_bar.dart';
+import 'package:gage_app/shared/widgets/gage_shimmer.dart';
+import 'package:gage_app/shared/widgets/gage_standalone_banner.dart';
 
+/// Screen Utama GAGE Merchant - Tab 0: Pesanan Dapur (Kitchen Display System / KDS)
+/// Terinspirasi dari GoBiz & Kitchen Display Standar Industri F&B.
 class MerchantScreen extends StatefulWidget {
   const MerchantScreen({super.key});
 
@@ -10,33 +18,19 @@ class MerchantScreen extends StatefulWidget {
   State<MerchantScreen> createState() => _MerchantScreenState();
 }
 
-class _MerchantScreenState extends State<MerchantScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _MerchantScreenState extends State<MerchantScreen> {
   bool _isOpen = true;
   bool _isLoadingOrders = false;
-  bool _isLoadingMenu = false;
+  String _selectedStage = 'SEMUA'; // 'SEMUA' | 'MASUK' | 'DIMASAK' | 'SIAP' | 'SELESAI'
+  bool _printerConnected = true;
 
   List<Map<String, dynamic>> _kitchenOrders = [];
-  List<Map<String, dynamic>> _menuCatalog = [];
-
   final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-    _loadData();
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadData() async {
     _fetchKitchenOrders();
-    _fetchMenuCatalog();
   }
 
   Future<void> _fetchKitchenOrders() async {
@@ -49,568 +43,835 @@ class _MerchantScreenState extends State<MerchantScreen> with SingleTickerProvid
     });
   }
 
-  Future<void> _fetchMenuCatalog() async {
-    setState(() => _isLoadingMenu = true);
-    final menus = await GageApiClient.getMerchantMenu('m-dimsum-sewu');
-    if (!mounted) return;
-    setState(() {
-      _menuCatalog = menus;
-      _isLoadingMenu = false;
-    });
-  }
-
   Future<void> _updateStage(Map<String, dynamic> order, String nextStage) async {
+    HapticFeedback.mediumImpact();
     final orderId = order['id']?.toString() ?? '';
     await GageApiClient.updateMerchantOrderStage(orderId, nextStage);
     _fetchKitchenOrders();
   }
 
-  Future<void> _toggleStock(Map<String, dynamic> item) async {
-    final itemId = item['id']?.toString() ?? '';
-    final current = (item['is_available'] == 1 || item['is_available'] == true);
-    final next = !current;
-    setState(() {
-      item['is_available'] = next ? 1 : 0;
-    });
-    await GageApiClient.toggleMerchantStock(itemId, next);
+  List<Map<String, dynamic>> get _filteredOrders {
+    if (_selectedStage == 'SEMUA') return _kitchenOrders;
+    if (_selectedStage == 'MASUK') {
+      return _kitchenOrders.where((o) {
+        final s = (o['status'] ?? '').toString().toUpperCase();
+        return s == 'PAID' || s == 'NEW' || s == 'PENDING';
+      }).toList();
+    }
+    if (_selectedStage == 'DIMASAK') {
+      return _kitchenOrders.where((o) => (o['status'] ?? '').toString().toUpperCase() == 'COOKING').toList();
+    }
+    if (_selectedStage == 'SIAP') {
+      return _kitchenOrders.where((o) => (o['status'] ?? '').toString().toUpperCase() == 'READY_FOR_PICKUP').toList();
+    }
+    if (_selectedStage == 'SELESAI') {
+      return _kitchenOrders.where((o) {
+        final s = (o['status'] ?? '').toString().toUpperCase();
+        return s == 'COMPLETED' || s == 'DELIVERED';
+      }).toList();
+    }
+    return _kitchenOrders;
   }
 
   void _showPrintDialog(Map<String, dynamic> order) {
+    HapticFeedback.lightImpact();
     final items = (order['items'] as List?) ?? [];
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Cetak Tiket Dapur ESC/POS 58mm', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.print_rounded, color: GageTheme.primary, size: 22),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Cetak Tiket Dapur 58mm',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
         content: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(10),
             border: Border.all(color: Colors.grey.shade300),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Center(child: Text('=== TIKET DAPUR GAGE ===', style: TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.bold))),
-              Center(child: Text('Pesanan: ${order['order_number'] ?? order['id']}', style: const TextStyle(fontFamily: 'monospace'))),
-              const Divider(),
+              const Center(child: Text('=== GAGE FOOD DAPUR ===', style: TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.bold, fontSize: 13))),
+              Center(child: Text('No: ${order['order_number'] ?? order['id']}', style: const TextStyle(fontFamily: 'monospace', fontSize: 12))),
+              Center(child: Text('Waktu: ${DateFormat('HH:mm:ss').format(DateTime.now())} WIB', style: const TextStyle(fontFamily: 'monospace', fontSize: 11, color: Colors.grey))),
+              const Divider(thickness: 1),
               for (var it in items)
-                Text('${it['quantity'] ?? 1}x ${it['name']} (${currencyFormatter.format(it['price'] ?? 0)})', style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
-              const Divider(),
-              Text('Subtotal: ${currencyFormatter.format(order['items_subtotal'] ?? order['subtotal'] ?? 0)}', style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.bold)),
-              Text('Alamat: ${order['delivery_address'] ?? '-'}', style: const TextStyle(fontFamily: 'monospace', fontSize: 11)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    children: [
+                      Text('${it['quantity'] ?? 1}x ', style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.bold, fontSize: 12)),
+                      Expanded(child: Text('${it['name']}', style: const TextStyle(fontFamily: 'monospace', fontSize: 12))),
+                      Text(currencyFormatter.format((it['price'] ?? 0) * (it['quantity'] ?? 1)), style: const TextStyle(fontFamily: 'monospace', fontSize: 11)),
+                    ],
+                  ),
+                ),
+              const Divider(thickness: 1),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('SUBTOTAL:', style: TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.bold, fontSize: 12)),
+                  Text(currencyFormatter.format(order['items_subtotal'] ?? order['subtotal'] ?? order['total_amount'] ?? 0), style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.bold, fontSize: 13)),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text('Alamat: ${order['delivery_address'] ?? 'Pracimantoro'}', style: const TextStyle(fontFamily: 'monospace', fontSize: 11)),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Tutup')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: GageTheme.primary),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: GageTheme.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            icon: const Icon(Icons.print, size: 16, color: Colors.white),
+            label: const Text('Kirim ke Thermal SPP', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             onPressed: () {
               Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Perintah cetak 58mm dikirim ke printer bluetooth.')));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Perintah cetak tiket dapur dikirim ke printer bluetooth SPP.'),
+                  backgroundColor: GageTheme.accentGreen,
+                ),
+              );
             },
-            child: const Text('Cetak Tiket', style: TextStyle(color: Colors.white)),
           ),
         ],
+      ),
+    );
+  }
+
+  void _openChatWithDriver(Map<String, dynamic> order) {
+    HapticFeedback.lightImpact();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => InAppChatScreen(
+          orderId: order['order_number'] ?? order['id'] ?? 'ORD-9021',
+          recipientName: 'Mas Budi (Kurir)',
+          recipientRole: 'driver',
+          recipientPhone: '6281234567890',
+          currentRole: 'merchant',
+        ),
+      ),
+    );
+  }
+
+  void _openChatWithCustomer(Map<String, dynamic> order) {
+    HapticFeedback.lightImpact();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => InAppChatScreen(
+          orderId: order['order_number'] ?? order['id'] ?? 'ORD-9021',
+          recipientName: order['customer_name'] ?? 'Pelanggan GAGE',
+          recipientRole: 'customer',
+          recipientPhone: '6281987654321',
+          currentRole: 'merchant',
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: GageTheme.background,
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Portal Mitra Merchant', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: Row(
-              children: [
-                Text(
-                  _isOpen ? 'BUKA' : 'TUTUP',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: _isOpen ? GageTheme.accentGreen : Colors.grey),
-                ),
-                const SizedBox(width: 6),
-                Switch(
-                  value: _isOpen,
-                  activeThumbColor: GageTheme.accentGreen,
-                  onChanged: (val) => setState(() => _isOpen = val),
-                ),
-              ],
+        titleSpacing: 16,
+        elevation: 0.5,
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        title: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: GageTheme.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.restaurant_rounded, color: GageTheme.primary, size: 20),
             ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Dimsum Sewu Pracimantoro',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Row(
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                          color: _isOpen ? GageTheme.accentGreen : Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        _isOpen ? 'Kios Buka • Siap Terima Pesanan' : 'Kios Tutup',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: _isOpen ? GageTheme.accentGreen : Colors.red,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          // Switch Buka / Tutup
+          Switch(
+            value: _isOpen,
+            activeThumbColor: GageTheme.accentGreen,
+            onChanged: (val) {
+              HapticFeedback.lightImpact();
+              setState(() => _isOpen = val);
+            },
           ),
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Segarkan Pesanan',
+            onPressed: _fetchKitchenOrders,
+          ),
+          const SizedBox(width: 4),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: GageTheme.primary,
-          unselectedLabelColor: GageTheme.textSecondary,
-          indicatorColor: GageTheme.primary,
-          indicatorWeight: 3,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-          tabs: const [
-            Tab(text: 'Pesanan Dapur'),
-            Tab(text: 'Katalog Menu'),
-            Tab(text: 'Kalkulator Harga'),
+      ),
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            // Sub-header: Status Thermal Printer & KDS Quick Stats
+            _buildPrinterAndQuickStatsBar(isDark),
+
+            // Standalone Merchant Info Banner (Managed via Cloudflare D1 Admin)
+            const GageStandaloneBanner(
+              screenTarget: 'merchant_home_info',
+              margin: EdgeInsets.fromLTRB(16, 6, 16, 6),
+            ),
+
+            // KDS Stage Filter Chips
+            _buildStageFilterChips(isDark),
+
+            // Orders List
+            Expanded(
+              child: _isLoadingOrders
+                  ? RefreshIndicator(
+                      onRefresh: _fetchKitchenOrders,
+                      color: GageTheme.primary,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: 4,
+                        itemBuilder: (ctx, idx) => const GageSkeletonKitchenOrderCard(),
+                      ),
+                    )
+                  : _filteredOrders.isEmpty
+                      ? _buildEmptyState(isDark)
+                      : RefreshIndicator(
+                          onRefresh: _fetchKitchenOrders,
+                          color: GageTheme.primary,
+                          child: ListView.separated(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: _filteredOrders.length,
+                            separatorBuilder: (_, _) => const SizedBox(height: 12),
+                            itemBuilder: (ctx, idx) => _buildOrderCard(_filteredOrders[idx], isDark),
+                          ),
+                        ),
+            ),
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+      bottomNavigationBar: const MerchantBottomNavBar(currentIndex: 0),
+    );
+  }
+
+  Widget _buildPrinterAndQuickStatsBar(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        border: Border(
+          bottom: BorderSide(color: isDark ? const Color(0xFF334155) : Colors.grey.shade200),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _buildKitchenOrdersTab(),
-          _buildMenuCatalogTab(),
-          _buildPricingCalculatorTab(),
+          // Printer thermal badge
+          InkWell(
+            onTap: () {
+              setState(() => _printerConnected = !_printerConnected);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(_printerConnected ? 'Thermal SPP 58mm Siap' : 'Thermal SPP Terputus'),
+                  duration: const Duration(seconds: 1),
+                ),
+              );
+            },
+            borderRadius: BorderRadius.circular(6),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: _printerConnected
+                    ? GageTheme.accentGreen.withValues(alpha: 0.1)
+                    : Colors.orange.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: _printerConnected
+                      ? GageTheme.accentGreen.withValues(alpha: 0.3)
+                      : Colors.orange.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.print_rounded,
+                    size: 13,
+                    color: _printerConnected ? GageTheme.accentGreen : Colors.orange.shade800,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _printerConnected ? 'SPP 58mm Terhubung' : 'Printer Offline',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                      color: _printerConnected ? GageTheme.accentGreen : Colors.orange.shade800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Total ringkasan antrean
+          Row(
+            children: [
+              Text(
+                '${_kitchenOrders.length} Pesanan Aktif',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white70 : const Color(0xFF475569),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildKitchenOrdersTab() {
-    if (_isLoadingOrders) {
-      return const Center(child: CircularProgressIndicator());
+  Widget _buildStageFilterChips(bool isDark) {
+    final stages = [
+      {'key': 'SEMUA', 'label': 'Semua', 'icon': Icons.all_inbox_rounded},
+      {'key': 'MASUK', 'label': 'Masuk', 'icon': Icons.notifications_active_rounded},
+      {'key': 'DIMASAK', 'label': 'Dimasak', 'icon': Icons.outdoor_grill_rounded},
+      {'key': 'SIAP', 'label': 'Siap Diambil', 'icon': Icons.check_circle_rounded},
+      {'key': 'SELESAI', 'label': 'Selesai', 'icon': Icons.task_alt_rounded},
+    ];
+
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: stages.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (ctx, idx) {
+          final stage = stages[idx];
+          final isSelected = _selectedStage == stage['key'];
+
+          return InkWell(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              setState(() => _selectedStage = stage['key'] as String);
+            },
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? GageTheme.primary
+                    : (isDark ? const Color(0xFF1E293B) : Colors.white),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isSelected
+                      ? GageTheme.primary
+                      : (isDark ? const Color(0xFF334155) : Colors.grey.shade200),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    stage['icon'] as IconData,
+                    size: 13,
+                    color: isSelected ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF64748B)),
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    stage['label'] as String,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                      color: isSelected ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF475569)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(bool isDark) {
+    return RefreshIndicator(
+      onRefresh: _fetchKitchenOrders,
+      color: GageTheme.primary,
+      child: ListView(
+        padding: const EdgeInsets.all(28.0),
+        children: [
+          const SizedBox(height: 60),
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: GageTheme.primary.withValues(alpha: 0.08),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.soup_kitchen_rounded, size: 40, color: GageTheme.primary),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  _selectedStage == 'SEMUA'
+                      ? 'Dapur Bersih, Belum Ada Pesanan'
+                      : 'Tidak Ada Pesanan di Tab "$_selectedStage"',
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Pesanan yang masuk dari pelanggan Pracimantoro akan langsung muncul secara instan di layar ini.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12, color: GageTheme.textSecondary),
+                ),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  icon: const Icon(Icons.refresh_rounded, size: 16),
+                  label: const Text('Segarkan Antrean'),
+                  onPressed: _fetchKitchenOrders,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOrderCard(Map<String, dynamic> order, bool isDark) {
+    final status = (order['status'] ?? 'PAID').toString().toUpperCase();
+    final items = (order['items'] as List?) ?? [];
+    final orderNumber = order['order_number'] ?? order['id'] ?? 'ORD-9021';
+    final customerName = order['customer_name'] ?? 'Pelanggan GAGE';
+    final totalAmount = order['total_amount'] ?? order['subtotal'] ?? 0;
+    final notes = order['notes']?.toString();
+
+    // Stage tag styling
+    Color badgeColor;
+    Color badgeTextColor;
+    String badgeText;
+
+    if (status == 'COOKING') {
+      badgeColor = Colors.orange.shade50;
+      badgeTextColor = Colors.orange.shade800;
+      badgeText = 'SEDANG DIMASAK';
+    } else if (status == 'READY_FOR_PICKUP') {
+      badgeColor = const Color(0xFFDCFCE7);
+      badgeTextColor = const Color(0xFF16A34A);
+      badgeText = 'SIAP DIAMBIL KURIR';
+    } else if (status == 'COMPLETED' || status == 'DELIVERED') {
+      badgeColor = const Color(0xFFEFF6FF);
+      badgeTextColor = const Color(0xFF2563EB);
+      badgeText = 'SELESAI';
+    } else {
+      badgeColor = Colors.amber.shade50;
+      badgeTextColor = Colors.amber.shade900;
+      badgeText = 'PESANAN BARU';
     }
 
-    if (_kitchenOrders.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(28.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: status == 'PAID' || status == 'NEW'
+              ? GageTheme.primary.withValues(alpha: 0.3)
+              : (isDark ? const Color(0xFF334155) : Colors.grey.shade200),
+          width: status == 'PAID' || status == 'NEW' ? 1.5 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Row Header: Nomor Order, Status Badge & Print Button
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(Icons.soup_kitchen_rounded, size: 64, color: Colors.grey.shade400),
-              const SizedBox(height: 16),
-              const Text('Dapur Bersih, Belum Ada Pesanan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 6),
-              const Text(
-                'Pesanan yang masuk dari pelanggan sekecamatan akan langsung tampil di layar ini.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: GageTheme.textSecondary),
+              Expanded(
+                child: Row(
+                  children: [
+                    Text(
+                      orderNumber,
+                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: badgeColor,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        badgeText,
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: badgeTextColor),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 16),
-              OutlinedButton.icon(
-                icon: const Icon(Icons.refresh, size: 16),
-                label: const Text('Segarkan Antrean'),
-                onPressed: _fetchKitchenOrders,
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                icon: const Icon(Icons.print_outlined, size: 20, color: GageTheme.primary),
+                tooltip: 'Cetak Tiket Dapur',
+                onPressed: () => _showPrintDialog(order),
               ),
             ],
           ),
-        ),
-      );
-    }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _kitchenOrders.length,
-      itemBuilder: (ctx, idx) {
-        final order = _kitchenOrders[idx];
-        final items = (order['items'] as List?) ?? [];
-        final status = order['status']?.toString() ?? 'PAID';
+          const SizedBox(height: 6),
 
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
+          // Pelanggan info & Action Chat Pelanggan
+          Row(
+            children: [
+              const Icon(Icons.person_outline_rounded, size: 14, color: GageTheme.textSecondary),
+              const SizedBox(width: 4),
+              Text(
+                customerName,
+                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+              ),
+              const Spacer(),
+              InkWell(
+                onTap: () => _openChatWithCustomer(order),
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: GageTheme.primaryLight,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.chat_bubble_outline_rounded, size: 12, color: GageTheme.primary),
+                      SizedBox(width: 4),
+                      Text('Chat Pelanggan', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: GageTheme.primary)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const Divider(height: 18),
+
+          // Item List Dapur
+          for (var it in items)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 22,
+                    height: 22,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Text(
+                      '${it['quantity'] ?? 1}x',
+                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 11),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '${it['name']}',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  Text(
+                    currencyFormatter.format((it['price'] ?? 0) * (it['quantity'] ?? 1)),
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            ),
+
+          if (notes != null && notes.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.amber.shade200),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.note_alt_outlined, size: 14, color: Colors.amber),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Catatan: $notes',
+                      style: TextStyle(fontSize: 11.5, color: Colors.amber.shade900, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 10),
+
+          // Total & Kurir Status
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(10),
+            ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(order['order_number'] ?? order['id'] ?? 'Pesanan', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: status == 'READY_FOR_PICKUP' ? Colors.green.shade50 : Colors.amber.shade50,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
+                    const Text('Total Pembayaran:', style: TextStyle(fontSize: 12, color: GageTheme.textSecondary)),
+                    Text(
+                      currencyFormatter.format(totalAmount),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: GageTheme.primary),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                // Driver bar
+                Row(
+                  children: [
+                    const Icon(Icons.two_wheeler_rounded, size: 16, color: GageTheme.accentGreen),
+                    const SizedBox(width: 6),
+                    const Expanded(
                       child: Text(
-                        status == 'READY_FOR_PICKUP' ? 'SIAP DIAMBIL' : (status == 'COOKING' ? 'SEDANG DIMASAK' : 'PESANAN BARU'),
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: status == 'READY_FOR_PICKUP' ? GageTheme.accentGreen : Colors.orange.shade800,
-                        ),
+                        'Kurir: Mas Budi • AB 4521 WZ',
+                        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                for (var it in items)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2.0),
-                    child: Text('${it['quantity'] ?? 1}x ${it['name']}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                  ),
-                const SizedBox(height: 10),
-                Text('Total: ${currencyFormatter.format(order['total_amount'] ?? order['subtotal'] ?? 0)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                const Divider(height: 20),
-                Row(
-                  children: [
-                    IconButton.outlined(
-                      icon: const Icon(Icons.print, size: 18),
-                      tooltip: 'Cetak Tiket',
-                      onPressed: () => _showPrintDialog(order),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(backgroundColor: GageTheme.primary),
-                        onPressed: () {
-                          if (status == 'PAID') {
-                            _updateStage(order, 'COOKING');
-                          } else if (status == 'COOKING') {
-                            _updateStage(order, 'READY_FOR_PICKUP');
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Menunggu kurir mengambil pesanan.')));
-                          }
-                        },
-                        child: Text(
-                          status == 'PAID' ? 'Mulai Masak' : (status == 'COOKING' ? 'Siap Diambil Kurir' : 'Menunggu Kurir'),
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                    InkWell(
+                      onTap: () => _openChatWithDriver(order),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: GageTheme.accentGreen.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showAddMenuDialog() {
-    final nameCtrl = TextEditingController();
-    final descCtrl = TextEditingController();
-    final priceCtrl = TextEditingController();
-    String category = 'Makanan';
-    int offlinePrice = 0;
-    int suggestedGage = 0;
-    bool isSubmitting = false;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setModalState) => Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 44,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Tambah Menu Baru Dapur',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Menu akan langsung aktif di katalog Cloudflare D1 Dimsum Sewu.',
-                  style: TextStyle(fontSize: 12, color: GageTheme.textSecondary),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Nama Menu',
-                    border: OutlineInputBorder(),
-                    hintText: 'Misal: Dimsum Rambutan Crispy',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: descCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Deskripsi Singkat',
-                    border: OutlineInputBorder(),
-                    hintText: 'Bahan, porsi, atau rasa',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        initialValue: category,
-                        decoration: const InputDecoration(
-                          labelText: 'Kategori',
-                          border: OutlineInputBorder(),
-                        ),
-                        items: const [
-                          DropdownMenuItem(value: 'Makanan', child: Text('Makanan')),
-                          DropdownMenuItem(value: 'Minuman', child: Text('Minuman')),
-                          DropdownMenuItem(value: 'Paket Hemat', child: Text('Paket Hemat')),
-                        ],
-                        onChanged: (val) {
-                          if (val != null) {
-                            setModalState(() => category = val);
-                          }
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextField(
-                        controller: priceCtrl,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Harga Warung Fisik',
-                          prefixText: 'Rp ',
-                          border: OutlineInputBorder(),
-                        ),
-                        onChanged: (val) {
-                          final num = int.tryParse(val) ?? 0;
-                          setModalState(() {
-                            offlinePrice = num;
-                            suggestedGage = num > 0 ? ((num / 0.9) / 1000).ceil() * 1000 : 0;
-                          });
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                if (suggestedGage > 0) ...[
-                  const SizedBox(height: 14),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.red.shade100),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Harga Aplikasi (Potong 10%):',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                        ),
-                        Text(
-                          currencyFormatter.format(suggestedGage),
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: GageTheme.primary),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: GageTheme.primary,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: isSubmitting
-                        ? null
-                        : () async {
-                            final messenger = ScaffoldMessenger.of(context);
-                            final navigator = Navigator.of(ctx);
-                            final name = nameCtrl.text.trim();
-                            if (name.isEmpty || offlinePrice <= 0) {
-                              messenger.showSnackBar(
-                                const SnackBar(content: Text('Nama menu dan harga warung wajib diisi.')),
-                              );
-                              return;
-                            }
-                            setModalState(() => isSubmitting = true);
-                            final res = await GageApiClient.createMerchantMenu(
-                              merchantId: 'm-dimsum-sewu',
-                              name: name,
-                              description: descCtrl.text.trim(),
-                              category: category,
-                              offlinePrice: offlinePrice,
-                              gagePrice: suggestedGage,
-                            );
-                            if (!mounted) return;
-                            navigator.pop();
-                            if (res != null) {
-                              messenger.showSnackBar(
-                                SnackBar(content: Text('Menu "$name" berhasil ditambahkan ke Cloudflare D1.')),
-                              );
-                              _fetchMenuCatalog();
-                            } else {
-                              messenger.showSnackBar(
-                                const SnackBar(content: Text('Gagal menambahkan menu ke server.')),
-                              );
-                            }
-                          },
-                    child: isSubmitting
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : const Text('Simpan Menu ke D1', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMenuCatalogTab() {
-    if (_isLoadingMenu) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Katalog Menu (${_menuCatalog.length} Item)',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-              ),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: GageTheme.primary,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                icon: const Icon(Icons.add, size: 16, color: Colors.white),
-                label: const Text('Tambah Menu', style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold)),
-                onPressed: _showAddMenuDialog,
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            itemCount: _menuCatalog.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 10),
-            itemBuilder: (ctx, idx) {
-              final item = _menuCatalog[idx];
-              final isAvailable = (item['is_available'] == 1 || item['is_available'] == true);
-
-              return Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: const Row(
                           children: [
-                            Text(item['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Harga Online: ${currencyFormatter.format(item['gage_price'] ?? item['price'] ?? 0)}',
-                              style: const TextStyle(fontSize: 12, color: GageTheme.textSecondary),
-                            ),
-                            Text(
-                              isAvailable ? 'Tersedia' : 'Habis Sementara',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isAvailable ? GageTheme.accentGreen : Colors.red),
-                            ),
+                            Icon(Icons.chat_rounded, size: 11, color: GageTheme.accentGreen),
+                            SizedBox(width: 4),
+                            Text('Chat Driver', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: GageTheme.accentGreen)),
                           ],
                         ),
                       ),
-                      Switch(
-                        value: isAvailable,
-                        activeThumbColor: GageTheme.accentGreen,
-                        onChanged: (_) => _toggleStock(item),
+                    ),
+                    const SizedBox(width: 6),
+                    InkWell(
+                      onTap: () async {
+                        final uri = Uri.parse('https://wa.me/6281234567890');
+                        if (await canLaunchUrl(uri)) launchUrl(uri, mode: LaunchMode.externalApplication);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Icon(Icons.call_rounded, size: 14, color: Colors.green),
                       ),
-                    ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // Tombol Aksi KDS GoBiz
+          Row(
+            children: [
+              if (status == 'PAID' || status == 'NEW') ...[
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Pesanan ditolak karena bahan habis.')),
+                      );
+                    },
+                    child: const Text('Tolak', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                   ),
                 ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPricingCalculatorTab() {
-    int offlinePrice = 13500;
-    int suggestedGage = 15000;
-    int netPayout = 13500;
-
-    return StatefulBuilder(
-      builder: (ctx, setCalcState) {
-        return ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            const Text('Kalkulator Harga Online UMKM', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            const Text(
-              'Hitung harga jual di aplikasi agar pendapatan bersih sama dengan harga warung fisik setelah potongan komisi 10%.',
-              style: TextStyle(fontSize: 12, color: GageTheme.textSecondary),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Harga Warung Offline (Rp)',
-                border: OutlineInputBorder(),
-                prefixText: 'Rp ',
-              ),
-              controller: TextEditingController(text: offlinePrice.toString()),
-              onChanged: (val) {
-                final num = int.tryParse(val) ?? 0;
-                setCalcState(() {
-                  offlinePrice = num;
-                  suggestedGage = ((num / 0.9) / 1000).ceil() * 1000;
-                  netPayout = (suggestedGage * 0.9).round();
-                });
-              },
-            ),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Rekomendasi Harga Gage', style: TextStyle(fontSize: 12, color: GageTheme.textSecondary)),
-                  Text(currencyFormatter.format(suggestedGage), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: GageTheme.primary)),
-                  const Divider(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Penerimaan Bersih Resto (90%):', style: TextStyle(fontSize: 12)),
-                      Text(currencyFormatter.format(netPayout), style: const TextStyle(fontWeight: FontWeight.bold, color: GageTheme.accentGreen)),
-                    ],
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: GageTheme.primary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () => _updateStage(order, 'COOKING'),
+                    child: const Text('Terima & Mulai Masak', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                   ),
-                ],
-              ),
-            ),
-          ],
-        );
-      },
+                ),
+              ] else if (status == 'COOKING') ...[
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: GageTheme.accentGreen,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () => _updateStage(order, 'READY_FOR_PICKUP'),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.check_circle_outline_rounded, size: 16, color: Colors.white),
+                        SizedBox(width: 6),
+                        Text('Pesanan Siap Diambil', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                ),
+              ] else if (status == 'READY_FOR_PICKUP') ...[
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: GageTheme.primary,
+                      side: const BorderSide(color: GageTheme.primary),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    icon: const Icon(Icons.notifications_active_rounded, size: 16),
+                    label: const Text('Panggil Driver', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    onPressed: () {
+                      HapticFeedback.mediumImpact();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Notifikasi siap ambil dikirimkan ke HP Driver.'),
+                          backgroundColor: GageTheme.accentGreen,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2563EB),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () => _updateStage(order, 'COMPLETED'),
+                    child: const Text('Driver Mengambil', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                  ),
+                ),
+              ] else ...[
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Text(
+                      'Pesanan Selesai Diantar',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.grey),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

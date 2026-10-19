@@ -827,4 +827,114 @@ class GageApiClient {
       return {'success': false, 'message': 'Gagal terhubung ke server'};
     }
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 6. STANDALONE PER-SCREEN BANNER CRUD (D1 QUOTA SHIELD + EDGE CACHING)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // Mengambil banner aktif untuk target layar spesifik (dilayani dari Cloudflare Edge Cache)
+  static Future<List<Map<String, dynamic>>> getBanners(String screenTarget) async {
+    try {
+      final res = await http.get(
+        Uri.parse('$baseUrl/api/banners?screen_target=$screenTarget'),
+      ).timeout(const Duration(seconds: 4));
+
+      if (res.statusCode == 200) {
+        final json = jsonDecode(res.body);
+        if (json['success'] == true && json['data'] is List) {
+          return List<Map<String, dynamic>>.from(json['data']);
+        }
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  // Mengambil semua banner untuk dikelola oleh Admin (tanpa filter aktif)
+  static Future<List<Map<String, dynamic>>> getAllBannersForAdmin({String? screenTarget}) async {
+    try {
+      final query = screenTarget != null && screenTarget.isNotEmpty
+          ? '?screen_target=$screenTarget&admin=true'
+          : '?admin=true';
+      final res = await http.get(
+        Uri.parse('$baseUrl/api/banners$query'),
+      ).timeout(const Duration(seconds: 4));
+
+      if (res.statusCode == 200) {
+        final json = jsonDecode(res.body);
+        if (json['success'] == true && json['data'] is List) {
+          return List<Map<String, dynamic>>.from(json['data']);
+        }
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  // Admin: Buat Banner Baru
+  static Future<Map<String, dynamic>?> createBanner({
+    required String screenTarget,
+    required String title,
+    String subtitle = '',
+    required String imageUrl,
+    String actionType = 'NONE',
+    String actionUrl = '',
+    String aspectRatio = '16:9',
+    int widthPx = 1280,
+    int heightPx = 720,
+    int displayOrder = 0,
+    int isActive = 1,
+  }) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/api/banners'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'screen_target': screenTarget,
+          'title': title,
+          'subtitle': subtitle,
+          'image_url': imageUrl,
+          'action_type': actionType,
+          'action_url': actionUrl,
+          'aspect_ratio': aspectRatio,
+          'width_px': widthPx,
+          'height_px': heightPx,
+          'display_order': displayOrder,
+          'is_active': isActive,
+        }),
+      ).timeout(const Duration(seconds: 5));
+
+      if (res.statusCode == 200) {
+        final json = jsonDecode(res.body);
+        return json;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  // Admin: Update Banner
+  static Future<bool> updateBanner(String id, Map<String, dynamic> updates) async {
+    try {
+      final res = await http.put(
+        Uri.parse('$baseUrl/api/banners/$id'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(updates),
+      ).timeout(const Duration(seconds: 5));
+
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // Admin: Hapus Banner
+  static Future<bool> deleteBanner(String id) async {
+    try {
+      final res = await http.delete(
+        Uri.parse('$baseUrl/api/banners/$id'),
+      ).timeout(const Duration(seconds: 4));
+
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
 }

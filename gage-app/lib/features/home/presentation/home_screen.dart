@@ -11,6 +11,9 @@ import 'package:gage_app/features/home/presentation/widgets/promo_carousel.dart'
 import 'package:gage_app/features/home/presentation/widgets/hemat_resto_list.dart';
 import 'package:gage_app/features/home/presentation/widgets/smart_search_sheet.dart';
 import 'package:gage_app/features/food/presentation/food_explore_screen.dart';
+import 'package:gage_app/features/profile/presentation/profile_screen.dart';
+import 'package:gage_app/shared/widgets/gage_bottom_nav_bar.dart';
+import 'package:gage_app/shared/widgets/seamless_floating_cart_bar.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onProfileTap;
@@ -46,6 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadInitialData() async {
+    setState(() => _isLoadingMerchants = true);
     final auth = context.read<AuthProvider>();
     final wallet = context.read<WalletProvider>();
     final userId = auth.currentUser?.id ?? 'usr-cust-01';
@@ -75,12 +79,27 @@ class _HomeScreenState extends State<HomeScreen> {
     SmartSearchSheet.show(context);
   }
 
+  void _navigateToProfile() {
+    if (widget.onProfileTap != null) {
+      widget.onProfileTap!();
+    } else {
+      Navigator.pushReplacement(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => const ProfileScreen(),
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: false,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
+        fit: StackFit.expand,
         children: [
           RefreshIndicator(
             onRefresh: _loadInitialData,
@@ -147,11 +166,21 @@ class _HomeScreenState extends State<HomeScreen> {
             child: JogjaHeader(
               scrollController: _scrollController,
               onSearchTap: _openSmartSearch,
-              onProfileTap: widget.onProfileTap,
+              onProfileTap: _navigateToProfile,
             ),
+          ),
+
+          // 3. Floating Cart Melayang tepat di atas Navbar
+          const Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: SeamlessFloatingCartBar(),
           ),
         ],
       ),
+      bottomNavigationBar: const GageBottomNavBar(currentIndex: 0),
     );
   }
 }
+

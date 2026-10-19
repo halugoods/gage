@@ -5,9 +5,9 @@ import 'package:gage_app/features/food/presentation/tani_screen.dart';
 import 'package:gage_app/features/food/presentation/ternak_screen.dart';
 import 'package:gage_app/features/ride/presentation/ride_booking_screen.dart';
 import 'package:gage_app/features/ride/presentation/send_booking_screen.dart';
-import 'package:gage_app/features/affiliate/presentation/affiliate_hub_screen.dart';
-
 import 'package:gage_app/features/babe/presentation/babe_screen.dart';
+import 'package:gage_app/features/affiliate/presentation/affiliate_hub_screen.dart';
+import 'package:gage_app/core/services/dynamic_asset_service.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 
 class ServiceGridClay extends StatelessWidget {
@@ -47,13 +47,13 @@ class ServiceGridClay extends StatelessWidget {
       'id': 'tani',
       'name': 'GAGE Tani',
       'icon': 'assets/icons/ic_tani.png',
-      'desc': 'Pupuk, benih & hasil bumi panen lokal',
+      'desc': 'Pupuk, benih & obat hama pertanian',
     },
     {
       'id': 'ternak',
       'name': 'GAGE Ternak',
       'icon': 'assets/icons/ic_ternak.png',
-      'desc': 'Pakan konsentrat, vitamin & pasar hewan',
+      'desc': 'Pakan ternak, konsentrat & vitamin',
     },
     {
       'id': 'babe',
@@ -65,7 +65,7 @@ class ServiceGridClay extends StatelessWidget {
       'id': 'cuan',
       'name': 'GAGE Cuan',
       'icon': 'assets/icons/ic_bonus.png',
-      'desc': 'Affiliate TikTok komisi 10% & referral',
+      'desc': 'Bagikan kode referral & raih komisi 10%',
     },
   ];
 
@@ -117,15 +117,15 @@ class ServiceGridClay extends StatelessWidget {
                   context,
                   MaterialPageRoute(builder: (ctx) => const TernakScreen()),
                 );
-              } else if (id == 'cuan') {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (ctx) => const AffiliateHubScreen()),
-                );
               } else if (id == 'babe') {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (ctx) => const BabeScreen()),
+                );
+              } else if (id == 'cuan') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (ctx) => const AffiliateHubScreen()),
                 );
               } else {
                 _showServiceInfo(context, item);
@@ -139,16 +139,12 @@ class ServiceGridClay extends StatelessWidget {
                 SizedBox(
                   width: 56,
                   height: 56,
-                  child: Image.asset(
-                    item['icon'],
+                  child: DynamicAssetIcon(
+                    slotKey: 'grid_menu_${item['id']}',
+                    defaultAsset: item['icon'] as String,
+                    width: 56,
+                    height: 56,
                     fit: BoxFit.contain,
-                    errorBuilder: (ctx, _, error) => Container(
-                      decoration: const BoxDecoration(
-                        color: GageTheme.primaryLight,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.delivery_dining, color: GageTheme.primary, size: 28),
-                    ),
                   ),
                 ),
                 const SizedBox(height: 4),

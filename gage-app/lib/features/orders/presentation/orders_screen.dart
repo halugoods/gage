@@ -11,6 +11,9 @@ import 'package:gage_app/data/models/cart_item_model.dart';
 import 'package:gage_app/features/order/presentation/order_tracking_screen.dart';
 import 'package:gage_app/features/checkout/presentation/checkout_screen.dart';
 import 'package:gage_app/features/orders/presentation/order_detail_screen.dart';
+import 'package:gage_app/shared/widgets/gage_bottom_nav_bar.dart';
+import 'package:gage_app/features/home/presentation/home_screen.dart';
+import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
@@ -42,65 +45,96 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        backgroundColor: isDark ? GageTheme.darkBackground : GageTheme.background,
-        appBar: AppBar(
-          title: const Text('Pesanan Saya', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-          backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
-          foregroundColor: isDark ? Colors.white : Colors.black87,
-          elevation: 0.5,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.refresh_rounded),
-              tooltip: 'Segarkan',
-              onPressed: _refresh,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => const HomeScreen(),
+            transitionDuration: Duration.zero,
+            reverseTransitionDuration: Duration.zero,
+          ),
+        );
+      },
+      child: DefaultTabController(
+        length: 2,
+        child: Scaffold(
+          backgroundColor: isDark ? GageTheme.darkBackground : GageTheme.background,
+          appBar: AppBar(
+            title: const Text('Pesanan Saya', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
+            foregroundColor: isDark ? Colors.white : Colors.black87,
+            elevation: 0.5,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.refresh_rounded),
+                tooltip: 'Segarkan',
+                onPressed: _refresh,
+              ),
+            ],
+            bottom: TabBar(
+              indicatorColor: GageTheme.primary,
+              labelColor: GageTheme.primary,
+              unselectedLabelColor: isDark ? Colors.white60 : GageTheme.textSecondary,
+              labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+              tabs: const [
+                Tab(text: 'Pesanan Aktif'),
+                Tab(text: 'Riwayat Pesanan'),
+              ],
             ),
-          ],
-          bottom: TabBar(
-            indicatorColor: GageTheme.primary,
-            labelColor: GageTheme.primary,
-            unselectedLabelColor: isDark ? Colors.white60 : GageTheme.textSecondary,
-            labelStyle: const TextStyle(fontWeight: FontWeight.bold),
-            tabs: const [
-              Tab(text: 'Pesanan Aktif'),
-              Tab(text: 'Riwayat Pesanan'),
-            ],
           ),
-        ),
-        body: RefreshIndicator(
-          onRefresh: _refresh,
-          color: GageTheme.primary,
-          child: TabBarView(
-            children: [
-              // Tab 1: Pesanan Aktif
-              activeOrders.isEmpty
-                  ? _buildEmptyState(
-                      'Belum Ada Pesanan Aktif',
-                      'Pesanan yang sedang disiapkan resto atau diantar driver akan tampil di sini secara real-time.',
-                      icon: Icons.delivery_dining_outlined,
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      itemCount: activeOrders.length,
-                      itemBuilder: (ctx, idx) => _buildOrderCard(context, activeOrders[idx], isActive: true),
-                    ),
+          body: RefreshIndicator(
+            onRefresh: _refresh,
+            color: GageTheme.primary,
+            child: TabBarView(
+              children: [
+                // Tab 1: Pesanan Aktif
+                orderProvider.isLoading
+                    ? ListView.builder(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        itemCount: 3,
+                        itemBuilder: (ctx, idx) => const GageSkeletonOrderTicket(),
+                      )
+                    : activeOrders.isEmpty
+                        ? _buildEmptyState(
+                            'Belum Ada Pesanan Aktif',
+                            'Pesanan yang sedang disiapkan resto atau diantar driver akan tampil di sini secara real-time.',
+                            icon: Icons.delivery_dining_outlined,
+                          )
+                        : ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            itemCount: activeOrders.length,
+                            itemBuilder: (ctx, idx) => _buildOrderCard(context, activeOrders[idx], isActive: true),
+                          ),
 
-              // Tab 2: Riwayat Pesanan
-              historyOrders.isEmpty
-                  ? _buildEmptyState(
-                      'Belum Ada Riwayat Pesanan',
-                      'Semua pesanan yang telah selesai atau dinikmati akan tersimpan di sini.',
-                      icon: Icons.receipt_long_outlined,
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      itemCount: historyOrders.length,
-                      itemBuilder: (ctx, idx) => _buildOrderCard(context, historyOrders[idx], isActive: false),
-                    ),
-            ],
+                // Tab 2: Riwayat Pesanan
+                orderProvider.isLoading
+                    ? ListView.builder(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        itemCount: 4,
+                        itemBuilder: (ctx, idx) => const GageSkeletonOrderTicket(),
+                      )
+                    : historyOrders.isEmpty
+                        ? _buildEmptyState(
+                            'Belum Ada Riwayat Pesanan',
+                            'Semua pesanan yang telah selesai atau dinikmati akan tersimpan di sini.',
+                            icon: Icons.receipt_long_outlined,
+                          )
+                        : ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            itemCount: historyOrders.length,
+                            itemBuilder: (ctx, idx) => _buildOrderCard(context, historyOrders[idx], isActive: false),
+                          ),
+              ],
+            ),
           ),
+          bottomNavigationBar: const GageBottomNavBar(currentIndex: 1),
         ),
       ),
     );
@@ -169,7 +203,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildInvoiceChip(context, order.orderNumber),
+                    Flexible(child: _buildInvoiceChip(context, order.orderNumber)),
+                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
@@ -185,12 +220,16 @@ class _OrdersScreenState extends State<OrdersScreen> {
                             color: isActive ? const Color(0xFFB45309) : const Color(0xFF15803D),
                           ),
                           const SizedBox(width: 4),
-                          Text(
-                            order.statusLabel,
-                            style: TextStyle(
-                              color: isActive ? const Color(0xFFB45309) : const Color(0xFF15803D),
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
+                          Flexible(
+                            child: Text(
+                              order.statusLabel,
+                              style: TextStyle(
+                                color: isActive ? const Color(0xFFB45309) : const Color(0xFF15803D),
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
                             ),
                           ),
                         ],
@@ -269,18 +308,24 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Total Pembayaran', style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : GageTheme.textSecondary)),
-                        const SizedBox(height: 2),
-                        Text(
-                          currencyFormatter.format(order.totalAmount),
-                          style: const TextStyle(fontWeight: FontWeight.w900, color: GageTheme.primary, fontSize: 15.5),
-                        ),
-                      ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Total Pembayaran', style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : GageTheme.textSecondary)),
+                          const SizedBox(height: 2),
+                          Text(
+                            currencyFormatter.format(order.totalAmount),
+                            style: const TextStyle(fontWeight: FontWeight.w900, color: GageTheme.primary, fontSize: 15.5),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         OutlinedButton(
                           style: OutlinedButton.styleFrom(
@@ -369,8 +414,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 180),
+            Flexible(
               child: Text(
                 invoice,
                 maxLines: 1,
@@ -484,22 +528,25 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
   Widget _buildEmptyState(String title, String subtitle, {required IconData icon}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 64, color: isDark ? Colors.white30 : Colors.grey.shade400),
-            const SizedBox(height: 16),
-            Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
-            const SizedBox(height: 8),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: isDark ? Colors.white60 : GageTheme.textSecondary),
-            ),
-          ],
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 64.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 64, color: isDark ? Colors.white30 : Colors.grey.shade400),
+              const SizedBox(height: 16),
+              Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
+              const SizedBox(height: 8),
+              Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: isDark ? Colors.white60 : GageTheme.textSecondary),
+              ),
+            ],
+          ),
         ),
       ),
     );

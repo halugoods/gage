@@ -2,37 +2,73 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gage_app/features/admin/presentation/admin_screen.dart';
+import 'package:gage_app/features/admin/presentation/admin_settings_screen.dart';
+import 'package:gage_app/features/admin/presentation/widgets/admin_bottom_nav_bar.dart';
 import 'package:gage_app/core/services/fare_calculation_service.dart';
+import 'package:gage_app/core/services/gage_pricing_service.dart';
 
 void main() {
-  testWidgets('AdminScreen renders Admin Fee form, Live Simulation, and Saves config', (tester) async {
-    SharedPreferences.setMockInitialValues({});
-    FareCalculationService.resetToDefault();
+  TestWidgetsFlutterBinding.ensureInitialized();
 
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: AdminScreen(),
-      ),
-    );
-    await tester.pumpAndSettle();
+  group('GAGE Admin Settings & Fee Configuration Tests', () {
+    testWidgets('AdminSettingsScreen renders dynamic tariff, fee settings, and saves config', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
 
-    // Verify Tab "Biaya & Komisi" exists
-    expect(find.text('Biaya & Komisi'), findsOneWidget);
+      SharedPreferences.setMockInitialValues({});
+      FareCalculationService.resetToDefault();
+      GagePricingService.resetToDefault();
 
-    // Verify Admin fee header
-    expect(find.text('Pengaturan Biaya Admin Toko (Multi-Merchant)'), findsWidgets);
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: AdminSettingsScreen(),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    // Verify Form Fields
-    expect(find.text('Biaya Admin Cashless per Toko (Default: Rp 1.000)'), findsWidgets);
-    expect(find.text('Biaya Admin COD Toko Pertama (Default: Rp 3.000)'), findsWidgets);
-    expect(find.text('Biaya Admin COD Toko Tambahan (Default: Rp 1.000)'), findsWidgets);
+      // Verify Header & Sections
+      expect(find.text('Pengaturan Finansial & Tarif'), findsOneWidget);
+      expect(find.text('TARIF GAGERIDE MOTOR (REGULER & HEMAT)'), findsOneWidget);
+      expect(find.text('BIAYA LAYANAN & MDR TRANSAKSI'), findsOneWidget);
 
-    // Verify Live Simulation Box
-    expect(find.text('Live Simulation Kalkulasi Admin Real-time'), findsWidgets);
-    expect(find.text('1 Toko Cashless'), findsWidgets);
-    expect(find.text('2 Toko Cash COD'), findsWidgets);
+      // Verify Dynamic Base KM & Fee Labels
+      expect(find.text('Jarak Dasar Reguler (KM Awal)'), findsOneWidget);
+      expect(find.text('Biaya GagePay & QRIS Cashless'), findsOneWidget);
+      expect(find.text('Biaya Dasar COD Tunai'), findsOneWidget);
+      expect(find.text('Biaya Tambahan COD Toko Ekstra'), findsOneWidget);
 
-    // Verify Save Button
-    expect(find.text('Simpan Pengaturan Biaya'), findsWidgets);
+      // Verify Universal Business Principles (without Islamic / Syar'i slop)
+      expect(find.text('PRINSIP EKONOMI & SISTEM PEMBULATAN'), findsOneWidget);
+      expect(find.text('Bagi Hasil Mitra Driver'), findsOneWidget);
+      expect(find.text('Sistem Pembulatan Transparan'), findsOneWidget);
+
+      // Verify Save Button
+      final saveButton = find.text('Simpan Konfigurasi Tarif');
+      expect(saveButton, findsOneWidget);
+
+      await tester.tap(saveButton);
+      await tester.pumpAndSettle();
+
+      // Verify SnackBar confirmation
+      expect(find.textContaining('Konfigurasi tarif & jarak berhasil disimpan'), findsOneWidget);
+    });
+
+    testWidgets('AdminBottomNavBar renders all 5 simplified operational tabs', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            bottomNavigationBar: AdminBottomNavBar(currentIndex: 0),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Beranda'), findsOneWidget);
+      expect(find.text('Riwayat'), findsOneWidget);
+      expect(find.text('Chat'), findsOneWidget);
+      expect(find.text('Kurasi'), findsOneWidget);
+      expect(find.text('Pengaturan'), findsOneWidget);
+    });
   });
 }

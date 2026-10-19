@@ -9,6 +9,8 @@ import 'package:gage_app/features/profile/presentation/profile_screen.dart';
 import 'package:gage_app/features/orders/presentation/orders_screen.dart';
 import 'package:gage_app/features/home/presentation/promo_screen.dart';
 import 'package:gage_app/features/affiliate/presentation/affiliate_hub_screen.dart';
+import 'package:gage_app/core/services/banner_manager_service.dart';
+import 'package:gage_app/features/admin/presentation/widgets/in_place_banner_editor_sheet.dart';
 
 /// 1. Banner Hero Beranda: 1 banner tunggal 16:9 statis tanpa slide/PageView dan tanpa dots indicator.
 /// Menyatu edge-to-edge dari puncak layar (y = 0) ke bawah status bar.
@@ -17,33 +19,100 @@ class JogjaHeroBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bannerManager = context.watch<BannerManagerService>();
+    final banner = bannerManager.getBanner('customer_home_hero');
     final screenWidth = MediaQuery.of(context).size.width;
     final topPadding = MediaQuery.of(context).padding.top;
     final isTablet = screenWidth >= 600;
+    final isEditMode = LiveAppEditScope.isEditModeActive(context);
 
     // Tinggi proporsional edge-to-edge mencakup area status bar atas
     final bannerHeight = isTablet
         ? 300.0 + topPadding
         : ((screenWidth * 9 / 16) + topPadding + 20).clamp(240.0 + topPadding, 275.0 + topPadding);
 
-    return SizedBox(
+    final imgPath = banner.imagePath;
+
+    Widget imageContent = SizedBox(
       height: bannerHeight,
       width: double.infinity,
-      child: Image.asset(
-        'assets/images/home_hero_banner.png',
-        fit: BoxFit.cover,
-        alignment: Alignment.topCenter,
-        errorBuilder: (ctx, err, stack) => Container(
-          color: GageTheme.primary,
-          child: const Center(
-            child: Text(
-              'GAGE INDONESIA',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          imgPath.startsWith('http://') || imgPath.startsWith('https://')
+              ? Image.network(
+                  imgPath,
+                  fit: BoxFit.cover,
+                  alignment: Alignment.topCenter,
+                  errorBuilder: (ctx, err, stack) => _buildFallback(),
+                )
+              : Image.asset(
+                  imgPath,
+                  fit: BoxFit.cover,
+                  alignment: Alignment.topCenter,
+                  errorBuilder: (ctx, err, stack) => _buildFallback(),
+                ),
+          if (isEditMode)
+            Positioned(
+              top: topPadding + 10,
+              right: 14,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: GageTheme.primary.withValues(alpha: 0.92),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white, width: 1.5),
+                  boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 6, offset: Offset(0, 2))],
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.edit_rounded, size: 12, color: Colors.white),
+                    SizedBox(width: 4),
+                    Text(
+                      'Edit Hero Banner',
+                      style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
               ),
             ),
+        ],
+      ),
+    );
+
+    if (isEditMode) {
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          InPlaceBannerEditorSheet.showConfirmationAndOpen(
+            context: context,
+            screenTarget: 'customer_home_hero',
+            title: banner.title,
+            subtitle: banner.subtitle,
+            badge: banner.badge,
+            imageUrl: banner.imagePath,
+            actionUrl: banner.ctaText,
+            aspectRatio: 16 / 9,
+          );
+        },
+        child: imageContent,
+      );
+    }
+
+    return imageContent;
+  }
+
+  Widget _buildFallback() {
+    return Container(
+      color: GageTheme.primary,
+      child: const Center(
+        child: Text(
+          'GAGE INDONESIA',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
           ),
         ),
       ),

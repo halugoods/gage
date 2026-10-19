@@ -12,6 +12,7 @@ class GageFloatingSheet {
     required BuildContext context,
     Widget Function(BuildContext sheetContext)? builder,
     Widget? child,
+    String? title,
     bool isDismissible = true,
     bool enableDrag = true,
     EdgeInsets? padding,
@@ -75,6 +76,41 @@ class GageFloatingSheet {
                         borderRadius: BorderRadius.circular(3),
                       ),
                     ),
+                    if (title != null) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                title,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            InkWell(
+                              onTap: () => Navigator.of(sheetContext).pop(),
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(Icons.close_rounded, size: 16, color: isDark ? Colors.white70 : Colors.black54),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Divider(height: 12),
+                    ],
                     Flexible(
                       child: SingleChildScrollView(
                         padding: padding ?? const EdgeInsets.fromLTRB(20, 14, 20, 20),

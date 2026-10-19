@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:gage_app/core/network/gage_api_client.dart';
+import 'package:gage_app/core/services/banner_manager_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/food/data/food_categories_data.dart';
 import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
@@ -15,6 +17,7 @@ import 'package:gage_app/features/orders/presentation/orders_screen.dart';
 import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
 import 'package:gage_app/shared/widgets/seamless_floating_cart_bar.dart';
 import 'package:gage_app/shared/widgets/gage_service_header.dart';
+import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 class FoodExploreScreen extends StatefulWidget {
   const FoodExploreScreen({super.key});
@@ -180,6 +183,7 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final foodBanner = context.watch<BannerManagerService>().getBanner('customer_food_explore');
     final screenWidth = MediaQuery.of(context).size.width;
     final isTablet = screenWidth >= 600;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -199,7 +203,8 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
                 children: [
                   // Full-bleed Banner 16:9 ke batas atas status bar dengan smooth fade-out
                   GageServiceHeroBanner(
-                    imageAsset: 'assets/images/food_hero_banner.png',
+                    screenTarget: 'customer_food_explore',
+                    imageAsset: foodBanner.imagePath,
                     fallbackTitle: 'GAGE FOOD',
                     scrollController: _scrollController,
                   ),
@@ -225,49 +230,42 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
                           // Section Headline & Daftar Resto Mitra Terdaftar
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Makan enak buat kamu di Pracimantoro 🍜',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: isDark ? Colors.white : GageTheme.textPrimary,
+                            child: _isLoading
+                                ? const Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      GageSkeletonBox(width: 240, height: 18),
+                                      SizedBox(height: 6),
+                                      GageSkeletonBox(width: 180, height: 13),
+                                    ],
+                                  )
+                                : Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Makan enak buat kamu di Pracimantoro 🍜',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark ? Colors.white : GageTheme.textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Pilihan resto mitra resmi dengan rating terbaik',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Pilihan resto mitra resmi dengan rating terbaik',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                                  ),
-                                ),
-                              ],
-                            ),
                           ),
 
                           const SizedBox(height: 12),
 
                           // List Kartu Resto
                           _buildMerchantList(),
-
-                          const SizedBox(height: 16),
-
-                          // Banner Iklan Sponsor Kuliner di Tengah List
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(16),
-                              child: Image.asset(
-                                'assets/images/food_hero_banner.png',
-                                fit: BoxFit.cover,
-                                width: double.infinity,
-                                errorBuilder: (c, e, s) => const SizedBox(),
-                              ),
-                            ),
-                          ),
 
                           const SizedBox(height: 90),
                         ],
@@ -327,115 +325,132 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Kuliner sesuai seleramu',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: GageTheme.textPrimary,
-                ),
-              ),
-              InkWell(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (c) => const AllCategoriesScreen(),
-                    ),
-                  );
-                },
-                borderRadius: BorderRadius.circular(8),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  child: Text(
-                    'Lihat Semua',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: GageTheme.accentGreen,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 98,
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            scrollDirection: Axis.horizontal,
-            itemCount: categories.length,
-            separatorBuilder: (context, index) => const SizedBox(width: 14),
-            itemBuilder: (ctx, idx) {
-              final cat = categories[idx];
-
-              return InkWell(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (c) => CategoryMerchantListScreen(
-                        categoryName: cat.name,
-                      ),
-                    ),
-                  );
-                },
-                borderRadius: BorderRadius.circular(16),
-                child: Column(
+          child: _isLoading
+              ? const Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(
-                      width: 58,
-                      height: 58,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.grey.shade200,
-                          width: 1.2,
-                        ),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Colors.black12,
-                            blurRadius: 6,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: ClipOval(
-                        child: Image.asset(
-                          cat.image,
-                          fit: BoxFit.cover,
-                          errorBuilder: (c, e, s) => Container(
-                            color: GageTheme.primaryLight,
-                            child: const Icon(Icons.restaurant, color: GageTheme.primary),
-                          ),
-                        ),
+                    GageSkeletonBox(width: 170, height: 16),
+                    GageSkeletonBox(width: 65, height: 14),
+                  ],
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Kuliner sesuai seleramu',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: GageTheme.textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      cat.name,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: GageTheme.textPrimary,
+                    InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (c) => const AllCategoriesScreen(),
+                          ),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        child: Text(
+                          'Lihat Semua',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: GageTheme.accentGreen,
+                          ),
+                        ),
                       ),
                     ),
                   ],
                 ),
-              );
-            },
-          ),
         ),
+        const SizedBox(height: 12),
+        if (_isLoading)
+          const GageSkeletonCircularCategoriesRow(count: 6)
+        else
+          SizedBox(
+            height: 98,
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              scrollDirection: Axis.horizontal,
+              itemCount: categories.length,
+              separatorBuilder: (context, index) => const SizedBox(width: 14),
+              itemBuilder: (ctx, idx) {
+                final cat = categories[idx];
+
+                return InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (c) => CategoryMerchantListScreen(
+                          categoryName: cat.name,
+                        ),
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 58,
+                        height: 58,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.grey.shade200,
+                            width: 1.2,
+                          ),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black12,
+                              blurRadius: 6,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: ClipOval(
+                          child: Image.asset(
+                            cat.image,
+                            fit: BoxFit.cover,
+                            errorBuilder: (c, e, s) => Container(
+                              color: GageTheme.primaryLight,
+                              child: const Icon(Icons.restaurant, color: GageTheme.primary),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        cat.name,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: GageTheme.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
       ],
     );
   }
 
   Widget _buildFilterChips() {
+    if (_isLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16),
+        child: GageSkeletonCategoryPillsRow(count: 6),
+      );
+    }
     return SizedBox(
       height: 38,
       child: ListView.separated(
@@ -483,11 +498,12 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
 
   Widget _buildMerchantList() {
     if (_isLoading) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24.0),
-          child: CircularProgressIndicator(color: GageTheme.primary),
-        ),
+      return ListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: 4,
+        itemBuilder: (ctx, idx) => const GageSkeletonRestoCard(),
       );
     }
 

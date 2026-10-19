@@ -16,6 +16,22 @@ class GageToast {
   static OverlayEntry? _currentEntry;
   static Timer? _dismissTimer;
 
+  static void showSuccess(BuildContext context, String message, {Duration duration = const Duration(milliseconds: 2200)}) {
+    show(context, message, type: GageToastType.success, duration: duration);
+  }
+
+  static void showError(BuildContext context, String message, {Duration duration = const Duration(milliseconds: 2500)}) {
+    show(context, message, type: GageToastType.error, duration: duration);
+  }
+
+  static void showInfo(BuildContext context, String message, {Duration duration = const Duration(milliseconds: 2200)}) {
+    show(context, message, type: GageToastType.info, duration: duration);
+  }
+
+  static void showWarning(BuildContext context, String message, {Duration duration = const Duration(milliseconds: 2200)}) {
+    show(context, message, type: GageToastType.warning, duration: duration);
+  }
+
   static void show(
     BuildContext context,
     String message, {
@@ -148,33 +164,46 @@ class _GageToastWidgetState extends State<_GageToastWidget> with SingleTickerPro
                   constraints: const BoxConstraints(maxWidth: 420),
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0F172A).withValues(alpha: 0.94), // Dark Charcoal Slate
-                    borderRadius: BorderRadius.circular(14),
+                    color: Colors.white.withValues(alpha: 0.98),
+                    borderRadius: BorderRadius.circular(100),
                     border: Border.all(
-                      color: const Color(0xFF334155).withValues(alpha: 0.8),
+                      color: Colors.black.withValues(alpha: 0.06),
                       width: 1.0,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.35),
-                        blurRadius: 16,
-                        offset: const Offset(0, 6),
+                        color: Colors.black.withValues(alpha: 0.12),
+                        blurRadius: 24,
+                        spreadRadius: 1,
+                        offset: const Offset(0, 8),
+                      ),
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
                       ),
                     ],
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(_icon, color: _iconColor, size: 18),
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: _iconColor.withValues(alpha: 0.14),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(_icon, color: _iconColor, size: 16),
+                      ),
                       const SizedBox(width: 10),
                       Flexible(
                         child: Text(
                           widget.message,
                           style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -0.1,
+                            color: Color(0xFF0F172A),
+                            fontSize: 13.0,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.2,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,

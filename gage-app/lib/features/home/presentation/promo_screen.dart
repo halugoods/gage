@@ -8,6 +8,9 @@ import 'package:gage_app/features/ride/presentation/ride_booking_screen.dart';
 import 'package:gage_app/features/ride/presentation/send_booking_screen.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
+import 'package:gage_app/shared/widgets/gage_bottom_nav_bar.dart';
+import 'package:gage_app/features/home/presentation/home_screen.dart';
+import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 class PromoScreen extends StatefulWidget {
   const PromoScreen({super.key});
@@ -18,6 +21,7 @@ class PromoScreen extends StatefulWidget {
 
 class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  bool _isLoading = true;
 
   // Filter pill aktif di tab Voucher: 'Semua', 'GAGE Food', 'GAGE Ride', 'GAGE Car', 'GAGE Send', 'GAGE Mart', 'GAGE Pay'
   String _activeServiceFilter = 'Semua';
@@ -158,6 +162,15 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(milliseconds: 250));
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -357,44 +370,63 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
     final cart = context.watch<CartProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: isDark ? GageTheme.darkBackground : const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        title: Text(
-          'Voucher & paket voucher',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: isDark ? Colors.white : Colors.black87),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => const HomeScreen(),
+            transitionDuration: Duration.zero,
+            reverseTransitionDuration: Duration.zero,
+          ),
+        );
+      },
+      child: Scaffold(
+        backgroundColor: isDark ? GageTheme.darkBackground : const Color(0xFFF8FAFC),
+        appBar: AppBar(
+          title: Text(
+            'Voucher & paket voucher',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: isDark ? Colors.white : Colors.black87),
+          ),
+          backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
+          foregroundColor: isDark ? Colors.white : Colors.black87,
+          elevation: 0,
+          bottom: TabBar(
+            controller: _tabController,
+            labelColor: GageTheme.primary,
+            unselectedLabelColor: isDark ? Colors.white60 : Colors.grey.shade600,
+            labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 14),
+            indicatorColor: GageTheme.primary,
+            indicatorWeight: 3,
+            indicatorSize: TabBarIndicatorSize.tab,
+            tabs: const [
+              Tab(text: 'Voucher'),
+              Tab(text: 'GAGE Plus'),
+              Tab(text: 'GAGE Max'),
+            ],
+          ),
         ),
-        backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
-        foregroundColor: isDark ? Colors.white : Colors.black87,
-        elevation: 0,
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: GageTheme.primary,
-          unselectedLabelColor: isDark ? Colors.white60 : Colors.grey.shade600,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 14),
-          indicatorColor: GageTheme.primary,
-          indicatorWeight: 3,
-          indicatorSize: TabBarIndicatorSize.tab,
-          tabs: const [
-            Tab(text: 'Voucher'),
-            Tab(text: 'GAGE Plus'),
-            Tab(text: 'GAGE Max'),
-          ],
+        body: RefreshIndicator(
+          onRefresh: _loadData,
+          color: GageTheme.primary,
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              // TAB 1: VOUCHER (Dengan Filter Pills Gojek Style)
+              _buildVouchersTab(cart),
+
+              // TAB 2: GAGE PLUS (Membership Hemat)
+              _buildGagePlusTab(),
+
+              // TAB 3: GAGE MAX (Membership Sultan & Priority)
+              _buildGageMaxTab(),
+            ],
+          ),
         ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          // TAB 1: VOUCHER (Dengan Filter Pills Gojek Style)
-          _buildVouchersTab(cart),
-
-          // TAB 2: GAGE PLUS (Membership Hemat)
-          _buildGagePlusTab(),
-
-          // TAB 3: GAGE MAX (Membership Sultan & Priority)
-          _buildGageMaxTab(),
-        ],
+        bottomNavigationBar: const GageBottomNavBar(currentIndex: 2),
       ),
     );
   }
@@ -437,7 +469,14 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
                   ),
                   showCheckmark: false,
                   onSelected: (val) {
-                    setState(() => _activeServiceFilter = filter);
+                    if (_activeServiceFilter == filter) return;
+                    setState(() {
+                      _activeServiceFilter = filter;
+                      _isLoading = true;
+                    });
+                    Future.delayed(const Duration(milliseconds: 180), () {
+                      if (mounted) setState(() => _isLoading = false);
+                    });
                   },
                 ),
               );
@@ -446,12 +485,21 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
         ),
 
         // List Voucher Cards (Sesuai Referensi Gambar 2)
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
-            itemCount: _filteredVouchers.length,
-            itemBuilder: (ctx, idx) {
-              final v = _filteredVouchers[idx];
+        if (_isLoading)
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+              itemCount: 4,
+              itemBuilder: (ctx, idx) => const GageSkeletonVoucherCard(),
+            ),
+          )
+        else
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+              itemCount: _filteredVouchers.length,
+              itemBuilder: (ctx, idx) {
+                final v = _filteredVouchers[idx];
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 16),
@@ -502,11 +550,15 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
                               children: [
                                 Icon(Icons.calendar_today_rounded, size: 13, color: isDark ? Colors.white60 : Colors.black54),
                                 const SizedBox(width: 6),
-                                Text(
-                                  'Berlaku hingga ${v['expiry']}',
-                                  style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white60 : Colors.black54),
+                                Expanded(
+                                  child: Text(
+                                    'Berlaku hingga ${v['expiry']}',
+                                    style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white60 : Colors.black54),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
-                                const Spacer(),
+                                const SizedBox(width: 8),
                                 SizedBox(
                                   height: 32,
                                   child: ElevatedButton(
@@ -515,7 +567,7 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
                                       foregroundColor: Colors.white,
                                       elevation: 0,
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                                      padding: const EdgeInsets.symmetric(horizontal: 14),
                                     ),
                                     onPressed: () => _applyAndRedirect(context, v, cart),
                                     child: const Text(

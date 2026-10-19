@@ -14,6 +14,7 @@ import 'package:gage_app/core/services/osrm_routing_service.dart';
 import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/features/order/presentation/order_tracking_screen.dart';
+import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 class SendBookingScreen extends StatefulWidget {
   const SendBookingScreen({super.key});
@@ -425,17 +426,24 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFDCFCE7),
-                          borderRadius: BorderRadius.circular(6),
+                      if (_isLoadingRoute)
+                        const GageSkeletonBox(
+                          width: 48,
+                          height: 18,
+                          borderRadius: BorderRadius.all(Radius.circular(6)),
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFDCFCE7),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '${_distanceKm.toStringAsFixed(1)} km',
+                            style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF15803D)),
+                          ),
                         ),
-                        child: Text(
-                          _isLoadingRoute ? 'Memuat...' : '${_distanceKm.toStringAsFixed(1)} km',
-                          style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF15803D)),
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -784,13 +792,16 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 4),
+                                   const SizedBox(height: 4),
                                   const Text('Langsung antar (1-2 jam)', style: TextStyle(fontSize: 10.5, color: Colors.grey)),
                                   const SizedBox(height: 6),
-                                  const Text(
-                                    'Rp 5.000',
-                                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13.5, color: GageTheme.primary),
-                                  ),
+                                  if (_isLoadingRoute)
+                                    const GageSkeletonBox(width: 60, height: 16)
+                                  else
+                                    const Text(
+                                      'Rp 5.000',
+                                      style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13.5, color: GageTheme.primary),
+                                    ),
                                 ],
                               ),
                             ),
@@ -835,10 +846,13 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                                   const SizedBox(height: 4),
                                   const Text('Tiba hari ini (4-6 jam)', style: TextStyle(fontSize: 10.5, color: Colors.grey)),
                                   const SizedBox(height: 6),
-                                  const Text(
-                                    'Rp 4.000',
-                                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13.5, color: Color(0xFF16A34A)),
-                                  ),
+                                  if (_isLoadingRoute)
+                                    const GageSkeletonBox(width: 60, height: 16)
+                                  else
+                                    const Text(
+                                      'Rp 4.000',
+                                      style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13.5, color: Color(0xFF16A34A)),
+                                    ),
                                 ],
                               ),
                             ),

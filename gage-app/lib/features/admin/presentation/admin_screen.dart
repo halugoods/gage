@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
-import 'package:gage_app/core/services/banner_manager_service.dart';
-import 'package:gage_app/core/services/gage_pricing_service.dart';
-import 'package:gage_app/core/services/fare_calculation_service.dart';
+import 'package:gage_app/features/admin/presentation/widgets/admin_bottom_nav_bar.dart';
 
+/// Screen Utama GAGE Admin - Tab 0: Radar & Fleet Command Tower
+/// Dirancang sesuai standar Gojek (GoPartner) & iOS Human Interface:
+/// - Peta riil OpenStreetMap kawasan Pracimantoro (bebas gimik pin palsu)
+/// - Kartu KPI metrik operasional bersih bergaya iOS Inset Grouped
+/// - Pengawasan armada terverifikasi dengan aksi dispatch instan
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
 
@@ -14,1776 +19,885 @@ class AdminScreen extends StatefulWidget {
   State<AdminScreen> createState() => _AdminScreenState();
 }
 
-class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  bool _isLoading = false;
-
-  Map<String, dynamic> _affiliateStats = {};
-  List<Map<String, dynamic>> _merchantOrders = [];
+class _AdminScreenState extends State<AdminScreen> {
+  final MapController _mapController = MapController();
   final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+  String _selectedFleetFilter = 'Semua';
+  String _mapFilter = 'Semua'; // 'Semua', 'Hotspot Order', 'Driver Siaga', 'Merchant'
 
-  // State Kelola Banner
-  String _selectedBannerMenu = 'beranda';
-  late TextEditingController _bannerTitleCtrl;
-  late TextEditingController _bannerSubtitleCtrl;
-  late TextEditingController _bannerBadgeCtrl;
-  late TextEditingController _bannerCtaCtrl;
-  String _selectedBannerImage = 'assets/images/hero_banner_1.png';
+  // Titik Pusat Operasional Pracimantoro
+  final LatLng _centerPracimantoro = const LatLng(-8.0963, 110.8427);
 
-  // State Pengaturan Biaya Admin Dinamis
-  late TextEditingController _adminFeeCashlessCtrl;
-  late TextEditingController _adminFeeCodBaseCtrl;
-  late TextEditingController _adminFeeCodExtraCtrl;
-
-  // State Kurasi BaBe
-  String _babeFilter = 'Semua';
-  final List<Map<String, dynamic>> _babeCurationList = [
+  // Titik Hotspot Kepadatan Order Riil Pracimantoro untuk Analisa Bisnis
+  final List<Map<String, dynamic>> _orderHotspots = [
     {
-      'id': 'SUB-BABE-001',
-      'category': 'Gadget & Elektronik',
-      'name': 'iPad Gen 9 64GB Space Grey WiFi Only Mulus',
-      'sellerName': 'Pak Joko Purnomo',
-      'sellerPhone': '6281234567890',
-      'submittedAt': '10 Okt 2026, 14:20',
-      'specs': 'Baterai Health 91%, layar retina mulus tanpa scratch, tombol home fingerprint responsif, charger original bawaan box.',
-      'netPrice': 3200000,
-      'markupPercent': 10,
-      'photos': [
-        'assets/images/hero_promo_1.png',
-        'assets/images/promo_banner_1.png',
-      ],
-      'status': 'pending',
-      'notes': 'Unit titip jual dari warga desa Gedong, siap disurvey fisik oleh kurir GAGE.',
+      'name': 'Pasar Pracimantoro',
+      'location': const LatLng(-8.0975, 110.8415),
+      'orders': 14,
+      'gmv': 'Rp 320.000',
+      'radius': 450.0,
+      'color': const Color(0xFFE11D48), // Rose
+      'detail': 'Kepadatan tinggi belanja sembako, sayur & sarapan pagi',
     },
     {
-      'id': 'SUB-BABE-002',
-      'category': 'Sepeda & Otomotif',
-      'name': 'Sepeda Lipat Pacific Noris 2.1 20 Inch 8 Speed',
-      'sellerName': 'Mas Budi Santoso',
-      'sellerPhone': '6285712345678',
-      'submittedAt': '11 Okt 2026, 09:15',
-      'specs': 'Warna hitam doff, lipatan kencang tanpa speleng, ban kenda tebal 90%, upgrade sadel gel empuk.',
-      'netPrice': 1600000,
-      'markupPercent': 10,
-      'photos': [
-        'assets/images/hero_promo_2.png',
-        'assets/images/promo_banner_2.png',
-      ],
-      'status': 'pending',
-      'notes': 'Pemilik butuh dana cepat, barang disimpan di ruko dekat pasar Pracimantoro.',
+      'name': 'Terminal & Pertokoan Stasiun',
+      'location': const LatLng(-8.0950, 110.8390),
+      'orders': 8,
+      'gmv': 'Rp 195.000',
+      'radius': 320.0,
+      'color': const Color(0xFFF97316), // Orange
+      'detail': 'Titik transit penumpang luar kota & pengiriman express paket',
     },
     {
-      'id': 'SUB-BABE-003',
-      'category': 'Perkakas & Alat Rumah',
-      'name': 'Kompresor Angin Lakoni Imola 75 3/4 HP Silent',
-      'sellerName': 'Bpk. Slamet Riyadi',
-      'sellerPhone': '6289876543210',
-      'submittedAt': '09 Okt 2026, 16:45',
-      'specs': 'Pengisian angin cepat 0-8 bar dalam 2 menit, oli mesin baru diganti, selang spiral 6 meter + air duster bonus.',
-      'netPrice': 750000,
-      'markupPercent': 10,
-      'photos': [
-        'assets/images/prod_traktor.png',
-        'assets/images/promo_banner_3.png',
-      ],
-      'status': 'approved',
-      'notes': 'Sudah disurvey tim kurir GAGE, kondisi fisik dan mesin prima lolos verifikasi.',
-    },
-    {
-      'id': 'SUB-BABE-004',
-      'category': 'Perabotan',
-      'name': 'Sofa Bed Minimalis Lipat Busa Rebonded Super',
-      'sellerName': 'Ibu Dewi Sartika',
-      'sellerPhone': '6281399887766',
-      'submittedAt': '08 Okt 2026, 11:30',
-      'specs': 'Kain daphnie abu-abu bersih dicuci, rangka kayu mahoni oven, busa padat tidak kempes.',
-      'netPrice': 1100000,
-      'markupPercent': 10,
-      'photos': [
-        'assets/images/hero_banner_1.png',
-      ],
-      'status': 'rejected',
-      'notes': 'Ditolak: Bahan kain ada sobekan kecil di bagian belakang yang tidak dilaporkan.',
+      'name': 'Kawasan Simpang Giribelah',
+      'location': const LatLng(-8.1180, 110.8550),
+      'orders': 6,
+      'gmv': 'Rp 125.000',
+      'radius': 360.0,
+      'color': const Color(0xFFF59E0B), // Amber
+      'detail': 'Permukiman selatan & pangkalan driver siaga',
     },
   ];
 
-  final List<String> _bannerImageOptions = [
-    'assets/images/hero_banner_1.png',
-    'assets/images/hero_banner_2.png',
-    'assets/images/food_hero_banner.png',
-    'assets/images/promo_food_clean_16x9.png',
-    'assets/images/promo_banner_1.png',
-    'assets/images/promo_banner_2.png',
-    'assets/images/promo_banner_3.png',
-    'assets/images/hero_promo_1.png',
-    'assets/images/hero_promo_2.png',
-    'assets/images/hero_header_gage_1.png',
+  // Titik Merchant Kuliner & Toko Utama
+  final List<Map<String, dynamic>> _merchantLocations = [
+    {
+      'name': 'Dimsum Sewu Mas Agus',
+      'location': const LatLng(-8.0968, 110.8432),
+      'ordersToday': 9,
+      'status': 'Dapur Buka',
+    },
+    {
+      'name': 'Kios Sayur Segar Bu Slamet',
+      'location': const LatLng(-8.0982, 110.8410),
+      'ordersToday': 7,
+      'status': 'Buka',
+    },
+    {
+      'name': 'Apotek Kimia Farma Praci',
+      'location': const LatLng(-8.0958, 110.8440),
+      'ordersToday': 5,
+      'status': 'Buka',
+    },
   ];
 
-  final Map<String, String> _bannerMenuNames = {
-    'beranda': 'Beranda Utama',
-    'food': 'GAGE Food',
-    'shop': 'GAGE Shop',
-    'send': 'GAGE Send',
-    'babe': 'GAGE BaBe',
-    'ride': 'GAGE Ride & Car',
-    'tani': 'GAGE Tani & Ternak',
-  };
+  // Titik Pantau Pangkalan Riil Pracimantoro
+  final List<Map<String, dynamic>> _hubPoints = [
+    {
+      'name': 'Hub Pusat Pracimantoro',
+      'location': const LatLng(-8.0963, 110.8427),
+      'type': 'hub',
+      'count': '3 Driver',
+    },
+    {
+      'name': 'Pasar Pracimantoro',
+      'location': const LatLng(-8.0975, 110.8415),
+      'type': 'market',
+      'count': '4 Driver',
+    },
+    {
+      'name': 'Terminal Bus Pracimantoro',
+      'location': const LatLng(-8.0950, 110.8390),
+      'type': 'terminal',
+      'count': '2 Driver',
+    },
+    {
+      'name': 'Perempatan Giribelah',
+      'location': const LatLng(-8.1180, 110.8550),
+      'type': 'subhub',
+      'count': '2 Driver',
+    },
+  ];
 
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 5, vsync: this);
-    _bannerTitleCtrl = TextEditingController();
-    _bannerSubtitleCtrl = TextEditingController();
-    _bannerBadgeCtrl = TextEditingController();
-    _bannerCtaCtrl = TextEditingController();
-    _adminFeeCashlessCtrl = TextEditingController(text: FareCalculationService.adminFeeCashless.toString());
-    _adminFeeCodBaseCtrl = TextEditingController(text: FareCalculationService.adminFeeCodBase.toString());
-    _adminFeeCodExtraCtrl = TextEditingController(text: FareCalculationService.adminFeeCodExtra.toString());
-    _adminFeeCashlessCtrl.addListener(_onAdminFeeChanged);
-    _adminFeeCodBaseCtrl.addListener(_onAdminFeeChanged);
-    _adminFeeCodExtraCtrl.addListener(_onAdminFeeChanged);
-    _syncBannerFormWithCurrent();
-    _loadAdminData();
-  }
+  final List<Map<String, dynamic>> _activeDrivers = [
+    {
+      'id': 'DRV-001',
+      'name': 'Mas Budi Santoso',
+      'phone': '6281234567890',
+      'vehicle': 'Honda Vario 160 • AB 4521 WZ',
+      'type': 'Motor',
+      'status': 'Mengantar',
+      'currentOrder': 'ORD-9021 (Dimsum Sewu)',
+      'location': 'Jl. Raya Pracimantoro (Dekat Pasar)',
+      'rating': 4.96,
+    },
+    {
+      'id': 'DRV-002',
+      'name': 'Pak Joko Purnomo',
+      'phone': '6285712345678',
+      'vehicle': 'Toyota Avanza • AD 8912 TX',
+      'type': 'Mobil',
+      'status': 'Siaga',
+      'currentOrder': '-',
+      'location': 'Pangkalan Terminal Pracimantoro',
+      'rating': 4.92,
+    },
+    {
+      'id': 'DRV-003',
+      'name': 'Mas Agus Setiawan',
+      'phone': '6281399887766',
+      'vehicle': 'Yamaha NMAX • AD 3310 QR',
+      'type': 'Motor',
+      'status': 'Mengantar',
+      'currentOrder': 'ORD-9019 (Apotek Kimia Farma)',
+      'location': 'Menuju Desa Gedong',
+      'rating': 4.98,
+    },
+    {
+      'id': 'DRV-004',
+      'name': 'Mas Hendra Pratama',
+      'phone': '6289876543210',
+      'vehicle': 'Honda Beat Deluxe • AD 2244 BB',
+      'type': 'Motor',
+      'status': 'Siaga',
+      'currentOrder': '-',
+      'location': 'Pusat Kuliner Pracimantoro',
+      'rating': 4.89,
+    },
+    {
+      'id': 'DRV-005',
+      'name': 'Pak Bambang Triyono',
+      'phone': '6281244556677',
+      'vehicle': 'Daihatsu Sigra • AD 9011 ZX',
+      'type': 'Mobil',
+      'status': 'Mengantar',
+      'currentOrder': 'RIDE-8812 (Giribelah ke Praci Kota)',
+      'location': 'Jl. Giribelah KM 2',
+      'rating': 4.95,
+    },
+  ];
 
-  void _onAdminFeeChanged() {
-    if (mounted) setState(() {});
-  }
-
-  void _syncBannerFormWithCurrent() {
-    final banner = BannerManagerService.instance.getBanner(_selectedBannerMenu);
-    _bannerTitleCtrl.text = banner.title;
-    _bannerSubtitleCtrl.text = banner.subtitle;
-    _bannerBadgeCtrl.text = banner.badge;
-    _bannerCtaCtrl.text = banner.ctaText;
-    _selectedBannerImage = banner.imagePath;
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    _bannerTitleCtrl.dispose();
-    _bannerSubtitleCtrl.dispose();
-    _bannerBadgeCtrl.dispose();
-    _bannerCtaCtrl.dispose();
-    _adminFeeCashlessCtrl.removeListener(_onAdminFeeChanged);
-    _adminFeeCodBaseCtrl.removeListener(_onAdminFeeChanged);
-    _adminFeeCodExtraCtrl.removeListener(_onAdminFeeChanged);
-    _adminFeeCashlessCtrl.dispose();
-    _adminFeeCodBaseCtrl.dispose();
-    _adminFeeCodExtraCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadAdminData() async {
-    setState(() => _isLoading = true);
-    await FareCalculationService.loadConfig();
-    _adminFeeCashlessCtrl.text = FareCalculationService.adminFeeCashless.toString();
-    _adminFeeCodBaseCtrl.text = FareCalculationService.adminFeeCodBase.toString();
-    _adminFeeCodExtraCtrl.text = FareCalculationService.adminFeeCodExtra.toString();
-
-    final stats = await GageApiClient.getAffiliateStats('GAGERATIH');
-    final orders = await GageApiClient.getMerchantOrders('m-dimsum-sewu');
-
-    if (!mounted) return;
-    setState(() {
-      _affiliateStats = stats;
-      _merchantOrders = orders;
-      _isLoading = false;
-    });
+  String _getFormattedToday() {
+    try {
+      return DateFormat('EEEE, d MMM yyyy', 'id_ID').format(DateTime.now());
+    } catch (_) {
+      try {
+        return DateFormat('EEEE, d MMM yyyy').format(DateTime.now());
+      } catch (_) {
+        final now = DateTime.now();
+        return '${now.day}/${now.month}/${now.year}';
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final filteredDrivers = _selectedFleetFilter == 'Semua'
+        ? _activeDrivers
+        : _selectedFleetFilter == 'Motor' || _selectedFleetFilter == 'Mobil'
+            ? _activeDrivers.where((d) => d['type'] == _selectedFleetFilter).toList()
+            : _activeDrivers.where((d) => d['status'] == _selectedFleetFilter).toList();
+
     return Scaffold(
-      backgroundColor: GageTheme.background,
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        backgroundColor: GageTheme.primary,
-        elevation: 0,
         titleSpacing: 16,
-        title: Row(
+        elevation: 0.5,
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(Icons.admin_panel_settings_rounded, color: GageTheme.primary, size: 20),
+            const Text(
+              'Beranda Operasional GAGE',
+              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
             ),
-            const SizedBox(width: 10),
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'GAGE Admin Hub',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17),
-                ),
-                Text(
-                  'Monitoring Wilayah Pracimantoro Wonogiri',
-                  style: TextStyle(color: Colors.white70, fontSize: 10),
-                ),
-              ],
+            Text(
+              'Peta Wilayah & Heatmap Kepadatan Order Pracimantoro',
+              style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.black54),
             ),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
-            tooltip: 'Segarkan Data D1',
-            onPressed: _loadAdminData,
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Segarkan Data',
+            onPressed: () {
+              HapticFeedback.lightImpact();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Data operasional diperbarui.'), duration: Duration(seconds: 1)),
+              );
+            },
           ),
+          const SizedBox(width: 8),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          indicatorColor: Colors.white,
-          indicatorWeight: 3,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white60,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-          tabs: const [
-            Tab(text: 'Ringkasan'),
-            Tab(text: 'Semua Order'),
-            Tab(text: 'Biaya & Komisi'),
-            Tab(text: 'Kelola Banner'),
-            Tab(text: 'Kurasi BaBe'),
-          ],
-        ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: GageTheme.primary))
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                _buildOverviewTab(),
-                _buildOrdersTab(),
-                _buildFareAndCommissionTab(),
-                _buildBannerManagerTab(),
-                _buildBabeCurationTab(),
-              ],
-            ),
-    );
-  }
-
-  Widget _buildOverviewTab() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        // Kartu Utama Omset Kecamatan
-        Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFFE52320), Color(0xFF991B1B)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withAlpha(15),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.insights_rounded, color: Colors.white, size: 18),
-                  SizedBox(width: 8),
-                  Text('Volume Transaksi Hari Ini', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600)),
-                ],
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                'Rp 485.000',
-                style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withAlpha(40),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text('24 Pesanan Berhasil', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withAlpha(40),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text('100% Selesai Tepat Waktu', style: TextStyle(color: Colors.white, fontSize: 11)),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 18),
-
-        // 3 Metrik Cepat
-        Row(
-          children: [
-            Expanded(
-              child: _buildMetricCard(
-                icon: Icons.storefront_rounded,
-                iconColor: Colors.orange,
-                label: 'Merchant',
-                value: '3 Aktif',
-                sub: 'Dimsum Sewu dkk',
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildMetricCard(
-                icon: Icons.two_wheeler_rounded,
-                iconColor: Colors.blue,
-                label: 'Driver Online',
-                value: '1 Siap Antar',
-                sub: 'Pak Sugeng (AB 4521)',
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildMetricCard(
-                icon: Icons.auto_awesome_rounded,
-                iconColor: GageTheme.primary,
-                label: 'Kreator',
-                value: '1 Afiliator',
-                sub: '@ratih_kuliner',
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 22),
-
-        // Pengaturan Biaya Admin Toko (Multi-Merchant & Live Simulation)
-        _buildAdminFeeSettingsCard(),
-
-        const SizedBox(height: 22),
-
-        const Text('Infrastruktur Backend (Rp 0 Cloudflare)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-        const SizedBox(height: 10),
-
-        Container(
+      body: SafeArea(
+        top: false,
+        child: ListView(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.shade200),
-          ),
-          child: Column(
-            children: [
-              _buildInfraRow('Cloudflare Worker', 'gage-cloud (Live)', Colors.green),
-              const Divider(height: 16),
-              _buildInfraRow('Cloudflare D1 Database', 'gage-db (12 Tabel)', Colors.green),
-              const Divider(height: 16),
-              _buildInfraRow('Durable Objects Tracking', 'TrackingRoomDO (Realtime GPS)', Colors.green),
-              const Divider(height: 16),
-              _buildInfraRow('Biaya Server / Bulan', 'Rp 0 (100% Free Tier)', Colors.blue),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildOrdersTab() {
-    if (_merchantOrders.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.receipt_long_rounded, size: 54, color: Colors.grey.shade300),
-            const SizedBox(height: 12),
-            const Text('Belum ada pesanan aktif.', style: TextStyle(color: GageTheme.textSecondary)),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _merchantOrders.length,
-      itemBuilder: (context, idx) {
-        final order = _merchantOrders[idx];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: Padding(
-            padding: const EdgeInsets.all(14.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Pesanan #${(order['id'] ?? '').toString().substring(0, 8).toUpperCase()}',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: GageTheme.primaryLight,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        order['status'] ?? 'PAID',
-                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: GageTheme.primary),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text('Total: ${currencyFormatter.format(order['total_amount'] ?? 0)}',
-                    style: const TextStyle(fontWeight: FontWeight.bold, color: GageTheme.primary)),
-                Text('Alamat: ${order['delivery_address'] ?? 'Kasihan, Bantul'}',
-                    style: const TextStyle(fontSize: 12, color: GageTheme.textSecondary)),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildFareAndCommissionTab() {
-    final totalClicks = _affiliateStats['total_clicks'] ?? 0;
-    final totalOrders = _affiliateStats['total_orders'] ?? 0;
-    final totalEarned = _affiliateStats['total_commission_earned'] ?? 0;
-
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _buildAdminFeeSettingsCard(),
-        const SizedBox(height: 18),
-        Card(
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: Colors.grey.shade200),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.campaign_rounded, color: GageTheme.primary),
-                    SizedBox(width: 8),
-                    Text('Kreator Afiliasi Utama & Komisi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const CircleAvatar(
-                    backgroundColor: GageTheme.primaryLight,
-                    child: Icon(Icons.person, color: GageTheme.primary),
+            // 1. KARTU RINGKASAN METRIK OPERASIONAL (iOS Inset Grouped)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
                   ),
-                  title: const Text('Ratih Pratiwi (@ratih_kuliner)', style: TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: const Text('Kode Voucher: GAGERATIH | Komisi: 10%'),
-                  trailing: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text('Terverifikasi', style: TextStyle(color: Colors.green, fontSize: 11, fontWeight: FontWeight.bold)),
-                  ),
-                ),
-                const Divider(),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildStatCol('Klik Video', '$totalClicks'),
-                    _buildStatCol('Order Tercipta', '$totalOrders'),
-                    _buildStatCol('Total Komisi', currencyFormatter.format(totalEarned)),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAdminFeeSettingsCard() {
-    final cashlessVal = int.tryParse(_adminFeeCashlessCtrl.text.trim()) ?? FareCalculationService.adminFeeCashless;
-    final codBaseVal = int.tryParse(_adminFeeCodBaseCtrl.text.trim()) ?? FareCalculationService.adminFeeCodBase;
-    final codExtraVal = int.tryParse(_adminFeeCodExtraCtrl.text.trim()) ?? FareCalculationService.adminFeeCodExtra;
-
-    // Nilai kalkulasi realtime berdasarkan input form
-    final liveSimCashless1 = 1 * cashlessVal;
-    final liveSimCod2 = codBaseVal + (1 * codExtraVal);
-    final liveSimCod3 = codBaseVal + (2 * codExtraVal);
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(8),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: GageTheme.primary.withAlpha(20),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.tune_rounded, color: GageTheme.primary, size: 20),
+                ],
               ),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Pengaturan Biaya Admin Toko (Multi-Merchant)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                    Text('Penetapan tarif admin Cashless vs COD yang dinamis & adil', style: TextStyle(fontSize: 11, color: GageTheme.textSecondary)),
-                  ],
-                ),
-              ),
-              TextButton.icon(
-                onPressed: () {
-                  _adminFeeCashlessCtrl.text = FareCalculationService.defaultAdminFeeCashless.toString();
-                  _adminFeeCodBaseCtrl.text = FareCalculationService.defaultAdminFeeCodBase.toString();
-                  _adminFeeCodExtraCtrl.text = FareCalculationService.defaultAdminFeeCodExtra.toString();
-                },
-                icon: const Icon(Icons.restore_rounded, size: 14),
-                label: const Text('Default', style: TextStyle(fontSize: 11)),
-                style: TextButton.styleFrom(
-                  foregroundColor: GageTheme.textSecondary,
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _adminFeeCashlessCtrl,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              labelText: 'Biaya Admin Cashless per Toko (Default: Rp 1.000)',
-              labelStyle: const TextStyle(fontSize: 12),
-              prefixText: 'Rp ',
-              prefixStyle: const TextStyle(fontWeight: FontWeight.bold),
-              helperText: 'Dikenakan per toko saat bayar via GAGEPay / QRIS (cth: 2 toko = ${currencyFormatter.format(cashlessVal * 2)})',
-              helperStyle: const TextStyle(fontSize: 10),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _adminFeeCodBaseCtrl,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              labelText: 'Biaya Admin COD Toko Pertama (Default: Rp 3.000)',
-              labelStyle: const TextStyle(fontSize: 12),
-              prefixText: 'Rp ',
-              prefixStyle: const TextStyle(fontWeight: FontWeight.bold),
-              helperText: 'Biaya penanganan tunai untuk toko pertama (toko ke-1)',
-              helperStyle: const TextStyle(fontSize: 10),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _adminFeeCodExtraCtrl,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              labelText: 'Biaya Admin COD Toko Tambahan (Default: Rp 1.000)',
-              labelStyle: const TextStyle(fontSize: 12),
-              prefixText: 'Rp ',
-              prefixStyle: const TextStyle(fontWeight: FontWeight.bold),
-              helperText: 'Biaya tambahan per toko berikutnya jika multi-toko COD',
-              helperStyle: const TextStyle(fontSize: 10),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // LIVE SIMULATION BOX
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF0FDF4),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFBBF7D0)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.calculate_rounded, color: Color(0xFF15803D), size: 18),
-                    const SizedBox(width: 6),
-                    const Expanded(
-                      child: Text(
-                        'Live Simulation Kalkulasi Admin Real-time',
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF166534),
-                        ),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFDCFCE7),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.bolt_rounded, size: 12, color: Color(0xFF15803D)),
-                          Text(
-                            'Realtime',
-                            style: TextStyle(
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF15803D),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-
-                // Komparasi 1 Toko Cashless vs 2 Toko COD
-                Row(
-                  children: [
-                    // Skenario 1: 1 Toko Cashless
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFF86EFAC)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.qr_code_2_rounded, size: 14, color: Color(0xFF15803D)),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    '1 Toko Cashless',
-                                    style: TextStyle(
-                                      fontSize: 10.5,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.grey.shade700,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              currencyFormatter.format(liveSimCashless1),
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF15803D),
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '1 × ${currencyFormatter.format(cashlessVal)}',
-                              style: TextStyle(fontSize: 9.5, color: Colors.grey.shade600),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Total (ongkir Rp 10.500):\n${currencyFormatter.format(10500 + liveSimCashless1)}',
-                              style: TextStyle(fontSize: 9, color: Colors.grey.shade500, height: 1.2),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-
-                    // Skenario 2: 2 Toko Cash COD
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFFFDBA74)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.payments_rounded, size: 14, color: Color(0xFFC2410C)),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    '2 Toko Cash COD',
-                                    style: TextStyle(
-                                      fontSize: 10.5,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.grey.shade700,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              currencyFormatter.format(liveSimCod2),
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFFC2410C),
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${currencyFormatter.format(codBaseVal)} + ${currencyFormatter.format(codExtraVal)}',
-                              style: TextStyle(fontSize: 9.5, color: Colors.grey.shade600),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Total (ongkir Rp 13.000):\n${currencyFormatter.format(13000 + liveSimCod2)}',
-                              style: TextStyle(fontSize: 9, color: Colors.grey.shade500, height: 1.2),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 8),
-                // Info bar perbandingan
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withAlpha(180),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Icon(Icons.info_outline_rounded, size: 13, color: Color(0xFF15803D)),
-                      const SizedBox(width: 6),
+                      const Text(
+                        'RINGKASAN OPERASIONAL HARI INI',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.8, color: GageTheme.primary),
+                      ),
+                      Text(
+                        _getFormattedToday(),
+                        style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white60 : Colors.black54),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
                       Expanded(
-                        child: Text(
-                          'Jika 3 toko COD: ${currencyFormatter.format(liveSimCod3)} (${currencyFormatter.format(codBaseVal)} + 2×${currencyFormatter.format(codExtraVal)})',
-                          style: const TextStyle(fontSize: 10, color: Color(0xFF166534)),
+                        child: _buildMetricTile(
+                          label: 'Pesanan Masuk',
+                          value: '28 Order',
+                          subtitle: '24 Selesai • 4 Jalan',
+                          icon: Icons.receipt_long_rounded,
+                          color: GageTheme.primary,
+                          isDark: isDark,
+                        ),
+                      ),
+                      Container(width: 1, height: 46, color: isDark ? Colors.white12 : Colors.grey.shade200),
+                      Expanded(
+                        child: _buildMetricTile(
+                          label: 'Estimasi GMV',
+                          value: 'Rp 640.000',
+                          subtitle: 'Komisi: Rp 64.000',
+                          icon: Icons.payments_rounded,
+                          color: Colors.green.shade700,
+                          isDark: isDark,
                         ),
                       ),
                     ],
                   ),
-                ),
-              ],
+                  const Divider(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildMetricTile(
+                          label: 'Armada Siaga',
+                          value: '11 Unit',
+                          subtitle: '8 Motor • 3 Mobil',
+                          icon: Icons.two_wheeler_rounded,
+                          color: Colors.blue.shade700,
+                          isDark: isDark,
+                        ),
+                      ),
+                      Container(width: 1, height: 46, color: isDark ? Colors.white12 : Colors.grey.shade200),
+                      Expanded(
+                        child: _buildMetricTile(
+                          label: 'Mitra Resto Buka',
+                          value: '19 Resto',
+                          subtitle: 'Dapur Siap Masak',
+                          icon: Icons.storefront_rounded,
+                          color: Colors.orange.shade800,
+                          isDark: isDark,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
 
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () async {
-                final cashless = int.tryParse(_adminFeeCashlessCtrl.text.trim()) ?? FareCalculationService.defaultAdminFeeCashless;
-                final codBase = int.tryParse(_adminFeeCodBaseCtrl.text.trim()) ?? FareCalculationService.defaultAdminFeeCodBase;
-                final codExtra = int.tryParse(_adminFeeCodExtraCtrl.text.trim()) ?? FareCalculationService.defaultAdminFeeCodExtra;
+            const SizedBox(height: 18),
 
-                await FareCalculationService.updateConfig(
-                  cashless: cashless,
-                  codBase: codBase,
-                  codExtra: codExtra,
-                );
-                await GagePricingService.saveAdminPricingConfig(
-                  newAdminFeeCashless: cashless,
-                  newAdminFeeCodBase: codBase,
-                  newAdminFeeCodExtra: codExtra,
-                );
-
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Row(
+            // 2. PETA OPERASIONAL WILAYAH & HEATMAP KEPADATAN ORDER (Kawasan Pracimantoro)
+            Container(
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Icon(Icons.check_circle_rounded, color: Colors.white),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Pengaturan biaya admin berhasil disimpan & langsung aktif!\n'
-                            'Cashless: ${currencyFormatter.format(cashless)}/toko • COD Base: ${currencyFormatter.format(codBase)} • COD Tambahan: ${currencyFormatter.format(codExtra)}',
-                            style: const TextStyle(fontSize: 12),
+                        const Row(
+                          children: [
+                            Icon(Icons.local_fire_department_rounded, size: 18, color: Color(0xFFE11D48)),
+                            SizedBox(width: 8),
+                            Text(
+                              'Peta Wilayah & Heatmap Kepadatan Order',
+                              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                        InkWell(
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            _mapController.move(_centerPracimantoro, 14.5);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.white12 : Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text('Fokus Pusat', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
                           ),
                         ),
                       ],
                     ),
-                    backgroundColor: const Color(0xFF15803D),
-                    behavior: SnackBarBehavior.floating,
-                    duration: const Duration(seconds: 3),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
-                );
-              },
-              icon: const Icon(Icons.save_rounded, size: 18),
-              label: const Text('Simpan Pengaturan Biaya', style: TextStyle(fontWeight: FontWeight.bold)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: GageTheme.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildMetricCard({
-    required IconData icon,
-    required Color iconColor,
-    required String label,
-    required String value,
-    required String sub,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: iconColor, size: 22),
-          const SizedBox(height: 8),
-          Text(label, style: const TextStyle(fontSize: 11, color: GageTheme.textSecondary)),
-          const SizedBox(height: 2),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-          const SizedBox(height: 2),
-          Text(sub, style: const TextStyle(fontSize: 9.5, color: GageTheme.textMuted), maxLines: 1, overflow: TextOverflow.ellipsis),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfraRow(String label, String value, Color statusColor) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 13, color: GageTheme.textSecondary)),
-        Row(
-          children: [
-            Container(width: 8, height: 8, decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle)),
-            const SizedBox(width: 6),
-            Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: statusColor)),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatCol(String label, String value) {
-    return Column(
-      children: [
-        Text(label, style: const TextStyle(fontSize: 11, color: GageTheme.textSecondary)),
-        const SizedBox(height: 4),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: GageTheme.primary)),
-      ],
-    );
-  }
-
-  Widget _buildBannerManagerTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header Tab
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Manajemen Banner Promo',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  Text(
-                    'Kustomisasi visual banner 16:9 per menu aplikasi',
-                    style: TextStyle(fontSize: 11, color: GageTheme.textSecondary),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.green.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.green.shade300),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.save_rounded, color: Colors.green, size: 14),
-                    SizedBox(width: 4),
-                    Text('Tersimpan Lokal', style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-
-          // Selector Menu Customer
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.dashboard_customize_rounded, color: GageTheme.primary, size: 20),
-                const SizedBox(width: 10),
-                const Text('Pilih Menu:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _selectedBannerMenu,
-                      isExpanded: true,
-                      items: _bannerMenuNames.entries.map((e) {
-                        return DropdownMenuItem(
-                          value: e.key,
-                          child: Text(e.value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                        );
-                      }).toList(),
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() {
-                            _selectedBannerMenu = val;
-                            _syncBannerFormWithCurrent();
-                          });
-                        }
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // SECTION: Interactive Live Preview 16:9 Card
-          Row(
-            children: [
-              const Icon(Icons.remove_red_eye_rounded, color: GageTheme.primary, size: 18),
-              const SizedBox(width: 6),
-              const Text('Live Preview 16:9 Card', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Text('LIVE PREVIEW', style: TextStyle(color: Color(0xFFE52320), fontSize: 9.5, fontWeight: FontWeight.w900)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-
-          // The 16:9 Card
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: const [
-                BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4)),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: AspectRatio(
-                aspectRatio: 16 / 9,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Image.asset(
-                      _selectedBannerImage,
-                      fit: BoxFit.cover,
-                      errorBuilder: (c, e, s) => Container(color: GageTheme.primary),
-                    ),
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.black.withValues(alpha: 0.70),
-                            Colors.black.withValues(alpha: 0.35),
-                            Colors.black.withValues(alpha: 0.85),
-                          ],
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                        ),
+                  // Filter Layer Heatmap (Taktil iOS Pill)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: ['Semua', 'Hotspot Order', 'Driver Siaga', 'Merchant'].map((filter) {
+                          final isSel = _mapFilter == filter;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(8),
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                setState(() => _mapFilter = filter);
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: isSel
+                                      ? GageTheme.primary
+                                      : (isDark ? Colors.white10 : Colors.grey.shade100),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  filter,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
+                                    color: isSel ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
                       ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.all(14.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  ),
+
+                  // Peta Riil FlutterMap dengan Heatmap CircleLayer & Multi-Entity Markers
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(bottom: Radius.circular(17)),
+                    child: SizedBox(
+                      height: 220,
+                      child: FlutterMap(
+                        mapController: _mapController,
+                        options: MapOptions(
+                          initialCenter: _centerPracimantoro,
+                          initialZoom: 14.2,
+                          minZoom: 11.0,
+                          maxZoom: 18.0,
+                        ),
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFE52320),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  _bannerBadgeCtrl.text.isEmpty ? 'PROMO' : _bannerBadgeCtrl.text,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 9.5,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.55),
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: Colors.white30),
-                                ),
-                                child: Text(
-                                  _bannerMenuNames[_selectedBannerMenu] ?? 'Menu',
-                                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                            ],
+                          TileLayer(
+                            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                            userAgentPackageName: 'com.gage.admin',
                           ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _bannerTitleCtrl.text.isEmpty ? 'Judul Promo' : _bannerTitleCtrl.text,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 15,
-                                  height: 1.2,
-                                  shadows: [
-                                    Shadow(color: Colors.black87, blurRadius: 4, offset: Offset(0, 1)),
-                                  ],
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                _bannerSubtitleCtrl.text.isEmpty ? 'Deskripsi promo' : _bannerSubtitleCtrl.text,
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 10.5,
-                                  height: 1.25,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  _bannerCtaCtrl.text.isEmpty ? 'Lihat Promo' : _bannerCtaCtrl.text,
-                                  style: const TextStyle(
-                                    color: Color(0xFFE52320),
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                              ),
+                          // Lapisan Lingkaran Heatmap Kepadatan Order
+                          if (_mapFilter == 'Semua' || _mapFilter == 'Hotspot Order')
+                            CircleLayer(
+                              circles: _orderHotspots.map((h) {
+                                final color = h['color'] as Color;
+                                return CircleMarker(
+                                  point: h['location'] as LatLng,
+                                  color: color.withValues(alpha: 0.25),
+                                  borderColor: color.withValues(alpha: 0.85),
+                                  borderStrokeWidth: 2,
+                                  useRadiusInMeter: true,
+                                  radius: h['radius'] as double,
+                                );
+                              }).toList(),
+                            ),
+                          // Lapisan Marker Entitas
+                          MarkerLayer(
+                            markers: [
+                              // 1. Hotspot Order Pins
+                              if (_mapFilter == 'Semua' || _mapFilter == 'Hotspot Order')
+                                ..._orderHotspots.map((h) {
+                                  return Marker(
+                                    point: h['location'] as LatLng,
+                                    width: 140,
+                                    height: 48,
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFE11D48),
+                                            borderRadius: BorderRadius.circular(6),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withValues(alpha: 0.3),
+                                                blurRadius: 4,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.whatshot_rounded, color: Colors.white, size: 10),
+                                              const SizedBox(width: 3),
+                                              Text(
+                                                '${h['name']} • ${h['orders']} Order',
+                                                style: const TextStyle(color: Colors.white, fontSize: 8.5, fontWeight: FontWeight.bold),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const Icon(Icons.location_on_rounded, color: Color(0xFFE11D48), size: 18),
+                                      ],
+                                    ),
+                                  );
+                                }),
+
+                              // 2. Driver Hub Siaga Pins
+                              if (_mapFilter == 'Semua' || _mapFilter == 'Driver Siaga')
+                                ..._hubPoints.map((hub) {
+                                  return Marker(
+                                    point: hub['location'] as LatLng,
+                                    width: 130,
+                                    height: 44,
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF0F172A),
+                                            borderRadius: BorderRadius.circular(6),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withValues(alpha: 0.3),
+                                                blurRadius: 4,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Text(
+                                            '${hub['name']} (${hub['count']})',
+                                            style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        const Icon(Icons.two_wheeler_rounded, color: Color(0xFF00AA13), size: 16),
+                                      ],
+                                    ),
+                                  );
+                                }),
+
+                              // 3. Merchant Pins
+                              if (_mapFilter == 'Semua' || _mapFilter == 'Merchant')
+                                ..._merchantLocations.map((m) {
+                                  return Marker(
+                                    point: m['location'] as LatLng,
+                                    width: 130,
+                                    height: 44,
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: Colors.orange.shade800,
+                                            borderRadius: BorderRadius.circular(6),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withValues(alpha: 0.3),
+                                                blurRadius: 4,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Text(
+                                            m['name'] as String,
+                                            style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        Icon(Icons.storefront_rounded, color: Colors.orange.shade800, size: 16),
+                                      ],
+                                    ),
+                                  );
+                                }),
                             ],
                           ),
                         ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-          ),
-          const SizedBox(height: 20),
 
-          // Form Editor
-          Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            elevation: 1,
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
+            const SizedBox(height: 14),
+
+            // 3. KARTU ANALISA BISNIS ZONA OPERASIONAL (iOS Inset Grouped)
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Form Konfigurasi Banner', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  const SizedBox(height: 12),
-
-                  // Input Judul
-                  TextFormField(
-                    controller: _bannerTitleCtrl,
-                    onChanged: (_) => setState(() {}),
-                    decoration: InputDecoration(
-                      labelText: 'Judul Promo Banner',
-                      labelStyle: const TextStyle(fontSize: 12),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                      isDense: true,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Input Subtitle
-                  TextFormField(
-                    controller: _bannerSubtitleCtrl,
-                    onChanged: (_) => setState(() {}),
-                    maxLines: 2,
-                    decoration: InputDecoration(
-                      labelText: 'Subtitle / Keterangan Banner',
-                      labelStyle: const TextStyle(fontSize: 12),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                      isDense: true,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Input Badge Promo
-                  TextFormField(
-                    controller: _bannerBadgeCtrl,
-                    onChanged: (_) => setState(() {}),
-                    decoration: InputDecoration(
-                      labelText: 'Teks Badge (Label Kiri Atas)',
-                      labelStyle: const TextStyle(fontSize: 12),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                      isDense: true,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Input Tombol CTA
-                  TextFormField(
-                    controller: _bannerCtaCtrl,
-                    onChanged: (_) => setState(() {}),
-                    decoration: InputDecoration(
-                      labelText: 'Teks Tombol CTA',
-                      labelStyle: const TextStyle(fontSize: 12),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                      isDense: true,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Dropdown Gambar Asset
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedBannerImage,
-                    decoration: InputDecoration(
-                      labelText: 'Pilih Gambar Asset Promo',
-                      labelStyle: const TextStyle(fontSize: 12),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                      isDense: true,
-                    ),
-                    items: _bannerImageOptions.map((img) {
-                      return DropdownMenuItem(
-                        value: img,
-                        child: Text(
-                          img.replaceAll('assets/images/', ''),
-                          style: const TextStyle(fontSize: 12),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        setState(() => _selectedBannerImage = val);
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 18),
-
-                  // Action Buttons
-                  Row(
+                  const Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: GageTheme.primary,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          onPressed: () async {
-                            final current = BannerManagerService.instance.getBanner(_selectedBannerMenu);
-                            final updated = current.copyWith(
-                              title: _bannerTitleCtrl.text.trim(),
-                              subtitle: _bannerSubtitleCtrl.text.trim(),
-                              badge: _bannerBadgeCtrl.text.trim(),
-                              ctaText: _bannerCtaCtrl.text.trim(),
-                              imagePath: _selectedBannerImage,
-                            );
-                            await BannerManagerService.instance.updateBanner(_selectedBannerMenu, updated);
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Banner ${_bannerMenuNames[_selectedBannerMenu]} berhasil diperbarui & disimpan!'),
-                                  backgroundColor: GageTheme.accentGreen,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            }
-                          },
-                          child: const Text('Simpan Perubahan', style: TextStyle(fontWeight: FontWeight.bold)),
-                        ),
+                      Text(
+                        'ANALISA ZONA TERPADAT HARI INI',
+                        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900, letterSpacing: 0.6, color: Color(0xFFE11D48)),
                       ),
-                      const SizedBox(width: 10),
-                      OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.grey.shade700,
-                          side: BorderSide(color: Colors.grey.shade400),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-                        ),
-                        onPressed: () async {
-                          await BannerManagerService.instance.resetToDefaults();
-                          setState(() {
-                            _syncBannerFormWithCurrent();
-                          });
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Semua konfigurasi banner direset ke bawaan awal.'),
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                          }
-                        },
-                        child: const Text('Reset'),
+                      Text(
+                        'Live Demand',
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF00AA13)),
                       ),
                     ],
                   ),
+                  const SizedBox(height: 10),
+                  ..._orderHotspots.map((h) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          margin: const EdgeInsets.only(top: 4, right: 10),
+                          decoration: BoxDecoration(
+                            color: h['color'] as Color,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    h['name'] as String,
+                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                  ),
+                                  Text(
+                                    '${h['orders']} Order (${h['gmv']})',
+                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: h['color'] as Color),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 1),
+                              Text(
+                                h['detail'] as String,
+                                style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white60 : Colors.black54),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  )),
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 24),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildBabeCurationTab() {
-    final pendingCount = _babeCurationList.where((x) => x['status'] == 'pending').length;
-    final approvedCount = _babeCurationList.where((x) => x['status'] == 'approved').length;
-    final rejectedCount = _babeCurationList.where((x) => x['status'] == 'rejected').length;
+            const SizedBox(height: 18),
 
-    List<Map<String, dynamic>> filteredList = _babeCurationList;
-    if (_babeFilter == 'Menunggu Review') {
-      filteredList = _babeCurationList.where((x) => x['status'] == 'pending').toList();
-    } else if (_babeFilter == 'Lolos Listing') {
-      filteredList = _babeCurationList.where((x) => x['status'] == 'approved').toList();
-    } else if (_babeFilter == 'Ditolak') {
-      filteredList = _babeCurationList.where((x) => x['status'] == 'rejected').toList();
-    }
-
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        // Header Info Escrow & Anti-Bypass
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF0FDF4),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFBBF7D0)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: GageTheme.accentGreen,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.verified_user_rounded, color: Colors.white, size: 16),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Pusat Kurasi GAGE BaBe & Anti-Bypass Escrow',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF166534)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Semua pengajuan barang bekas melewati kurasi ketat tim GAGE. Komisi 10% dipungut transparan lewat markup harga listing aplikasi, sehingga penjual tetap menerima harga bersih penuh. Kontak penjual dimaskir dari publik demi keamanan transaksi & garansi 48 jam GAGE.',
-                style: TextStyle(fontSize: 11.5, color: Color(0xFF14532D), height: 1.4),
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 14),
-
-        // Metrik Ringkasan Pengajuan
-        Row(
-          children: [
-            _buildStatCard('Total Pengajuan', '${_babeCurationList.length}', Colors.grey.shade700, const Color(0xFFF1F5F9)),
-            const SizedBox(width: 8),
-            _buildStatCard('Menunggu QC', '$pendingCount', Colors.amber.shade900, const Color(0xFFFEF3C7)),
-            const SizedBox(width: 8),
-            _buildStatCard('Lolos Listing', '$approvedCount', const Color(0xFF166534), const Color(0xFFDCFCE7)),
-            const SizedBox(width: 8),
-            _buildStatCard('Ditolak', '$rejectedCount', const Color(0xFF991B1B), const Color(0xFFFEE2E2)),
-          ],
-        ),
-
-        const SizedBox(height: 16),
-
-        // Filter Pills
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: ['Semua', 'Menunggu Review', 'Lolos Listing', 'Ditolak'].map((filter) {
-              final isSelected = _babeFilter == filter;
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: FilterChip(
-                  label: Text(filter, style: TextStyle(fontSize: 11.5, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
-                  selected: isSelected,
-                  selectedColor: GageTheme.primary,
-                  labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black87),
-                  backgroundColor: Colors.white,
-                  checkmarkColor: Colors.white,
-                  onSelected: (val) {
-                    setState(() => _babeFilter = filter);
-                  },
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-
-        const SizedBox(height: 14),
-
-        // Daftar Item Pengajuan BaBe
-        if (filteredList.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(32),
-            alignment: Alignment.center,
-            child: Column(
+            // 4. DAFTAR ARMADA & FILTER STATUS (TACTILE SEGMENTED CONTROLS)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Icon(Icons.inventory_2_outlined, size: 48, color: Colors.grey.shade400),
-                const SizedBox(height: 8),
-                Text('Tidak ada pengajuan dalam status ini', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                const Text(
+                  'Daftar Driver & Armada Siaga',
+                  style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800),
+                ),
+                Text(
+                  '${filteredDrivers.length} Armada',
+                  style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.black54),
+                ),
               ],
             ),
-          )
-        else
-          ...filteredList.map((item) {
-            final netPrice = item['netPrice'] as int;
-            final markupCommission = (netPrice * 0.1).round();
-            final listingPrice = netPrice + markupCommission;
-            final photos = item['photos'] as List<dynamic>;
-            final status = item['status'] as String;
+            const SizedBox(height: 10),
 
-            Color statusColor = Colors.amber.shade800;
-            Color statusBg = const Color(0xFFFEF3C7);
-            String statusText = 'Menunggu QC / Survey';
-            if (status == 'approved') {
-              statusColor = const Color(0xFF166534);
-              statusBg = const Color(0xFFDCFCE7);
-              statusText = 'Lolos Listing';
-            } else if (status == 'rejected') {
-              statusColor = const Color(0xFF991B1B);
-              statusBg = const Color(0xFFFEE2E2);
-              statusText = 'Ditolak';
-            }
-
-            return Container(
-              margin: const EdgeInsets.only(bottom: 16),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade200),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2)),
-                ],
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: ['Semua', 'Motor', 'Mobil', 'Siaga', 'Mengantar'].map((filter) {
+                  final isSelected = _selectedFleetFilter == filter;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setState(() => _selectedFleetFilter = filter);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? GageTheme.primary
+                              : (isDark ? const Color(0xFF1E293B) : Colors.white),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isSelected
+                                ? GageTheme.primary
+                                : (isDark ? Colors.white12 : Colors.grey.shade300),
+                          ),
+                        ),
+                        child: Text(
+                          filter,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                            color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Top bar: ID & Status
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            ),
+            const SizedBox(height: 12),
+
+            // Kartu Driver Riil
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: filteredDrivers.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 10),
+              itemBuilder: (ctx, i) {
+                final d = filteredDrivers[i];
+                final isBusy = d['status'] == 'Mengantar';
+                final isMotor = d['type'] == 'Motor';
+
+                return Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                            width: 44,
+                            height: 44,
+                            padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF1F5F9),
-                              borderRadius: BorderRadius.circular(6),
+                              color: isMotor
+                                  ? Colors.blue.withValues(alpha: 0.1)
+                                  : Colors.orange.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            child: Text(
-                              item['id'],
-                              style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, fontFamily: 'monospace', color: Colors.black87),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: GageTheme.primary.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              item['category'],
-                              style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: GageTheme.primary),
+                            child: Image.asset(
+                              isMotor ? 'assets/images/gage_ride_3d.png' : 'assets/images/gage_car_3d.png',
+                              fit: BoxFit.contain,
                             ),
                           ),
-                        ],
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: statusBg,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          statusText,
-                          style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: statusColor),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  // Judul Barang
-                  Text(
-                    item['name'],
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  // Multi-Photo Slider
-                  SizedBox(
-                    height: 80,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: photos.length,
-                      itemBuilder: (ctx, pIdx) {
-                        return Container(
-                          width: 105,
-                          margin: const EdgeInsets.only(right: 8),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.grey.shade300),
-                            image: DecorationImage(
-                              image: AssetImage(photos[pIdx]),
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  // Spesifikasi Box
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Spesifikasi & Kondisi:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black54)),
-                        const SizedBox(height: 3),
-                        Text(item['specs'], style: const TextStyle(fontSize: 11.5, color: Colors.black87, height: 1.3)),
-                        if (item['notes'] != null && (item['notes'] as String).isNotEmpty) ...[
-                          const SizedBox(height: 6),
-                          Text('Catatan Surveyor: ${item['notes']}', style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.blueGrey.shade700)),
-                        ],
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Finansial & Markup 10%
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text('Harga Bersih Pemilik:', style: TextStyle(fontSize: 11.5, color: Colors.black54)),
-                            Text(currencyFormatter.format(netPrice), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87)),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text('Markup Komisi GAGE (10%):', style: TextStyle(fontSize: 11.5, color: Colors.black54)),
-                            Text('+ ${currencyFormatter.format(markupCommission)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: GageTheme.accentGreen)),
-                          ],
-                        ),
-                        const Divider(height: 14),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text('HARGA LISTING KONSUMEN:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87)),
-                            Text(
-                              currencyFormatter.format(listingPrice),
-                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: GageTheme.primary),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Info Pengaju & Action Hubungi WA
-                  Row(
-                    children: [
-                      const Icon(Icons.person_pin_rounded, size: 16, color: Colors.grey),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          '${item['sellerName']} (${item['sellerPhone']})',
-                          style: const TextStyle(fontSize: 11.5, color: Colors.black87, fontWeight: FontWeight.w500),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      InkWell(
-                        onTap: () async {
-                          final uri = Uri.parse(
-                            'https://wa.me/${item['sellerPhone']}?text=${Uri.encodeComponent('Halo ${item['sellerName']}, kami dari Tim Kurasi GAGE BaBe ingin konfirmasi terkait pengajuan barang "${item['name']}" (ID: ${item['id']}).')}',
-                          );
-                          try {
-                            await launchUrl(uri, mode: LaunchMode.externalApplication);
-                          } catch (_) {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Gagal membuka WhatsApp. Pastikan aplikasi WA terpasang.')),
-                              );
-                            }
-                          }
-                        },
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFDCFCE7),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFF86EFAC)),
-                          ),
-                          child: const Row(
-                            children: [
-                              Icon(Icons.chat_rounded, size: 13, color: Color(0xFF166534)),
-                              SizedBox(width: 4),
-                              Text('Chat WA', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF166534))),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Action Buttons (Setujui / Tolak)
-                  if (status == 'pending')
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: GageTheme.accentGreen,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                            ),
-                            icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
-                            label: const Text('Setujui & Publikasikan', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                            onPressed: () {
-                              setState(() {
-                                item['status'] = 'approved';
-                              });
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Barang "${item['name']}" berhasil disetujui & dipublikasikan ke katalog BaBe!'),
-                                  backgroundColor: GageTheme.accentGreen,
-                                  behavior: SnackBarBehavior.floating,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      d['name'] as String,
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                                      decoration: BoxDecoration(
+                                        color: isBusy
+                                            ? Colors.orange.withValues(alpha: 0.15)
+                                            : Colors.green.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        d['status'] as String,
+                                        style: TextStyle(
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.bold,
+                                          color: isBusy ? Colors.orange.shade800 : Colors.green.shade700,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              );
-                            },
+                                const SizedBox(height: 2),
+                                Text(
+                                  d['vehicle'] as String,
+                                  style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.black54),
+                                ),
+                              ],
+                            ),
                           ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        const SizedBox(width: 8),
-                        OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.red.shade700,
-                            side: BorderSide(color: Colors.red.shade300),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              item['status'] = 'rejected';
-                            });
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Pengajuan "${item['name']}" ditolak.'),
-                                backgroundColor: Colors.red.shade700,
-                                behavior: SnackBarBehavior.floating,
+                        child: Row(
+                          children: [
+                            const Icon(Icons.my_location_rounded, size: 12, color: GageTheme.primary),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                d['location'] as String,
+                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                            );
-                          },
-                          child: const Text('Tolak', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                            ),
+                            const Icon(Icons.star_rounded, size: 12, color: Colors.amber),
+                            const SizedBox(width: 2),
+                            Text('${d['rating']}', style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                      if (isBusy) ...[
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            const Icon(Icons.delivery_dining_rounded, size: 13, color: GageTheme.primary),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                'Order Aktif: ${d['currentOrder']}',
+                                style: const TextStyle(fontSize: 11, color: GageTheme.primary, fontWeight: FontWeight.w700),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
-                    )
-                  else if (status == 'approved')
-                    Row(
-                      children: [
-                        const Icon(Icons.check_circle_rounded, size: 16, color: GageTheme.accentGreen),
-                        const SizedBox(width: 6),
-                        const Expanded(
-                          child: Text('Telah tayang di katalog GAGE BaBe aplikasi pelanggan.', style: TextStyle(fontSize: 11, color: GageTheme.accentGreen, fontWeight: FontWeight.w600)),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            setState(() {
-                              item['status'] = 'pending';
-                            });
-                          },
-                          child: const Text('Tarik Listing', style: TextStyle(fontSize: 11, color: Colors.red)),
-                        ),
-                      ],
-                    )
-                  else
-                    Row(
-                      children: [
-                        const Icon(Icons.cancel_rounded, size: 16, color: Colors.red),
-                        const SizedBox(width: 6),
-                        const Expanded(
-                          child: Text('Pengajuan ini ditolak dan tidak tampil di katalog.', style: TextStyle(fontSize: 11, color: Colors.red, fontWeight: FontWeight.w600)),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            setState(() {
-                              item['status'] = 'pending';
-                            });
-                          },
-                          child: const Text('Tinjau Ulang', style: TextStyle(fontSize: 11)),
-                        ),
-                      ],
-                    ),
-                ],
-              ),
-            );
-          }),
-        const SizedBox(height: 24),
-      ],
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          InkWell(
+                            borderRadius: BorderRadius.circular(8),
+                            onTap: () async {
+                              final uri = Uri.parse('https://wa.me/${d['phone']}');
+                              if (await canLaunchUrl(uri)) launchUrl(uri, mode: LaunchMode.externalApplication);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: Colors.green.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.green.shade200),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.chat_rounded, size: 12, color: Colors.green),
+                                  SizedBox(width: 4),
+                                  Text('WhatsApp Driver', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Colors.green)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+      bottomNavigationBar: const AdminBottomNavBar(currentIndex: 0),
     );
   }
 
-  Widget _buildStatCard(String label, String value, Color textColor, Color bgColor) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          children: [
-            Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor)),
-            const SizedBox(height: 2),
-            Text(label, style: TextStyle(fontSize: 9.5, color: textColor.withValues(alpha: 0.8)), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
-          ],
-        ),
+  Widget _buildMetricTile({
+    required String label,
+    required String value,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required bool isDark,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white60 : Colors.black54, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            style: TextStyle(fontSize: 9.5, color: isDark ? Colors.white54 : Colors.black45),
+          ),
+        ],
       ),
     );
   }

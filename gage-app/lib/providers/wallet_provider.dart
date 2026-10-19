@@ -77,6 +77,54 @@ class WalletProvider extends ChangeNotifier {
     return false;
   }
 
+  // Permintaan Penarikan Dana (Withdrawal H+1)
+  Future<bool> withdrawBalance({
+    required int amount,
+    required int adminFee,
+    required String bankName,
+    required String accountNumber,
+    required String accountHolder,
+  }) async {
+    final totalDeduct = amount + adminFee;
+    if (_balance < totalDeduct) return false;
+
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      await Future.delayed(const Duration(milliseconds: 600));
+      _balance -= totalDeduct;
+
+      final now = DateTime.now();
+      _transactions.insert(0, {
+        'id': 'wd-${now.millisecondsSinceEpoch}',
+        'title': 'Tarik Saldo ke $bankName',
+        'type': 'WITHDRAWAL',
+        'amount': amount,
+        'admin_fee': adminFee,
+        'total': totalDeduct,
+        'destination': '$bankName - $accountNumber ($accountHolder)',
+        'status': 'PROSES_H1',
+        'date': now.toIso8601String(),
+      });
+
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('Error withdrawing: $e');
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // Tambah riwayat transaksi manual
+  void addTransaction(Map<String, dynamic> tx) {
+    _transactions.insert(0, tx);
+    notifyListeners();
+  }
+
   // Kompatibilitas
   Future<bool> simulateTopup(String userId, int amount) => confirmTopupPayment(userId, amount);
 }

@@ -324,9 +324,13 @@ class _LoginScreenState extends State<LoginScreen> {
                             errorBuilder: (context, error, stackTrace) => const Icon(Icons.g_mobiledata, color: Colors.red, size: 28),
                           ),
                           const SizedBox(width: 12),
-                          const Text(
-                            'Masuk dengan Akun Google',
-                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                          const Flexible(
+                            child: Text(
+                              'Masuk dengan Akun Google',
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
                           ),
                         ],
                       ),
@@ -371,9 +375,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     Icon(Icons.flash_on_rounded, color: GageTheme.primary, size: 20),
                     SizedBox(width: 8),
-                    Text(
-                      'Mode Testing Cepat (1-Klik Masuk)',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    Flexible(
+                      child: Text(
+                        'Mode Testing Cepat (1-Klik Masuk)',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
                     ),
                   ],
                 ),

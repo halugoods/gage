@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/food/data/food_categories_data.dart';
 import 'package:gage_app/features/food/presentation/category_merchant_list_screen.dart';
+import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 class AllCategoriesScreen extends StatefulWidget {
   const AllCategoriesScreen({super.key});
@@ -12,6 +13,19 @@ class AllCategoriesScreen extends StatefulWidget {
 
 class _AllCategoriesScreenState extends State<AllCategoriesScreen> {
   String _searchQuery = '';
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories();
+  }
+
+  Future<void> _loadCategories() async {
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(milliseconds: 250));
+    if (mounted) setState(() => _isLoading = false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -55,28 +69,45 @@ class _AllCategoriesScreenState extends State<AllCategoriesScreen> {
 
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${categories.length} Kategori Kuliner Mitra',
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: GageTheme.textSecondary),
-                ),
-                const Text(
-                  'Pilih untuk lihat resto',
-                  style: TextStyle(fontSize: 11, color: GageTheme.accentGreen, fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
+            child: _isLoading
+                ? const Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      GageSkeletonBox(width: 140, height: 14),
+                      GageSkeletonBox(width: 100, height: 12),
+                    ],
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '${categories.length} Kategori Kuliner Mitra',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: GageTheme.textSecondary),
+                      ),
+                      const Text(
+                        'Pilih untuk lihat resto',
+                        style: TextStyle(fontSize: 11, color: GageTheme.accentGreen, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
           ),
 
           const SizedBox(height: 12),
 
           // Grid Kategori Full Screen
           Expanded(
-            child: GridView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              itemCount: categories.length,
+            child: RefreshIndicator(
+              onRefresh: _loadCategories,
+              color: GageTheme.primary,
+              child: _isLoading
+                  ? const SingleChildScrollView(
+                      physics: AlwaysScrollableScrollPhysics(),
+                      child: GageSkeletonCategoryGrid(itemCount: 16),
+                    )
+                  : GridView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      itemCount: categories.length,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 4,
                 mainAxisSpacing: 18,
@@ -140,6 +171,7 @@ class _AllCategoriesScreenState extends State<AllCategoriesScreen> {
               },
             ),
           ),
+        ),
         ],
       ),
     );

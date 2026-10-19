@@ -11,6 +11,7 @@ import 'resto_info_screen.dart';
 import 'favorite_resto_screen.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
+import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 class RestoDetailScreen extends StatefulWidget {
   final Map<String, dynamic> merchant;
@@ -215,6 +216,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
   }
 
   Future<void> _loadMenus() async {
+    setState(() => _isLoading = true);
     final merchantId = widget.merchant['id'] ?? 'm-dimsum-sewu';
     final items = await GageApiClient.getMerchantMenu(merchantId);
     if (!mounted) return;
@@ -757,11 +759,15 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
       backgroundColor: isDark ? GageTheme.darkBackground : const Color(0xFFF8F9FA),
       body: Stack(
         children: [
-          CustomScrollView(
-            controller: _scrollController,
-            slivers: [
-              // 1. Sliver App Bar dengan Scroll Morphing Header (Gambar 1)
-              SliverAppBar(
+          RefreshIndicator(
+            onRefresh: _loadMenus,
+            color: GageTheme.primary,
+            child: CustomScrollView(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                // 1. Sliver App Bar dengan Scroll Morphing Header (Gambar 1)
+                SliverAppBar(
                 expandedHeight: 180.0,
                 pinned: true,
                 backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
@@ -1059,30 +1065,13 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     alignment: Alignment.center,
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Image.asset(
-                                          'assets/images/gage_ride_3d.png',
-                                          width: 18,
-                                          height: 18,
-                                          fit: BoxFit.contain,
-                                          errorBuilder: (c, e, s) => Icon(
-                                            Icons.two_wheeler_rounded,
-                                            size: 16,
-                                            color: !isPickup ? Colors.white : Colors.grey.shade600,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          'Delivery',
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.bold,
-                                            color: !isPickup ? Colors.white : (isDark ? Colors.grey.shade300 : Colors.grey.shade700),
-                                          ),
-                                        ),
-                                      ],
+                                    child: Text(
+                                      'Delivery',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: !isPickup ? Colors.white : (isDark ? Colors.grey.shade300 : Colors.grey.shade700),
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -1108,24 +1097,13 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     alignment: Alignment.center,
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.storefront_rounded,
-                                          size: 16,
-                                          color: isPickup ? Colors.white : Colors.grey.shade600,
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          'Pickup',
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.bold,
-                                            color: isPickup ? Colors.white : (isDark ? Colors.grey.shade300 : Colors.grey.shade700),
-                                          ),
-                                        ),
-                                      ],
+                                    child: Text(
+                                      'Pickup',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: isPickup ? Colors.white : (isDark ? Colors.grey.shade300 : Colors.grey.shade700),
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -1234,49 +1212,68 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
               ),
 
               // 3. PROMO CAROUSEL KARTU DISKON (Interaktif & Real Voucher)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      children: [
-                        _buildInteractiveVoucherCard(
-                          context: context,
-                          cart: cart,
-                          code: 'GAGEHEMAT',
-                          title: 'Diskon makanan Rp 8.000',
-                          sub: 'Min. pembelian Rp 15.000',
-                          discount: 8000,
-                          isFood: true,
-                          isDark: isDark,
+              if (_isLoading)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: SizedBox(
+                      height: 80,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: 3,
+                        itemBuilder: (ctx, idx) => const Padding(
+                          padding: EdgeInsets.only(right: 12),
+                          child: GageSkeletonPromoVoucherCard(),
                         ),
-                        _buildInteractiveVoucherCard(
-                          context: context,
-                          cart: cart,
-                          code: 'KULINER10',
-                          title: 'Diskon makanan Rp 10.000',
-                          sub: 'Min. pembelian Rp 30.000',
-                          discount: 10000,
-                          isFood: true,
-                          isDark: isDark,
-                        ),
-                        _buildInteractiveVoucherCard(
-                          context: context,
-                          cart: cart,
-                          code: 'ONGKIRGRATIS',
-                          title: 'Diskon Ongkir Rp 7.000',
-                          sub: 'Khusus pengantaran Delivery',
-                          discount: 7000,
-                          isFood: false,
-                          isDark: isDark,
-                        ),
-                      ],
+                      ),
+                    ),
+                  ),
+                )
+              else
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        children: [
+                          _buildInteractiveVoucherCard(
+                            context: context,
+                            cart: cart,
+                            code: 'GAGEHEMAT',
+                            title: 'Diskon makanan Rp 8.000',
+                            sub: 'Min. pembelian Rp 15.000',
+                            discount: 8000,
+                            isFood: true,
+                            isDark: isDark,
+                          ),
+                          _buildInteractiveVoucherCard(
+                            context: context,
+                            cart: cart,
+                            code: 'KULINER10',
+                            title: 'Diskon makanan Rp 10.000',
+                            sub: 'Min. pembelian Rp 30.000',
+                            discount: 10000,
+                            isFood: true,
+                            isDark: isDark,
+                          ),
+                          _buildInteractiveVoucherCard(
+                            context: context,
+                            cart: cart,
+                            code: 'ONGKIRGRATIS',
+                            title: 'Diskon Ongkir Rp 7.000',
+                            sub: 'Khusus pengantaran Delivery',
+                            discount: 7000,
+                            isFood: false,
+                            isDark: isDark,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
 
               // 4. HEADER KATEGORI MENU (Persis Gambar 1: Resto's top picks)
               SliverToBoxAdapter(
@@ -1301,8 +1298,14 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
 
               // 5. DAFTAR MENU MAKANAN (Persis Gambar 1 Gojek)
               if (_isLoading)
-                const SliverFillRemaining(
-                  child: Center(child: CircularProgressIndicator(color: GageTheme.primary)),
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) => const GageSkeletonMenuItem(),
+                      childCount: 4,
+                    ),
+                  ),
                 )
               else if (_filteredMenus.isEmpty)
                 SliverFillRemaining(
@@ -1542,6 +1545,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
               const SliverToBoxAdapter(child: SizedBox(height: 100)),
             ],
           ),
+        ),
 
           // Floating Cart Bar (Persis Gambar 1)
           const Positioned(

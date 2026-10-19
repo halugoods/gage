@@ -19,6 +19,11 @@ import 'package:gage_app/features/admin/presentation/admin_screen.dart';
 import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
+import 'package:gage_app/shared/widgets/gage_bottom_nav_bar.dart';
+import 'package:gage_app/features/home/presentation/home_screen.dart';
+import 'package:gage_app/features/wallet/presentation/withdraw_sheet.dart';
+import 'package:gage_app/features/driver/presentation/driver_screen.dart';
+import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -35,6 +40,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _notifChat = true;
   bool _highContrast = false;
   bool _hapticEnabled = true;
+  bool _isLoading = false;
+
+  Future<void> _refreshProfile() async {
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+  }
 
   static const String _keyNotifOrders = 'pref_notif_orders';
   static const String _keyNotifPromo = 'pref_notif_promo';
@@ -255,6 +268,236 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     side: const BorderSide(color: GageTheme.primary),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  // 3b. Rekening & E-Wallet Penarikan Modal
+  Future<void> _showSavedBankAccountsModal() async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> list = prefs.getStringList('saved_bank_accounts') ?? [
+      'BCA||8210394812||SYAMS DJUHAIR HIBATULLAH',
+      'GoPay||085156955735||SYAMS DJUHAIR H',
+    ];
+
+    if (!mounted) return;
+
+    GageFloatingSheet.show(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (c, setModalState) {
+          return _buildSimpleSheet(
+            ctx,
+            title: 'Rekening & E-Wallet Penarikan',
+            icon: Icons.account_balance_rounded,
+            children: [
+              if (list.isEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  alignment: Alignment.center,
+                  child: Column(
+                    children: [
+                      Icon(Icons.account_balance_wallet_outlined, size: 40, color: Colors.grey.shade400),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Belum ada rekening/e-wallet tersimpan',
+                        style: TextStyle(color: Colors.black54, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                ...list.asMap().entries.map((entry) {
+                  final idx = entry.key;
+                  final parts = entry.value.split('||');
+                  final bankName = parts.isNotEmpty ? parts[0] : 'Bank';
+                  final accNum = parts.length > 1 ? parts[1] : '';
+                  final accHolder = parts.length > 2 ? parts[2] : '';
+
+                  final isEwallet = ['DANA', 'GoPay', 'ShopeePay', 'OVO'].contains(bankName);
+                  Color badgeColor = const Color(0xFF005BAC);
+                  if (bankName == 'BRI') badgeColor = const Color(0xFF00529C);
+                  if (bankName == 'Mandiri') badgeColor = const Color(0xFF003D79);
+                  if (bankName == 'BNI') badgeColor = const Color(0xFFE55300);
+                  if (bankName == 'SeaBank') badgeColor = const Color(0xFFFF5722);
+                  if (bankName == 'DANA') badgeColor = const Color(0xFF118EEA);
+                  if (bankName == 'GoPay') badgeColor = const Color(0xFF00AED6);
+                  if (bankName == 'ShopeePay') badgeColor = const Color(0xFFEE4D2D);
+                  if (bankName == 'OVO') badgeColor = const Color(0xFF4C3494);
+
+                  return Column(
+                    children: [
+                      _buildModalTile(
+                        title: '$bankName • $accNum',
+                        subtitle: 'a.n. $accHolder',
+                        leadingIcon: isEwallet ? Icons.phone_android_rounded : Icons.account_balance_rounded,
+                        iconColor: badgeColor,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline_rounded, size: 20, color: Colors.grey),
+                              onPressed: () async {
+                                list.removeAt(idx);
+                                await prefs.setStringList('saved_bank_accounts', list);
+                                setModalState(() {});
+                                if (mounted) {
+                                  GageToast.show(
+                                    context,
+                                    'Rekening $bankName telah dihapus',
+                                    type: GageToastType.info,
+                                  );
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (idx < list.length - 1) const Divider(),
+                    ],
+                  );
+                }),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _showAddBankAccountDialog();
+                      },
+                      icon: const Icon(Icons.add_rounded, size: 18, color: GageTheme.primary),
+                      label: const Text('Tambah Baru', style: TextStyle(color: GageTheme.primary, fontWeight: FontWeight.bold, fontSize: 13)),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: GageTheme.primary),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        GageWithdrawSheet.show(context);
+                      },
+                      icon: const Icon(Icons.payments_rounded, size: 18, color: Colors.white),
+                      label: const Text('Tarik Saldo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: GageTheme.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _showAddBankAccountDialog() async {
+    final banks = ['BCA', 'BRI', 'Mandiri', 'BNI', 'SeaBank', 'DANA', 'GoPay', 'ShopeePay', 'OVO'];
+    String selectedBank = 'BCA';
+    final numCtrl = TextEditingController();
+    final holderCtrl = TextEditingController(text: 'SYAMS DJUHAIR H');
+
+    await GageFloatingSheet.show(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (c, setDialogState) {
+          return _buildSimpleSheet(
+            ctx,
+            title: 'Tambah Rekening / E-Wallet',
+            icon: Icons.account_balance_wallet_rounded,
+            children: [
+              const Text('Pilih Bank atau E-Wallet Tujuan:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54)),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: selectedBank,
+                    isExpanded: true,
+                    items: banks.map((b) => DropdownMenuItem(value: b, child: Text(b, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)))).toList(),
+                    onChanged: (v) {
+                      if (v != null) setDialogState(() => selectedBank = v);
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text('Nomor Rekening / HP Akun:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54)),
+              const SizedBox(height: 6),
+              TextField(
+                controller: numCtrl,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  hintText: 'Contoh: 8210394812 atau 085156955735',
+                  hintStyle: const TextStyle(fontSize: 12, color: Colors.black38),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text('Nama Pemilik Akun:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54)),
+              const SizedBox(height: 6),
+              TextField(
+                controller: holderCtrl,
+                textCapitalization: TextCapitalization.characters,
+                decoration: InputDecoration(
+                  hintText: 'Nama lengkap sesuai buku tabungan / e-wallet',
+                  hintStyle: const TextStyle(fontSize: 12, color: Colors.black38),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: GageTheme.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () async {
+                    final num = numCtrl.text.trim();
+                    final name = holderCtrl.text.trim();
+                    if (num.isEmpty || name.isEmpty) {
+                      GageToast.show(context, 'Lengkapi nomor rekening dan nama pemilik', type: GageToastType.warning);
+                      return;
+                    }
+                    final prefs = await SharedPreferences.getInstance();
+                    List<String> list = prefs.getStringList('saved_bank_accounts') ?? [
+                      'BCA||8210394812||SYAMS DJUHAIR HIBATULLAH',
+                      'GoPay||085156955735||SYAMS DJUHAIR H',
+                    ];
+                    final raw = '$selectedBank||$num||$name';
+                    if (!list.contains(raw)) {
+                      list.add(raw);
+                      await prefs.setStringList('saved_bank_accounts', list);
+                    }
+                    if (!mounted || !ctx.mounted) return;
+                    Navigator.pop(ctx);
+                    GageToast.show(context, 'Rekening $selectedBank berhasil disimpan!', type: GageToastType.success);
+                  },
+                  child: const Text('Simpan Rekening', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
@@ -995,12 +1238,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final String userEmail = (user?.email != null && user!.email!.isNotEmpty) ? user.email! : 'halugoods.indonesia@gmail.com';
     final String userPhone = (user?.phone != null && user!.phone.isNotEmpty) ? user.phone : '+6285156955735';
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).brightness == Brightness.dark ? GageTheme.darkBackground : const Color(0xFFF8F9FA),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => const HomeScreen(),
+            transitionDuration: Duration.zero,
+            reverseTransitionDuration: Duration.zero,
+          ),
+        );
+      },
+      child: Scaffold(
+        backgroundColor: Theme.of(context).brightness == Brightness.dark ? GageTheme.darkBackground : const Color(0xFFF8F9FA),
+        body: RefreshIndicator(
+          onRefresh: _refreshProfile,
+          color: GageTheme.primary,
+          child: _isLoading
+              ? const GageSkeletonProfile()
+              : SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
             // 1. Top Header Gojek-Style Nature Illustration Background + "Profilku" AppBar
             Stack(
               clipBehavior: Clip.none,
@@ -1216,6 +1478,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onTap: _showPaymentModal,
               ),
               _buildListRow(
+                icon: Icons.account_balance_rounded,
+                title: 'Rekening & E-Wallet Penarikan',
+                badgeText: 'Tarik Saldo',
+                badgeColor: const Color(0xFF0284C7),
+                onTap: _showSavedBankAccountsModal,
+              ),
+              _buildListRow(
                 icon: Icons.bookmark_border_rounded,
                 title: 'Alamat tersimpan',
                 onTap: _showSavedAddressesModal,
@@ -1293,15 +1562,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildSectionHeader('Lebih banyak dari GAGE'),
             _buildGroupedCard([
               _buildListRow(
+                icon: Icons.two_wheeler_rounded,
+                title: 'Mode Pengemudi (GAGE Driver)',
+                badgeText: 'Driver Mode',
+                badgeColor: GageTheme.accentGreen,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (ctx) => const DriverScreen()),
+                  );
+                },
+              ),
+              _buildListRow(
                 icon: Icons.electric_moped_rounded,
                 title: 'Gabung jadi Mitra Driver',
                 onTap: _showDriverModal,
               ),
               _buildListRow(
-                icon: Icons.auto_awesome_rounded,
-                title: 'Studio Kreator Afiliasi',
-                badgeText: 'Cuan',
-                badgeColor: const Color(0xFFEA580C),
+                icon: Icons.card_giftcard_rounded,
+                title: 'GAGE Cuan (Affiliate & Referral)',
+                badgeText: 'Komisi 10% 🔥',
+                badgeColor: const Color(0xFFE11D48),
                 onTap: () {
                   Navigator.push(
                     context,
@@ -1377,8 +1658,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
       ),
-    );
-  }
+      ),
+      bottomNavigationBar: const GageBottomNavBar(currentIndex: 4),
+    ),
+  );
+}
 
   // Section Header Label
   Widget _buildSectionHeader(String title) {

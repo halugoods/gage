@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/core/services/banner_manager_service.dart';
 import 'package:gage_app/features/food/presentation/food_explore_screen.dart';
 import 'package:gage_app/features/food/presentation/shop_screen.dart';
 import 'package:gage_app/features/ride/presentation/ride_booking_screen.dart';
@@ -8,6 +10,7 @@ import 'package:gage_app/features/ride/presentation/send_booking_screen.dart';
 import 'package:gage_app/features/membership/presentation/membership_screen.dart';
 import 'package:gage_app/providers/wallet_provider.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
+import 'package:gage_app/features/admin/presentation/widgets/in_place_banner_editor_sheet.dart';
 
 class PromoCarousel extends StatefulWidget {
   const PromoCarousel({super.key});
@@ -49,7 +52,69 @@ class _PromoCarouselState extends State<PromoCarousel> {
     super.dispose();
   }
 
-  void _onBannerTap(int index) {
+  Widget _buildCarouselImage(String imgPath, String fallbackTitle) {
+    if (imgPath.startsWith('http://') || imgPath.startsWith('https://')) {
+      return Image.network(
+        imgPath,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        errorBuilder: (c, _, error) => _buildCarouselFallback(fallbackTitle),
+      );
+    } else if (imgPath.startsWith('assets/')) {
+      return Image.asset(
+        imgPath,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        errorBuilder: (c, _, error) => _buildCarouselFallback(fallbackTitle),
+      );
+    } else if (imgPath.isNotEmpty && File(imgPath).existsSync()) {
+      return Image.file(
+        File(imgPath),
+        fit: BoxFit.cover,
+        width: double.infinity,
+        errorBuilder: (c, _, error) => _buildCarouselFallback(fallbackTitle),
+      );
+    }
+    return _buildCarouselFallback(fallbackTitle);
+  }
+
+  Widget _buildCarouselFallback(String title) {
+    return Container(
+      color: GageTheme.primaryLight,
+      child: Center(
+        child: Text(
+          title,
+          style: const TextStyle(color: GageTheme.primary, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+
+  void _onBannerTap(int index, bool isEditMode) {
+    if (isEditMode) {
+      final bannerManager = BannerManagerService.instance;
+      final targetKey = 'customer_promo_carousel_slide_${index + 1}';
+      final liveBanner = bannerManager.getBanner(targetKey);
+      final initialImg = liveBanner.imagePath.isNotEmpty ? liveBanner.imagePath : _promoBanners[index]['image']!;
+      final initialTitle = liveBanner.title.isNotEmpty ? liveBanner.title : _promoBanners[index]['title']!;
+      final initialDesc = liveBanner.subtitle.isNotEmpty ? liveBanner.subtitle : _promoBanners[index]['desc']!;
+
+      InPlaceBannerEditorSheet.showConfirmationAndOpen(
+        context: context,
+        screenTarget: targetKey,
+        title: initialTitle,
+        subtitle: initialDesc,
+        badge: 'PROMO SLIDE ${index + 1}',
+        imageUrl: initialImg,
+        actionUrl: index == 1 ? 'send' : (index == 2 ? 'ride' : (index == 3 ? 'shop' : 'food')),
+        aspectRatio: 16 / 9,
+        onSaved: () {
+          setState(() {});
+        },
+      );
+      return;
+    }
+
     if (index == 1) {
       Navigator.push(
         context,
@@ -77,6 +142,8 @@ class _PromoCarouselState extends State<PromoCarousel> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final bannerHeight = (screenWidth - 32) * 9 / 16; // Rasio baku 16:9
+    final bannerManager = context.watch<BannerManagerService>();
+    final isEditMode = LiveAppEditScope.isEditModeActive(context);
 
     return Column(
       children: [
@@ -89,26 +156,47 @@ class _PromoCarouselState extends State<PromoCarousel> {
             onPageChanged: (idx) => setState(() => _currentIndex = idx),
             itemBuilder: (ctx, idx) {
               final banner = _promoBanners[idx];
+              final targetKey = 'customer_promo_carousel_slide_${idx + 1}';
+              final liveBanner = bannerManager.getBanner(targetKey);
+              final activeImg = liveBanner.imagePath.isNotEmpty ? liveBanner.imagePath : banner['image']!;
+              final activeTitle = liveBanner.title.isNotEmpty ? liveBanner.title : banner['title']!;
+
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: InkWell(
-                  onTap: () => _onBannerTap(idx),
+                  onTap: () => _onBannerTap(idx, isEditMode),
                   borderRadius: BorderRadius.circular(16),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(16),
-                    child: Image.asset(
-                      banner['image'],
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      errorBuilder: (c, _, error) => Container(
-                        color: GageTheme.primaryLight,
-                        child: Center(
-                          child: Text(
-                            banner['title'],
-                            style: const TextStyle(color: GageTheme.primary, fontWeight: FontWeight.bold),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        _buildCarouselImage(activeImg, activeTitle),
+                        if (isEditMode)
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.8),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: GageTheme.primary, width: 1.2),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.edit_rounded, size: 10, color: Colors.white),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Edit Slide ${idx + 1}',
+                                    style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
+                      ],
                     ),
                   ),
                 ),

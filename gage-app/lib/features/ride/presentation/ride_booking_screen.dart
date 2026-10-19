@@ -15,6 +15,8 @@ import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gage_app/features/ride/presentation/ride_checkout_screen.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
+import 'package:gage_app/core/services/dynamic_asset_service.dart';
+import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 class RideBookingScreen extends StatefulWidget {
   final String initialTab; // 'ride' or 'car'
@@ -345,20 +347,14 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                           ),
                           child: Row(
                             children: [
-                              Image.asset(
-                                _selectedTab == 'ride'
+                              DynamicAssetIcon(
+                                slotKey: _selectedTab == 'ride' ? 'vehicle_ride' : 'vehicle_car',
+                                defaultAsset: _selectedTab == 'ride'
                                     ? 'assets/images/gage_ride_3d.png'
                                     : 'assets/images/gage_car_3d.png',
-                                width: 22,
-                                height: 22,
+                                width: 24,
+                                height: 24,
                                 fit: BoxFit.contain,
-                                errorBuilder: (c, e, s) => Icon(
-                                  _selectedTab == 'ride'
-                                      ? Icons.two_wheeler_rounded
-                                      : Icons.directions_car_rounded,
-                                  color: GageTheme.primary,
-                                  size: 18,
-                                ),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
@@ -368,10 +364,10 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                                 ),
                               ),
                               if (_isLoadingRoute)
-                                const SizedBox(
-                                  width: 14,
-                                  height: 14,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: GageTheme.primary),
+                                const GageSkeletonBox(
+                                  width: 48,
+                                  height: 18,
+                                  borderRadius: BorderRadius.all(Radius.circular(10)),
                                 )
                               else
                                 Container(
@@ -614,8 +610,9 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                     child: Center(
                       child: Padding(
                         padding: const EdgeInsets.all(5.0),
-                        child: Image.asset(
-                          _selectedTab == 'ride'
+                        child: DynamicAssetIcon(
+                          slotKey: _selectedTab == 'ride' ? 'vehicle_ride' : 'vehicle_car',
+                          defaultAsset: _selectedTab == 'ride'
                               ? 'assets/images/gage_ride_3d.png'
                               : 'assets/images/gage_car_3d.png',
                           width: 24,
@@ -737,12 +734,12 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                       ),
                       child: Row(
                         children: [
-                          Image.asset(
-                            'assets/images/gage_ride_3d.png',
+                          const DynamicAssetIcon(
+                            slotKey: 'vehicle_ride',
+                            defaultAsset: 'assets/images/gage_ride_3d.png',
                             width: 38,
                             height: 38,
                             fit: BoxFit.contain,
-                            errorBuilder: (c, e, s) => const Icon(Icons.two_wheeler_rounded, size: 28, color: GageTheme.primary),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
@@ -751,11 +748,18 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                               children: [
                                 const Text('Ride Reguler', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                                 const SizedBox(height: 2),
-                                Text(
-                                  currencyFormatter.format(GagePricingService.calculateCustomerRideFare(serviceType: 'reguler', distanceKm: _distanceKm)),
-                                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: GageTheme.primary),
-                                ),
-                                Text('${_distanceKm.toStringAsFixed(1)} km • ~${_realisticTripMins}m', style: const TextStyle(fontSize: 9.5, color: Colors.black54)),
+                                if (_isLoadingRoute) ...[
+                                  const SizedBox(height: 4),
+                                  const GageSkeletonBox(width: 65, height: 14),
+                                  const SizedBox(height: 4),
+                                  const GageSkeletonBox(width: 50, height: 10),
+                                ] else ...[
+                                  Text(
+                                    currencyFormatter.format(GagePricingService.calculateCustomerRideFare(serviceType: 'reguler', distanceKm: _distanceKm)),
+                                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: GageTheme.primary),
+                                  ),
+                                  Text('${_distanceKm.toStringAsFixed(1)} km • ~${_realisticTripMins}m', style: const TextStyle(fontSize: 9.5, color: Colors.black54)),
+                                ],
                               ],
                             ),
                           ),
@@ -781,12 +785,12 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                       ),
                       child: Row(
                         children: [
-                          Image.asset(
-                            'assets/images/gage_ride_3d.png',
+                          const DynamicAssetIcon(
+                            slotKey: 'vehicle_ride',
+                            defaultAsset: 'assets/images/gage_ride_3d.png',
                             width: 38,
                             height: 38,
                             fit: BoxFit.contain,
-                            errorBuilder: (c, e, s) => const Icon(Icons.two_wheeler_rounded, size: 28, color: Color(0xFFEA580C)),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
@@ -795,11 +799,18 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                               children: [
                                 const Text('Ride Hemat', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                                 const SizedBox(height: 2),
-                                Text(
-                                  currencyFormatter.format(GagePricingService.calculateCustomerRideFare(serviceType: 'hemat', distanceKm: _distanceKm)),
-                                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: Color(0xFFEA580C)),
-                                ),
-                                Text('${_distanceKm.toStringAsFixed(1)} km • ~${_realisticTripMins + 2}m', style: const TextStyle(fontSize: 9.5, color: Colors.black54)),
+                                if (_isLoadingRoute) ...[
+                                  const SizedBox(height: 4),
+                                  const GageSkeletonBox(width: 65, height: 14),
+                                  const SizedBox(height: 4),
+                                  const GageSkeletonBox(width: 50, height: 10),
+                                ] else ...[
+                                  Text(
+                                    currencyFormatter.format(GagePricingService.calculateCustomerRideFare(serviceType: 'hemat', distanceKm: _distanceKm)),
+                                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: Color(0xFFEA580C)),
+                                  ),
+                                  Text('${_distanceKm.toStringAsFixed(1)} km • ~${_realisticTripMins + 2}m', style: const TextStyle(fontSize: 9.5, color: Colors.black54)),
+                                ],
                               ],
                             ),
                           ),
@@ -820,12 +831,12 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
               ),
               child: Row(
                 children: [
-                  Image.asset(
-                    'assets/images/gage_car_3d.png',
+                  const DynamicAssetIcon(
+                    slotKey: 'vehicle_car',
+                    defaultAsset: 'assets/images/gage_car_3d.png',
                     width: 44,
                     height: 44,
                     fit: BoxFit.contain,
-                    errorBuilder: (c, e, s) => const Icon(Icons.directions_car_filled_rounded, color: Color(0xFF1E88E5), size: 28),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -833,14 +844,21 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text('GAGE Car (1-4 Penumpang)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                        Text('Kabin AC • ${_distanceKm.toStringAsFixed(1)} km • Tiba ~${_realisticTripMins}m', style: const TextStyle(fontSize: 11, color: Colors.black54)),
+                        if (_isLoadingRoute) ...[
+                          const SizedBox(height: 4),
+                          const GageSkeletonBox(width: 120, height: 11),
+                        ] else
+                          Text('Kabin AC • ${_distanceKm.toStringAsFixed(1)} km • Tiba ~${_realisticTripMins}m', style: const TextStyle(fontSize: 11, color: Colors.black54)),
                       ],
                     ),
                   ),
-                  Text(
-                    currencyFormatter.format(fare),
-                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: Color(0xFF1E88E5)),
-                  ),
+                  if (_isLoadingRoute)
+                    const GageSkeletonBox(width: 75, height: 18)
+                  else
+                    Text(
+                      currencyFormatter.format(fare),
+                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: Color(0xFF1E88E5)),
+                    ),
                 ],
               ),
             ),
@@ -1292,18 +1310,11 @@ class _AddressSearchModalState extends State<_AddressSearchModal> {
                     },
                   )
                 : (_isSearching
-                    ? const Center(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(vertical: 30),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: GageTheme.primary)),
-                              SizedBox(height: 10),
-                              Text('Mencari lokasi di sekitar Anda...', style: TextStyle(fontSize: 12.5, color: Colors.black54)),
-                            ],
-                          ),
-                        ),
+                    ? ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: 4,
+                        itemBuilder: (ctx, idx) => const GageSkeletonLocationTile(),
                       )
                     : (_searchCtrl.text.trim().isNotEmpty
                         ? const Center(

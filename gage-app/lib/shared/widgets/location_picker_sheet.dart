@@ -1,11 +1,16 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:gage_app/core/services/location_service.dart';
 import 'package:gage_app/core/services/osm_geocoding_service.dart';
 import 'package:gage_app/core/services/user_address_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/shared/widgets/gage_toast.dart';
+import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 /// Sheet terpadu pemilihan titik lokasi untuk seluruh layanan Gage (Ride, Car, Food, Shop, Send).
 class LocationPickerSheet extends StatefulWidget {
@@ -26,14 +31,28 @@ class LocationPickerSheet extends StatefulWidget {
     LatLng? initialLocation,
     required Function(String title, String fullAddress, LatLng latLng) onSelected,
   }) {
+    HapticFeedback.lightImpact();
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => LocationPickerSheet(
-        title: title,
-        initialLocation: initialLocation,
-        onSelected: onSelected,
+      elevation: 0,
+      barrierColor: Colors.black.withValues(alpha: 0.45),
+      builder: (ctx) => BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 6.0, sigmaY: 6.0),
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          ),
+          child: SafeArea(
+            top: false,
+            child: LocationPickerSheet(
+              title: title,
+              initialLocation: initialLocation,
+              onSelected: onSelected,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -53,6 +72,7 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
   List<UserSavedAddress> _favorites = [];
   List<UserSavedAddress> _recents = [];
   bool _isLoadingAddresses = true;
+  bool _isAcquiringGps = false;
 
   @override
   void initState() {
@@ -107,28 +127,88 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
   }
 
   Future<void> _selectCurrentGps() async {
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Membaca posisi GPS riil Anda...'),
-        duration: Duration(milliseconds: 900),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-    final gps = await LocationService.getCurrentLocation();
-    final addr = await OsmGeocodingService.reverseGeocode(gps);
-    final fullAddr = OsmGeocodingService.formatFullOfficialAddress(gps);
+    setState(() => _isAcquiringGps = true);
 
-    await UserAddressService.addRecent(UserSavedAddress(
-      id: 'rec_${DateTime.now().millisecondsSinceEpoch}',
-      name: addr,
-      address: fullAddr,
-      category: 'personal',
-      latitude: gps.latitude,
-      longitude: gps.longitude,
-    ));
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (!mounted) return;
+        setState(() => _isAcquiringGps = false);
+        GageToast.show(
+          context,
+          'Layanan GPS mati. Harap nyalakan GPS pada pengaturan HP Anda.',
+          type: GageToastType.warning,
+        );
+        await Geolocator.openLocationSettings();
+        return;
+      }
 
-    widget.onSelected(addr, fullAddr, gps);
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          if (!mounted) return;
+          setState(() => _isAcquiringGps = false);
+          GageToast.show(
+            context,
+            'Izin akses lokasi ditolak. Aktifkan izin lokasi untuk GAGE.',
+            type: GageToastType.error,
+          );
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        if (!mounted) return;
+        setState(() => _isAcquiringGps = false);
+        GageToast.show(
+          context,
+          'Izin lokasi diblokir permanen. Harap izinkan di pengaturan aplikasi.',
+          type: GageToastType.error,
+        );
+        await Geolocator.openAppSettings();
+        return;
+      }
+
+      // Membaca posisi GPS riil langsung dari hardware perangkat
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 8),
+        ),
+      );
+
+      final gps = LatLng(position.latitude, position.longitude);
+      final addr = await OsmGeocodingService.reverseGeocode(gps);
+      final fullAddr = OsmGeocodingService.formatFullOfficialAddress(gps);
+
+      await UserAddressService.addRecent(UserSavedAddress(
+        id: 'rec_${DateTime.now().millisecondsSinceEpoch}',
+        name: addr,
+        address: fullAddr,
+        category: 'personal',
+        latitude: gps.latitude,
+        longitude: gps.longitude,
+      ));
+
+      if (!mounted) return;
+      setState(() => _isAcquiringGps = false);
+      Navigator.pop(context);
+      GageToast.show(
+        context,
+        'Titik GPS riil aktif terhubung',
+        type: GageToastType.success,
+      );
+      widget.onSelected(addr, fullAddr, gps);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isAcquiringGps = false);
+      GageToast.show(
+        context,
+        'Sensor GPS sibuk atau sinyal lemah. Silakan coba lagi atau pilih lewat peta.',
+        type: GageToastType.error,
+      );
+    }
   }
 
   void _openMapPicker() {
@@ -364,14 +444,37 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
     final filteredFavs = _favorites.where((f) => f.category == _favoriteCategory).toList();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    final hasAddresses = filteredFavs.isNotEmpty || _recents.isNotEmpty;
+    final isSearching = _searchFilter.isNotEmpty;
+
     return Container(
-      height: MediaQuery.of(context).size.height * 0.86,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
+      ),
+      margin: EdgeInsets.fromLTRB(
+        16,
+        0,
+        16,
+        MediaQuery.of(context).padding.bottom > 0 ? 12 : 16,
+      ),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF18181B) : Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : Colors.grey.shade200,
+          width: 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.16),
+            blurRadius: 28,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       padding: const EdgeInsets.fromLTRB(18, 12, 18, 16),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Drag Handle
@@ -379,7 +482,7 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
             child: Container(
               width: 38,
               height: 4,
-              margin: const EdgeInsets.only(bottom: 14),
+              margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
                 color: isDark ? Colors.white24 : Colors.grey.shade300,
                 borderRadius: BorderRadius.circular(2),
@@ -387,7 +490,7 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
             ),
           ),
 
-          // Header Bar: Title + Circular Close Button (Persis Referensi)
+          // Header Bar: Title + Circular Close Button
           Row(
             children: [
               Expanded(
@@ -396,7 +499,7 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: isDark ? Colors.white : Colors.black87,
                   ),
@@ -406,8 +509,8 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                 onTap: () => Navigator.pop(context),
                 borderRadius: BorderRadius.circular(20),
                 child: Container(
-                  width: 32,
-                  height: 32,
+                  width: 30,
+                  height: 30,
                   decoration: BoxDecoration(
                     color: isDark ? Colors.white12 : const Color(0xFFF3F4F6),
                     shape: BoxShape.circle,
@@ -421,11 +524,11 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
 
-          // 1. Search Box (Rounded 16px persis referensi)
+          // 1. Search Box
           Container(
-            height: 48,
+            height: 46,
             padding: const EdgeInsets.symmetric(horizontal: 14),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF27272A) : const Color(0xFFF9FAFB),
@@ -434,7 +537,7 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.search_rounded, color: GageTheme.primary, size: 22),
+                const Icon(Icons.search_rounded, color: GageTheme.primary, size: 20),
                 const SizedBox(width: 10),
                 Expanded(
                   child: TextField(
@@ -444,7 +547,7 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                     decoration: InputDecoration(
                       isDense: true,
                       hintText: 'Ketik nama jalan, gedung, atau desa...',
-                      hintStyle: TextStyle(fontSize: 13, color: isDark ? Colors.white38 : Colors.grey.shade400),
+                      hintStyle: TextStyle(fontSize: 12.5, color: isDark ? Colors.white38 : Colors.grey.shade400),
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.zero,
                     ),
@@ -459,112 +562,164 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                         _searchResults = [];
                       });
                     },
-                    child: Icon(Icons.close_rounded, color: isDark ? Colors.white60 : Colors.black54, size: 20),
+                    child: Icon(Icons.close_rounded, color: isDark ? Colors.white60 : Colors.black54, size: 18),
                   ),
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
 
-          // 2. Quick Actions: "Gunakan Lokasi Saat Ini" & "Pilih lewat peta" (Gaya Referensi)
-          Column(
+          // 2. Quick Actions: 2 Tombol Bersebelahan Kiri - Kanan (Horizontal Row)
+          Row(
             children: [
-              InkWell(
-                onTap: _selectCurrentGps,
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF27272A) : const Color(0xFFF9FAFB),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE5E7EB)),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white10 : const Color(0xFFF3F4F6),
-                          shape: BoxShape.circle,
+              // Tombol KIRI: Lokasi Saat Ini
+              Expanded(
+                child: InkWell(
+                  onTap: _isAcquiringGps ? null : _selectCurrentGps,
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF27272A) : const Color(0xFFF9FAFB),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE5E7EB)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: GageTheme.primary.withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: _isAcquiringGps
+                              ? const Padding(
+                                  padding: EdgeInsets.all(7.0),
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: GageTheme.primary),
+                                )
+                              : const Icon(Icons.my_location_rounded, size: 17, color: GageTheme.primary),
                         ),
-                        child: const Icon(Icons.near_me_rounded, size: 18, color: GageTheme.primary),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Gunakan Lokasi Saat Ini',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: isDark ? Colors.white : Colors.black87),
-                            ),
-                            Text(
-                              'Deteksi otomatis koordinat GPS',
-                              style: TextStyle(fontSize: 11, color: isDark ? Colors.white54 : Colors.black45),
-                            ),
-                          ],
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Lokasi Saat Ini',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                _isAcquiringGps ? 'Mendeteksi...' : 'GPS aktif HP',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: isDark ? Colors.white54 : Colors.black45,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      Icon(Icons.chevron_right_rounded, color: isDark ? Colors.white38 : Colors.grey.shade400, size: 20),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
-              InkWell(
-                onTap: _openMapPicker,
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF27272A) : const Color(0xFFF9FAFB),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE5E7EB)),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white10 : const Color(0xFFF3F4F6),
-                          shape: BoxShape.circle,
+              const SizedBox(width: 8),
+
+              // Tombol KANAN: Pilih Titik Lewat Peta
+              Expanded(
+                child: InkWell(
+                  onTap: _openMapPicker,
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF27272A) : const Color(0xFFF9FAFB),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE5E7EB)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1E88E5).withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.map_rounded, size: 17, color: Color(0xFF1E88E5)),
                         ),
-                        child: const Icon(Icons.map_rounded, size: 18, color: Color(0xFF1E88E5)),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Pilih Titik Lewat Peta',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: isDark ? Colors.white : Colors.black87),
-                            ),
-                            Text(
-                              'Geser dan arahkan pin lokasi di peta',
-                              style: TextStyle(fontSize: 11, color: isDark ? Colors.white54 : Colors.black45),
-                            ),
-                          ],
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Pilih Lewat Peta',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                'Arahkan pin',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: isDark ? Colors.white54 : Colors.black45,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      Icon(Icons.chevron_right_rounded, color: isDark ? Colors.white38 : Colors.grey.shade400, size: 20),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
             ],
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
 
-          // 3. Body: Search Results OR Favorites + Recents
-          Expanded(
-            child: _searchFilter.isNotEmpty
-                ? _buildSearchResults()
-                : _buildFavoritesAndRecents(filteredFavs),
-          ),
+          // 3. Body: Search Results OR Favorites + Recents (Dynamic Height)
+          if (isSearching)
+            Flexible(
+              child: _buildSearchResults(),
+            )
+          else if (hasAddresses)
+            Flexible(
+              child: _buildFavoritesAndRecents(filteredFavs),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Belum ada alamat tersimpan',
+                    style: TextStyle(fontSize: 11.5, color: GageTheme.textSecondary),
+                  ),
+                  TextButton.icon(
+                    onPressed: _showAddAddressDialog,
+                    icon: const Icon(Icons.add_rounded, size: 15, color: GageTheme.primary),
+                    label: const Text(
+                      'Simpan Alamat',
+                      style: TextStyle(fontSize: 11.5, color: GageTheme.primary, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -572,18 +727,11 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
 
   Widget _buildSearchResults() {
     if (_isSearching) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.symmetric(vertical: 40),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(strokeWidth: 2.5, color: GageTheme.primary),
-              SizedBox(height: 12),
-              Text('Mencari alamat di Kecamatan Pracimantoro...', style: TextStyle(fontSize: 12.5, color: Colors.black54)),
-            ],
-          ),
-        ),
+      return ListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: 4,
+        itemBuilder: (ctx, idx) => const GageSkeletonLocationTile(),
       );
     }
 
@@ -645,7 +793,12 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
 
   Widget _buildFavoritesAndRecents(List<UserSavedAddress> filteredFavs) {
     if (_isLoadingAddresses) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2, color: GageTheme.primary));
+      return ListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: 3,
+        itemBuilder: (ctx, idx) => const GageSkeletonLocationTile(),
+      );
     }
 
     return SingleChildScrollView(

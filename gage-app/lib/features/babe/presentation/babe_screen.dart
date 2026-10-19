@@ -16,6 +16,7 @@ import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/adaptive_speech_bubble.dart';
 import 'package:gage_app/shared/widgets/seamless_floating_cart_bar.dart';
 import 'package:gage_app/shared/widgets/gage_service_header.dart';
+import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 class BabeScreen extends StatefulWidget {
   const BabeScreen({super.key});
@@ -32,6 +33,7 @@ class _BabeScreenState extends State<BabeScreen> {
   String _deliveryLocation = 'Mendeteksi titik GPS Anda...';
   final Set<String> _favoriteItemIds = {};
   final bool _showFavoritesOnly = false;
+  bool _isLoading = true;
   List<Map<String, dynamic>> _babeHistory = [];
   final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
@@ -276,10 +278,12 @@ class _BabeScreenState extends State<BabeScreen> {
   }
 
   Future<void> _loadBabeLocalData() async {
+    setState(() => _isLoading = true);
     try {
       final prefs = await SharedPreferences.getInstance();
       final favList = prefs.getStringList('gage_babe_favorites') ?? [];
       final histList = prefs.getStringList('gage_babe_history') ?? [];
+      await Future.delayed(const Duration(milliseconds: 300));
       if (mounted) {
         setState(() {
           _favoriteItemIds.clear();
@@ -291,9 +295,14 @@ class _BabeScreenState extends State<BabeScreen> {
               return <String, dynamic>{'title': e, 'time': '-'};
             }
           }).toList();
+          _isLoading = false;
         });
       }
-    } catch (_) {}
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   Future<void> _toggleFavorite(String itemId) async {
@@ -732,151 +741,176 @@ class _BabeScreenState extends State<BabeScreen> {
       body: Stack(
         children: [
           // 1. Scrollable Content
-          SingleChildScrollView(
-            controller: _scrollController,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Full-bleed Banner 16:9 ke batas atas status bar dengan Typing Bubble di atas search bar
-                GageServiceHeroBanner(
-                  imageAsset: babeBanner.imagePath,
-                  fallbackTitle: 'GAGE BABE',
-                  scrollController: _scrollController,
-                  overlayChild: AdaptiveSpeechBubble(
-                    fullText: 'Titip jual barang bekas gratis di BaBe, klik di sini',
-                    backgroundColor: const Color(0xFF4F46E5),
-                    icon: Icons.sell_rounded,
-                    onTap: () => _showFormTitipJual(context),
+          RefreshIndicator(
+            onRefresh: _loadBabeLocalData,
+            color: GageTheme.primary,
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Full-bleed Banner 16:9 ke batas atas status bar dengan Typing Bubble di atas search bar
+                  GageServiceHeroBanner(
+                    screenTarget: 'babe',
+                    imageAsset: babeBanner.imagePath,
+                    fallbackTitle: 'GAGE BABE',
+                    scrollController: _scrollController,
+                    overlayChild: AdaptiveSpeechBubble(
+                      fullText: 'Titip jual barang bekas gratis di BaBe, klik di sini',
+                      backgroundColor: const Color(0xFF4F46E5),
+                      icon: Icons.sell_rounded,
+                      onTap: () => _showFormTitipJual(context),
+                    ),
                   ),
-                ),
 
-                const SizedBox(height: 38),
+                  const SizedBox(height: 38),
 
-                // Responsive container wrapper for Tablet & Phone
-                Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: isTablet ? 760 : double.infinity),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // 2. Category Horizontal Filter Chips
-                        SizedBox(
-                          height: 44,
-                          child: ListView.separated(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                            scrollDirection: Axis.horizontal,
-                            itemCount: _categories.length,
-                            separatorBuilder: (ctx, i) => const SizedBox(width: 8),
-                            itemBuilder: (ctx, idx) {
-                              final cat = _categories[idx];
-                              final isSelected = _selectedCategory == cat;
-                              return ChoiceChip(
-                                label: Text(cat),
-                                selected: isSelected,
-                                onSelected: (_) => setState(() => _selectedCategory = cat),
-                                selectedColor: GageTheme.primary.withValues(alpha: 0.15),
-                                labelStyle: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                  color: isSelected ? GageTheme.primary : (isDark ? Colors.white70 : Colors.black87),
-                                ),
-                                backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  side: BorderSide(
-                                    color: isSelected ? GageTheme.primary : (isDark ? Colors.white12 : Colors.grey.shade300),
-                                  ),
-                                ),
-                                visualDensity: VisualDensity.compact,
-                              );
-                            },
-                          ),
-                        ),
-
-                        const SizedBox(height: 10),
-
-                        // 3. Section Title
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Koleksi Barang (${filteredItems.length})',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13.5,
-                                  color: isDark ? Colors.white : Colors.black87,
-                                ),
+                  // Responsive container wrapper for Tablet & Phone
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: isTablet ? 760 : double.infinity),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // 2. Category Horizontal Filter Chips
+                          if (_isLoading)
+                            const GageSkeletonCategoryPillsRow(count: 5)
+                          else
+                            SizedBox(
+                              height: 44,
+                              child: ListView.separated(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                scrollDirection: Axis.horizontal,
+                                itemCount: _categories.length,
+                                separatorBuilder: (ctx, i) => const SizedBox(width: 8),
+                                itemBuilder: (ctx, idx) {
+                                  final cat = _categories[idx];
+                                  final isSelected = _selectedCategory == cat;
+                                  return ChoiceChip(
+                                    label: Text(cat),
+                                    selected: isSelected,
+                                    onSelected: (_) => setState(() => _selectedCategory = cat),
+                                    selectedColor: GageTheme.primary.withValues(alpha: 0.15),
+                                    labelStyle: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                      color: isSelected ? GageTheme.primary : (isDark ? Colors.white70 : Colors.black87),
+                                    ),
+                                    backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      side: BorderSide(
+                                        color: isSelected ? GageTheme.primary : (isDark ? Colors.white12 : Colors.grey.shade300),
+                                      ),
+                                    ),
+                                    visualDensity: VisualDensity.compact,
+                                  );
+                                },
                               ),
-                              const Text(
-                                'Diantar Langsung via GAGE',
-                                style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.bold),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 8),
-
-                        // 4. List Barang Bekas (Adaptif Multi-Kolom saat Tablet)
-                        if (filteredItems.isEmpty)
-                          Container(
-                            padding: const EdgeInsets.all(32),
-                            alignment: Alignment.center,
-                            child: Column(
-                              children: [
-                                Icon(Icons.search_off_rounded, size: 48, color: Colors.grey.shade400),
-                                const SizedBox(height: 10),
-                                Text(
-                                  'Tidak ada barang ditemukan',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                    color: isDark ? Colors.white : Colors.black87,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  _showFavoritesOnly
-                                      ? 'Belum ada barang yang ditandai favorit di menu BaBe.'
-                                      : 'Coba ganti kata kunci pencarian atau kategori.',
-                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                                ),
-                              ],
                             ),
-                          )
-                        else if (isTablet)
+
+                          const SizedBox(height: 10),
+
+                          // 3. Section Title
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: GridView.builder(
+                            child: _isLoading
+                                ? const Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      GageSkeletonBox(width: 140, height: 16),
+                                      GageSkeletonBox(width: 120, height: 12),
+                                    ],
+                                  )
+                                : Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Koleksi Barang (${filteredItems.length})',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13.5,
+                                          color: isDark ? Colors.white : Colors.black87,
+                                        ),
+                                      ),
+                                      const Text(
+                                        'Diantar Langsung via GAGE',
+                                        style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          // 4. List Barang Bekas (Adaptif Multi-Kolom saat Tablet)
+                          if (_isLoading)
+                            ListView.builder(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
-                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: screenWidth > 900 ? 3 : 2,
-                                crossAxisSpacing: 12,
-                                mainAxisSpacing: 12,
-                                mainAxisExtent: 138,
+                              itemCount: 4,
+                              itemBuilder: (ctx, idx) => const GageSkeletonBabeItemCard(),
+                            )
+                          else if (filteredItems.isEmpty)
+                            Container(
+                              padding: const EdgeInsets.all(32),
+                              alignment: Alignment.center,
+                              child: Column(
+                                children: [
+                                  Icon(Icons.search_off_rounded, size: 48, color: Colors.grey.shade400),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    'Tidak ada barang ditemukan',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: isDark ? Colors.white : Colors.black87,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _showFavoritesOnly
+                                        ? 'Belum ada barang yang ditandai favorit di menu BaBe.'
+                                        : 'Coba ganti kata kunci pencarian atau kategori.',
+                                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                  ),
+                                ],
                               ),
+                            )
+                          else if (isTablet)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: GridView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: screenWidth > 900 ? 3 : 2,
+                                  crossAxisSpacing: 12,
+                                  mainAxisSpacing: 12,
+                                  mainAxisExtent: 138,
+                                ),
+                                itemCount: filteredItems.length,
+                                itemBuilder: (ctx, idx) => _buildProductCard(filteredItems[idx]),
+                              ),
+                            )
+                          else
+                            ListView.builder(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
                               itemCount: filteredItems.length,
                               itemBuilder: (ctx, idx) => _buildProductCard(filteredItems[idx]),
                             ),
-                          )
-                        else
-                          ListView.builder(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: filteredItems.length,
-                            itemBuilder: (ctx, idx) => _buildProductCard(filteredItems[idx]),
-                          ),
 
-                        const SizedBox(height: 90),
-                      ],
+                          const SizedBox(height: 90),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
 

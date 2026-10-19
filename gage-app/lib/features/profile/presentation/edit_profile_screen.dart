@@ -7,6 +7,7 @@ import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/providers/auth_provider.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
+import 'package:gage_app/features/profile/presentation/widgets/profile_photo_editor_screen.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -18,10 +19,10 @@ class EditProfileScreen extends StatefulWidget {
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  late TextEditingController _nameController;
-  late TextEditingController _phoneController;
-  late TextEditingController _emailController;
-  late TextEditingController _addressController;
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _addressController = TextEditingController();
 
   File? _imageFile;
   String? _selectedPreset;
@@ -58,18 +59,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.initState();
     final user = context.read<AuthProvider>().currentUser;
 
-    _nameController = TextEditingController(
-      text: user?.name.isNotEmpty == true ? user!.name : 'Syams Djuhair Hibatullah',
-    );
-    _phoneController = TextEditingController(
-      text: user?.phone.isNotEmpty == true ? user!.phone : '+6285156955735',
-    );
-    _emailController = TextEditingController(
-      text: user?.email?.isNotEmpty == true ? user!.email : 'halugoods.indonesia@gmail.com',
-    );
-    _addressController = TextEditingController(
-      text: 'Dusun Tubokarto RT 02/RW 01, Tubokarto, Pracimantoro, Kab. Wonogiri',
-    );
+    _nameController.text = user?.name.isNotEmpty == true ? user!.name : 'Syams Djuhair Hibatullah';
+    _phoneController.text = user?.phone.isNotEmpty == true ? user!.phone : '+6285156955735';
+    _emailController.text = (user?.email != null && user!.email!.isNotEmpty)
+        ? user.email!
+        : 'halugoods.indonesia@gmail.com';
+    _addressController.text = 'Dusun Tubokarto RT 02/RW 01, Tubokarto, Pracimantoro, Kab. Wonogiri';
 
     _loadPrimaryAddress();
   }
@@ -95,20 +90,40 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.dispose();
   }
 
+  // Buka editor foto profil (Crop, Zoom, Rotate)
+  Future<void> _openPhotoEditor(File rawFile) async {
+    final File? croppedFile = await Navigator.push<File?>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProfilePhotoEditorScreen(imageFile: rawFile),
+        fullscreenDialog: true,
+      ),
+    );
+
+    if (croppedFile != null && mounted) {
+      setState(() {
+        _imageFile = croppedFile;
+        _selectedPreset = null;
+      });
+      GageToast.show(
+        context,
+        'Foto profil berhasil disesuaikan',
+        type: GageToastType.success,
+      );
+    }
+  }
+
   // Ambil gambar dari Kamera
   Future<void> _pickImageFromCamera() async {
     try {
       final XFile? photo = await _picker.pickImage(
         source: ImageSource.camera,
-        maxWidth: 720,
-        maxHeight: 720,
-        imageQuality: 85,
+        maxWidth: 1280,
+        maxHeight: 1280,
+        imageQuality: 90,
       );
-      if (photo != null) {
-        setState(() {
-          _imageFile = File(photo.path);
-          _selectedPreset = null;
-        });
+      if (photo != null && mounted) {
+        await _openPhotoEditor(File(photo.path));
       }
     } catch (e) {
       if (mounted) {
@@ -126,15 +141,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     try {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 720,
-        maxHeight: 720,
-        imageQuality: 85,
+        maxWidth: 1280,
+        maxHeight: 1280,
+        imageQuality: 90,
       );
-      if (image != null) {
-        setState(() {
-          _imageFile = File(image.path);
-          _selectedPreset = null;
-        });
+      if (image != null && mounted) {
+        await _openPhotoEditor(File(image.path));
       }
     } catch (e) {
       if (mounted) {
@@ -279,6 +291,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ],
           ),
           const SizedBox(height: 14),
+          if (_imageFile != null) ...[
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3E8FF),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.crop_rotate_rounded, color: Color(0xFF9333EA), size: 22),
+              ),
+              title: const Text('Edit Foto Terpilih', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              subtitle: const Text('Crop, zoom, atau putar kembali foto yang aktif', style: TextStyle(fontSize: 12)),
+              onTap: () {
+                Navigator.pop(context);
+                _openPhotoEditor(_imageFile!);
+              },
+            ),
+            const Divider(height: 8),
+          ],
           ListTile(
             leading: Container(
               padding: const EdgeInsets.all(8),

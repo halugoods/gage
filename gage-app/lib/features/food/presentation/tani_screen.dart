@@ -17,6 +17,7 @@ import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/food/presentation/tani_favorite_screen.dart';
 import 'package:gage_app/shared/widgets/gage_service_header.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
+import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 class TaniScreen extends StatefulWidget {
   const TaniScreen({super.key});
@@ -26,8 +27,6 @@ class TaniScreen extends StatefulWidget {
 }
 
 class _TaniScreenState extends State<TaniScreen> {
-  // Switch Utama: 'toko_pertanian' vs 'hasil_bumi'
-  String _selectedSection = 'toko_pertanian';
   String _activeCategoryFilter = 'Semua';
 
   final ScrollController _scrollController = ScrollController();
@@ -35,12 +34,22 @@ class _TaniScreenState extends State<TaniScreen> {
   String _searchQuery = '';
   String _deliveryLocation = 'Kecamatan Pracimantoro, Wonogiri';
   final Set<String> _favoriteItemIds = {};
+  bool _isLoading = true;
   final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
   @override
   void initState() {
     super.initState();
     _initDeliveryLocation();
+    _loadTaniData();
+  }
+
+  Future<void> _loadTaniData() async {
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -360,81 +369,71 @@ class _TaniScreenState extends State<TaniScreen> {
       'image': 'assets/images/prod_pupuk.png',
       'icon': Icons.compost_rounded,
     },
-  ];
-
-  final List<Map<String, dynamic>> _hasilBumiItems = [
     {
-      'id': 'hbm-beras-01',
-      'name': 'Beras Mentik Wangi Fresh Giling Sawah 5 Kg',
-      'category': 'Beras Premium',
-      'kios': 'Gapoktan Binaan GAGE Tubokarto',
-      'kiosId': 'mch-gapoktan-tubokarto',
-      'price': 75000,
-      'unit': 'Pack 5kg',
-      'desc': 'Gilingan baru minggu ini, pulen alami, putih bersih tanpa pemutih & wangi pandan alami.',
-      'image': 'assets/images/prod_beras.png',
-      'icon': Icons.rice_bowl_rounded,
+      'id': 'trn-pakan-01',
+      'name': 'Pakan Konsentrat Sapi Penggemuk 50 Kg',
+      'category': 'Pakan Ternak',
+      'kios': 'Poultry Shop Barokah Ternak Praci',
+      'kiosId': 'mch-ternak-barokah',
+      'price': 195000,
+      'unit': 'Karung 50kg',
+      'desc': 'Konsentrat protein tinggi 14% untuk percepatan bobot sapi potong & kambing.',
+      'image': 'assets/images/prod_pakan.png',
+      'icon': Icons.pets_rounded,
     },
     {
-      'id': 'hbm-jagung-01',
-      'name': 'Jagung Pipil Kering Kadar Air 14% 50 Kg',
-      'category': 'Pangan Pokok',
-      'kios': 'Petani Binaan Gambirmanis',
-      'kiosId': 'mch-tani-gambirmanis',
-      'price': 260000,
-      'unit': 'Karung 50kg',
-      'desc': 'Kadar air standar pabrik 14%, biji bersih pipil rapat tanpa bonggol untuk pakan/konsumsi.',
-      'image': 'assets/images/prod_benih.png',
+      'id': 'trn-katul-02',
+      'name': 'Katul Padi / Dedak Halus Super (Karung 40 Kg)',
+      'category': 'Pakan Ternak',
+      'kios': 'Poultry Shop Barokah Ternak Praci',
+      'kiosId': 'mch-ternak-barokah',
+      'price': 140000,
+      'unit': 'Karung 40kg',
+      'desc': 'Katul gilingan pertama tanpa sekam, sangat disukai sapi dan kambing perah/potong.',
+      'image': 'assets/images/prod_pakan.png',
       'icon': Icons.grain_rounded,
     },
     {
-      'id': 'hbm-cabai-01',
-      'name': 'Cabai Rawit Merah Petik Pagi Segar 1 Kg',
-      'category': 'Hortikultura',
-      'kios': 'Kebun Petani Watangrejo',
-      'kiosId': 'mch-tani-watangrejo',
-      'price': 35000,
-      'unit': 'per Kg',
-      'desc': 'Segar petik langsung pagi hari dari kebun Pracimantoro, pedas maksimal tahan simpan.',
-      'image': 'assets/images/prod_cabai.png',
-      'icon': Icons.local_florist_rounded,
+      'id': 'trn-ayam-03',
+      'name': 'Pakan Ayam Petelur KLK 50 Kg',
+      'category': 'Pakan Unggas',
+      'kios': 'Poultry Shop Barokah Ternak Praci',
+      'kiosId': 'mch-ternak-barokah',
+      'price': 380000,
+      'unit': 'Karung 50kg',
+      'desc': 'Pakan lengkap bernutrisi seimbang untuk produksi telur harian maksimal.',
+      'image': 'assets/images/prod_pakan.png',
+      'icon': Icons.egg_rounded,
     },
     {
-      'id': 'hbm-bawang-01',
-      'name': 'Bawang Merah Super Wonogiri Lokal 1 Kg',
-      'category': 'Bumbu Dapur',
-      'kios': 'Lapak Petani Binaan GAGE',
-      'kiosId': 'mch-tani-praci',
+      'id': 'trn-vit-04',
+      'name': 'Mineral & Premix Vitamin Sapi/Kambing (1 Kg)',
+      'category': 'Vitamin Ternak',
+      'kios': 'Poultry Shop Barokah Ternak Praci',
+      'kiosId': 'mch-ternak-barokah',
       'price': 28000,
-      'unit': 'per Kg',
-      'desc': 'Umbi bulat padat kering jemur matahari, aroma tajam sedap khas tanah perbukitan kapur.',
-      'image': 'assets/images/prod_cabai.png',
-      'icon': Icons.spa_rounded,
-    },
-    {
-      'id': 'hbm-singkong-01',
-      'name': 'Singkong Gajah Segar Panen Lahan Kering 5 Kg',
-      'category': 'Palawija',
-      'kios': 'Petani Binaan Suci Pracimantoro',
-      'kiosId': 'mch-tani-suci',
-      'price': 20000,
-      'unit': 'Pack 5kg',
-      'desc': 'Daging umbi pulen empuk saat dikukus atau digoreng, tidak pait, panen segar hari ini.',
-      'image': 'assets/images/prod_benih.png',
-      'icon': Icons.grass_rounded,
+      'unit': 'Bungkus 1kg',
+      'desc': 'Cegah lumpuh, kalsium tinggi, memperkuat nafsu makan & tulang ternak.',
+      'image': 'assets/images/prod_pakan.png',
+      'icon': Icons.medication_rounded,
     },
   ];
 
   List<String> get _currentFilterCategories {
-    if (_selectedSection == 'toko_pertanian') {
-      return ['Semua', 'Pupuk Makro', 'Benih Unggul', 'Obat Hama & Gulma', 'Pupuk Organik'];
-    } else {
-      return ['Semua', 'Beras Premium', 'Pangan Pokok', 'Hortikultura', 'Bumbu Dapur', 'Palawija'];
-    }
+    return [
+      'Semua',
+      'Pupuk Makro',
+      'Benih Unggul',
+      'Obat Hama & Gulma',
+      'Pupuk Organik',
+      'Pakan Ternak',
+      'Pakan Unggas',
+      'Vitamin Ternak',
+    ];
   }
 
   List<Map<String, dynamic>> get _currentCategoryItems {
-    final rawList = _selectedSection == 'toko_pertanian' ? _tokoPertanianItems : _hasilBumiItems;
+    final rawList = _tokoPertanianItems;
     if (_activeCategoryFilter == 'Semua') return rawList;
     return rawList.where((i) => (i['category'] as String) == _activeCategoryFilter).toList();
   }
@@ -452,21 +451,14 @@ class _TaniScreenState extends State<TaniScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(vertical: 14),
       decoration: BoxDecoration(
-        color: isDark ? GageTheme.darkCard : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? GageTheme.darkBorder : Colors.grey.shade200,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? Colors.white12 : Colors.grey.shade200,
+            width: 0.8,
           ),
-        ],
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -676,194 +668,118 @@ class _TaniScreenState extends State<TaniScreen> {
       body: Stack(
         children: [
           // 1. Scrollable Content
-          SingleChildScrollView(
-            controller: _scrollController,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Full-bleed Banner 16:9 ke batas atas status bar dengan Typing Bubble di atas search bar
-                GageServiceHeroBanner(
-                  imageAsset: taniBanner.imagePath,
-                  fallbackTitle: 'GAGE TANI',
-                  scrollController: _scrollController,
-                  overlayChild: AdaptiveSpeechBubble(
-                    fullText: 'Konsultasi gratis dokter tanaman, klik di sini',
-                    backgroundColor: const Color(0xFF16A34A),
-                    icon: Icons.eco_rounded,
-                    onTap: _openConsultationWhatsApp,
+          RefreshIndicator(
+            onRefresh: _loadTaniData,
+            color: GageTheme.primary,
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Full-bleed Banner 16:9 ke batas atas status bar dengan Typing Bubble di atas search bar
+                  GageServiceHeroBanner(
+                    screenTarget: 'customer_tani',
+                    imageAsset: taniBanner.imagePath,
+                    fallbackTitle: 'GAGE TANI & TERNAK',
+                    scrollController: _scrollController,
+                    overlayChild: AdaptiveSpeechBubble(
+                      fullText: 'Pesan pupuk, benih & pakan ternak antar ke rumah/kandang',
+                      backgroundColor: const Color(0xFF16A34A),
+                      icon: Icons.eco_rounded,
+                      onTap: _openConsultationWhatsApp,
+                    ),
                   ),
-                ),
 
-                const SizedBox(height: 38),
+                  const SizedBox(height: 38),
 
-                Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: isTablet ? 760 : double.infinity),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: isTablet ? 760 : double.infinity),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 6),
 
-                          // 3. Switch Kategori Utama: Toko Pertanian vs Hasil Bumi
-                          Container(
-                            padding: const EdgeInsets.all(3),
-                            decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF1E293B) : Colors.grey.shade200,
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      setState(() {
-                                        _selectedSection = 'toko_pertanian';
-                                        _activeCategoryFilter = 'Semua';
-                                      });
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(vertical: 9),
-                                      decoration: BoxDecoration(
-                                        color: _selectedSection == 'toko_pertanian'
-                                            ? (isDark ? const Color(0xFF0F172A) : Colors.white)
-                                            : Colors.transparent,
-                                        borderRadius: BorderRadius.circular(11),
-                                        boxShadow: _selectedSection == 'toko_pertanian'
-                                            ? const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 1))]
-                                            : null,
+                            // 4. Filter Kategori Chips
+                            if (_isLoading)
+                              const GageSkeletonCategoryPillsRow(count: 6)
+                            else
+                              SizedBox(
+                                height: 34,
+                                child: ListView.separated(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: _currentFilterCategories.length,
+                                  separatorBuilder: (context, index) => const SizedBox(width: 8),
+                                  itemBuilder: (ctx, idx) {
+                                    final cat = _currentFilterCategories[idx];
+                                    final isSel = _activeCategoryFilter == cat;
+                                    return ChoiceChip(
+                                      label: Text(cat),
+                                      selected: isSel,
+                                      selectedColor: const Color(0xFFDCFCE7),
+                                      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                      labelStyle: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                                        color: isSel ? const Color(0xFF166534) : (isDark ? Colors.white70 : Colors.black87),
                                       ),
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.storefront_rounded,
-                                            size: 16,
-                                            color: _selectedSection == 'toko_pertanian' ? const Color(0xFF16A34A) : Colors.grey,
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            'Toko Pertanian',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 12.5,
-                                              color: _selectedSection == 'toko_pertanian'
-                                                  ? const Color(0xFF16A34A)
-                                                  : (isDark ? Colors.white60 : Colors.black54),
-                                            ),
-                                          ),
-                                        ],
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        side: BorderSide(
+                                          color: isSel ? const Color(0xFF86EFAC) : (isDark ? Colors.white12 : Colors.grey.shade300),
+                                        ),
                                       ),
+                                      onSelected: (_) => setState(() => _activeCategoryFilter = cat),
+                                    );
+                                  },
+                                ),
+                              ),
+
+                            const SizedBox(height: 16),
+
+                            // 5. Section Headline
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: _isLoading
+                                  ? const Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        GageSkeletonBox(width: 140, height: 16),
+                                        GageSkeletonBox(width: 120, height: 12),
+                                      ],
+                                    )
+                                  : Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          'Daftar Produk (${activeItems.length})',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13.5,
+                                            color: isDark ? Colors.white : Colors.black87,
+                                          ),
+                                        ),
+                                        const Text(
+                                          'Diantar Langsung via GAGE',
+                                          style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      setState(() {
-                                        _selectedSection = 'hasil_bumi';
-                                        _activeCategoryFilter = 'Semua';
-                                      });
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(vertical: 9),
-                                      decoration: BoxDecoration(
-                                        color: _selectedSection == 'hasil_bumi'
-                                            ? (isDark ? const Color(0xFF0F172A) : Colors.white)
-                                            : Colors.transparent,
-                                        borderRadius: BorderRadius.circular(11),
-                                        boxShadow: _selectedSection == 'hasil_bumi'
-                                            ? const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 1))]
-                                            : null,
-                                      ),
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.rice_bowl_rounded,
-                                            size: 16,
-                                            color: _selectedSection == 'hasil_bumi' ? const Color(0xFF16A34A) : Colors.grey,
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            'Hasil Bumi',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 12.5,
-                                              color: _selectedSection == 'hasil_bumi'
-                                                  ? const Color(0xFF16A34A)
-                                                  : (isDark ? Colors.white60 : Colors.black54),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
                             ),
-                          ),
 
-                          const SizedBox(height: 12),
-
-                          // 4. Filter Kategori Chips
-                          SizedBox(
-                            height: 34,
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: _currentFilterCategories.length,
-                              separatorBuilder: (context, index) => const SizedBox(width: 8),
-                              itemBuilder: (ctx, idx) {
-                                final cat = _currentFilterCategories[idx];
-                                final isSel = _activeCategoryFilter == cat;
-                                return ChoiceChip(
-                                  label: Text(cat),
-                                  selected: isSel,
-                                  selectedColor: const Color(0xFFDCFCE7),
-                                  backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                                  labelStyle: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
-                                    color: isSel ? const Color(0xFF166534) : (isDark ? Colors.white70 : Colors.black87),
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                    side: BorderSide(
-                                      color: isSel ? const Color(0xFF86EFAC) : (isDark ? Colors.white12 : Colors.grey.shade300),
-                                    ),
-                                  ),
-                                  onSelected: (_) => setState(() => _activeCategoryFilter = cat),
-                                );
-                              },
-                            ),
-                          ),
-
-                          const SizedBox(height: 16),
-
-                          // 5. Section Headline
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Daftar Produk (${activeItems.length})',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13.5,
-                                    color: isDark ? Colors.white : Colors.black87,
-                                  ),
-                                ),
-                                const Text(
-                                  'Diantar Langsung via GAGE',
-                                  style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.bold),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          // 6. Daftar Produk
-                          if (activeItems.isEmpty)
+                            // 6. Daftar Produk
+                            if (_isLoading)
+                              ListView.builder(
+                                padding: EdgeInsets.zero,
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: 4,
+                                itemBuilder: (ctx, idx) => const GageSkeletonTaniItem(),
+                              )
+                          else if (activeItems.isEmpty)
                             Padding(
                               padding: const EdgeInsets.all(32.0),
                               child: Center(
@@ -910,6 +826,7 @@ class _TaniScreenState extends State<TaniScreen> {
               ],
             ),
           ),
+        ),
 
           // 2. Sticky Header: Action Buttons & Seamless Docking Search Bar
           Positioned.fill(

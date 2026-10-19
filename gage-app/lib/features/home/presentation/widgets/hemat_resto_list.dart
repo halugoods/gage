@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
 import 'package:gage_app/features/food/presentation/food_explore_screen.dart';
+import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 class HematRestoList extends StatelessWidget {
   final List<Map<String, dynamic>> merchants;
@@ -63,9 +64,48 @@ class HematRestoList extends StatelessWidget {
         const SizedBox(height: 8),
 
         if (isLoading)
-          const Padding(
-            padding: EdgeInsets.all(24.0),
-            child: Center(child: CircularProgressIndicator(color: GageTheme.primary)),
+          SizedBox(
+            height: 248,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              itemCount: 3,
+              itemBuilder: (ctx, idx) {
+                final isDark = Theme.of(context).brightness == Brightness.dark;
+                return Container(
+                  width: 180,
+                  margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
+                  child: GageShimmer(
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
+                      ),
+                      child: const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          GageSkeletonBox(width: double.infinity, height: 110, borderRadius: BorderRadius.all(Radius.circular(12))),
+                          SizedBox(height: 10),
+                          GageSkeletonBox(width: 120, height: 14),
+                          SizedBox(height: 6),
+                          GageSkeletonBox(width: 80, height: 10),
+                          SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              GageSkeletonBox(width: 45, height: 14),
+                              GageSkeletonBox(width: 50, height: 14),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
           )
         else
           SizedBox(

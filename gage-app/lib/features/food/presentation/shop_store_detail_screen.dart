@@ -11,6 +11,7 @@ import 'package:gage_app/shared/widgets/seamless_floating_cart_bar.dart';
 import 'shop_favorite_screen.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
+import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 class ShopStoreDetailScreen extends StatefulWidget {
   final Map<String, dynamic> store;
@@ -31,6 +32,7 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
   String _searchQuery = '';
   bool _isHeaderCollapsed = false;
   bool _isFavorite = false;
+  bool _isLoading = true;
   final Map<String, String> _tempNotes = {};
   late final List<Map<String, dynamic>> _catalog;
 
@@ -40,6 +42,15 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
     _scrollController.addListener(_onScroll);
     _catalog = _generateStoreCatalog(widget.store['id'] ?? 'ret-berkah-01');
     _loadFavoriteStatus();
+    _loadCatalogData();
+  }
+
+  Future<void> _loadCatalogData() async {
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(milliseconds: 280));
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   void _onScroll() {
@@ -933,24 +944,10 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                       )
                     : null,
                 flexibleSpace: FlexibleSpaceBar(
-                  background: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      Image.asset(
-                        storeImage,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Container(color: GageTheme.primaryLight),
-                      ),
-                      Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [Colors.black38, Colors.black87],
-                          ),
-                        ),
-                      ),
-                    ],
+                  background: Image.asset(
+                    storeImage,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(color: GageTheme.primaryLight),
                   ),
                 ),
                 actions: _isHeaderCollapsed
@@ -1161,30 +1158,13 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   alignment: Alignment.center,
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Image.asset(
-                                        'assets/images/gage_ride_3d.png',
-                                        width: 18,
-                                        height: 18,
-                                        fit: BoxFit.contain,
-                                        errorBuilder: (c, e, s) => Icon(
-                                          Icons.two_wheeler_rounded,
-                                          size: 16,
-                                          color: !cart.isPickup ? Colors.white : Colors.grey.shade600,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        'Delivery',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.bold,
-                                          color: !cart.isPickup ? Colors.white : (isDark ? Colors.grey.shade300 : Colors.grey.shade700),
-                                        ),
-                                      ),
-                                    ],
+                                  child: Text(
+                                    'Delivery',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: !cart.isPickup ? Colors.white : (isDark ? Colors.grey.shade300 : Colors.grey.shade700),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -1210,24 +1190,13 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   alignment: Alignment.center,
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.shopping_bag_outlined,
-                                        size: 16,
-                                        color: cart.isPickup ? Colors.white : Colors.grey.shade600,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        'Pickup',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.bold,
-                                          color: cart.isPickup ? Colors.white : (isDark ? Colors.grey.shade300 : Colors.grey.shade700),
-                                        ),
-                                      ),
-                                    ],
+                                  child: Text(
+                                    'Pickup',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: cart.isPickup ? Colors.white : (isDark ? Colors.grey.shade300 : Colors.grey.shade700),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -1401,9 +1370,29 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
           const SliverToBoxAdapter(child: SizedBox(height: 8)),
 
           // Daftar Produk Katalog Toko
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            sliver: SliverList(
+          if (_isLoading)
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) => const GageSkeletonMenuItem(),
+                  childCount: 4,
+                ),
+              ),
+            )
+          else if (_filteredCatalog.isEmpty)
+            SliverFillRemaining(
+              child: Center(
+                child: Text(
+                  'Produk tidak ditemukan.',
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                ),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
                   final prod = _filteredCatalog[index];
@@ -1411,13 +1400,18 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                   final prodId = prod['id'] as String;
                   final itemQty = cart.getItemQuantity(prodId);
 
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  return Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(
+                          color: isDark ? Colors.white12 : Colors.grey.shade200,
+                          width: 0.8,
+                        ),
+                      ),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // KIRI: Info Produk & Harga
                           Expanded(
@@ -1457,7 +1451,7 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                           ),
                           const SizedBox(width: 14),
 
-                          // KANAN: Thumbnail Produk (86x86) + Favorite Heart Badge + Stepper / '+ Tambah'
+                          // KANAN: Thumbnail Produk (80x80) + Stepper / '+ Tambah' Presisi
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
@@ -1466,8 +1460,8 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                                   ClipRRect(
                                     borderRadius: BorderRadius.circular(12),
                                     child: SizedBox(
-                                      width: 86,
-                                      height: 86,
+                                      width: 80,
+                                      height: 80,
                                       child: Image.asset(
                                         prod['image'] ?? 'assets/images/prod_beras.png',
                                         fit: BoxFit.cover,
@@ -1513,61 +1507,62 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                               ),
                               const SizedBox(height: 8),
 
-                              // Tombol Tambah / Stepper (10px Rounded)
+                              // Tombol Tambah / Stepper (80px Presisi)
                               itemQty > 0
-                                  ? Container(
+                                  ? SizedBox(
+                                      width: 80,
                                       height: 32,
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(color: GageTheme.primary, width: 1.5),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          InkWell(
-                                            onTap: () {
-                                              cart.updateQuantity(prodId, -1);
-                                              final newQty = cart.getItemQuantity(prodId);
-                                              MultiMerchantCartService.instance.updateQuantity(storeId, prodId, newQty);
-                                            },
-                                            borderRadius: const BorderRadius.horizontal(left: Radius.circular(8)),
-                                            child: const Padding(
-                                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                              child: Icon(Icons.remove, color: GageTheme.primary, size: 16),
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(10),
+                                          border: Border.all(color: const Color(0xFF16A34A), width: 1.5),
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            InkWell(
+                                              onTap: () {
+                                                cart.updateQuantity(prodId, -1);
+                                                final newQty = cart.getItemQuantity(prodId);
+                                                MultiMerchantCartService.instance.updateQuantity(storeId, prodId, newQty);
+                                              },
+                                              borderRadius: const BorderRadius.horizontal(left: Radius.circular(8)),
+                                              child: const Padding(
+                                                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                                child: Icon(Icons.remove, color: Color(0xFF16A34A), size: 16),
+                                              ),
                                             ),
-                                          ),
-                                          Padding(
-                                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                                            child: Text(
+                                            Text(
                                               '$itemQty',
-                                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: GageTheme.primary),
+                                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87),
                                             ),
-                                          ),
-                                          InkWell(
-                                            onTap: () {
-                                              cart.updateQuantity(prodId, 1);
-                                              final newQty = cart.getItemQuantity(prodId);
-                                              MultiMerchantCartService.instance.updateQuantity(storeId, prodId, newQty);
-                                            },
-                                            borderRadius: const BorderRadius.horizontal(right: Radius.circular(8)),
-                                            child: const Padding(
-                                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                              child: Icon(Icons.add, color: GageTheme.primary, size: 16),
+                                            InkWell(
+                                              onTap: () {
+                                                cart.updateQuantity(prodId, 1);
+                                                final newQty = cart.getItemQuantity(prodId);
+                                                MultiMerchantCartService.instance.updateQuantity(storeId, prodId, newQty);
+                                              },
+                                              borderRadius: const BorderRadius.horizontal(right: Radius.circular(8)),
+                                              child: const Padding(
+                                                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                                child: Icon(Icons.add, color: Color(0xFF16A34A), size: 16),
+                                              ),
                                             ),
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
                                     )
                                   : SizedBox(
+                                      width: 80,
                                       height: 32,
                                       child: ElevatedButton(
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: GageTheme.primary,
                                           foregroundColor: Colors.white,
                                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                          padding: const EdgeInsets.symmetric(horizontal: 14),
-                                          visualDensity: VisualDensity.compact,
+                                          padding: EdgeInsets.zero,
+                                          elevation: 0,
                                         ),
                                         onPressed: () {
                                           final added = cart.addItem(
@@ -1605,16 +1600,22 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                                             );
                                           }
                                         },
-                                        child: const Text('+ Tambah', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5)),
+                                        child: const Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(Icons.add, size: 14),
+                                            SizedBox(width: 2),
+                                            Text('Tambah', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5)),
+                                          ],
+                                        ),
                                       ),
                                     ),
                             ],
                           ),
                         ],
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
                 childCount: _filteredCatalog.length,
               ),
             ),

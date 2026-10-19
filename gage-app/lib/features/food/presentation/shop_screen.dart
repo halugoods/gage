@@ -11,6 +11,7 @@ import 'package:gage_app/shared/widgets/seamless_floating_cart_bar.dart';
 import 'package:gage_app/features/food/presentation/shop_favorite_screen.dart';
 import 'package:gage_app/shared/widgets/gage_service_header.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
+import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 class ShopScreen extends StatefulWidget {
   const ShopScreen({super.key});
@@ -23,6 +24,7 @@ class _ShopScreenState extends State<ShopScreen> {
   final ScrollController _scrollController = ScrollController();
   String _selectedCategory = 'Semua';
   String _searchQuery = '';
+  bool _isLoading = true;
   String _deliveryLocation = 'Mendeteksi titik GPS Anda...';
   final Set<String> _favoriteStoreIds = {'shop-berkah-fajar'};
   final bool _showFavoritesOnly = false;
@@ -45,6 +47,15 @@ class _ShopScreenState extends State<ShopScreen> {
   void initState() {
     super.initState();
     _initDeliveryLocation();
+    _loadStores();
+  }
+
+  Future<void> _loadStores() async {
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -142,7 +153,7 @@ class _ShopScreenState extends State<ShopScreen> {
       'ratingCount': '140+',
       'openHours': '06:30 - 21:00',
       'isOpen': true,
-      'image': 'assets/images/hero_banner_1.png',
+      'image': 'assets/images/shop_hero_banner.png',
       'phone_wa': '081234567801',
       'description': 'Sedia aneka beras C4 pulen Wonogiri, minyak Bimoli, gula kristal, telur ayam segar, dan terigu segitiga biru.',
     },
@@ -157,7 +168,7 @@ class _ShopScreenState extends State<ShopScreen> {
       'ratingCount': '185+',
       'openHours': '06:00 - 20:30',
       'isOpen': true,
-      'image': 'assets/images/hero_promo_2.png',
+      'image': 'assets/images/shop_hero_banner.png',
       'phone_wa': '081234567802',
       'description': 'Toko kelontong komplit kebutuhan harian rumah tangga, camilan rengginang, kerupuk, kopi sachet, dan detergen.',
     },
@@ -172,7 +183,7 @@ class _ShopScreenState extends State<ShopScreen> {
       'ratingCount': '210+',
       'openHours': '07:00 - 22:00',
       'isOpen': true,
-      'image': 'assets/images/hero_banner_2.png',
+      'image': 'assets/images/shop_hero_banner.png',
       'phone_wa': '081234567803',
       'description': 'Minimarket serba ada, aneka snack biskuit, susu UHT, minuman dingin, sabun mandi, shampo, dan perlengkapan dapur.',
     },
@@ -187,7 +198,7 @@ class _ShopScreenState extends State<ShopScreen> {
       'ratingCount': '95+',
       'openHours': '07:00 - 18:00',
       'isOpen': true,
-      'image': 'assets/images/promo_banner_2.png',
+      'image': 'assets/images/shop_hero_banner.png',
       'phone_wa': '081234567804',
       'description': 'Pusat grosir pangan, sembako karungan, mie instan per dus karton, minyak jerigen/karton, dan aneka bumbu dapur.',
     },
@@ -394,196 +405,229 @@ class _ShopScreenState extends State<ShopScreen> {
       body: Stack(
         children: [
           // 1. Scrollable Content
-          SingleChildScrollView(
-            controller: _scrollController,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Full-bleed Banner 16:9 ke batas atas status bar
-                GageServiceHeroBanner(
-                  imageAsset: shopBanner.imagePath,
-                  fallbackTitle: 'GAGE SHOP',
-                  scrollController: _scrollController,
-                ),
+          RefreshIndicator(
+            onRefresh: _loadStores,
+            color: GageTheme.primary,
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Full-bleed Banner 16:9 ke batas atas status bar
+                  GageServiceHeroBanner(
+                    screenTarget: 'customer_shop',
+                    imageAsset: shopBanner.imagePath,
+                    fallbackTitle: 'GAGE SHOP',
+                    scrollController: _scrollController,
+                  ),
 
-                const SizedBox(height: 38),
+                  const SizedBox(height: 38),
 
-              // ===============================================================
-              // BODY KONTEN RESPONSIF (Setara Arsitektur GAGE Food)
-              // ===============================================================
-              Center(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: isTablet ? 760 : double.infinity),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                // ===============================================================
+                // BODY KONTEN RESPONSIF (Setara Arsitektur GAGE Food)
+                // ===============================================================
+                Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: isTablet ? 760 : double.infinity),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
 
 
-                      // 2. Kategori Belanja Sembako (Circular Avatar Matching GAGE Food)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'Kategori Belanja Sembako',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
-                            ),
-                            if (_selectedCategory != 'Semua')
-                              GestureDetector(
-                                onTap: () => setState(() => _selectedCategory = 'Semua'),
-                                child: const Text(
-                                  'Reset',
-                                  style: TextStyle(fontSize: 12, color: GageTheme.primary, fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        height: 94,
-                        child: ListView.separated(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _categories.length,
-                          separatorBuilder: (context, index) => const SizedBox(width: 14),
-                          itemBuilder: (ctx, idx) {
-                            final cat = _categories[idx];
-                            final name = cat['name'] as String;
-                            final isSel = _selectedCategory == name;
-
-                            return InkWell(
-                              onTap: () => setState(() => _selectedCategory = name),
-                              borderRadius: BorderRadius.circular(16),
-                              child: SizedBox(
-                                width: 62,
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
+                        // 2. Kategori Belanja Sembako (Circular Avatar Matching GAGE Food)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: _isLoading
+                              ? const Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Container(
-                                      width: 58,
-                                      height: 58,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: isSel ? GageTheme.primary : (isDark ? Colors.grey.shade700 : Colors.grey.shade200),
-                                          width: isSel ? 2.0 : 1.2,
+                                    GageSkeletonBox(width: 170, height: 16),
+                                    GageSkeletonBox(width: 50, height: 14),
+                                  ],
+                                )
+                              : Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'Kategori Belanja Sembako',
+                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
+                                    ),
+                                    if (_selectedCategory != 'Semua')
+                                      GestureDetector(
+                                        onTap: () => setState(() => _selectedCategory = 'Semua'),
+                                        child: const Text(
+                                          'Reset',
+                                          style: TextStyle(fontSize: 12, color: GageTheme.primary, fontWeight: FontWeight.bold),
                                         ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: isSel ? GageTheme.primary.withValues(alpha: 0.2) : Colors.black12,
-                                            blurRadius: 6,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ],
                                       ),
-                                      child: ClipOval(
-                                        child: Image.asset(
-                                          cat['image'] as String,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (c, e, s) => Container(
-                                            color: GageTheme.primaryLight,
-                                            child: Icon(
-                                              cat['icon'] as IconData? ?? Icons.shopping_basket_rounded,
-                                              color: GageTheme.primary,
-                                              size: 26,
+                                  ],
+                                ),
+                        ),
+                        const SizedBox(height: 12),
+                        if (_isLoading)
+                          const GageSkeletonCircularCategoriesRow(count: 6)
+                        else
+                          SizedBox(
+                            height: 94,
+                            child: ListView.separated(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              scrollDirection: Axis.horizontal,
+                              itemCount: _categories.length,
+                              separatorBuilder: (context, index) => const SizedBox(width: 14),
+                              itemBuilder: (ctx, idx) {
+                                final cat = _categories[idx];
+                                final name = cat['name'] as String;
+                                final isSel = _selectedCategory == name;
+
+                                return InkWell(
+                                  onTap: () => setState(() => _selectedCategory = name),
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: SizedBox(
+                                    width: 62,
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          width: 58,
+                                          height: 58,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            border: Border.all(
+                                              color: isSel ? GageTheme.primary : (isDark ? Colors.grey.shade700 : Colors.grey.shade200),
+                                              width: isSel ? 2.0 : 1.2,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: isSel ? GageTheme.primary.withValues(alpha: 0.2) : Colors.black12,
+                                                blurRadius: 6,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: ClipOval(
+                                            child: Image.asset(
+                                              cat['image'] as String,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (c, e, s) => Container(
+                                                color: GageTheme.primaryLight,
+                                                child: Icon(
+                                                  cat['icon'] as IconData? ?? Icons.shopping_basket_rounded,
+                                                  color: GageTheme.primary,
+                                                  size: 26,
+                                                ),
+                                              ),
                                             ),
                                           ),
                                         ),
-                                      ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          name,
+                                          textAlign: TextAlign.center,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: isSel ? FontWeight.bold : FontWeight.w600,
+                                            color: isSel ? GageTheme.primary : (isDark ? Colors.white : GageTheme.textPrimary),
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    const SizedBox(height: 6),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+
+                        const SizedBox(height: 18),
+
+                        // 5. Header Daftar Toko Merchant Resmi
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: _isLoading
+                              ? const Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    GageSkeletonBox(width: 190, height: 16),
+                                    GageSkeletonBox(width: 80, height: 14),
+                                  ],
+                                )
+                              : Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'Daftar Toko & Minimarket Mitra Resmi',
+                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                    ),
                                     Text(
-                                      name,
-                                      textAlign: TextAlign.center,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: isSel ? FontWeight.bold : FontWeight.w600,
-                                        color: isSel ? GageTheme.primary : (isDark ? Colors.white : GageTheme.textPrimary),
-                                      ),
+                                      '${_filteredStores.length} Toko Buka',
+                                      style: const TextStyle(fontSize: 12, color: GageTheme.accentGreen, fontWeight: FontWeight.bold),
                                     ),
                                   ],
                                 ),
-                              ),
-                            );
-                          },
                         ),
-                      ),
+                        const SizedBox(height: 10),
 
-                      const SizedBox(height: 18),
-
-                      // 5. Header Daftar Toko Merchant Resmi
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'Daftar Toko & Minimarket Mitra Resmi',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                            ),
-                            Text(
-                              '${_filteredStores.length} Toko Buka',
-                              style: const TextStyle(fontSize: 12, color: GageTheme.accentGreen, fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-
-                      // 6. List of Store Cards (Responsive Grid saat Tablet)
-                      if (_filteredStores.isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.all(32.0),
-                          child: Center(
-                            child: Column(
-                              children: [
-                                Icon(Icons.store_mall_directory_outlined, size: 48, color: Colors.grey.shade400),
-                                const SizedBox(height: 10),
-                                Text(
-                                  _showFavoritesOnly
-                                      ? 'Belum ada toko yang ditandai favorit.'
-                                      : 'Toko tidak ditemukan untuk kata kunci "$_searchQuery"',
-                                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                      else if (isTablet)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: GridView.builder(
+                        // 6. List of Store Cards (Responsive Grid saat Tablet)
+                        if (_isLoading)
+                          ListView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
-                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: screenWidth > 900 ? 3 : 2,
-                              crossAxisSpacing: 12,
-                              mainAxisSpacing: 12,
-                              mainAxisExtent: 136,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: 4,
+                            itemBuilder: (ctx, idx) => const GageSkeletonStoreCard(),
+                          )
+                        else if (_filteredStores.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.all(32.0),
+                            child: Center(
+                              child: Column(
+                                children: [
+                                  Icon(Icons.store_mall_directory_outlined, size: 48, color: Colors.grey.shade400),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    _showFavoritesOnly
+                                        ? 'Belum ada toko yang ditandai favorit.'
+                                        : 'Toko tidak ditemukan untuk kata kunci "$_searchQuery"',
+                                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                                  ),
+                                ],
+                              ),
                             ),
+                          )
+                        else if (isTablet)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: screenWidth > 900 ? 3 : 2,
+                                crossAxisSpacing: 12,
+                                mainAxisSpacing: 12,
+                                mainAxisExtent: 136,
+                              ),
+                              itemCount: _filteredStores.length,
+                              itemBuilder: (ctx, idx) => _buildStoreCard(_filteredStores[idx]),
+                            ),
+                          )
+                        else
+                          ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
                             itemCount: _filteredStores.length,
                             itemBuilder: (ctx, idx) => _buildStoreCard(_filteredStores[idx]),
                           ),
-                        )
-                      else
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: _filteredStores.length,
-                          itemBuilder: (ctx, idx) => _buildStoreCard(_filteredStores[idx]),
-                        ),
 
-                      const SizedBox(height: 90),
-                    ],
+                        const SizedBox(height: 90),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
 

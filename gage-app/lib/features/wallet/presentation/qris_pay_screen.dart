@@ -605,33 +605,86 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
 
                   const SizedBox(height: 16),
 
-                  // Saldo Info Tile
+                  // Saldo Info & Rincian Transaksi Transparan (0% Fee)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(12),
+                      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    child: Column(
                       children: [
                         Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Icon(Icons.account_balance_wallet_rounded, color: GageTheme.primary, size: 18),
-                            const SizedBox(width: 8),
+                            Row(
+                              children: [
+                                const Icon(Icons.account_balance_wallet_rounded, color: GageTheme.primary, size: 16),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Saldo GAGEPay',
+                                  style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.black87),
+                                ),
+                              ],
+                            ),
                             Text(
-                              'Saldo GAGEPay',
-                              style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.black87),
+                              currencyFormatter.format(wallet.balance),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
                             ),
                           ],
                         ),
-                        Text(
-                          currencyFormatter.format(wallet.balance),
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                            color: isDark ? Colors.white : Colors.black87,
-                          ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                          child: Divider(height: 1),
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Biaya Layanan Transaksi',
+                              style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white60 : Colors.black54),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.green.shade50,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                '0% Fee (Gratis)',
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green.shade700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Sisa Saldo Setelah Bayar',
+                              style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white60 : Colors.black54),
+                            ),
+                            Text(
+                              currencyFormatter.format(math.max(0, wallet.balance - _selectedAmount)),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: wallet.balance >= _selectedAmount
+                                    ? (isDark ? Colors.white70 : Colors.black87)
+                                    : Colors.red,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -717,68 +770,59 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
             ),
           ),
 
-          // 3. RETICLE FRAME & ANIMASI LASER / SMART LOCK
+          // 3. MINIMALIST RETICLE FRAME & SUBTLE SCAN INDICATOR (Apple Pay / DANA Style)
           Center(
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
+              duration: const Duration(milliseconds: 250),
               width: reticleSize,
               height: reticleSize,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(24),
-                boxShadow: _isLockingOn
-                    ? [
-                        BoxShadow(
-                          color: const Color(0xFF22C55E).withValues(alpha: 0.6),
-                          blurRadius: 28,
-                          spreadRadius: 4,
-                        ),
-                      ]
-                    : null,
+                border: Border.all(
+                  color: _isLockingOn || _isQrScanned
+                      ? const Color(0xFF10B981)
+                      : Colors.white.withValues(alpha: 0.25),
+                  width: 1.5,
+                ),
               ),
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  // 4 Sudut Viewfinder
+                  // 4 Sudut Minimalis Viewfinder
                   Positioned.fill(
                     child: QrViewfinderCorners(
-                      color: _isLockingOn
-                          ? const Color(0xFF22C55E)
-                          : (_isQrScanned ? const Color(0xFF22C55E) : GageTheme.primary),
-                      cornerLength: 32,
-                      cornerWidth: 4.5,
+                      color: _isLockingOn || _isQrScanned
+                          ? const Color(0xFF10B981)
+                          : Colors.white,
+                      cornerLength: 26,
+                      cornerWidth: 2.8,
                     ),
                   ),
 
-                  // Garis Pemindai Laser Merah GAGE (atau Hijau jika smart lock)
+                  // Garis Pemindai Halus Minimalis (Soft White/Mint Pulse)
                   if (!_isQrScanned && !_isLockingOn)
                     Positioned.fill(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
                         child: AnimatedBuilder(
                           animation: _laserAnimation,
                           builder: (context, child) {
                             return Align(
                               alignment: Alignment(0, (_laserAnimation.value * 2) - 1),
                               child: Container(
-                                height: 3.0,
+                                height: 2.0,
                                 width: double.infinity,
                                 decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
+                                  borderRadius: BorderRadius.circular(2),
+                                  gradient: LinearGradient(
                                     colors: [
                                       Colors.transparent,
-                                      GageTheme.primary,
+                                      Colors.white.withValues(alpha: 0.8),
                                       Colors.white,
-                                      GageTheme.primary,
+                                      Colors.white.withValues(alpha: 0.8),
                                       Colors.transparent,
                                     ],
                                   ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: GageTheme.primary.withValues(alpha: 0.9),
-                                      blurRadius: 12,
-                                      spreadRadius: 2,
-                                    ),
-                                  ],
                                 ),
                               ),
                             );
@@ -787,29 +831,29 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
                       ),
                     ),
 
-                  // Smart Scan Animation Overlay saat Lock-On
-                  if (_isLockingOn)
-                    AnimatedScale(
-                      scale: 1.05,
-                      duration: const Duration(milliseconds: 200),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.8),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: const Color(0xFF22C55E), width: 1.5),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.check_circle_rounded, color: Color(0xFF22C55E), size: 18),
-                            SizedBox(width: 6),
-                            Text(
-                              'QR Code Terdeteksi!',
-                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12.5),
+                  // Minimalist Status Badge saat QR Terdeteksi
+                  if (_isLockingOn || _isQrScanned)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.75),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFF10B981), width: 1.0),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 16),
+                          SizedBox(width: 6),
+                          Text(
+                            'QR Terdeteksi',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12.0,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                 ],
@@ -823,135 +867,192 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Column(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Tombol Kembali
-                      InkWell(
-                        onTap: () => Navigator.pop(context),
-                        borderRadius: BorderRadius.circular(20),
-                        child: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF1E293B).withValues(alpha: 0.85) : Colors.white.withValues(alpha: 0.9),
-                            shape: BoxShape.circle,
-                            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
-                          ),
-                          child: Icon(
-                            Icons.arrow_back_rounded,
-                            color: isDark ? Colors.white : Colors.black87,
-                            size: 20,
-                          ),
-                        ),
-                      ),
-
-                      // Judul Tengah
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF1E293B).withValues(alpha: 0.85) : Colors.white.withValues(alpha: 0.9),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
-                        ),
-                        child: Row(
+                  // Cohesive Card Pindai QRIS GAGE with Integrated Saldo & 0% Fee
+                  Container(
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B).withValues(alpha: 0.94) : Colors.white.withValues(alpha: 0.96),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black12, blurRadius: 12, offset: Offset(0, 3)),
+                      ],
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Row 1: Back, Title, Flash & Gallery
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Icon(Icons.qr_code_scanner_rounded, color: GageTheme.primary, size: 18),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Pindai QRIS GAGE',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                                color: isDark ? Colors.white : Colors.black87,
+                            InkWell(
+                              onTap: () => Navigator.pop(context),
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.arrow_back_rounded,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                  size: 18,
+                                ),
                               ),
+                            ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.qr_code_scanner_rounded, color: GageTheme.primary, size: 18),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Pindai QRIS GAGE',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                InkWell(
+                                  onTap: () {
+                                    _scannerController.toggleTorch();
+                                    setState(() => _isFlashOn = !_isFlashOn);
+                                  },
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: Container(
+                                    width: 34,
+                                    height: 34,
+                                    decoration: BoxDecoration(
+                                      color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      _isFlashOn ? Icons.flash_on_rounded : Icons.flash_off_rounded,
+                                      color: _isFlashOn ? Colors.amber : (isDark ? Colors.white70 : Colors.black87),
+                                      size: 18,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                InkWell(
+                                  onTap: _pickQrFromGallery,
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: Container(
+                                    width: 34,
+                                    height: 34,
+                                    decoration: BoxDecoration(
+                                      color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.photo_library_rounded,
+                                      color: isDark ? Colors.white70 : Colors.black87,
+                                      size: 18,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                      ),
 
-                      // Aksi Kanan: Flash & Galeri
-                      Row(
-                        children: [
-                          InkWell(
+                        const SizedBox(height: 10),
+                        const Divider(height: 1),
+                        const SizedBox(height: 8),
+
+                        // Row 2: Integrated Saldo GAGEPay & 0% Fee Pill
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
                             onTap: () {
-                              _scannerController.toggleTorch();
-                              setState(() => _isFlashOn = !_isFlashOn);
+                              HapticFeedback.selectionClick();
+                              TopupQrisDialog.showAsSheet(
+                                context,
+                                onTopupSuccess: (amt) {
+                                  wallet.fetchWallet('usr-cust-01');
+                                },
+                              );
                             },
-                            borderRadius: BorderRadius.circular(20),
-                            child: Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF1E293B).withValues(alpha: 0.85) : Colors.white.withValues(alpha: 0.9),
-                                shape: BoxShape.circle,
-                                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
-                              ),
-                              child: Icon(
-                                _isFlashOn ? Icons.flash_on_rounded : Icons.flash_off_rounded,
-                                color: _isFlashOn ? Colors.amber : (isDark ? Colors.white70 : Colors.black87),
-                                size: 19,
+                            borderRadius: BorderRadius.circular(12),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(5),
+                                    decoration: BoxDecoration(
+                                      color: GageTheme.primaryLight,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(Icons.account_balance_wallet_rounded, color: GageTheme.primary, size: 16),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Saldo GAGEPay',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                        ),
+                                      ),
+                                      Text(
+                                        currencyFormatter.format(wallet.balance),
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w900,
+                                          color: isDark ? Colors.white : Colors.black87,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const Spacer(),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFDCFCE7),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: const Text(
+                                      '0% Fee',
+                                      style: TextStyle(
+                                        color: Color(0xFF15803D),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: GageTheme.primary,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.add, color: Colors.white, size: 12),
+                                        SizedBox(width: 2),
+                                        Text(
+                                          'Top Up',
+                                          style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          InkWell(
-                            onTap: _pickQrFromGallery,
-                            borderRadius: BorderRadius.circular(20),
-                            child: Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF1E293B).withValues(alpha: 0.85) : Colors.white.withValues(alpha: 0.9),
-                                shape: BoxShape.circle,
-                                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
-                              ),
-                              child: Icon(
-                                Icons.photo_library_rounded,
-                                color: isDark ? Colors.white70 : Colors.black87,
-                                size: 19,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Floating Saldo GAGEPay Pill
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1E293B).withValues(alpha: 0.9) : Colors.white.withValues(alpha: 0.95),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
-                      boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.account_balance_wallet_rounded, color: GageTheme.primary, size: 16),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Saldo: ${currencyFormatter.format(wallet.balance)}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                          decoration: BoxDecoration(
-                            color: Colors.green.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            '0% Fee',
-                            style: TextStyle(color: Colors.green.shade700, fontSize: 9, fontWeight: FontWeight.bold),
                           ),
                         ),
                       ],

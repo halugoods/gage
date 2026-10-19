@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/gage_theme.dart';
+import '../../../../shared/widgets/gage_shimmer.dart';
 
 class RestoReviewsScreen extends StatefulWidget {
   final String restoName;
@@ -19,6 +20,32 @@ class RestoReviewsScreen extends StatefulWidget {
 
 class _RestoReviewsScreenState extends State<RestoReviewsScreen> {
   int _selectedStarFilter = 0; // 0 = Semua, 5 = 5 star, dst
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReviews();
+  }
+
+  Future<void> _loadReviews() async {
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(milliseconds: 250));
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _onFilterChanged(int stars) {
+    if (_selectedStarFilter == stars) return;
+    setState(() {
+      _selectedStarFilter = stars;
+      _isLoading = true;
+    });
+    Future.delayed(const Duration(milliseconds: 180), () {
+      if (mounted) setState(() => _isLoading = false);
+    });
+  }
 
   final List<Map<String, dynamic>> _mockReviews = [
     {
@@ -99,98 +126,123 @@ class _RestoReviewsScreenState extends State<RestoReviewsScreen> {
         ),
         elevation: 0.5,
       ),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        children: [
-          // 1. Rating Summary Header
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Big score
-                Column(
+      body: RefreshIndicator(
+        onRefresh: _loadReviews,
+        color: GageTheme.primary,
+        child: ListView(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          children: [
+            // 1. Rating Summary Header
+            if (_isLoading)
+              const GageSkeletonReviewSummary()
+            else
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Text(
-                      widget.rating.toStringAsFixed(1),
-                      style: const TextStyle(fontSize: 44, fontWeight: FontWeight.w900, height: 1.0),
+                    // Big score
+                    Column(
+                      children: [
+                        Text(
+                          widget.rating.toStringAsFixed(1),
+                          style: const TextStyle(fontSize: 44, fontWeight: FontWeight.w900, height: 1.0),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: List.generate(
+                            5,
+                            (index) => const Icon(Icons.star_rounded, color: Colors.amber, size: 18),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${widget.ratingCount} rating',
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: List.generate(
-                        5,
-                        (index) => const Icon(Icons.star_rounded, color: Colors.amber, size: 18),
+                    const SizedBox(width: 24),
+                    // Breakdown progress bars
+                    Expanded(
+                      child: Column(
+                        children: [
+                          _buildRatingBar(5, 0.85, isDark),
+                          _buildRatingBar(4, 0.10, isDark),
+                          _buildRatingBar(3, 0.03, isDark),
+                          _buildRatingBar(2, 0.01, isDark),
+                          _buildRatingBar(1, 0.01, isDark),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${widget.ratingCount} rating',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 24),
-                // Breakdown progress bars
-                Expanded(
-                  child: Column(
-                    children: [
-                      _buildRatingBar(5, 0.85, isDark),
-                      _buildRatingBar(4, 0.10, isDark),
-                      _buildRatingBar(3, 0.03, isDark),
-                      _buildRatingBar(2, 0.01, isDark),
-                      _buildRatingBar(1, 0.01, isDark),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 20),
-          const Divider(height: 1),
-          const SizedBox(height: 16),
-
-          // 2. Star Filter Chips
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                _buildFilterChip('Semua (${_mockReviews.length})', 0, isDark),
-                const SizedBox(width: 8),
-                _buildFilterChip('5 ★', 5, isDark),
-                const SizedBox(width: 8),
-                _buildFilterChip('4 ★', 4, isDark),
-                const SizedBox(width: 8),
-                _buildFilterChip('3 ★', 3, isDark),
-                const SizedBox(width: 8),
-                _buildFilterChip('2 ★', 2, isDark),
-                const SizedBox(width: 8),
-                _buildFilterChip('1 ★', 1, isDark),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // 3. List of Reviews
-          if (filteredList.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(40),
-              child: Center(
-                child: Column(
-                  children: [
-                    Icon(Icons.rate_review_outlined, size: 48, color: Colors.grey.shade400),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Belum ada ulasan untuk rating $_selectedStarFilter bintang.',
-                      style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
                     ),
                   ],
                 ),
               ),
-            )
-          else
+
+            const SizedBox(height: 20),
+            const Divider(height: 1),
+            const SizedBox(height: 16),
+
+            // 2. Star Filter Chips
+            if (_isLoading)
+              SizedBox(
+                height: 36,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: 6,
+                  itemBuilder: (ctx, idx) => const GageSkeletonCategoryPill(),
+                ),
+              )
+            else
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    _buildFilterChip('Semua (${_mockReviews.length})', 0, isDark),
+                    const SizedBox(width: 8),
+                    _buildFilterChip('5 ★', 5, isDark),
+                    const SizedBox(width: 8),
+                    _buildFilterChip('4 ★', 4, isDark),
+                    const SizedBox(width: 8),
+                    _buildFilterChip('3 ★', 3, isDark),
+                    const SizedBox(width: 8),
+                    _buildFilterChip('2 ★', 2, isDark),
+                    const SizedBox(width: 8),
+                    _buildFilterChip('1 ★', 1, isDark),
+                  ],
+                ),
+              ),
+
+            const SizedBox(height: 16),
+
+            // 3. List of Reviews (Skeleton Shimmer saat loading)
+            if (_isLoading)
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: 4,
+                itemBuilder: (ctx, idx) => const GageSkeletonReviewTile(),
+              )
+            else if (filteredList.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(40),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(Icons.rate_review_outlined, size: 48, color: Colors.grey.shade400),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Belum ada ulasan untuk rating $_selectedStarFilter bintang.',
+                        style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -321,8 +373,9 @@ class _RestoReviewsScreenState extends State<RestoReviewsScreen> {
             ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildRatingBar(int star, double percent, bool isDark) {
     return Padding(
@@ -358,7 +411,7 @@ class _RestoReviewsScreenState extends State<RestoReviewsScreen> {
   Widget _buildFilterChip(String label, int starValue, bool isDark) {
     final isSel = _selectedStarFilter == starValue;
     return InkWell(
-      onTap: () => setState(() => _selectedStarFilter = starValue),
+      onTap: () => _onFilterChanged(starValue),
       borderRadius: BorderRadius.circular(20),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),

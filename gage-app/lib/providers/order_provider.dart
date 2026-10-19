@@ -215,6 +215,7 @@ class OrderProvider extends ChangeNotifier {
     String? promoCode,
     required String deliveryAddress,
     String? merchantName,
+    int driverTip = 0,
   }) async {
     _isLoading = true;
     notifyListeners();
@@ -255,7 +256,7 @@ class OrderProvider extends ChangeNotifier {
     final shippingFee = (distanceKm <= 2.0 ? 6000 : 6000 + ((distanceKm - 2.0).ceil() * 3000)).toInt();
     final int shippingDiscount = promoCode != null && promoCode.contains('ONGKIR') ? shippingFee : 0;
     const adminFee = 1000;
-    final totalAmount = itemsSubtotal + (shippingFee - shippingDiscount) + adminFee;
+    final totalAmount = itemsSubtotal + (shippingFee - shippingDiscount) + adminFee + driverTip;
 
     final fallbackOrder = OrderModel(
       id: 'ord-fd-${now.millisecondsSinceEpoch}',
@@ -279,6 +280,7 @@ class OrderProvider extends ChangeNotifier {
       shippingFee: shippingFee,
       shippingDiscount: shippingDiscount,
       adminFee: adminFee,
+      driverTip: driverTip,
       deliveryAddress: deliveryAddress,
       distanceKm: distanceKm,
       trackingToken: 'trk-fd-${now.millisecondsSinceEpoch}',

@@ -17,6 +17,7 @@ class OrderModel {
   final int shippingFee;
   final int shippingDiscount;
   final int adminFee;
+  final int driverTip;
   final String deliveryAddress;
   final double distanceKm;
   final String trackingToken;
@@ -43,6 +44,7 @@ class OrderModel {
     required this.shippingFee,
     required this.shippingDiscount,
     required this.adminFee,
+    this.driverTip = 0,
     required this.deliveryAddress,
     required this.distanceKm,
     required this.trackingToken,
@@ -145,6 +147,7 @@ class OrderModel {
       shippingFee: (json['shipping_fee'] ?? 0) as int,
       shippingDiscount: (json['shipping_discount'] ?? 0) as int,
       adminFee: (json['admin_fee'] ?? 1000) as int,
+      driverTip: (json['driver_tip'] ?? 0) as int,
       deliveryAddress: json['delivery_address'] ?? 'Alamat Antar',
       distanceKm: ((json['distance_km'] ?? 1.5) as num).toDouble(),
       trackingToken: json['tracking_token'] ?? '',

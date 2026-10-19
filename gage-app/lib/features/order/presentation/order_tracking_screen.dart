@@ -348,6 +348,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
           quantity: 1,
           subtotal: 18000,
           notes: 'Kukus hangat, saus sambal ekstra pedas',
+          imageUrl: 'assets/images/dish_dimsum_original.png',
         ),
         OrderItemModel(
           id: 'item-2',
@@ -356,6 +357,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
           quantity: 1,
           subtotal: 14000,
           notes: 'Keju lumer meleleh',
+          imageUrl: 'assets/images/dish_dimsum_mentai.png',
         ),
       ],
     );
@@ -372,7 +374,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: _buildAppBar(order, currentStage),
+      appBar: _buildAppBar(order),
       body: Stack(
         children: [
           // 1. PETA LAYAR PENUH (FULL-BLEED MAP)
@@ -438,45 +440,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
   }
 
   // ──────────────────────────────────────────────────────────────────────────
-  // 1. APPBAR DENGAN STATUS BADGE
+  // 1. APPBAR (BERSIH TANPA DUPLIKASI STATUS PILL)
   // ──────────────────────────────────────────────────────────────────────────
-  PreferredSizeWidget _buildAppBar(OrderModel order, int stage) {
-    String stageBadgeText;
-    Color stageBadgeBg;
-    Color stageBadgeTextCol;
-
-    switch (stage) {
-      case 1:
-        stageBadgeText = 'Mencari Driver';
-        stageBadgeBg = const Color(0xFFFEF3C7);
-        stageBadgeTextCol = const Color(0xFFB45309);
-        break;
-      case 2:
-        stageBadgeText = 'Driver Menuju Lokasi';
-        stageBadgeBg = const Color(0xFFDBEAFE);
-        stageBadgeTextCol = const Color(0xFF1D4ED8);
-        break;
-      case 3:
-        stageBadgeText = 'Sedang Disiapkan';
-        stageBadgeBg = const Color(0xFFFFEDD5);
-        stageBadgeTextCol = const Color(0xFFC2410C);
-        break;
-      case 4:
-        stageBadgeText = 'Sedang Diantar';
-        stageBadgeBg = const Color(0xFFFEE2E2);
-        stageBadgeTextCol = const Color(0xFFB91C1C);
-        break;
-      case 5:
-        stageBadgeText = 'Pesanan Selesai';
-        stageBadgeBg = const Color(0xFFDCFCE7);
-        stageBadgeTextCol = const Color(0xFF15803D);
-        break;
-      default:
-        stageBadgeText = 'Memproses';
-        stageBadgeBg = Colors.grey.shade100;
-        stageBadgeTextCol = Colors.grey.shade800;
-    }
-
+  PreferredSizeWidget _buildAppBar(OrderModel order) {
     return AppBar(
       backgroundColor: Colors.white,
       elevation: 0.5,
@@ -487,39 +453,16 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  order.orderNumber,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.black87,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: stageBadgeBg,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: stageBadgeTextCol.withValues(alpha: 0.3), width: 0.8),
-                ),
-                child: Text(
-                  stageBadgeText,
-                  style: TextStyle(
-                    color: stageBadgeTextCol,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
+          Text(
+            order.orderNumber,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.black87,
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.3,
+            ),
           ),
           const SizedBox(height: 2),
           Text(
@@ -812,11 +755,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Tahap $currentStage/5: $stageTitle',
+                          stageTitle,
                           style: const TextStyle(
                             fontWeight: FontWeight.w900,
-                            fontSize: 13.5,
+                            fontSize: 14.0,
                             color: Color(0xFF0F172A),
+                            letterSpacing: -0.2,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -867,7 +811,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                 ],
               ),
 
-              // Bagian Accordion Mengembang (Expand: 5 Tahapan Rute)
+              // Bagian Accordion Mengembang (Expand: 5 Rincian Rute)
               AnimatedSize(
                 duration: const Duration(milliseconds: 320),
                 curve: Curves.easeInOutCubic,
@@ -879,7 +823,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                           const Padding(
                             padding: EdgeInsets.only(bottom: 12.0),
                             child: Text(
-                              'Rincian 5 Tahapan Pengantaran:',
+                              'Status Perjalanan Pesanan:',
                               style: TextStyle(
                                 fontWeight: FontWeight.w800,
                                 fontSize: 12.5,
@@ -989,7 +933,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                           const SizedBox(height: 8),
                           Center(
                             child: Text(
-                              'Ketuk kartu untuk menutup tahapan',
+                              'Ketuk kartu untuk menutup rincian',
                               style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
                             ),
                           ),

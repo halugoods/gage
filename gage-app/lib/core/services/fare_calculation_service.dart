@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'gage_pricing_service.dart';
 
-/// Hasil perhitungan kalkulasi tarif, pembulatan syar'i, komisi driver, dan bagi hasil platform
+/// Hasil perhitungan kalkulasi tarif, pembulatan transparan, komisi driver, dan bagi hasil platform
 class FareCalculationResult {
   final double distanceKm;
   final int merchantCount;
@@ -27,7 +27,7 @@ class FareCalculationResult {
     required this.totalFare,
   });
 
-  /// Sisa pembulatan ke atas kelipatan Rp 500 (Akad Thoyib untuk subsidi ongkir bersama)
+  /// Sisa pembulatan ke atas kelipatan Rp 500 (Alokasi subsidi ongkir & voucher bersama)
   int get roundingSurplus {
     final diff = roundedDeliveryFee - realDeliveryFee.round();
     return diff > 0 ? diff : 0;
@@ -70,10 +70,10 @@ class FareCalculationResult {
   }
 }
 
-/// Service perhitungan tarif & Syar'i Engine untuk GAGE Pracimantoro
+/// Service perhitungan tarif & Pricing Engine untuk GAGE Pracimantoro
 class FareCalculationService {
-  /// Rate standar per kilometer untuk pengantaran belanja (Rp 2.500 / km)
-  static const double defaultRatePerKm = 2500.0;
+  /// Rate standar per kilometer untuk pengantaran belanja (Rp 3.000 / km)
+  static const double defaultRatePerKm = 3000.0;
 
   /// Rasio default bagi hasil driver jika menggunakan skema bagi hasil proporsional (80% Driver, 20% GAGE)
   static const double defaultDriverCommissionRatio = 0.80;

@@ -8,11 +8,28 @@ import 'package:gage_app/data/models/cart_item_model.dart';
 import 'package:gage_app/providers/cart_provider.dart';
 import 'package:gage_app/features/order/presentation/order_tracking_screen.dart';
 import 'package:gage_app/features/checkout/presentation/checkout_screen.dart';
+import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
-class OrderDetailScreen extends StatelessWidget {
+class OrderDetailScreen extends StatefulWidget {
   final OrderModel order;
 
   const OrderDetailScreen({super.key, required this.order});
+
+  @override
+  State<OrderDetailScreen> createState() => _OrderDetailScreenState();
+}
+
+class _OrderDetailScreenState extends State<OrderDetailScreen> {
+  bool _isLoading = false;
+
+  OrderModel get order => widget.order;
+
+  Future<void> _refresh() async {
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,42 +60,49 @@ class OrderDetailScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Card 1: Invoice & Status Header
-            _buildInvoiceStatusCard(context, dateStr),
-            const SizedBox(height: 14),
+      body: RefreshIndicator(
+        onRefresh: _refresh,
+        color: GageTheme.primary,
+        child: _isLoading
+            ? const GageSkeletonOrderDetail()
+            : SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Card 1: Invoice & Status Header
+                    _buildInvoiceStatusCard(context, dateStr),
+                    const SizedBox(height: 14),
 
-            // Card 2: Status Timeline
-            _buildStatusTimeline(),
-            const SizedBox(height: 14),
+                    // Card 2: Status Timeline
+                    _buildStatusTimeline(),
+                    const SizedBox(height: 14),
 
-            // Card 3: Toko / Merchant Info
-            _buildMerchantSection(),
-            const SizedBox(height: 14),
+                    // Card 3: Toko / Merchant Info
+                    _buildMerchantSection(),
+                    const SizedBox(height: 14),
 
-            // Card 4: Rincian Produk / Menu
-            _buildItemsSection(currencyFormatter),
-            const SizedBox(height: 14),
+                    // Card 4: Rincian Produk / Menu
+                    _buildItemsSection(currencyFormatter),
+                    const SizedBox(height: 14),
 
-            // Card 5: Pengantaran & Alamat
-            _buildDeliverySection(),
-            const SizedBox(height: 14),
+                    // Card 5: Pengantaran & Alamat
+                    _buildDeliverySection(),
+                    const SizedBox(height: 14),
 
-            // Card 6: Info Pengemudi / Driver (jika ada)
-            if (order.driverName != null && order.driverName!.isNotEmpty) ...[
-              _buildDriverSection(context),
-              const SizedBox(height: 14),
-            ],
+                    // Card 6: Info Pengemudi / Driver (jika ada)
+                    if (order.driverName != null && order.driverName!.isNotEmpty) ...[
+                      _buildDriverSection(context),
+                      const SizedBox(height: 14),
+                    ],
 
-            // Card 7: Rincian Pembayaran
-            _buildPaymentSummaryCard(currencyFormatter),
-            const SizedBox(height: 24),
-          ],
-        ),
+                    // Card 7: Rincian Pembayaran
+                    _buildPaymentSummaryCard(currencyFormatter),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
       ),
       bottomNavigationBar: _buildBottomBar(context),
     );
@@ -264,8 +288,6 @@ class OrderDetailScreen extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.storefront_rounded, color: GageTheme.primary, size: 20),
-              const SizedBox(width: 8),
               Text(
                 merchants.length > 1 ? 'Mitra Toko (${merchants.length} Toko)' : 'Mitra Toko',
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
@@ -284,26 +306,27 @@ class OrderDetailScreen extends StatelessWidget {
               ],
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           ...merchants.map((mName) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.only(bottom: 10),
                 child: Row(
                   children: [
-                    Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        width: 38,
+                        height: 38,
                         color: GageTheme.primaryLight,
-                        borderRadius: BorderRadius.circular(8),
+                        child: _buildMerchantAvatar(mName),
                       ),
-                      child: const Icon(Icons.restaurant_rounded, color: GageTheme.primary, size: 16),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(mName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          Text(mName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                          const SizedBox(height: 1),
                           Text(order.merchantAddress, style: TextStyle(fontSize: 11, color: Colors.grey.shade600), maxLines: 1, overflow: TextOverflow.ellipsis),
                         ],
                       ),
@@ -312,6 +335,35 @@ class OrderDetailScreen extends StatelessWidget {
                 ),
               )),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMerchantAvatar(String mName) {
+    final nameLower = mName.toLowerCase();
+    String assetPath = 'assets/images/resto_dimsum_sewu.png';
+    if (nameLower.contains('rocket') || nameLower.contains('chicken')) {
+      assetPath = 'assets/images/resto_rocket_chicken.png';
+    } else if (nameLower.contains('titoti') || nameLower.contains('bakso')) {
+      assetPath = 'assets/images/dish_bakso_urat.png';
+    } else if (nameLower.contains('sayur') || nameLower.contains('siti') || nameLower.contains('shop') || nameLower.contains('sembako')) {
+      assetPath = 'assets/images/prod_beras.png';
+    } else if (nameLower.contains('tani') || nameLower.contains('pupuk')) {
+      assetPath = 'assets/images/prod_pupuk.png';
+    } else if (nameLower.contains('ternak') || nameLower.contains('pakan')) {
+      assetPath = 'assets/images/prod_pakan.png';
+    } else if (nameLower.contains('babe')) {
+      assetPath = 'assets/icons/ic_babe.png';
+    }
+
+    return Image.asset(
+      assetPath,
+      fit: BoxFit.cover,
+      errorBuilder: (c, e, s) => Center(
+        child: Text(
+          mName.isNotEmpty ? mName[0].toUpperCase() : 'G',
+          style: const TextStyle(fontWeight: FontWeight.bold, color: GageTheme.primary, fontSize: 16),
+        ),
       ),
     );
   }
@@ -344,7 +396,7 @@ class OrderDetailScreen extends StatelessWidget {
                       width: 50,
                       height: 50,
                       color: Colors.grey.shade100,
-                      child: _buildItemImage(item.imageUrl),
+                      child: _buildItemImage(item.imageUrl, item.name),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -375,22 +427,55 @@ class OrderDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildItemImage(String? imageUrl) {
-    if (imageUrl == null || imageUrl.trim().isEmpty) {
-      return const Center(child: Icon(Icons.fastfood_rounded, color: GageTheme.primary, size: 24));
+  Widget _buildItemImage(String? imageUrl, String itemName) {
+    String? resolvedUrl = imageUrl;
+    if (resolvedUrl == null || resolvedUrl.trim().isEmpty) {
+      final nameLower = itemName.toLowerCase();
+      if (nameLower.contains('dimsum') || nameLower.contains('siomay')) {
+        resolvedUrl = 'assets/images/dish_dimsum_original.png';
+      } else if (nameLower.contains('rocket') || nameLower.contains('ayam') || nameLower.contains('geprek')) {
+        resolvedUrl = 'assets/images/resto_rocket_chicken.png';
+      } else if (nameLower.contains('bakso') || nameLower.contains('urat')) {
+        resolvedUrl = 'assets/images/dish_bakso_urat.png';
+      } else if (nameLower.contains('mie')) {
+        resolvedUrl = 'assets/images/resto_mie_ayam.png';
+      } else if (nameLower.contains('seblak')) {
+        resolvedUrl = 'assets/images/resto_seblak.png';
+      } else if (nameLower.contains('roti')) {
+        resolvedUrl = 'assets/images/resto_roti_gembong.png';
+      } else if (nameLower.contains('beras') || nameLower.contains('minyak') || nameLower.contains('telur') || nameLower.contains('sembako')) {
+        resolvedUrl = 'assets/images/prod_beras.png';
+      } else if (nameLower.contains('pupuk') || nameLower.contains('benih')) {
+        resolvedUrl = 'assets/images/prod_pupuk.png';
+      } else if (nameLower.contains('pakan') || nameLower.contains('konsentrat')) {
+        resolvedUrl = 'assets/images/prod_pakan.png';
+      } else if (nameLower.contains('ride') || nameLower.contains('motor')) {
+        resolvedUrl = 'assets/icons/ic_ride.png';
+      } else if (nameLower.contains('car') || nameLower.contains('mobil')) {
+        resolvedUrl = 'assets/icons/ic_car.png';
+      } else {
+        resolvedUrl = 'assets/images/dish_dimsum_original.png';
+      }
     }
-    final clean = imageUrl.trim();
+
+    final clean = resolvedUrl.trim();
     if (clean.startsWith('http://') || clean.startsWith('https://')) {
       return Image.network(
         clean,
         fit: BoxFit.cover,
-        errorBuilder: (c, e, s) => const Center(child: Icon(Icons.fastfood_rounded, color: GageTheme.primary, size: 24)),
+        errorBuilder: (c, e, s) => Image.asset(
+          'assets/images/dish_dimsum_original.png',
+          fit: BoxFit.cover,
+        ),
       );
     }
     return Image.asset(
       clean,
       fit: BoxFit.cover,
-      errorBuilder: (c, e, s) => const Center(child: Icon(Icons.fastfood_rounded, color: GageTheme.primary, size: 24)),
+      errorBuilder: (c, e, s) => Image.asset(
+        'assets/images/dish_dimsum_original.png',
+        fit: BoxFit.cover,
+      ),
     );
   }
 

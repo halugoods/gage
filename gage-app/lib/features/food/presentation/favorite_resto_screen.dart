@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
+import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 class FavoriteRestoScreen extends StatefulWidget {
   const FavoriteRestoScreen({super.key});
@@ -11,6 +12,7 @@ class FavoriteRestoScreen extends StatefulWidget {
 
 class _FavoriteRestoScreenState extends State<FavoriteRestoScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  bool _isLoading = true;
 
   final List<Map<String, dynamic>> _favoriteRestos = [
     {
@@ -82,6 +84,14 @@ class _FavoriteRestoScreenState extends State<FavoriteRestoScreen> with SingleTi
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _loadFavorites();
+  }
+
+  Future<void> _loadFavorites() async {
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(milliseconds: 350));
+    if (!mounted) return;
+    setState(() => _isLoading = false);
   }
 
   @override
@@ -102,6 +112,13 @@ class _FavoriteRestoScreenState extends State<FavoriteRestoScreen> with SingleTi
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,
         elevation: 0.5,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Segarkan',
+            onPressed: _loadFavorites,
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: GageTheme.primary,
@@ -115,36 +132,55 @@ class _FavoriteRestoScreenState extends State<FavoriteRestoScreen> with SingleTi
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          // Tab 1: Resto Favorit
-          _buildRestoList(),
+      body: RefreshIndicator(
+        onRefresh: _loadFavorites,
+        color: GageTheme.primary,
+        child: TabBarView(
+          controller: _tabController,
+          children: [
+            // Tab 1: Resto Favorit
+            _buildRestoList(),
 
-          // Tab 2: Menu Favorit
-          _buildDishesList(),
-        ],
+            // Tab 2: Menu Favorit
+            _buildDishesList(),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildRestoList() {
+    if (_isLoading) {
+      return ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        itemCount: 3,
+        itemBuilder: (ctx, idx) => const GageSkeletonRestoCard(),
+      );
+    }
     if (_favoriteRestos.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.favorite_border_rounded, size: 64, color: Colors.grey.shade400),
-            const SizedBox(height: 12),
-            const Text('Belum ada resto favorit', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-            const SizedBox(height: 4),
-            const Text('Tandai ikon hati pada resto kesukaan Anda.', style: TextStyle(fontSize: 12, color: Colors.grey)),
-          ],
-        ),
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(height: MediaQuery.of(context).size.height * 0.2),
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.favorite_border_rounded, size: 64, color: Colors.grey.shade400),
+                const SizedBox(height: 12),
+                const Text('Belum ada resto favorit', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                const SizedBox(height: 4),
+                const Text('Tandai ikon hati pada resto kesukaan Anda.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              ],
+            ),
+          ),
+        ],
       );
     }
 
     return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       itemCount: _favoriteRestos.length,
       itemBuilder: (ctx, idx) {
@@ -240,7 +276,16 @@ class _FavoriteRestoScreenState extends State<FavoriteRestoScreen> with SingleTi
   }
 
   Widget _buildDishesList() {
+    if (_isLoading) {
+      return ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        itemCount: 3,
+        itemBuilder: (ctx, idx) => const GageSkeletonMenuItem(),
+      );
+    }
     return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       itemCount: _favoriteDishes.length,
       itemBuilder: (ctx, idx) {

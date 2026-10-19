@@ -16,6 +16,7 @@ import 'package:gage_app/features/voucher/presentation/voucher_selection_screen.
 import 'package:gage_app/data/models/cart_item_model.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
+import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -34,6 +35,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   bool _isPlacingOrder = false;
   bool _sendAsGift = false;
+  int _driverTip = 0;
+  bool _isLoading = false;
+
+  Future<void> _refreshCheckout() async {
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+  }
 
   @override
   void initState() {
@@ -55,6 +65,104 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     _giftRecipientPhoneCtrl.dispose();
     _giftMessageCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _showCustomTipDialog() async {
+    final text = await GageFloatingSheet.showNoteInput(
+      context: context,
+      title: 'Nominal Tip Lainnya',
+      subtitle: '100% tip diberikan seutuhnya kepada driver mitra GAGE',
+      initialValue: _driverTip > 0 ? _driverTip.toString() : '',
+      hintText: 'Masukkan nominal, contoh: 15000',
+    );
+    if (text != null && text.trim().isNotEmpty) {
+      final parsed = int.tryParse(text.replaceAll(RegExp(r'[^0-9]'), ''));
+      if (parsed != null && parsed >= 0) {
+        setState(() {
+          _driverTip = parsed;
+        });
+        if (mounted) {
+          GageToast.show(
+            context,
+            parsed > 0
+                ? 'Tip Rp ${NumberFormat("#,###", "id_ID").format(parsed)} berhasil ditambahkan'
+                : 'Tip diatur ke Rp 0',
+            type: GageToastType.success,
+          );
+        }
+      }
+    }
+  }
+
+  Widget _buildTipChip(int amount, String label) {
+    final isSelected = _driverTip == amount;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _driverTip = amount;
+        });
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? GageTheme.primary.withValues(alpha: 0.12) : const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? GageTheme.primary : Colors.transparent,
+            width: 1.5,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            color: isSelected ? GageTheme.primary : Colors.black87,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCustomTipChip() {
+    final isCustom = _driverTip > 0 && _driverTip != 2000 && _driverTip != 5000 && _driverTip != 10000;
+    return InkWell(
+      onTap: _showCustomTipDialog,
+      borderRadius: BorderRadius.circular(20),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isCustom ? GageTheme.primary.withValues(alpha: 0.12) : const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isCustom ? GageTheme.primary : Colors.transparent,
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.edit_outlined,
+              size: 13,
+              color: isCustom ? GageTheme.primary : Colors.black54,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              isCustom ? 'Lain: Rp ${NumberFormat("#,###", "id_ID").format(_driverTip)}' : 'Lainnya...',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isCustom ? FontWeight.bold : FontWeight.w500,
+                color: isCustom ? GageTheme.primary : Colors.black87,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _openLocationPicker() {
@@ -154,7 +262,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
 
     final userId = auth.currentUser?.id ?? 'usr-cust-01';
-    final totalPay = cart.grandTotal;
+    final effectiveTip = cart.isPickup ? 0 : _driverTip;
+    final totalPay = cart.grandTotal + effectiveTip;
     final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
     // Validasi Saldo GagePay
@@ -220,6 +329,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       promoCode: cart.promoCode,
       deliveryAddress: effectiveAddress,
       merchantName: allMerchantNames.isNotEmpty ? allMerchantNames : cart.merchantName,
+      driverTip: effectiveTip,
     );
 
     setState(() => _isPlacingOrder = false);
@@ -492,7 +602,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     ];
 
     final isPickup = cart.isPickup;
-    final totalPay = cart.grandTotal;
+    final effectiveTip = isPickup ? 0 : _driverTip;
+    final totalPay = cart.grandTotal + effectiveTip;
 
     return Scaffold(
       backgroundColor: isDark ? GageTheme.darkBackground : const Color(0xFFF8F9FA),
@@ -508,13 +619,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         elevation: 0.5,
         backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
       ),
-      body: cart.items.isEmpty
-          ? const Center(child: Text('Keranjang belanja kosong'))
-          : Column(
+      body: _isLoading
+          ? const GageSkeletonCheckout()
+          : cart.items.isEmpty
+              ? const Center(child: Text('Keranjang belanja kosong'))
+              : Column(
               children: [
                 Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                  child: RefreshIndicator(
+                    onRefresh: _refreshCheckout,
+                    color: GageTheme.primary,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
                     child: Center(
                       child: ConstrainedBox(
                         constraints: BoxConstraints(
@@ -967,6 +1084,80 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               ),
                             ),
 
+                             // =========================================================
+                            // 4b. DRIVER TIP SELECTOR CARD (Apresiasi Driver 100%)
+                            // =========================================================
+                            if (!isPickup)
+                              Container(
+                                margin: const EdgeInsets.only(top: 14),
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: cardColor,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: cardShadow,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: const BoxDecoration(
+                                            color: Color(0xFFFEF3C7),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(Icons.favorite_rounded, color: Color(0xFFD97706), size: 16),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        const Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'Beri Tip untuk Driver?',
+                                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Colors.black87),
+                                              ),
+                                              SizedBox(height: 2),
+                                              Text(
+                                                '100% tip apresiasi diserahkan penuh ke driver',
+                                                style: TextStyle(fontSize: 11, color: Colors.black54),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        if (_driverTip > 0)
+                                          Text(
+                                            currencyFormatter.format(_driverTip),
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 13,
+                                              color: GageTheme.primary,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      child: Row(
+                                        children: [
+                                          _buildTipChip(0, 'Tanpa Tip'),
+                                          const SizedBox(width: 8),
+                                          _buildTipChip(2000, '+Rp 2.000'),
+                                          const SizedBox(width: 8),
+                                          _buildTipChip(5000, '+Rp 5.000'),
+                                          const SizedBox(width: 8),
+                                          _buildTipChip(10000, '+Rp 10.000'),
+                                          const SizedBox(width: 8),
+                                          _buildCustomTipChip(),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
                             // =========================================================
                             // 5. RINGKASAN PEMBAYARAN (Detail Terperinci)
                             // =========================================================
@@ -1059,6 +1250,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                           ),
                                         ],
                                       ),
+                                      // Tip Driver (jika ada)
+                                      if (!isPickup && _driverTip > 0) ...[
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            const Text('Tip Driver (100% Mitra)', style: TextStyle(fontSize: 13.5, color: Colors.black87)),
+                                            Text(
+                                              currencyFormatter.format(_driverTip),
+                                              style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: GageTheme.primary),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                       const Divider(height: 24),
                                       // Total Pembayaran
                                       Row(
@@ -1406,6 +1611,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ),
                   ),
                 ),
+              ),
 
                 // =============================================================
                 // 8. STICKY BOTTOM BAR (Single Metode Pembayaran Murni)

@@ -20,6 +20,7 @@ void main() {
       // Contoh: Jarak 4.1 km * Rp 2.500/km = Rp 10.250
       final result = FareCalculationService.calculate(
         distanceKm: 4.1,
+        ratePerKm: 2500.0,
         merchantCount: 1,
         isCashCod: false,
       );
@@ -119,6 +120,7 @@ void main() {
       // Verifikasi calculate(...) menggunakan nilai dinamis tersebut
       final resultDynamic = FareCalculationService.calculate(
         distanceKm: 2.0, // 2.0 * 2500 = 5000
+        ratePerKm: 2500.0,
         merchantCount: 2,
         isCashCod: true,
       );

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:gage_app/core/network/gage_api_client.dart';
 
 /// Model konfigurasi banner per menu customer
 class BannerConfig {
@@ -175,6 +176,115 @@ class BannerManagerService extends ChangeNotifier {
       imagePath: 'assets/images/ternak_hero_banner.png',
       ctaText: 'Belanja Ternak',
     );
+
+    // Standalone screen targets (Cloudflare D1 Standalone Banners)
+    _banners['customer_home_hero'] = const BannerConfig(
+      menuKey: 'customer_home_hero',
+      menuName: 'Beranda Pelanggan',
+      title: 'GAGE Pracimantoro SuperApp',
+      subtitle: 'Pesan kuliner, sembako, dan kirim barang se-kecamatan',
+      badge: 'PROMO UTAMA',
+      imagePath: 'assets/images/home_hero_banner.png',
+      ctaText: 'Eksplor Layanan',
+    );
+
+    _banners['customer_food_explore'] = const BannerConfig(
+      menuKey: 'customer_food_explore',
+      menuName: 'GAGE Food Kuliner',
+      title: 'Laper? GAGE Food-in\ndari resto terenak!',
+      subtitle: 'Diskon s/d 50% & ongkir flat bersahabat mitra lokal',
+      badge: 'PROMO KULINER HARI INI',
+      imagePath: 'assets/images/food_hero_banner.png',
+      ctaText: 'Pesan Sekarang',
+    );
+
+    _banners['customer_tani'] = const BannerConfig(
+      menuKey: 'customer_tani',
+      menuName: 'GAGE Tani & Ternak',
+      title: 'Lapak Agro Pertanian Resmi GAGE',
+      subtitle: 'Saprotan, pupuk, benih, hasil bumi & konsultasi gratis ahli',
+      badge: 'AGRO TANI RESMI',
+      imagePath: 'assets/images/tani_hero_banner.png',
+      ctaText: 'Belanja Tani',
+    );
+
+    _banners['customer_shop'] = const BannerConfig(
+      menuKey: 'customer_shop',
+      menuName: 'GAGE Shop Sembako',
+      title: 'Belanja Sembako Multi-Merchant',
+      subtitle: 'Bisa gabung hingga 3 toko mitra resmi Pracimantoro!',
+      badge: 'SEMBAKO HEMAT',
+      imagePath: 'assets/images/shop_hero_banner.png',
+      ctaText: 'Mulai Belanja',
+    );
+
+    _banners['driver_home_info'] = const BannerConfig(
+      menuKey: 'driver_home_info',
+      menuName: 'GAGE Driver Info',
+      title: 'Tips Aman & Ramai Order Pracimantoro',
+      subtitle: 'Standby di Terminal & Pasar saat jam sibuk pagi untuk order maksimal',
+      badge: 'INFO MITRA',
+      imagePath: 'assets/images/home_hero_banner.png',
+      ctaText: 'Pelajari',
+    );
+
+    _banners['merchant_home_info'] = const BannerConfig(
+      menuKey: 'merchant_home_info',
+      menuName: 'GAGE Merchant Info',
+      title: 'Tingkatkan Penjualan Toko Anda',
+      subtitle: 'Perbarui stok menu andalan & aktifkan promo diskon jam makan siang',
+      badge: 'INFO MITRA RESTO',
+      imagePath: 'assets/images/food_hero_banner.png',
+      ctaText: 'Kelola Menu',
+    );
+
+    _banners['admin_promo'] = const BannerConfig(
+      menuKey: 'admin_promo',
+      menuName: 'GAGE Admin Info',
+      title: 'Pusat Manajemen Ekosistem GAGE',
+      subtitle: 'Pantau transaksi realtime, validasi mitra, dan kelola banner promosi',
+      badge: 'KONTROL ADMIN',
+      imagePath: 'assets/images/home_hero_banner.png',
+      ctaText: 'Kelola Banner',
+    );
+
+    // Slide Promo Carousel
+    _banners['customer_promo_carousel_slide_1'] = const BannerConfig(
+      menuKey: 'customer_promo_carousel_slide_1',
+      menuName: 'Promo Slide 1',
+      title: 'Pesta Kuliner Spesial',
+      subtitle: 'Diskon 50% & Gratis Ongkir Pesanan',
+      badge: 'PROMO SLIDE 1',
+      imagePath: 'assets/images/food_hero_banner.png',
+      ctaText: 'Pesan Sekarang',
+    );
+    _banners['customer_promo_carousel_slide_2'] = const BannerConfig(
+      menuKey: 'customer_promo_carousel_slide_2',
+      menuName: 'Promo Slide 2',
+      title: 'Kirim Kilat GAGE Send',
+      subtitle: 'Tarif Hemat Kirim Paket Instan',
+      badge: 'PROMO SLIDE 2',
+      imagePath: 'assets/images/send_hero_banner.png',
+      ctaText: 'Panggil Kurir',
+    );
+    _banners['customer_promo_carousel_slide_3'] = const BannerConfig(
+      menuKey: 'customer_promo_carousel_slide_3',
+      menuName: 'Promo Slide 3',
+      title: 'GAGE Ride & Car',
+      subtitle: 'Perjalanan Nyaman dengan Tarif Hemat',
+      badge: 'PROMO SLIDE 3',
+      imagePath: 'assets/images/ride_hero_banner.png',
+      ctaText: 'Pesan Perjalanan',
+    );
+    _banners['customer_promo_carousel_slide_4'] = const BannerConfig(
+      menuKey: 'customer_promo_carousel_slide_4',
+      menuName: 'Promo Slide 4',
+      title: 'Belanja Sembako Lengkap',
+      subtitle: 'Grosir & Eceran Pasar Pracimantoro',
+      badge: 'PROMO SLIDE 4',
+      imagePath: 'assets/images/shop_hero_banner.png',
+      ctaText: 'Mulai Belanja',
+    );
   }
 
   /// Memuat konfigurasi banner dari SharedPreferences
@@ -191,8 +301,38 @@ class BannerManagerService extends ChangeNotifier {
         });
         notifyListeners();
       }
+      // D1 Quota Shield: Fetch dari Cloudflare Edge Cache
+      fetchFromCloud();
     } catch (e) {
       debugPrint('Error loading banner configs: $e');
+    }
+  }
+
+  /// Sinkronisasi banner aktif dari Cloudflare D1 / Edge Cache
+  Future<void> fetchFromCloud() async {
+    try {
+      final list = await GageApiClient.getBanners('');
+      if (list.isNotEmpty) {
+        for (final item in list) {
+          final target = item['screen_target'] as String? ?? '';
+          if (target.isNotEmpty) {
+            _banners[target] = BannerConfig(
+              menuKey: target,
+              menuName: target,
+              title: item['title'] as String? ?? '',
+              subtitle: item['subtitle'] as String? ?? '',
+              badge: 'PROMO GAGE',
+              imagePath: item['image_url'] as String? ?? 'assets/images/home_hero_banner.png',
+              ctaText: 'Lihat Promo',
+              isActive: (item['is_active'] == 1 || item['is_active'] == true),
+            );
+          }
+        }
+        notifyListeners();
+        await saveToPrefs();
+      }
+    } catch (e) {
+      debugPrint('Error fetching cloud banners: $e');
     }
   }
 
@@ -210,11 +350,29 @@ class BannerManagerService extends ChangeNotifier {
     }
   }
 
-  /// Mengambil konfigurasi banner berdasarkan menu key
+  /// Mengambil konfigurasi banner berdasarkan menu key (dengan mapping screen_target standalone)
   BannerConfig getBanner(String menuKey) {
+    // 1. Cek direct match
     if (_banners.containsKey(menuKey)) {
       return _banners[menuKey]!;
     }
+
+    // 2. Mapping alias ke target standalone
+    final aliasMap = {
+      'beranda': 'customer_home_hero',
+      'food': 'customer_food_explore',
+      'tani': 'customer_tani',
+      'shop': 'customer_shop',
+      'driver': 'driver_home_info',
+      'merchant': 'merchant_home_info',
+      'admin': 'admin_promo',
+    };
+
+    final mappedKey = aliasMap[menuKey];
+    if (mappedKey != null && _banners.containsKey(mappedKey)) {
+      return _banners[mappedKey]!;
+    }
+
     return BannerConfig(
       menuKey: menuKey,
       menuName: menuKey,

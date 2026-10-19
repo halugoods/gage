@@ -753,6 +753,161 @@ app.get('/api/affiliate/stats/:code', async (c) => {
   }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. STANDALONE PER-SCREEN BANNER CRUD (D1 QUOTA SHIELD + EDGE CACHING)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Mengambil banner aktif berdasarkan screen_target (atau seluruh banner untuk Admin)
+app.get('/api/banners', async (c) => {
+  const target = c.req.query('screen_target');
+  const forAdmin = c.req.query('admin') === 'true';
+
+  try {
+    let query = 'SELECT * FROM banners';
+    let params: any[] = [];
+
+    if (target) {
+      if (forAdmin) {
+        query += ' WHERE screen_target = ? ORDER BY display_order ASC, created_at DESC';
+        params.push(target);
+      } else {
+        query += ' WHERE screen_target = ? AND is_active = 1 ORDER BY display_order ASC, created_at DESC';
+        params.push(target);
+      }
+    } else {
+      if (forAdmin) {
+        query += ' ORDER BY screen_target ASC, display_order ASC, created_at DESC';
+      } else {
+        query += ' WHERE is_active = 1 ORDER BY screen_target ASC, display_order ASC, created_at DESC';
+      }
+    }
+
+    const res = await c.env.DB.prepare(query).bind(...params).all();
+
+    // D1 Quota Shield: Pasang Cache-Control jika bukan untuk admin
+    if (!forAdmin) {
+      c.header('Cache-Control', 'public, max-age=3600, s-maxage=86400');
+    }
+
+    return c.json({
+      success: true,
+      count: res.results.length,
+      data: res.results,
+    });
+  } catch (err: any) {
+    return c.json({ success: false, message: err.message, data: [] }, 500);
+  }
+});
+
+// Admin Menambah Banner Baru
+app.post('/api/banners', async (c) => {
+  try {
+    const body = await c.req.json();
+    const {
+      screen_target,
+      title,
+      subtitle = '',
+      image_url,
+      action_type = 'NONE',
+      action_url = '',
+      aspect_ratio = '16:9',
+      width_px = 1280,
+      height_px = 720,
+      display_order = 0,
+      is_active = 1,
+    } = body;
+
+    if (!screen_target || !title || !image_url) {
+      return c.json({ success: false, message: 'screen_target, title, dan image_url wajib diisi' }, 400);
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    const id = `bnr-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+
+    await c.env.DB.prepare(
+      `INSERT INTO banners (id, screen_target, title, subtitle, image_url, action_type, action_url, aspect_ratio, width_px, height_px, is_active, display_order, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      id, screen_target, title, subtitle, image_url, action_type, action_url, aspect_ratio, width_px, height_px, is_active, display_order, now, now
+    ).run();
+
+    return c.json({
+      success: true,
+      message: 'Banner berhasil ditambahkan',
+      data: { id, screen_target, title, image_url },
+    });
+  } catch (err: any) {
+    return c.json({ success: false, message: err.message }, 500);
+  }
+});
+
+// Admin Mengubah Banner
+app.put('/api/banners/:id', async (c) => {
+  const id = c.req.param('id');
+  try {
+    const body = await c.req.json();
+    const {
+      screen_target,
+      title,
+      subtitle,
+      image_url,
+      action_type,
+      action_url,
+      aspect_ratio,
+      width_px,
+      height_px,
+      is_active,
+      display_order,
+    } = body;
+
+    const existing: any = await c.env.DB.prepare('SELECT * FROM banners WHERE id = ?').bind(id).first();
+    if (!existing) {
+      return c.json({ success: false, message: 'Banner tidak ditemukan' }, 404);
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+
+    await c.env.DB.prepare(
+      `UPDATE banners SET
+        screen_target = COALESCE(?, screen_target),
+        title = COALESCE(?, title),
+        subtitle = COALESCE(?, subtitle),
+        image_url = COALESCE(?, image_url),
+        action_type = COALESCE(?, action_type),
+        action_url = COALESCE(?, action_url),
+        aspect_ratio = COALESCE(?, aspect_ratio),
+        width_px = COALESCE(?, width_px),
+        height_px = COALESCE(?, height_px),
+        is_active = COALESCE(?, is_active),
+        display_order = COALESCE(?, display_order),
+        updated_at = ?
+       WHERE id = ?`
+    ).bind(
+      screen_target ?? null, title ?? null, subtitle ?? null, image_url ?? null, action_type ?? null, action_url ?? null,
+      aspect_ratio ?? null, width_px ?? null, height_px ?? null, is_active ?? null, display_order ?? null, now, id
+    ).run();
+
+    return c.json({
+      success: true,
+      message: 'Banner berhasil diperbarui',
+      data: { id, updated_at: now },
+    });
+  } catch (err: any) {
+    return c.json({ success: false, message: err.message }, 500);
+  }
+});
+
+// Admin Menghapus Banner
+app.delete('/api/banners/:id', async (c) => {
+  const id = c.req.param('id');
+  try {
+    await c.env.DB.prepare('DELETE FROM banners WHERE id = ?').bind(id).run();
+    return c.json({ success: true, message: 'Banner berhasil dihapus', id });
+  } catch (err: any) {
+    return c.json({ success: false, message: err.message }, 500);
+  }
+});
+
 // Tracking Durable Object Proxy
 app.all('/api/tracking/*', async (c) => {
   const trackingRoom = c.env.TRACKING_ROOM;

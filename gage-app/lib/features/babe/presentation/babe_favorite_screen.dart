@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/babe/presentation/babe_detail_screen.dart';
+import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 class BabeFavoriteScreen extends StatefulWidget {
   const BabeFavoriteScreen({super.key});
@@ -11,6 +12,7 @@ class BabeFavoriteScreen extends StatefulWidget {
 
 class _BabeFavoriteScreenState extends State<BabeFavoriteScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  bool _isLoading = true;
 
   final List<Map<String, dynamic>> _favoriteItems = [
     {
@@ -43,6 +45,15 @@ class _BabeFavoriteScreenState extends State<BabeFavoriteScreen> with SingleTick
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _loadFavorites();
+  }
+
+  Future<void> _loadFavorites() async {
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(milliseconds: 250));
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -76,17 +87,26 @@ class _BabeFavoriteScreenState extends State<BabeFavoriteScreen> with SingleTick
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          // Tab 1: Barang BaBe Favorit
-          _favoriteItems.isEmpty
-              ? _buildEmptyState('Belum Ada Barang Favorit', 'Barang bekas terkurasi yang Anda sukai akan muncul di sini.')
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _favoriteItems.length,
-                  itemBuilder: (ctx, idx) {
-                    final item = _favoriteItems[idx];
+      body: RefreshIndicator(
+        onRefresh: _loadFavorites,
+        color: GageTheme.primary,
+        child: TabBarView(
+          controller: _tabController,
+          children: [
+            // Tab 1: Barang BaBe Favorit
+            _isLoading
+                ? ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: 3,
+                    itemBuilder: (ctx, idx) => const GageSkeletonBabeItemCard(),
+                  )
+                : _favoriteItems.isEmpty
+                    ? _buildEmptyState('Belum Ada Barang Favorit', 'Barang bekas terkurasi yang Anda sukai akan muncul di sini.')
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _favoriteItems.length,
+                        itemBuilder: (ctx, idx) {
+                          final item = _favoriteItems[idx];
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -156,8 +176,9 @@ class _BabeFavoriteScreenState extends State<BabeFavoriteScreen> with SingleTick
           _buildEmptyState('Lapak Penjual Favorit', 'Penjual terverifikasi di Pracimantoro yang Anda ikuti akan muncul di sini.'),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildEmptyState(String title, String desc) {
     return Center(

@@ -10,6 +10,7 @@ import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/order/presentation/order_tracking_screen.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
+import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 class RideCheckoutScreen extends StatefulWidget {
   final String serviceType; // 'ride' or 'car'
@@ -447,7 +448,7 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
         elevation: 0.5,
       ),
       body: _isLoadingPreference
-          ? const Center(child: CircularProgressIndicator(color: GageTheme.primary))
+          ? const GageSkeletonRideCheckout()
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(

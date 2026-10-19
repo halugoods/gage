@@ -15,6 +15,7 @@ import 'package:gage_app/shared/widgets/seamless_floating_cart_bar.dart';
 import 'package:gage_app/features/food/presentation/ternak_favorite_screen.dart';
 import 'package:gage_app/shared/widgets/gage_service_header.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
+import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 class TernakScreen extends StatefulWidget {
   const TernakScreen({super.key});
@@ -28,6 +29,7 @@ class _TernakScreenState extends State<TernakScreen> {
   String _selectedSection = 'toko_peternakan';
   String _activeCategoryFilter = 'Semua';
   final Set<String> _favoriteItemIds = {};
+  bool _isLoading = true;
 
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
@@ -39,6 +41,14 @@ class _TernakScreenState extends State<TernakScreen> {
   void initState() {
     super.initState();
     _initDeliveryLocation();
+    _loadTernakData();
+  }
+
+  Future<void> _loadTernakData() async {
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(milliseconds: 350));
+    if (!mounted) return;
+    setState(() => _isLoading = false);
   }
 
   @override
@@ -285,13 +295,18 @@ class _TernakScreenState extends State<TernakScreen> {
       body: Stack(
         children: [
           // 1. Scrollable Content
-          SingleChildScrollView(
-            controller: _scrollController,
+          RefreshIndicator(
+            onRefresh: _loadTernakData,
+            color: GageTheme.primary,
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Full-bleed Banner 16:9 ke batas atas status bar dengan Typing Bubble di atas search bar
                 GageServiceHeroBanner(
+                  screenTarget: 'ternak',
                   imageAsset: 'assets/images/ternak_hero_banner.png',
                   fallbackTitle: 'GAGE TERNAK',
                   scrollController: _scrollController,
@@ -416,45 +431,56 @@ class _TernakScreenState extends State<TernakScreen> {
                           const SizedBox(height: 12),
 
                           // Filter Kategori Horizontal di dalam Switch
-                          SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Row(
-                              children: _currentCategories.map((cat) {
-                                final isSelected = _activeCategoryFilter == cat;
-                                return Padding(
-                                  padding: const EdgeInsets.only(right: 6),
-                                  child: FilterChip(
-                                    label: Text(cat),
-                                    selected: isSelected,
-                                    onSelected: (_) => setState(() => _activeCategoryFilter = cat),
-                                    backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                                    selectedColor: const Color(0xFFFEF3C7),
-                                    checkmarkColor: const Color(0xFFD97706),
-                                    labelStyle: TextStyle(
-                                      fontSize: 11.5,
-                                      fontWeight: FontWeight.bold,
-                                      color: isSelected
-                                          ? const Color(0xFFD97706)
-                                          : (isDark ? Colors.white70 : Colors.black87),
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(18),
-                                      side: BorderSide(
+                          if (_isLoading)
+                            const GageSkeletonCategoryPillsRow(count: 5)
+                          else
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: _currentCategories.map((cat) {
+                                  final isSelected = _activeCategoryFilter == cat;
+                                  return Padding(
+                                    padding: const EdgeInsets.only(right: 6),
+                                    child: FilterChip(
+                                      label: Text(cat),
+                                      selected: isSelected,
+                                      onSelected: (_) => setState(() => _activeCategoryFilter = cat),
+                                      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                      selectedColor: const Color(0xFFFEF3C7),
+                                      checkmarkColor: const Color(0xFFD97706),
+                                      labelStyle: TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.bold,
                                         color: isSelected
                                             ? const Color(0xFFD97706)
-                                            : (isDark ? Colors.white12 : Colors.grey.shade300),
+                                            : (isDark ? Colors.white70 : Colors.black87),
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(18),
+                                        side: BorderSide(
+                                          color: isSelected
+                                              ? const Color(0xFFD97706)
+                                              : (isDark ? Colors.white12 : Colors.grey.shade300),
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                );
-                              }).toList(),
+                                  );
+                                }).toList(),
+                              ),
                             ),
-                          ),
 
                           const SizedBox(height: 16),
 
                           // List Produk Ternak
-                          if (_currentProducts.isEmpty)
+                          if (_isLoading)
+                            ListView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              padding: EdgeInsets.zero,
+                              itemCount: 4,
+                              itemBuilder: (ctx, idx) => const GageSkeletonTaniItem(),
+                            )
+                          else if (_currentProducts.isEmpty)
                             Padding(
                               padding: const EdgeInsets.all(32.0),
                               child: Center(
@@ -686,6 +712,7 @@ class _TernakScreenState extends State<TernakScreen> {
               ],
             ),
           ),
+        ),
 
           // 2. Sticky Header: Action Buttons & Seamless Docking Search Bar
           Positioned.fill(

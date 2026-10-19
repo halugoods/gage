@@ -1,15 +1,19 @@
+import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/core/services/banner_manager_service.dart';
+import 'package:gage_app/features/admin/presentation/widgets/in_place_banner_editor_sheet.dart';
 
 /// Hero Banner 16:9 full-bleed mencapai batas atas status bar (edge-to-edge).
-/// Mendukung animasi fade out halus saat halaman di-scroll ke bawah.
+/// Mendukung animasi fade out halus saat halaman di-scroll ke bawah dan WYSIWYG In-Place Edit.
 class GageServiceHeroBanner extends StatelessWidget {
   final String imageAsset;
   final String fallbackTitle;
   final ScrollController? scrollController;
   final Widget? overlayChild;
+  final String? screenTarget;
 
   const GageServiceHeroBanner({
     super.key,
@@ -17,6 +21,7 @@ class GageServiceHeroBanner extends StatelessWidget {
     this.fallbackTitle = 'GAGE INDONESIA',
     this.scrollController,
     this.overlayChild,
+    this.screenTarget,
   });
 
   /// Menghitung tinggi banner 16:9 yang proporsional edge-to-edge termasuk status bar
@@ -33,6 +38,21 @@ class GageServiceHeroBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bannerHeight = getBannerHeight(context);
+    final isEditMode = LiveAppEditScope.isEditModeActive(context);
+
+    final effectiveTarget = screenTarget ?? (
+      imageAsset.contains('food') ? 'customer_food_explore' :
+      imageAsset.contains('shop') ? 'customer_shop' :
+      imageAsset.contains('tani') ? 'customer_tani' :
+      imageAsset.contains('ternak') ? 'ternak' :
+      imageAsset.contains('babe') ? 'babe' :
+      imageAsset.contains('send') ? 'send' :
+      imageAsset.contains('ride') ? 'ride' : 'customer_home_hero'
+    );
+
+    final bannerManager = BannerManagerService.instance;
+    final liveConfig = bannerManager.getBanner(effectiveTarget);
+    final activeImg = liveConfig.imagePath.isNotEmpty ? liveConfig.imagePath : imageAsset;
 
     Widget imageWidget = SizedBox(
       height: bannerHeight,
@@ -40,24 +60,28 @@ class GageServiceHeroBanner extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset(
-            imageAsset,
-            fit: BoxFit.cover,
-            alignment: Alignment.topCenter,
-            errorBuilder: (ctx, err, stack) => Container(
-              color: GageTheme.primary,
-              child: Center(
-                child: Text(
-                  fallbackTitle,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
-                ),
-              ),
-            ),
-          ),
+          activeImg.startsWith('http://') || activeImg.startsWith('https://')
+              ? Image.network(
+                  activeImg,
+                  fit: BoxFit.cover,
+                  alignment: Alignment.topCenter,
+                  errorBuilder: (ctx, err, stack) => _buildFallback(),
+                )
+              : activeImg.startsWith('assets/')
+                  ? Image.asset(
+                      activeImg,
+                      fit: BoxFit.cover,
+                      alignment: Alignment.topCenter,
+                      errorBuilder: (ctx, err, stack) => _buildFallback(),
+                    )
+                  : (File(activeImg).existsSync()
+                      ? Image.file(
+                          File(activeImg),
+                          fit: BoxFit.cover,
+                          alignment: Alignment.topCenter,
+                          errorBuilder: (ctx, err, stack) => _buildFallback(),
+                        )
+                      : _buildFallback()),
           if (overlayChild != null)
             Positioned(
               left: 16,
@@ -65,9 +89,53 @@ class GageServiceHeroBanner extends StatelessWidget {
               bottom: 36.0, // Tepat di atas search bar (50:50 docked overlap)
               child: overlayChild!,
             ),
+          if (isEditMode)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 52,
+              right: 14,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: GageTheme.primary.withValues(alpha: 0.92),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white, width: 1.5),
+                  boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 6, offset: Offset(0, 2))],
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.edit_rounded, size: 12, color: Colors.white),
+                    SizedBox(width: 4),
+                    Text(
+                      'Edit Banner',
+                      style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
+
+    if (isEditMode) {
+      imageWidget = GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          InPlaceBannerEditorSheet.showConfirmationAndOpen(
+            context: context,
+            screenTarget: effectiveTarget,
+            title: liveConfig.title.isNotEmpty ? liveConfig.title : fallbackTitle,
+            subtitle: liveConfig.subtitle,
+            badge: liveConfig.badge,
+            imageUrl: activeImg,
+            actionUrl: liveConfig.ctaText,
+            aspectRatio: 16 / 9,
+          );
+        },
+        child: imageWidget,
+      );
+    }
 
     if (scrollController != null) {
       return AnimatedBuilder(
@@ -87,6 +155,22 @@ class GageServiceHeroBanner extends StatelessWidget {
     }
 
     return imageWidget;
+  }
+
+  Widget _buildFallback() {
+    return Container(
+      color: GageTheme.primary,
+      child: Center(
+        child: Text(
+          fallbackTitle,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+      ),
+    );
   }
 }
 

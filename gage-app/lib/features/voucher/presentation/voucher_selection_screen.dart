@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/providers/cart_provider.dart';
+import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 class VoucherModel {
   final String code;
@@ -42,6 +43,7 @@ class VoucherSelectionScreen extends StatefulWidget {
 class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _customCodeController = TextEditingController();
+  bool _isLoading = true;
 
   static const List<VoucherModel> _deliveryVouchers = [
     VoucherModel(
@@ -146,6 +148,14 @@ class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with Si
       vsync: this,
       initialIndex: widget.initialTabIndex.clamp(0, 1),
     );
+    _loadVouchers();
+  }
+
+  Future<void> _loadVouchers() async {
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(milliseconds: 350));
+    if (!mounted) return;
+    setState(() => _isLoading = false);
   }
 
   @override
@@ -348,10 +358,21 @@ class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with Si
   Widget _buildVoucherList(List<VoucherModel> vouchers, CartProvider cart, {required bool isDeliveryTab}) {
     final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      itemCount: vouchers.length,
-      itemBuilder: (context, index) {
+    return RefreshIndicator(
+      onRefresh: _loadVouchers,
+      color: GageTheme.primary,
+      child: _isLoading
+          ? ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              itemCount: 4,
+              itemBuilder: (context, index) => const GageSkeletonVoucherCard(),
+            )
+          : ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              itemCount: vouchers.length,
+              itemBuilder: (context, index) {
         final v = vouchers[index];
         final eligibility = _checkEligibility(v, cart);
         final isApplied = isDeliveryTab ? (cart.deliveryPromoCode == v.code) : (cart.foodPromoCode == v.code);
@@ -551,6 +572,7 @@ class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with Si
           ),
         );
       },
+    ),
     );
   }
 }
