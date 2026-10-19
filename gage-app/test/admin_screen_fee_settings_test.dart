@@ -11,7 +11,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('GAGE Admin Settings & Fee Configuration Tests', () {
-    testWidgets('AdminSettingsScreen renders dynamic tariff, fee settings, and saves config', (tester) async {
+    testWidgets('AdminSettingsScreen renders dynamic tariff cards and opens bottom sheet', (tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -28,30 +28,32 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify Header & Sections
-      expect(find.text('Pengaturan Finansial & Tarif'), findsOneWidget);
-      expect(find.text('TARIF GAGERIDE MOTOR (REGULER & HEMAT)'), findsOneWidget);
-      expect(find.text('BIAYA LAYANAN & MDR TRANSAKSI'), findsOneWidget);
+      expect(find.text('Pengaturan Tarif & Layanan'), findsOneWidget);
+      expect(find.text('KONFIGURASI TARIF & PENGANTARAN'), findsOneWidget);
 
-      // Verify Dynamic Base KM & Fee Labels
-      expect(find.text('Jarak Dasar Reguler (KM Awal)'), findsOneWidget);
-      expect(find.text('Biaya GagePay & QRIS Cashless'), findsOneWidget);
-      expect(find.text('Biaya Dasar COD Tunai'), findsOneWidget);
-      expect(find.text('Biaya Tambahan COD Toko Ekstra'), findsOneWidget);
+      // Verify Dynamic Tariff Options
+      expect(find.text('Tarif Motor (GageRide)'), findsOneWidget);
+      expect(find.text('Tarif Mobil (GageCar)'), findsOneWidget);
+      expect(find.text('Ongkir Pengantaran (Food, Shop, Send)'), findsOneWidget);
+      expect(find.text('Biaya Layanan & MDR Transaksi'), findsOneWidget);
 
-      // Verify Universal Business Principles (without Islamic / Syar'i slop)
-      expect(find.text('PRINSIP EKONOMI & SISTEM PEMBULATAN'), findsOneWidget);
-      expect(find.text('Bagi Hasil Mitra Driver'), findsOneWidget);
-      expect(find.text('Sistem Pembulatan Transparan'), findsOneWidget);
+      // Verify Live App Editor shortcut
+      expect(find.text('LIVE APP WYSIWYG EDITOR'), findsOneWidget);
 
-      // Verify Save Button
-      final saveButton = find.text('Simpan Konfigurasi Tarif');
-      expect(saveButton, findsOneWidget);
+      // Tap on Motor Tariff Option to open iOS Bottom Sheet
+      await tester.tap(find.text('Tarif Motor (GageRide)'));
+      await tester.pumpAndSettle();
 
-      await tester.tap(saveButton);
+      // Verify Bottom Sheet Subtitle & Save Button
+      expect(find.text('Atur jarak dasar dan tarif per kilometer motor reguler & hemat'), findsOneWidget);
+      expect(find.text('Simpan Perubahan'), findsOneWidget);
+
+      // Tap Simpan Perubahan in Bottom Sheet
+      await tester.tap(find.text('Simpan Perubahan'));
       await tester.pumpAndSettle();
 
       // Verify SnackBar confirmation
-      expect(find.textContaining('Konfigurasi tarif & jarak berhasil disimpan'), findsOneWidget);
+      expect(find.textContaining('Konfigurasi tarif berhasil diperbarui'), findsOneWidget);
     });
 
     testWidgets('AdminBottomNavBar renders all 5 simplified operational tabs', (tester) async {

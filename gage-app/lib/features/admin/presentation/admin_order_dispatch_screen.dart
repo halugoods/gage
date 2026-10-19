@@ -75,7 +75,7 @@ class _AdminOrderDispatchScreenState extends State<AdminOrderDispatchScreen> {
       'dropoff': 'Pracimantoro Kota (Pulang Kampung)',
       'items': 'Carter Mobil Avanza 4 Penumpang + Koper',
       'total': 250000,
-      'status': 'Driver Siaga',
+      'status': 'Driver Standby',
       'driver': 'Pak Joko Purnomo',
       'time': '11:55 WIB',
     },
@@ -135,7 +135,7 @@ class _AdminOrderDispatchScreenState extends State<AdminOrderDispatchScreen> {
                 ),
                 const SizedBox(height: 4),
                 const Text(
-                  'Masukkan pesanan yang masuk lewat chat WhatsApp atau telepon langsung dari warga.',
+                  'Masukkan pesanan yang masuk lewat chat WhatsApp atau telepon langsung dari pelanggan.',
                   style: TextStyle(fontSize: 12, color: GageTheme.textSecondary),
                 ),
                 const SizedBox(height: 16),
@@ -149,7 +149,7 @@ class _AdminOrderDispatchScreenState extends State<AdminOrderDispatchScreen> {
                         controller: nameCtrl,
                         decoration: InputDecoration(
                           labelText: 'Nama Pemesan',
-                          hintText: 'Misal: Pak RT Joko',
+                          hintText: 'Misal: Pak Joko',
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                         ),
                       ),
@@ -182,7 +182,7 @@ class _AdminOrderDispatchScreenState extends State<AdminOrderDispatchScreen> {
                     DropdownMenuItem(value: 'GageRide', child: Text('GageRide (Ojek Motor)')),
                     DropdownMenuItem(value: 'GageCar', child: Text('GageCar (Antar Jemput Mobil)')),
                     DropdownMenuItem(value: 'GageSend', child: Text('GageSend (Titip Beli / Kirim Paket)')),
-                    DropdownMenuItem(value: 'GageClean', child: Text('GageClean (Angkut Sampah Warga)')),
+                    DropdownMenuItem(value: 'GageClean', child: Text('GageClean (Pengangkutan Sampah)')),
                   ],
                   onChanged: (val) {
                     if (val != null) setModalState(() => service = val);

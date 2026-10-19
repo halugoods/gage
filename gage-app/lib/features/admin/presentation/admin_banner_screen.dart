@@ -107,16 +107,16 @@ class _AdminBannerScreenState extends State<AdminBannerScreen> {
       'desc': 'Banner promo belanja sembako dan kebutuhan harian warung.',
     },
     'driver_home_info': {
-      'label': 'Beranda Siaga (GoPartner)',
+      'label': 'Beranda Driver (GoPartner)',
       'portal': 'Driver',
       'ratio': '3:1',
       'ratioVal': 3.0 / 1.0,
       'dimension': '900 × 300 px',
       'defaultImg': 'assets/images/home_hero_banner.png',
-      'defaultTitle': 'Fokus Jalan, Kejar Bonus Tupo Harian!',
-      'defaultSubtitle': 'Gunakan helm SNI & selalu utamakan keselamatan warga',
+      'defaultTitle': 'Tingkatkan Layanan, Raih Bonus Harian!',
+      'defaultSubtitle': 'Gunakan helm SNI & selalu utamakan keselamatan penumpang',
       'badge': 'INFO MITRA',
-      'desc': 'Banner info keselamatan berkendara & insentif tupo driver.',
+      'desc': 'Banner info keselamatan berkendara & insentif driver.',
     },
     'merchant_home_info': {
       'label': 'Beranda Resto & Kios',
@@ -1214,7 +1214,7 @@ class _AdminBannerScreenState extends State<AdminBannerScreen> {
                     isDark: isDark,
                   ),
                   const SizedBox(height: 8),
-                  _buildMiniDriverSiagaCard(isDark),
+                  _buildMiniDriverStatusCard(isDark),
                 ] else if (portal == 'Merchant') ...[
                   // Merchant Mockup (Resto Standard)
                   _buildMiniMerchantHeader(isDark),
@@ -1309,7 +1309,7 @@ class _AdminBannerScreenState extends State<AdminBannerScreen> {
     );
   }
 
-  static Widget _buildMiniDriverSiagaCard(bool isDark) {
+  static Widget _buildMiniDriverStatusCard(bool isDark) {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
@@ -1318,9 +1318,9 @@ class _AdminBannerScreenState extends State<AdminBannerScreen> {
       ),
       child: const Row(
         children: [
-          Icon(Icons.radar_rounded, size: 14, color: GageTheme.primary),
+          Icon(Icons.navigation_rounded, size: 14, color: GageTheme.primary),
           SizedBox(width: 6),
-          Expanded(child: Text('Siaga Order Terdekat (Pracimantoro Kota)', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600))),
+          Expanded(child: Text('Driver Online (Pracimantoro Kota)', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600))),
         ],
       ),
     );

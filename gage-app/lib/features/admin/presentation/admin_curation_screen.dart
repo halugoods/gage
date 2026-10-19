@@ -5,9 +5,9 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/admin/presentation/widgets/admin_bottom_nav_bar.dart';
 
-/// Screen Kurasi BaBe & Verifikasi Mitra - Tab 3
+/// Screen Kurasi & Verifikasi Mitra - Tab 3
 /// Standar iOS Inset Grouped & GoPartner:
-/// 1. Kurasi Fisik Barang Bekas Warga (BaBe) sebelum tayang ke katalog publik
+/// 1. Kurasi Fisik Barang Bekas (BaBe) sebelum tayang ke katalog publik
 /// 2. Verifikasi Pendaftaran Mitra Toko & Resto Baru di Pracimantoro
 class AdminCurationScreen extends StatefulWidget {
   const AdminCurationScreen({super.key});
@@ -18,7 +18,7 @@ class AdminCurationScreen extends StatefulWidget {
 
 class _AdminCurationScreenState extends State<AdminCurationScreen> {
   final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
-  int _curationTab = 0; // 0: Barang BaBe Warga, 1: Mitra Toko & Resto
+  int _curationTab = 0; // 0: Barang Bekas, 1: Mitra Toko & Resto
   String _statusFilter = 'Menunggu';
 
   // Data Pengajuan BaBe
@@ -154,7 +154,7 @@ class _AdminCurationScreenState extends State<AdminCurationScreen> {
               style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
             ),
             Text(
-              'Verifikasi BaBe Warga & Pendaftaran Toko/Resto',
+              'Verifikasi Barang Bekas & Pendaftaran Mitra',
               style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.black54),
             ),
           ],
@@ -199,7 +199,7 @@ class _AdminCurationScreenState extends State<AdminCurationScreen> {
                                 Icon(Icons.recycling_rounded, size: 15, color: _curationTab == 0 ? Colors.white : Colors.grey.shade600),
                                 const SizedBox(width: 6),
                                 Text(
-                                  'Barang BaBe (${_babeSubmissions.length})',
+                                  'Barang Bekas (${_babeSubmissions.length})',
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: _curationTab == 0 ? FontWeight.bold : FontWeight.w600,

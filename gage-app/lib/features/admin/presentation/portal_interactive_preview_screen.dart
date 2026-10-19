@@ -74,7 +74,7 @@ class _PortalInteractivePreviewScreenState extends State<PortalInteractivePrevie
           {
             'id': 'Driver',
             'title': 'Portal Pengemudi (Driver)',
-            'desc': 'GoPartner Standard, Full Peta GPS, Autobid, Radar Siaga & Tupo',
+            'desc': 'GoPartner Standard, Full Peta GPS, Autobid & Target Harian',
             'icon': Icons.two_wheeler_rounded,
             'color': const Color(0xFF00AA13), // Gojek Green
           },

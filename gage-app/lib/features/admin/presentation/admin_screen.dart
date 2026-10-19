@@ -6,12 +6,15 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/admin/presentation/widgets/admin_bottom_nav_bar.dart';
+import 'package:gage_app/features/admin/presentation/widgets/admin_map_fullscreen_dialog.dart';
+import 'package:gage_app/features/admin/presentation/widgets/admin_map_pin_detail_sheet.dart';
 
-/// Screen Utama GAGE Admin - Tab 0: Radar & Fleet Command Tower
-/// Dirancang sesuai standar Gojek (GoPartner) & iOS Human Interface:
-/// - Peta riil OpenStreetMap kawasan Pracimantoro (bebas gimik pin palsu)
-/// - Kartu KPI metrik operasional bersih bergaya iOS Inset Grouped
-/// - Pengawasan armada terverifikasi dengan aksi dispatch instan
+/// Screen Utama GAGE Admin - Tab 0: GAGE Heatmap & Operasional
+/// Dirancang sesuai standar profesional software modern (Gojek / Apple Maps):
+/// - Peta Google Maps Retina kawasan Pracimantoro
+/// - GAGE Heatmap interaktif tanpa label badge kaku
+/// - Mode fullscreen 1 layar penuh untuk observasi teritorial & dokumentasi
+/// - Kartu ringkasan operasional bersih bergaya iOS Inset Grouped
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
 
@@ -23,39 +26,97 @@ class _AdminScreenState extends State<AdminScreen> {
   final MapController _mapController = MapController();
   final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
   String _selectedFleetFilter = 'Semua';
-  String _mapFilter = 'Semua'; // 'Semua', 'Hotspot Order', 'Driver Siaga', 'Merchant'
+  String _mapFilter = 'Semua'; // 'Semua', 'Pesanan Aktif', 'Pengguna', 'Driver Online', 'Merchant'
 
   // Titik Pusat Operasional Pracimantoro
   final LatLng _centerPracimantoro = const LatLng(-8.0963, 110.8427);
 
-  // Titik Hotspot Kepadatan Order Riil Pracimantoro untuk Analisa Bisnis
-  final List<Map<String, dynamic>> _orderHotspots = [
+  // Titik Area Konsentrasi Pesanan
+  final List<Map<String, dynamic>> _activeOrderAreas = [
     {
       'name': 'Pasar Pracimantoro',
       'location': const LatLng(-8.0975, 110.8415),
       'orders': 14,
       'gmv': 'Rp 320.000',
-      'radius': 450.0,
-      'color': const Color(0xFFE11D48), // Rose
-      'detail': 'Kepadatan tinggi belanja sembako, sayur & sarapan pagi',
+      'radius': 420.0,
+      'color': const Color(0xFFE11D48),
+      'detail': 'Area belanja sembako, sayur & kuliner pagi',
     },
     {
       'name': 'Terminal & Pertokoan Stasiun',
       'location': const LatLng(-8.0950, 110.8390),
       'orders': 8,
       'gmv': 'Rp 195.000',
-      'radius': 320.0,
-      'color': const Color(0xFFF97316), // Orange
-      'detail': 'Titik transit penumpang luar kota & pengiriman express paket',
+      'radius': 300.0,
+      'color': const Color(0xFFF97316),
+      'detail': 'Area transit penumpang & pengiriman ekspres paket',
     },
     {
       'name': 'Kawasan Simpang Giribelah',
       'location': const LatLng(-8.1180, 110.8550),
       'orders': 6,
       'gmv': 'Rp 125.000',
-      'radius': 360.0,
-      'color': const Color(0xFFF59E0B), // Amber
-      'detail': 'Permukiman selatan & pangkalan driver siaga',
+      'radius': 340.0,
+      'color': const Color(0xFFF59E0B),
+      'detail': 'Kawasan permukiman & rute driver selatan',
+    },
+  ];
+
+  // Data Pengguna Terdaftar & Pengguna Baru di Pracimantoro
+  final List<Map<String, dynamic>> _registeredUsers = [
+    {
+      'id': 'usr-01',
+      'name': 'Siti Rahmawati',
+      'phone': '6281234567891',
+      'location': const LatLng(-8.0945, 110.8410),
+      'address': 'Dusun Krajan, Pracimantoro',
+      'hasOrdered': true,
+      'isOrdering': true,
+      'currentOrder': 'Dimsum Sewu (2x Porsi)',
+      'orderId': 'ORD-9021',
+      'joinDate': '12 Okt 2026',
+    },
+    {
+      'id': 'usr-02',
+      'name': 'Bagus Prasetyo',
+      'phone': '6285799881122',
+      'location': const LatLng(-8.0990, 110.8445),
+      'address': 'Dekat Lapangan Pracimantoro',
+      'hasOrdered': true,
+      'isOrdering': false,
+      'joinDate': '14 Okt 2026',
+    },
+    {
+      'id': 'usr-03',
+      'name': 'Dewi Anggraini',
+      'phone': '6281311223344',
+      'location': const LatLng(-8.1020, 110.8385),
+      'address': 'Jl. Ronggowarsito No. 12',
+      'hasOrdered': false,
+      'isOrdering': false,
+      'joinDate': 'Hari Ini',
+    },
+    {
+      'id': 'usr-04',
+      'name': 'Rahmat Hidayat',
+      'phone': '6282244556677',
+      'location': const LatLng(-8.0920, 110.8460),
+      'address': 'Kompleks Pasar Lama',
+      'hasOrdered': false,
+      'isOrdering': false,
+      'joinDate': 'Kemarin',
+    },
+    {
+      'id': 'usr-05',
+      'name': 'Nurul Khotimah',
+      'phone': '6287811992233',
+      'location': const LatLng(-8.1150, 110.8520),
+      'address': 'Kawasan Giribelah',
+      'hasOrdered': true,
+      'isOrdering': true,
+      'currentOrder': 'GageRide ke Terminal',
+      'orderId': 'RIDE-8812',
+      'joinDate': '08 Okt 2026',
     },
   ];
 
@@ -64,61 +125,46 @@ class _AdminScreenState extends State<AdminScreen> {
     {
       'name': 'Dimsum Sewu Mas Agus',
       'location': const LatLng(-8.0968, 110.8432),
+      'category': 'Kuliner',
+      'isOpen': true,
+      'phone': '6281234567888',
+      'address': 'Jl. Wonogiri - Pracimantoro No. 45',
       'ordersToday': 9,
-      'status': 'Dapur Buka',
     },
     {
       'name': 'Kios Sayur Segar Bu Slamet',
       'location': const LatLng(-8.0982, 110.8410),
+      'category': 'Sembako',
+      'isOpen': true,
+      'phone': '6285788990011',
+      'address': 'Blok B Pasar Pracimantoro',
       'ordersToday': 7,
-      'status': 'Buka',
     },
     {
       'name': 'Apotek Kimia Farma Praci',
       'location': const LatLng(-8.0958, 110.8440),
+      'category': 'Kesehatan',
+      'isOpen': true,
+      'phone': '6281355667788',
+      'address': 'Sebelah Barat SPBU Pracimantoro',
       'ordersToday': 5,
-      'status': 'Buka',
     },
   ];
 
-  // Titik Pantau Pangkalan Riil Pracimantoro
-  final List<Map<String, dynamic>> _hubPoints = [
-    {
-      'name': 'Hub Pusat Pracimantoro',
-      'location': const LatLng(-8.0963, 110.8427),
-      'type': 'hub',
-      'count': '3 Driver',
-    },
-    {
-      'name': 'Pasar Pracimantoro',
-      'location': const LatLng(-8.0975, 110.8415),
-      'type': 'market',
-      'count': '4 Driver',
-    },
-    {
-      'name': 'Terminal Bus Pracimantoro',
-      'location': const LatLng(-8.0950, 110.8390),
-      'type': 'terminal',
-      'count': '2 Driver',
-    },
-    {
-      'name': 'Perempatan Giribelah',
-      'location': const LatLng(-8.1180, 110.8550),
-      'type': 'subhub',
-      'count': '2 Driver',
-    },
-  ];
-
+  // Daftar Driver Online
   final List<Map<String, dynamic>> _activeDrivers = [
     {
       'id': 'DRV-001',
       'name': 'Mas Budi Santoso',
       'phone': '6281234567890',
       'vehicle': 'Honda Vario 160 • AB 4521 WZ',
+      'plate': 'AB 4521 WZ',
+      'vehicleType': 'motor',
       'type': 'Motor',
       'status': 'Mengantar',
       'currentOrder': 'ORD-9021 (Dimsum Sewu)',
       'location': 'Jl. Raya Pracimantoro (Dekat Pasar)',
+      'locationCoord': const LatLng(-8.0970, 110.8420),
       'rating': 4.96,
     },
     {
@@ -126,10 +172,13 @@ class _AdminScreenState extends State<AdminScreen> {
       'name': 'Pak Joko Purnomo',
       'phone': '6285712345678',
       'vehicle': 'Toyota Avanza • AD 8912 TX',
+      'plate': 'AD 8912 TX',
+      'vehicleType': 'car',
       'type': 'Mobil',
-      'status': 'Siaga',
+      'status': 'Standby',
       'currentOrder': '-',
       'location': 'Pangkalan Terminal Pracimantoro',
+      'locationCoord': const LatLng(-8.0952, 110.8385),
       'rating': 4.92,
     },
     {
@@ -137,10 +186,13 @@ class _AdminScreenState extends State<AdminScreen> {
       'name': 'Mas Agus Setiawan',
       'phone': '6281399887766',
       'vehicle': 'Yamaha NMAX • AD 3310 QR',
+      'plate': 'AD 3310 QR',
+      'vehicleType': 'motor',
       'type': 'Motor',
       'status': 'Mengantar',
       'currentOrder': 'ORD-9019 (Apotek Kimia Farma)',
       'location': 'Menuju Desa Gedong',
+      'locationCoord': const LatLng(-8.0940, 110.8450),
       'rating': 4.98,
     },
     {
@@ -148,10 +200,13 @@ class _AdminScreenState extends State<AdminScreen> {
       'name': 'Mas Hendra Pratama',
       'phone': '6289876543210',
       'vehicle': 'Honda Beat Deluxe • AD 2244 BB',
+      'plate': 'AD 2244 BB',
+      'vehicleType': 'motor',
       'type': 'Motor',
-      'status': 'Siaga',
+      'status': 'Standby',
       'currentOrder': '-',
       'location': 'Pusat Kuliner Pracimantoro',
+      'locationCoord': const LatLng(-8.0965, 110.8435),
       'rating': 4.89,
     },
     {
@@ -159,10 +214,13 @@ class _AdminScreenState extends State<AdminScreen> {
       'name': 'Pak Bambang Triyono',
       'phone': '6281244556677',
       'vehicle': 'Daihatsu Sigra • AD 9011 ZX',
+      'plate': 'AD 9011 ZX',
+      'vehicleType': 'car',
       'type': 'Mobil',
       'status': 'Mengantar',
       'currentOrder': 'RIDE-8812 (Giribelah ke Praci Kota)',
       'location': 'Jl. Giribelah KM 2',
+      'locationCoord': const LatLng(-8.1160, 110.8535),
       'rating': 4.95,
     },
   ];
@@ -184,11 +242,14 @@ class _AdminScreenState extends State<AdminScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final filteredDrivers = _selectedFleetFilter == 'Semua'
-        ? _activeDrivers
-        : _selectedFleetFilter == 'Motor' || _selectedFleetFilter == 'Mobil'
-            ? _activeDrivers.where((d) => d['type'] == _selectedFleetFilter).toList()
-            : _activeDrivers.where((d) => d['status'] == _selectedFleetFilter).toList();
+    final filteredDrivers = _activeDrivers.where((d) {
+      if (_selectedFleetFilter == 'Semua') return true;
+      if (_selectedFleetFilter == 'Mengantar') return d['status'] == 'Mengantar';
+      if (_selectedFleetFilter == 'Standby') return d['status'] == 'Standby';
+      if (_selectedFleetFilter == 'Motor') return d['type'] == 'Motor';
+      if (_selectedFleetFilter == 'Mobil') return d['type'] == 'Mobil';
+      return true;
+    }).toList();
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
@@ -196,18 +257,9 @@ class _AdminScreenState extends State<AdminScreen> {
         titleSpacing: 16,
         elevation: 0.5,
         backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Beranda Operasional GAGE',
-              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
-            ),
-            Text(
-              'Peta Wilayah & Heatmap Kepadatan Order Pracimantoro',
-              style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.black54),
-            ),
-          ],
+        title: const Text(
+          'GAGE Heatmap',
+          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
         ),
         actions: [
           IconButton(
@@ -264,9 +316,9 @@ class _AdminScreenState extends State<AdminScreen> {
                     children: [
                       Expanded(
                         child: _buildMetricTile(
-                          label: 'Pesanan Masuk',
+                          label: 'Pesanan Hari Ini',
                           value: '28 Order',
-                          subtitle: '24 Selesai • 4 Jalan',
+                          subtitle: '24 Selesai • 4 Berjalan',
                           icon: Icons.receipt_long_rounded,
                           color: GageTheme.primary,
                           isDark: isDark,
@@ -290,9 +342,9 @@ class _AdminScreenState extends State<AdminScreen> {
                     children: [
                       Expanded(
                         child: _buildMetricTile(
-                          label: 'Armada Siaga',
-                          value: '11 Unit',
-                          subtitle: '8 Motor • 3 Mobil',
+                          label: 'Driver Online',
+                          value: '${_activeDrivers.length} Driver',
+                          subtitle: '3 Motor • 2 Mobil',
                           icon: Icons.two_wheeler_rounded,
                           color: Colors.blue.shade700,
                           isDark: isDark,
@@ -301,9 +353,9 @@ class _AdminScreenState extends State<AdminScreen> {
                       Container(width: 1, height: 46, color: isDark ? Colors.white12 : Colors.grey.shade200),
                       Expanded(
                         child: _buildMetricTile(
-                          label: 'Mitra Resto Buka',
-                          value: '19 Resto',
-                          subtitle: 'Dapur Siap Masak',
+                          label: 'Merchant Terdaftar',
+                          value: '${_merchantLocations.length} Mitra',
+                          subtitle: 'Semua Buka',
                           icon: Icons.storefront_rounded,
                           color: Colors.orange.shade800,
                           isDark: isDark,
@@ -317,7 +369,7 @@ class _AdminScreenState extends State<AdminScreen> {
 
             const SizedBox(height: 18),
 
-            // 2. PETA OPERASIONAL WILAYAH & HEATMAP KEPADATAN ORDER (Kawasan Pracimantoro)
+            // 2. GAGE HEATMAP DENGAN GOOGLE MAPS RETINA
             Container(
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -344,36 +396,74 @@ class _AdminScreenState extends State<AdminScreen> {
                             Icon(Icons.local_fire_department_rounded, size: 18, color: Color(0xFFE11D48)),
                             SizedBox(width: 8),
                             Text(
-                              'Peta Wilayah & Heatmap Kepadatan Order',
-                              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                              'GAGE Heatmap',
+                              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
                             ),
                           ],
                         ),
-                        InkWell(
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            _mapController.move(_centerPracimantoro, 14.5);
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: isDark ? Colors.white12 : Colors.grey.shade100,
+                        Row(
+                          children: [
+                            // Tombol Perbesar Peta (Fullscreen)
+                            InkWell(
                               borderRadius: BorderRadius.circular(6),
+                              onTap: () {
+                                AdminMapFullscreenDialog.show(
+                                  context: context,
+                                  initialCenter: _centerPracimantoro,
+                                  initialZoom: 14.5,
+                                  activeOrderAreas: _activeOrderAreas,
+                                  usersList: _registeredUsers,
+                                  driversList: _activeDrivers,
+                                  merchantsList: _merchantLocations,
+                                );
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: GageTheme.primary.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: GageTheme.primary.withValues(alpha: 0.3)),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.fullscreen_rounded, size: 13, color: GageTheme.primary),
+                                    SizedBox(width: 3),
+                                    Text('Perbesar', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: GageTheme.primary)),
+                                  ],
+                                ),
+                              ),
                             ),
-                            child: const Text('Fokus Pusat', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                          ),
+                            const SizedBox(width: 6),
+                            // Tombol Reset Center
+                            InkWell(
+                              borderRadius: BorderRadius.circular(6),
+                              onTap: () {
+                                HapticFeedback.lightImpact();
+                                _mapController.move(_centerPracimantoro, 14.5);
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: isDark ? Colors.white12 : Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Icon(Icons.my_location_rounded, size: 13),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
 
-                  // Filter Layer Heatmap (Taktil iOS Pill)
+                  // Filter Chips Heatmap (Standard Profesional)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
-                        children: ['Semua', 'Hotspot Order', 'Driver Siaga', 'Merchant'].map((filter) {
+                        children: ['Semua', 'Pesanan Aktif', 'Pengguna', 'Driver Online', 'Merchant'].map((filter) {
                           final isSel = _mapFilter == filter;
                           return Padding(
                             padding: const EdgeInsets.only(right: 6),
@@ -394,7 +484,7 @@ class _AdminScreenState extends State<AdminScreen> {
                                 child: Text(
                                   filter,
                                   style: TextStyle(
-                                    fontSize: 10,
+                                    fontSize: 10.5,
                                     fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
                                     color: isSel ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
                                   ),
@@ -407,157 +497,44 @@ class _AdminScreenState extends State<AdminScreen> {
                     ),
                   ),
 
-                  // Peta Riil FlutterMap dengan Heatmap CircleLayer & Multi-Entity Markers
+                  // FlutterMap dengan Google Maps Retina TileLayer & Marker Clean
                   ClipRRect(
                     borderRadius: const BorderRadius.vertical(bottom: Radius.circular(17)),
                     child: SizedBox(
-                      height: 220,
+                      height: 240,
                       child: FlutterMap(
                         mapController: _mapController,
                         options: MapOptions(
                           initialCenter: _centerPracimantoro,
-                          initialZoom: 14.2,
+                          initialZoom: 14.3,
                           minZoom: 11.0,
-                          maxZoom: 18.0,
+                          maxZoom: 18.5,
                         ),
                         children: [
                           TileLayer(
-                            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                            urlTemplate: 'https://mt{s}.google.com/vt/lyrs=m&scale=2&hl=id&x={x}&y={y}&z={z}',
+                            subdomains: const ['0', '1', '2', '3'],
                             userAgentPackageName: 'com.gage.admin',
+                            maxZoom: 20,
                           ),
-                          // Lapisan Lingkaran Heatmap Kepadatan Order
-                          if (_mapFilter == 'Semua' || _mapFilter == 'Hotspot Order')
+                          // Lapisan Circle Heatmap Area Pesanan
+                          if (_mapFilter == 'Semua' || _mapFilter == 'Pesanan Aktif')
                             CircleLayer(
-                              circles: _orderHotspots.map((h) {
+                              circles: _activeOrderAreas.map((h) {
                                 final color = h['color'] as Color;
                                 return CircleMarker(
                                   point: h['location'] as LatLng,
-                                  color: color.withValues(alpha: 0.25),
-                                  borderColor: color.withValues(alpha: 0.85),
-                                  borderStrokeWidth: 2,
+                                  color: color.withValues(alpha: 0.20),
+                                  borderColor: color.withValues(alpha: 0.8),
+                                  borderStrokeWidth: 1.5,
                                   useRadiusInMeter: true,
                                   radius: h['radius'] as double,
                                 );
                               }).toList(),
                             ),
-                          // Lapisan Marker Entitas
+                          // Lapisan Marker Entitas Bersih (Tanpa Badge Teks Mengambang)
                           MarkerLayer(
-                            markers: [
-                              // 1. Hotspot Order Pins
-                              if (_mapFilter == 'Semua' || _mapFilter == 'Hotspot Order')
-                                ..._orderHotspots.map((h) {
-                                  return Marker(
-                                    point: h['location'] as LatLng,
-                                    width: 140,
-                                    height: 48,
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFE11D48),
-                                            borderRadius: BorderRadius.circular(6),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: Colors.black.withValues(alpha: 0.3),
-                                                blurRadius: 4,
-                                                offset: const Offset(0, 2),
-                                              ),
-                                            ],
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              const Icon(Icons.whatshot_rounded, color: Colors.white, size: 10),
-                                              const SizedBox(width: 3),
-                                              Text(
-                                                '${h['name']} • ${h['orders']} Order',
-                                                style: const TextStyle(color: Colors.white, fontSize: 8.5, fontWeight: FontWeight.bold),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        const Icon(Icons.location_on_rounded, color: Color(0xFFE11D48), size: 18),
-                                      ],
-                                    ),
-                                  );
-                                }),
-
-                              // 2. Driver Hub Siaga Pins
-                              if (_mapFilter == 'Semua' || _mapFilter == 'Driver Siaga')
-                                ..._hubPoints.map((hub) {
-                                  return Marker(
-                                    point: hub['location'] as LatLng,
-                                    width: 130,
-                                    height: 44,
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFF0F172A),
-                                            borderRadius: BorderRadius.circular(6),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: Colors.black.withValues(alpha: 0.3),
-                                                blurRadius: 4,
-                                                offset: const Offset(0, 2),
-                                              ),
-                                            ],
-                                          ),
-                                          child: Text(
-                                            '${hub['name']} (${hub['count']})',
-                                            style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        const Icon(Icons.two_wheeler_rounded, color: Color(0xFF00AA13), size: 16),
-                                      ],
-                                    ),
-                                  );
-                                }),
-
-                              // 3. Merchant Pins
-                              if (_mapFilter == 'Semua' || _mapFilter == 'Merchant')
-                                ..._merchantLocations.map((m) {
-                                  return Marker(
-                                    point: m['location'] as LatLng,
-                                    width: 130,
-                                    height: 44,
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: Colors.orange.shade800,
-                                            borderRadius: BorderRadius.circular(6),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: Colors.black.withValues(alpha: 0.3),
-                                                blurRadius: 4,
-                                                offset: const Offset(0, 2),
-                                              ),
-                                            ],
-                                          ),
-                                          child: Text(
-                                            m['name'] as String,
-                                            style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        Icon(Icons.storefront_rounded, color: Colors.orange.shade800, size: 16),
-                                      ],
-                                    ),
-                                  );
-                                }),
-                            ],
+                            markers: _buildCleanMarkers(context),
                           ),
                         ],
                       ),
@@ -567,156 +544,75 @@ class _AdminScreenState extends State<AdminScreen> {
               ),
             ),
 
-            const SizedBox(height: 14),
+            const SizedBox(height: 20),
 
-            // 3. KARTU ANALISA BISNIS ZONA OPERASIONAL (iOS Inset Grouped)
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'ANALISA ZONA TERPADAT HARI INI',
-                        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900, letterSpacing: 0.6, color: Color(0xFFE11D48)),
-                      ),
-                      Text(
-                        'Live Demand',
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF00AA13)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  ..._orderHotspots.map((h) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          margin: const EdgeInsets.only(top: 4, right: 10),
-                          decoration: BoxDecoration(
-                            color: h['color'] as Color,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    h['name'] as String,
-                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                                  ),
-                                  Text(
-                                    '${h['orders']} Order (${h['gmv']})',
-                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: h['color'] as Color),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 1),
-                              Text(
-                                h['detail'] as String,
-                                style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white60 : Colors.black54),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  )),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 18),
-
-            // 4. DAFTAR ARMADA & FILTER STATUS (TACTILE SEGMENTED CONTROLS)
+            // 3. DAFTAR DRIVER ONLINE & PESANAN AKTIF
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'Daftar Driver & Armada Siaga',
-                  style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800),
+                  'DRIVER ONLINE & PESANAN AKTIF',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 0.5, color: Colors.grey),
                 ),
                 Text(
-                  '${filteredDrivers.length} Armada',
-                  style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.black54),
+                  '${filteredDrivers.length} Driver',
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF00AA13)),
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
 
+            // Filter Tabs Armada
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children: ['Semua', 'Motor', 'Mobil', 'Siaga', 'Mengantar'].map((filter) {
-                  final isSelected = _selectedFleetFilter == filter;
+                children: ['Semua', 'Mengantar', 'Standby', 'Motor', 'Mobil'].map((f) {
+                  final isSel = _selectedFleetFilter == f;
                   return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(10),
-                      onTap: () {
+                    padding: const EdgeInsets.only(right: 6),
+                    child: ChoiceChip(
+                      label: Text(f, style: TextStyle(fontSize: 11, fontWeight: isSel ? FontWeight.bold : FontWeight.w500)),
+                      selected: isSel,
+                      selectedColor: GageTheme.primary,
+                      labelStyle: TextStyle(color: isSel ? Colors.white : (isDark ? Colors.white70 : Colors.black87)),
+                      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      side: BorderSide(color: isSel ? GageTheme.primary : (isDark ? Colors.white12 : Colors.grey.shade300)),
+                      onSelected: (val) {
                         HapticFeedback.selectionClick();
-                        setState(() => _selectedFleetFilter = filter);
+                        setState(() => _selectedFleetFilter = f);
                       },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? GageTheme.primary
-                              : (isDark ? const Color(0xFF1E293B) : Colors.white),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: isSelected
-                                ? GageTheme.primary
-                                : (isDark ? Colors.white12 : Colors.grey.shade300),
-                          ),
-                        ),
-                        child: Text(
-                          filter,
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                            color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
-                          ),
-                        ),
-                      ),
                     ),
                   );
                 }).toList(),
               ),
             ),
+
             const SizedBox(height: 12),
 
-            // Kartu Driver Riil
+            // Driver Cards
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: filteredDrivers.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 10),
-              itemBuilder: (ctx, i) {
-                final d = filteredDrivers[i];
-                final isBusy = d['status'] == 'Mengantar';
-                final isMotor = d['type'] == 'Motor';
+              separatorBuilder: (_, index) => const SizedBox(height: 10),
+              itemBuilder: (ctx, idx) {
+                final d = filteredDrivers[idx];
+                final isDelivering = d['status'] == 'Mengantar';
+                final isCar = d['vehicleType'] == 'car';
 
                 return Container(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.02),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -724,50 +620,27 @@ class _AdminScreenState extends State<AdminScreen> {
                       Row(
                         children: [
                           Container(
-                            width: 44,
-                            height: 44,
-                            padding: const EdgeInsets.all(6),
+                            width: 38,
+                            height: 38,
+                            padding: const EdgeInsets.all(3),
                             decoration: BoxDecoration(
-                              color: isMotor
-                                  ? Colors.blue.withValues(alpha: 0.1)
-                                  : Colors.orange.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12),
+                              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
                             ),
                             child: Image.asset(
-                              isMotor ? 'assets/images/gage_ride_3d.png' : 'assets/images/gage_car_3d.png',
+                              isCar ? 'assets/images/gage_car_3d.png' : 'assets/images/gage_ride_3d.png',
                               fit: BoxFit.contain,
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      d['name'] as String,
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                                      decoration: BoxDecoration(
-                                        color: isBusy
-                                            ? Colors.orange.withValues(alpha: 0.15)
-                                            : Colors.green.withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        d['status'] as String,
-                                        style: TextStyle(
-                                          fontSize: 9.5,
-                                          fontWeight: FontWeight.bold,
-                                          color: isBusy ? Colors.orange.shade800 : Colors.green.shade700,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                                Text(
+                                  d['name'] as String,
+                                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
@@ -775,6 +648,23 @@ class _AdminScreenState extends State<AdminScreen> {
                                   style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.black54),
                                 ),
                               ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: isDelivering
+                                  ? GageTheme.primary.withValues(alpha: 0.12)
+                                  : const Color(0xFF00AA13).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              d['status'] as String,
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w700,
+                                color: isDelivering ? GageTheme.primary : const Color(0xFF00AA13),
+                              ),
                             ),
                           ),
                         ],
@@ -804,7 +694,7 @@ class _AdminScreenState extends State<AdminScreen> {
                           ],
                         ),
                       ),
-                      if (isBusy) ...[
+                      if (isDelivering) ...[
                         const SizedBox(height: 6),
                         Row(
                           children: [
@@ -812,7 +702,7 @@ class _AdminScreenState extends State<AdminScreen> {
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(
-                                'Order Aktif: ${d['currentOrder']}',
+                                'Pesanan: ${d['currentOrder']}',
                                 style: const TextStyle(fontSize: 11, color: GageTheme.primary, fontWeight: FontWeight.w700),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -862,6 +752,195 @@ class _AdminScreenState extends State<AdminScreen> {
       ),
       bottomNavigationBar: const AdminBottomNavBar(currentIndex: 0),
     );
+  }
+
+  List<Marker> _buildCleanMarkers(BuildContext context) {
+    final List<Marker> list = [];
+
+    // 1. Pesanan Aktif (Clean Red Circular Pin)
+    if (_mapFilter == 'Semua' || _mapFilter == 'Pesanan Aktif') {
+      for (final spot in _activeOrderAreas) {
+        final loc = spot['location'] as LatLng;
+        final color = spot['color'] as Color? ?? GageTheme.primary;
+
+        list.add(
+          Marker(
+            point: loc,
+            width: 36,
+            height: 36,
+            child: GestureDetector(
+              onTap: () => AdminMapPinDetailSheet.show(context, {
+                'type': 'order',
+                'name': spot['name'] ?? 'Area Pesanan',
+                'status': 'Aktif',
+                'subtitle': '${spot['orders']} Pesanan • GMV ${spot['gmv']}',
+                'address': spot['detail'] ?? 'Pracimantoro',
+                'extraInfo': 'Konsentrasi pesanan aktif saat ini di wilayah ini.',
+              }),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: color, width: 2),
+                  boxShadow: [
+                    BoxShadow(color: color.withValues(alpha: 0.35), blurRadius: 6),
+                  ],
+                ),
+                child: Center(
+                  child: Icon(Icons.shopping_bag_rounded, color: color, size: 18),
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
+    // 2. Pengguna Terdaftar & Pengguna Baru (Clean Avatar Pin)
+    if (_mapFilter == 'Semua' || _mapFilter == 'Pengguna') {
+      for (final u in _registeredUsers) {
+        final loc = u['location'] as LatLng;
+        final isOrdering = u['isOrdering'] == true;
+        final hasOrdered = u['hasOrdered'] == true;
+
+        list.add(
+          Marker(
+            point: loc,
+            width: isOrdering ? 38 : 28,
+            height: isOrdering ? 38 : 28,
+            child: GestureDetector(
+              onTap: () => AdminMapPinDetailSheet.show(context, {
+                'type': isOrdering ? 'order' : 'user',
+                'name': u['name'] ?? 'Pengguna',
+                'phone': u['phone'] ?? '',
+                'hasOrdered': hasOrdered,
+                'status': isOrdering ? 'Sedang Memesan' : (hasOrdered ? 'Pengguna Aktif' : 'Pengguna Baru Terdaftar'),
+                'subtitle': isOrdering ? 'Pesanan: ${u['currentOrder']}' : 'Terdaftar ${u['joinDate']}',
+                'address': u['address'] ?? 'Pracimantoro',
+                'orderId': isOrdering ? u['orderId'] : null,
+                'extraInfo': isOrdering ? 'Sedang menunggu pengantaran pesanan.' : 'Pengguna terdaftar di aplikasi GAGE.',
+              }),
+              child: isOrdering
+                  ? Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: GageTheme.primary, width: 2),
+                        boxShadow: [
+                          BoxShadow(color: GageTheme.primary.withValues(alpha: 0.4), blurRadius: 8),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.delivery_dining_rounded, color: GageTheme.primary, size: 20),
+                      ),
+                    )
+                  : Container(
+                      decoration: BoxDecoration(
+                        color: hasOrdered ? Colors.blue.shade50 : const Color(0xFFF0FDF4),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: hasOrdered ? Colors.blue.shade700 : const Color(0xFF16A34A),
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 4),
+                        ],
+                      ),
+                      child: Center(
+                        child: Icon(
+                          Icons.person_rounded,
+                          size: 14,
+                          color: hasOrdered ? Colors.blue.shade800 : const Color(0xFF15803D),
+                        ),
+                      ),
+                    ),
+            ),
+          ),
+        );
+      }
+    }
+
+    // 3. Driver Online
+    if (_mapFilter == 'Semua' || _mapFilter == 'Driver Online') {
+      for (final d in _activeDrivers) {
+        final loc = d['locationCoord'] as LatLng;
+        final isCar = d['vehicleType'] == 'car';
+
+        list.add(
+          Marker(
+            point: loc,
+            width: 36,
+            height: 36,
+            child: GestureDetector(
+              onTap: () => AdminMapPinDetailSheet.show(context, {
+                'type': 'driver',
+                'name': d['name'] ?? 'Mitra Pengemudi',
+                'phone': d['phone'] ?? '',
+                'status': 'Driver Online',
+                'subtitle': '${d['plate']} • Rating ${d['rating']}',
+                'address': d['location'] ?? 'Pracimantoro',
+                'extraInfo': 'Driver online siap menerima order.',
+              }),
+              child: Container(
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFF00AA13), width: 1.8),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 5),
+                  ],
+                ),
+                child: Image.asset(
+                  isCar ? 'assets/images/gage_car_3d.png' : 'assets/images/gage_ride_3d.png',
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
+    // 4. Merchant
+    if (_mapFilter == 'Semua' || _mapFilter == 'Merchant') {
+      for (final m in _merchantLocations) {
+        final loc = m['location'] as LatLng;
+        list.add(
+          Marker(
+            point: loc,
+            width: 34,
+            height: 34,
+            child: GestureDetector(
+              onTap: () => AdminMapPinDetailSheet.show(context, {
+                'type': 'merchant',
+                'name': m['name'] ?? 'Merchant',
+                'phone': m['phone'] ?? '',
+                'status': m['isOpen'] == true ? 'Buka' : 'Tutup',
+                'subtitle': '${m['category']} • ${m['ordersToday']} Order Hari Ini',
+                'address': m['address'] ?? 'Pracimantoro',
+                'extraInfo': 'Mitra merchant terdaftar di GAGE.',
+              }),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.orange.shade800, width: 1.8),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4),
+                  ],
+                ),
+                child: Center(
+                  child: Icon(Icons.storefront_rounded, size: 16, color: Colors.orange.shade800),
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
+    return list;
   }
 
   Widget _buildMetricTile({
