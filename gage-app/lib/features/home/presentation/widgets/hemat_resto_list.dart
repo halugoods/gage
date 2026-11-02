@@ -119,7 +119,7 @@ class HematRestoList extends StatelessWidget {
                 final id = m['id'] ?? '';
                 final name = m['name'] ?? 'Resto Mitra';
                 final category = m['category'] ?? 'Kuliner';
-                final address = m['address'] ?? 'Kecamatan';
+                final address = m['address'] ?? 'Pracimantoro';
                 String imageAsset = 'assets/images/resto_dimsum_sewu.png';
                 if (id == 'm-mie-kumis') imageAsset = 'assets/images/resto_mie_ayam.png';
 

@@ -87,7 +87,7 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
       'terms': [
         'Potongan langsung Rp 15.000 untuk pemesanan armada GAGE Car.',
         'Minimal tarif perjalanan Rp 30.000.',
-        'Berlaku untuk perjalanan dalam & antar kecamatan.',
+        'Berlaku untuk seluruh perjalanan di area operasional GAGE.',
       ],
       'howToUse': 'Gunakan saat memesan armada GAGE Car.',
     },

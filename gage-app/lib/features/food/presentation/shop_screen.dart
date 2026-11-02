@@ -13,6 +13,8 @@ import 'package:gage_app/shared/widgets/gage_service_header.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
+typedef ShopExploreScreen = ShopScreen;
+
 class ShopScreen extends StatefulWidget {
   const ShopScreen({super.key});
 

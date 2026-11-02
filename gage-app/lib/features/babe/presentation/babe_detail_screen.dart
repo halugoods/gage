@@ -762,7 +762,7 @@ class _BabeDetailScreenState extends State<BabeDetailScreen> {
                         const SizedBox(height: 8),
                         _buildDetailRow(Icons.local_shipping_rounded, 'Pengantaran:', item['delivery'] as String? ?? 'Diantar langsung via GAGE Delivery'),
                         const SizedBox(height: 8),
-                        _buildDetailRow(Icons.location_on_rounded, 'Lokasi Unit:', 'Kecamatan Pracimantoro, Wonogiri'),
+                        _buildDetailRow(Icons.location_on_rounded, 'Lokasi Unit:', 'Pracimantoro, Wonogiri'),
                       ],
                     ),
                   ),

@@ -8,7 +8,7 @@ import 'package:gage_app/providers/auth_provider.dart';
 import 'package:gage_app/providers/order_provider.dart';
 import 'package:gage_app/providers/cart_provider.dart';
 import 'package:gage_app/data/models/cart_item_model.dart';
-import 'package:gage_app/features/order/presentation/order_tracking_screen.dart';
+import 'package:gage_app/features/orders/presentation/order_tracking_screen.dart';
 import 'package:gage_app/features/checkout/presentation/checkout_screen.dart';
 import 'package:gage_app/features/orders/presentation/order_detail_screen.dart';
 import 'package:gage_app/shared/widgets/gage_bottom_nav_bar.dart';

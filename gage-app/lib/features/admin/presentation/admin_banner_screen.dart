@@ -66,7 +66,7 @@ class _AdminBannerScreenState extends State<AdminBannerScreen> {
       'dimension': '1280 × 720 px',
       'defaultImg': 'assets/images/home_hero_banner.png',
       'defaultTitle': 'GAGE Pracimantoro SuperApp',
-      'defaultSubtitle': 'Pesan kuliner, sembako, dan kirim barang se-kecamatan',
+      'defaultSubtitle': 'Pesan kuliner, belanja, dan kirim barang se-Pracimantoro',
       'badge': 'PROMO UTAMA',
       'desc': 'Hero banner promosi utama di bagian atas beranda pelanggan.',
     },

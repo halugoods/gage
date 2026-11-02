@@ -129,10 +129,10 @@ class CartProvider extends ChangeNotifier {
     if (forceReplace) {
       _items.clear();
     } else {
-      // Cek batas maksimal 3 merchant berbeda dalam 1 pengantaran
+      // Cek aturan Single Merchant: 1 pengantaran = 1 toko
       final currentMerchants = merchantIds;
-      if (!currentMerchants.contains(newItem.merchantId) && currentMerchants.length >= 3) {
-        return false; // Maksimal 3 merchant berbeda dalam satu kali jalan
+      if (!currentMerchants.contains(newItem.merchantId) && currentMerchants.isNotEmpty) {
+        return false; // 1 pesanan eksklusif untuk 1 merchant
       }
     }
 

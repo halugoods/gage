@@ -11,6 +11,7 @@ import 'package:gage_app/features/home/presentation/home_screen.dart';
 import 'package:gage_app/core/services/multi_merchant_cart_service.dart';
 import 'package:gage_app/core/services/banner_manager_service.dart';
 import 'package:gage_app/features/chat/providers/in_app_chat_provider.dart';
+import 'package:gage_app/providers/merchant_order_provider.dart';
 
 
 void main() {
@@ -43,6 +44,7 @@ class GageApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => OrderProvider()),
         ChangeNotifierProvider(create: (_) => MultiMerchantCartService()),
         ChangeNotifierProvider(create: (_) => InAppChatProvider()),
+        ChangeNotifierProvider(create: (_) => MerchantOrderProvider()),
         ChangeNotifierProvider.value(value: BannerManagerService.instance),
       ],
       child: MaterialApp(

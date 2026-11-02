@@ -501,6 +501,156 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
           'desc': 'Bumbu instan komplit ayam goreng, lodeh, dan sop.',
         },
       ];
+    } else if (storeId.startsWith('farm-')) {
+      return [
+        {
+          'id': 'prod-npk-mutiara',
+          'name': 'Pupuk NPK Mutiara 16-16-16 Kemasan 1 Kg',
+          'category': 'Pupuk & Nutrisi',
+          'price': 18000,
+          'unit': '1 kg',
+          'image': 'assets/images/prod_pupuk.png',
+          'desc': 'Pupuk majemuk lengkap nutrisi nitrogen, fosfat dan kalium seimbang untuk kesuburan tanaman.',
+        },
+        {
+          'id': 'prod-pupuk-urea',
+          'name': 'Pupuk Urea Nitrea Non-Subsidi 5 Kg',
+          'category': 'Pupuk & Nutrisi',
+          'price': 38000,
+          'unit': '5 kg',
+          'image': 'assets/images/prod_pupuk.png',
+          'desc': 'Kandungan nitrogen tinggi 46% mempercepat pertumbuhan anakan dan daun hijau royo-royo.',
+        },
+        {
+          'id': 'prod-benih-padi',
+          'name': 'Benih Padi Unggul Inpari 32 Karung 5 Kg',
+          'category': 'Benih & Bibit',
+          'price': 75000,
+          'unit': '5 kg',
+          'image': 'assets/images/prod_benih.png',
+          'desc': 'Benih padi bersertifikat resmi tahan wereng batang coklat dan hawar daun bakteri.',
+        },
+        {
+          'id': 'prod-benih-cabai',
+          'name': 'Benih Cabai Rawit Merah Unggul Ori 212 10 Gram',
+          'category': 'Benih & Bibit',
+          'price': 45000,
+          'unit': 'Pack 10gr',
+          'image': 'assets/images/prod_cabai.png',
+          'desc': 'Daya tumbuh 85% buah tegak lebat tahan layu bakteri dan antraknosa.',
+        },
+        {
+          'id': 'prod-pakan-br1',
+          'name': 'Pakan Ayam Broiler BR-1 Pokphand Karung 5 Kg',
+          'category': 'Pakan Ternak',
+          'price': 52000,
+          'unit': '5 kg',
+          'image': 'assets/images/prod_pakan.png',
+          'desc': 'Pakan crumble masa starter ayam pedaging berprotein tinggi cepat besar sehat.',
+        },
+        {
+          'id': 'prod-konsentrat-sapi',
+          'name': 'Konsentrat Penggemukan Sapi Potong Karung 50 Kg',
+          'category': 'Pakan Ternak',
+          'price': 225000,
+          'unit': '50 kg',
+          'image': 'assets/images/prod_pakan.png',
+          'desc': 'Pakan konsentrat fermentasi kaya protein kasar untuk percepatan bobot sapi dan kambing.',
+        },
+        {
+          'id': 'prod-vitachick',
+          'name': 'Vitamin Pertumbuhan Anak Ayam Vitachick 100gr',
+          'category': 'Vitamin & Obat Hewan',
+          'price': 16000,
+          'unit': 'Sachet 100gr',
+          'image': 'assets/images/prod_telur.png',
+          'desc': 'Serbuk multivitamin dan antibiotik mencegah stres dan mempercepat pertumbuhan DOC anak ayam.',
+        },
+        {
+          'id': 'prod-sprayer-16l',
+          'name': 'Tangki Sprayer Elektrik Pertanian Swan 16 Liter',
+          'category': 'Alat Tani',
+          'price': 285000,
+          'unit': '1 Unit',
+          'image': 'assets/images/prod_traktor.png',
+          'desc': 'Semprotan hama elektrik baterai cas tahan 6 jam semburan kabut halus merata.',
+        },
+      ];
+    } else if (storeId.startsWith('build-')) {
+      return [
+        {
+          'id': 'prod-semen-gresik',
+          'name': 'Semen Gresik Portland Composite 40 Kg',
+          'category': 'Semen & Pasir',
+          'price': 54000,
+          'unit': 'Zak 40kg',
+          'image': 'assets/icons/ic_build.png',
+          'desc': 'Semen berkualitas tinggi daya rekat kuat dan hasil plesteran acian lebih halus kokoh.',
+        },
+        {
+          'id': 'prod-semen-tigaroda',
+          'name': 'Semen Tiga Roda Master Portland 40 Kg',
+          'category': 'Semen & Pasir',
+          'price': 53000,
+          'unit': 'Zak 40kg',
+          'image': 'assets/icons/ic_build.png',
+          'desc': 'Pilihan utama tukang bangunan untuk pasangan bata, cor beton, dan plester dinding.',
+        },
+        {
+          'id': 'prod-cat-dulux',
+          'name': 'Cat Tembok Interior Dulux Catylac Putih 5 Kg',
+          'category': 'Cat & Thinner',
+          'price': 138000,
+          'unit': 'Pail 5kg',
+          'image': 'assets/icons/ic_build.png',
+          'desc': 'Formula Chroma Brite warna cerah menawan tidak mudah pudar dan minim cipratan cat.',
+        },
+        {
+          'id': 'prod-cat-avian',
+          'name': 'Cat Kayu & Besi Avian Super Glossy Hitam 1 Kg',
+          'category': 'Cat & Thinner',
+          'price': 68000,
+          'unit': 'Kaleng 1kg',
+          'image': 'assets/icons/ic_build.png',
+          'desc': 'Cat minyak mengkilap daya tutup maksimal cepat kering dan tahan cuaca panas hujan.',
+        },
+        {
+          'id': 'prod-besi-8mm',
+          'name': 'Besi Beton Polos SNI 8mm (Panjang 12 Meter)',
+          'category': 'Besi & Baja',
+          'price': 49000,
+          'unit': 'Batang 12m',
+          'image': 'assets/icons/ic_build.png',
+          'desc': 'Besi tulangan cor standar SNI kuat tarik teruji untuk kolom dan balok bangunan rumah.',
+        },
+        {
+          'id': 'prod-pipa-pvc',
+          'name': 'Pipa PVC Wavin / Rucika AW 3/4 Inch (4 Meter)',
+          'category': 'Pipa & Sanitasi',
+          'price': 34000,
+          'unit': 'Batang 4m',
+          'image': 'assets/icons/ic_build.png',
+          'desc': 'Pipa instalasi saluran air bersih bertekanan tebal tidak mudah pecah atau berlumut.',
+        },
+        {
+          'id': 'prod-palu-baja',
+          'name': 'Palu Kambing Martil Baja Gagang Karet Anti Slip',
+          'category': 'Alat Pertukangan',
+          'price': 42000,
+          'unit': '1 Pcs',
+          'image': 'assets/icons/ic_build.png',
+          'desc': 'Kepala palu baja tempa padat dengan pencabut paku presisi dan handle karet nyaman.',
+        },
+        {
+          'id': 'prod-kuas-cat',
+          'name': 'Kuas Cat Tembok Bulu Putih Tebal Eterna 3 Inch',
+          'category': 'Alat Pertukangan',
+          'price': 13000,
+          'unit': '1 Pcs',
+          'image': 'assets/icons/ic_build.png',
+          'desc': 'Bulu kuas halus rapat tidak mudah rontok menghasilkan sapuan cat rata sempurna.',
+        },
+      ];
     } else {
       return [
         {
@@ -846,7 +996,7 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final storeName = widget.store['name'] ?? 'Toko Mitra Resmi';
-    final storeAddress = widget.store['address'] ?? 'Kecamatan Pracimantoro';
+    final storeAddress = widget.store['address'] ?? 'Pracimantoro, Wonogiri';
     final storeDistance = widget.store['distance'] ?? '1.0 km';
     final storeRating = widget.store['rating'] ?? 4.9;
     final storeId = widget.store['id'] ?? 'ret-berkah-01';

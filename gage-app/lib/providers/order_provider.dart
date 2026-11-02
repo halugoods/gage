@@ -268,7 +268,7 @@ class OrderProvider extends ChangeNotifier {
       userId: userId,
       merchantId: merchantId,
       merchantName: merchantName ?? 'Mitra Usaha GAGE Pracimantoro',
-      merchantAddress: 'Kecamatan Pracimantoro',
+      merchantAddress: 'Pracimantoro, Wonogiri',
       driverName: 'Joko Susanto (Vario AD 3291 WA)',
       driverPlate: 'AD 3291 WA',
       driverPhone: '081234567890',

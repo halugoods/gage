@@ -108,8 +108,8 @@ class GagePricingService {
     required double distanceKm,
     int merchantCount = 1,
   }) {
-    // Akumulasi jarak tempuh riil antar-toko jika multi-merchant (+0.8 km per extra stop toko)
-    final effectiveDistance = distanceKm + (merchantCount > 1 ? (merchantCount - 1) * 0.8 : 0.0);
+    // Single merchant: Jarak tempuh riil toko ke customer
+    final effectiveDistance = distanceKm;
     int rawShipping;
     if (effectiveDistance <= deliveryBaseKm) {
       rawShipping = deliveryBase;
@@ -124,7 +124,7 @@ class GagePricingService {
     required double distanceKm,
     int merchantCount = 1,
   }) {
-    final effectiveDistance = distanceKm + (merchantCount > 1 ? (merchantCount - 1) * 0.8 : 0.0);
+    final effectiveDistance = distanceKm;
     int rawShipping;
     if (effectiveDistance <= deliveryBaseKm) {
       rawShipping = deliveryBase;

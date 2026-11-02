@@ -91,12 +91,33 @@ class MultiMerchantCartService extends ChangeNotifier {
   static MultiMerchantCartService get instance => _instance;
   MultiMerchantCartService._internal();
 
-  /// Batas maksimal merchant berbeda dalam satu order lintas menu
-  static const int maxMerchants = 3;
+  /// Batas maksimal merchant dalam satu order (Single-Merchant Locking: 1 Order = 1 Merchant)
+  static const int maxMerchants = 1;
 
   /// Pesan error / status terakhir jika penambahan gagal
   String? _lastErrorMessage;
   String? get lastErrorMessage => _lastErrorMessage;
+
+  /// Cek apakah keranjang sedang berisi toko lain yang berbeda
+  bool hasDifferentMerchant(String storeId) {
+    return _itemsByStore.isNotEmpty && !_itemsByStore.containsKey(storeId);
+  }
+
+  /// Nama toko aktif yang sedang ada di keranjang
+  String? get currentStoreName {
+    if (_itemsByStore.isEmpty) return null;
+    final firstList = _itemsByStore.values.first;
+    return firstList.isNotEmpty ? firstList.first.storeName : null;
+  }
+
+  /// Mengosongkan keranjang toko lama dan memasukkan item dari toko baru
+  void clearAndAdd(CartItem item) {
+    clearCart();
+    addItem(item);
+  }
+
+  /// Alias untuk mengosongkan seluruh keranjang
+  void clear() => clearCart();
 
   /// Data keranjang belanja dikelompokkan berdasarkan `storeId`
   final Map<String, List<CartItem>> _itemsByStore = {};
@@ -203,8 +224,9 @@ class MultiMerchantCartService extends ChangeNotifier {
   bool addItem(CartItem item) {
     if (!_itemsByStore.containsKey(item.storeId)) {
       if (_itemsByStore.keys.length >= maxMerchants) {
-        _lastErrorMessage = 'Maksimal $maxMerchants toko berbeda dalam satu keranjang belanja.';
-        debugPrint('[MultiMerchantCart] Limit reached: $_lastErrorMessage');
+        final existingName = currentStoreName ?? 'toko sebelumnya';
+        _lastErrorMessage = 'Keranjang Anda saat ini berisi produk dari $existingName. 1 pesanan hanya untuk 1 toko agar pengantaran kilat & akurat. Kosongkan keranjang untuk beralih ke ${item.storeName}?';
+        debugPrint('[SingleMerchantCart] Limit reached: $_lastErrorMessage');
         return false;
       }
       _lastErrorMessage = null;

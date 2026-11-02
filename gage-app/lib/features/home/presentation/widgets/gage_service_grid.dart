@@ -1,29 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/food/presentation/shop_screen.dart';
-import 'package:gage_app/features/food/presentation/tani_screen.dart';
-import 'package:gage_app/features/food/presentation/ternak_screen.dart';
+import 'package:gage_app/features/food/presentation/farm_screen.dart';
+import 'package:gage_app/features/food/presentation/build_screen.dart';
 import 'package:gage_app/features/ride/presentation/ride_booking_screen.dart';
 import 'package:gage_app/features/ride/presentation/send_booking_screen.dart';
-import 'package:gage_app/features/babe/presentation/babe_screen.dart';
 import 'package:gage_app/features/affiliate/presentation/affiliate_hub_screen.dart';
 import 'package:gage_app/core/services/dynamic_asset_service.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 
-class ServiceGridClay extends StatelessWidget {
+class GageServiceGrid extends StatelessWidget {
   final VoidCallback onFoodTap;
 
-  const ServiceGridClay({
+  const GageServiceGrid({
     super.key,
     required this.onFoodTap,
   });
 
   static final List<Map<String, dynamic>> services = [
     {
-      'id': 'ride_car',
-      'name': 'Ride & Car',
+      'id': 'ride',
+      'name': 'GAGE Ride',
       'icon': 'assets/icons/ic_ride.png',
-      'desc': 'Antar jemput motor & mobil se-Pracimantoro',
+      'desc': 'Antar jemput motor cepat & hemat se-Pracimantoro',
+    },
+    {
+      'id': 'car',
+      'name': 'GAGE Car',
+      'icon': 'assets/icons/ic_car.png',
+      'desc': 'Perjalanan nyaman mobil se-Pracimantoro',
     },
     {
       'id': 'food',
@@ -44,22 +49,16 @@ class ServiceGridClay extends StatelessWidget {
       'desc': 'Kirim paket & barang dagangan kilat',
     },
     {
-      'id': 'tani',
-      'name': 'GAGE Tani',
-      'icon': 'assets/icons/ic_tani.png',
-      'desc': 'Pupuk, benih & obat hama pertanian',
+      'id': 'farm',
+      'name': 'GAGE Farm',
+      'icon': 'assets/icons/ic_farm.png',
+      'desc': 'Kios pertanian & pakan peternakan',
     },
     {
-      'id': 'ternak',
-      'name': 'GAGE Ternak',
-      'icon': 'assets/icons/ic_ternak.png',
-      'desc': 'Pakan ternak, konsentrat & vitamin',
-    },
-    {
-      'id': 'babe',
-      'name': 'GAGE BaBe',
-      'icon': 'assets/icons/ic_babe.png',
-      'desc': 'Lapak resmi jual beli barang bekas terkurasi GAGE',
+      'id': 'build',
+      'name': 'GAGE Build',
+      'icon': 'assets/icons/ic_build.png',
+      'desc': 'Toko bahan bangunan, semen & cat',
     },
     {
       'id': 'cuan',
@@ -92,10 +91,15 @@ class ServiceGridClay extends StatelessWidget {
               final id = item['id'];
               if (id == 'food') {
                 onFoodTap();
-              } else if (id == 'ride_car') {
+              } else if (id == 'ride') {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (ctx) => const RideBookingScreen(initialTab: 'ride')),
+                );
+              } else if (id == 'car') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (ctx) => const RideBookingScreen(initialTab: 'car')),
                 );
               } else if (id == 'send') {
                 Navigator.push(
@@ -107,20 +111,15 @@ class ServiceGridClay extends StatelessWidget {
                   context,
                   MaterialPageRoute(builder: (ctx) => const ShopScreen()),
                 );
-              } else if (id == 'tani') {
+              } else if (id == 'farm') {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (ctx) => const TaniScreen()),
+                  MaterialPageRoute(builder: (ctx) => const FarmScreen()),
                 );
-              } else if (id == 'ternak') {
+              } else if (id == 'build') {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (ctx) => const TernakScreen()),
-                );
-              } else if (id == 'babe') {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (ctx) => const BabeScreen()),
+                  MaterialPageRoute(builder: (ctx) => const BuildScreen()),
                 );
               } else if (id == 'cuan') {
                 Navigator.push(

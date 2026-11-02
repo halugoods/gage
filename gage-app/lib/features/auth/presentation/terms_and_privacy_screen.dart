@@ -246,7 +246,7 @@ class _TermsAndPrivacyScreenState extends State<TermsAndPrivacyScreen> with Sing
         children: [
           _buildSectionTitle('1. Definisi dan Ruang Lingkup Layanan'),
           _buildParagraph(
-            'GAGE Indonesia adalah platform aplikasi on-demand hyper-lokal yang melayani pemesanan transportasi (Ride & Car), pesan antar makanan (Food), belanja kebutuhan (Shop), hasil pertanian (Tani), dan kurir kilat (Send) dengan wilayah operasional utama di Kecamatan Pracimantoro, Kabupaten Wonogiri dan kecamatan sekitarnya (Giritontro, Eromoko, Giriwoyo, Baturetno, dsb).',
+            'GAGE Indonesia adalah platform aplikasi on-demand hyper-lokal yang melayani pemesanan transportasi (Ride & Car), pesan antar makanan (Food), belanja kebutuhan (Shop), hasil pertanian (Tani), dan kurir kilat (Send) dengan wilayah operasional utama di Pracimantoro, Wonogiri dan area sekitarnya (Giritontro, Eromoko, Giriwoyo, Baturetno, dsb).',
           ),
 
           _buildSectionTitle('2. Pendaftaran dan Akun Pengguna'),

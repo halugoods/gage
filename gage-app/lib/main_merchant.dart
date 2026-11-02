@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/chat/providers/in_app_chat_provider.dart';
 import 'package:gage_app/core/services/banner_manager_service.dart';
+import 'package:gage_app/providers/merchant_order_provider.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_screen.dart';
 
 void main() async {
@@ -26,6 +27,7 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => MerchantOrderProvider()),
         ChangeNotifierProvider(create: (_) => InAppChatProvider()),
         ChangeNotifierProvider.value(value: BannerManagerService.instance),
       ],

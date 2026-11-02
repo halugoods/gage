@@ -100,9 +100,9 @@ class BannerManagerService extends ChangeNotifier {
     _banners['beranda'] = const BannerConfig(
       menuKey: 'beranda',
       menuName: 'Beranda Utama',
-      title: 'GAGE Pracimantoro SuperApp',
-      subtitle: 'Pesan kuliner, sembako, dan kirim barang se-kecamatan',
-      badge: 'PROMO UTAMA',
+      title: 'GAGE Pracimantoro',
+      subtitle: 'Pesan kuliner, belanja, dan kirim barang se-Pracimantoro',
+      badge: '',
       imagePath: 'assets/images/home_hero_banner.png',
       ctaText: 'Eksplor Layanan',
     );
@@ -111,8 +111,8 @@ class BannerManagerService extends ChangeNotifier {
       menuKey: 'food',
       menuName: 'GAGE Food',
       title: 'Laper? GAGE Food-in\ndari resto terenak!',
-      subtitle: 'Diskon s/d 50% & ongkir flat bersahabat mitra lokal',
-      badge: 'PROMO KULINER HARI INI',
+      subtitle: 'Diskon s/d 50% & ongkir hemat mitra lokal',
+      badge: '',
       imagePath: 'assets/images/food_hero_banner.png',
       ctaText: 'Pesan Sekarang',
     );
@@ -120,9 +120,9 @@ class BannerManagerService extends ChangeNotifier {
     _banners['shop'] = const BannerConfig(
       menuKey: 'shop',
       menuName: 'GAGE Shop',
-      title: 'Belanja Sembako Multi-Merchant',
-      subtitle: 'Bisa gabung hingga 3 toko mitra resmi Pracimantoro!',
-      badge: 'SEMBAKO HEMAT',
+      title: 'Belanja Sembako & Kebutuhan Harian',
+      subtitle: 'Mitra toko kelontong & sembako terpercaya Pracimantoro',
+      badge: '',
       imagePath: 'assets/images/shop_hero_banner.png',
       ctaText: 'Mulai Belanja',
     );
@@ -130,9 +130,9 @@ class BannerManagerService extends ChangeNotifier {
     _banners['send'] = const BannerConfig(
       menuKey: 'send',
       menuName: 'GAGE Send',
-      title: 'Kirim Kilat Se-Kecamatan',
-      subtitle: 'Tarif flat mulai Rp 4.000 • Dijemput & diantar langsung sampai pintu',
-      badge: 'KIRIM INSTAN',
+      title: 'Kirim Kilat Se-Pracimantoro',
+      subtitle: 'Kirim paket & barang dagangan kilat, dijemput langsung sampai pintu',
+      badge: '',
       imagePath: 'assets/images/send_hero_banner.png',
       ctaText: 'Panggil Kurir',
     );
@@ -142,7 +142,7 @@ class BannerManagerService extends ChangeNotifier {
       menuName: 'GAGE BaBe (Barang Bekas)',
       title: 'GAGE BaBe - Lapak Barang Bekas Resmi GAGE',
       subtitle: 'Barang terverifikasi tim kurir • Bebas transaksi gelap • Jaminan garansi 48 jam',
-      badge: 'LAPAK RESMI GAGE',
+      badge: '',
       imagePath: 'assets/images/babe_hero_banner.png',
       ctaText: 'Titip Jual Sekarang',
     );
@@ -151,8 +151,8 @@ class BannerManagerService extends ChangeNotifier {
       menuKey: 'ride',
       menuName: 'GAGE Ride & Car',
       title: 'Antar Jemput Cepat & Nyaman',
-      subtitle: 'Driver lokal ramah Pracimantoro, tarif jujur tanpa argo siluman',
-      badge: 'TARIF FLAT KECAMATAN',
+      subtitle: 'Driver lokal ramah Pracimantoro, tarif jujur sesuai jarak tempuh',
+      badge: '',
       imagePath: 'assets/images/ride_hero_banner.png',
       ctaText: 'Pesan Perjalanan',
     );
@@ -162,7 +162,7 @@ class BannerManagerService extends ChangeNotifier {
       menuName: 'GAGE Tani',
       title: 'Lapak Agro Pertanian Resmi GAGE',
       subtitle: 'Saprotan, pupuk, benih, hasil bumi & konsultasi gratis ahli',
-      badge: 'AGRO TANI RESMI',
+      badge: '',
       imagePath: 'assets/images/tani_hero_banner.png',
       ctaText: 'Belanja Tani',
     );
@@ -172,7 +172,7 @@ class BannerManagerService extends ChangeNotifier {
       menuName: 'GAGE Ternak',
       title: 'Lapak Peternakan & Pasar Hewan Resmi GAGE',
       subtitle: 'Pakan ternak, vitamin, kambing, sapi & konsultasi dokter hewan',
-      badge: 'PETERNAKAN RESMI',
+      badge: '',
       imagePath: 'assets/images/ternak_hero_banner.png',
       ctaText: 'Belanja Ternak',
     );
@@ -181,9 +181,9 @@ class BannerManagerService extends ChangeNotifier {
     _banners['customer_home_hero'] = const BannerConfig(
       menuKey: 'customer_home_hero',
       menuName: 'Beranda Pelanggan',
-      title: 'GAGE Pracimantoro SuperApp',
-      subtitle: 'Pesan kuliner, sembako, dan kirim barang se-kecamatan',
-      badge: 'PROMO UTAMA',
+      title: 'GAGE Pracimantoro',
+      subtitle: 'Pesan kuliner, belanja, dan kirim barang se-Pracimantoro',
+      badge: '',
       imagePath: 'assets/images/home_hero_banner.png',
       ctaText: 'Eksplor Layanan',
     );
@@ -192,8 +192,8 @@ class BannerManagerService extends ChangeNotifier {
       menuKey: 'customer_food_explore',
       menuName: 'GAGE Food Kuliner',
       title: 'Laper? GAGE Food-in\ndari resto terenak!',
-      subtitle: 'Diskon s/d 50% & ongkir flat bersahabat mitra lokal',
-      badge: 'PROMO KULINER HARI INI',
+      subtitle: 'Diskon s/d 50% & ongkir hemat mitra lokal',
+      badge: '',
       imagePath: 'assets/images/food_hero_banner.png',
       ctaText: 'Pesan Sekarang',
     );
@@ -203,7 +203,7 @@ class BannerManagerService extends ChangeNotifier {
       menuName: 'GAGE Tani & Ternak',
       title: 'Lapak Agro Pertanian Resmi GAGE',
       subtitle: 'Saprotan, pupuk, benih, hasil bumi & konsultasi gratis ahli',
-      badge: 'AGRO TANI RESMI',
+      badge: '',
       imagePath: 'assets/images/tani_hero_banner.png',
       ctaText: 'Belanja Tani',
     );
@@ -211,9 +211,9 @@ class BannerManagerService extends ChangeNotifier {
     _banners['customer_shop'] = const BannerConfig(
       menuKey: 'customer_shop',
       menuName: 'GAGE Shop Sembako',
-      title: 'Belanja Sembako Multi-Merchant',
-      subtitle: 'Bisa gabung hingga 3 toko mitra resmi Pracimantoro!',
-      badge: 'SEMBAKO HEMAT',
+      title: 'Belanja Sembako & Kebutuhan Harian',
+      subtitle: 'Mitra toko kelontong & sembako terpercaya Pracimantoro',
+      badge: '',
       imagePath: 'assets/images/shop_hero_banner.png',
       ctaText: 'Mulai Belanja',
     );
@@ -223,7 +223,7 @@ class BannerManagerService extends ChangeNotifier {
       menuName: 'GAGE Driver Info',
       title: 'Tips Aman & Ramai Order Pracimantoro',
       subtitle: 'Standby di Terminal & Pasar saat jam sibuk pagi untuk order maksimal',
-      badge: 'INFO MITRA',
+      badge: '',
       imagePath: 'assets/images/home_hero_banner.png',
       ctaText: 'Pelajari',
     );
@@ -233,7 +233,7 @@ class BannerManagerService extends ChangeNotifier {
       menuName: 'GAGE Merchant Info',
       title: 'Tingkatkan Penjualan Toko Anda',
       subtitle: 'Perbarui stok menu andalan & aktifkan promo diskon jam makan siang',
-      badge: 'INFO MITRA RESTO',
+      badge: '',
       imagePath: 'assets/images/food_hero_banner.png',
       ctaText: 'Kelola Menu',
     );
@@ -243,7 +243,7 @@ class BannerManagerService extends ChangeNotifier {
       menuName: 'GAGE Admin Info',
       title: 'Pusat Manajemen Ekosistem GAGE',
       subtitle: 'Pantau transaksi realtime, validasi mitra, dan kelola banner promosi',
-      badge: 'KONTROL ADMIN',
+      badge: '',
       imagePath: 'assets/images/home_hero_banner.png',
       ctaText: 'Kelola Banner',
     );
@@ -254,7 +254,7 @@ class BannerManagerService extends ChangeNotifier {
       menuName: 'Promo Slide 1',
       title: 'Pesta Kuliner Spesial',
       subtitle: 'Diskon 50% & Gratis Ongkir Pesanan',
-      badge: 'PROMO SLIDE 1',
+      badge: '',
       imagePath: 'assets/images/food_hero_banner.png',
       ctaText: 'Pesan Sekarang',
     );
@@ -263,7 +263,7 @@ class BannerManagerService extends ChangeNotifier {
       menuName: 'Promo Slide 2',
       title: 'Kirim Kilat GAGE Send',
       subtitle: 'Tarif Hemat Kirim Paket Instan',
-      badge: 'PROMO SLIDE 2',
+      badge: '',
       imagePath: 'assets/images/send_hero_banner.png',
       ctaText: 'Panggil Kurir',
     );
@@ -272,7 +272,7 @@ class BannerManagerService extends ChangeNotifier {
       menuName: 'Promo Slide 3',
       title: 'GAGE Ride & Car',
       subtitle: 'Perjalanan Nyaman dengan Tarif Hemat',
-      badge: 'PROMO SLIDE 3',
+      badge: '',
       imagePath: 'assets/images/ride_hero_banner.png',
       ctaText: 'Pesan Perjalanan',
     );
@@ -281,7 +281,7 @@ class BannerManagerService extends ChangeNotifier {
       menuName: 'Promo Slide 4',
       title: 'Belanja Sembako Lengkap',
       subtitle: 'Grosir & Eceran Pasar Pracimantoro',
-      badge: 'PROMO SLIDE 4',
+      badge: '',
       imagePath: 'assets/images/shop_hero_banner.png',
       ctaText: 'Mulai Belanja',
     );

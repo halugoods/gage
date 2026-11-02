@@ -263,7 +263,7 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
                           dense: true,
                           leading: const Icon(Icons.home_outlined, color: Colors.blue, size: 20),
                           title: Text('Titik Antar Utama: Pracimantoro', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textColor)),
-                          subtitle: Text('Kecamatan Pracimantoro, Kab. Wonogiri', style: TextStyle(fontSize: 11, color: textSubColor)),
+                          subtitle: Text('Pracimantoro, Wonogiri', style: TextStyle(fontSize: 11, color: textSubColor)),
                           trailing: Icon(Icons.edit_location_alt_outlined, size: 18, color: textSubColor),
                           onTap: () {
                             Navigator.pop(context);

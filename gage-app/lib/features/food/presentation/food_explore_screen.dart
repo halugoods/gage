@@ -106,7 +106,7 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
     final list = await GageApiClient.getMerchants();
     if (!mounted) return;
 
-    // Direktori mitra resmi resto kecamatan Pracimantoro dengan ongkir realistis
+    // Direktori mitra resmi resto Pracimantoro dengan ongkir realistis
     final fallback = [
       {
         'id': 'mch-rc-01',

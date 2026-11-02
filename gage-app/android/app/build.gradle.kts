@@ -15,8 +15,8 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.gage.customer"
-        manifestPlaceholders["appName"] = "GAGE Delivery"
+        applicationId = "com.gagepracimantoro.customer"
+        manifestPlaceholders["appName"] = "Gage Pracimantoro"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -27,23 +27,23 @@ android {
     productFlavors {
         create("customer") {
             dimension = "app"
-            applicationId = "com.gage.customer"
+            applicationId = "com.gagepracimantoro.customer"
             manifestPlaceholders["appName"] = "Gage Pracimantoro"
         }
         create("merchant") {
             dimension = "app"
-            applicationId = "com.gage.merchant"
-            manifestPlaceholders["appName"] = "GAGE Merchant"
+            applicationId = "com.gagepracimantoro.merchant"
+            manifestPlaceholders["appName"] = "Gage Pracimantoro Merchant"
         }
         create("driver") {
             dimension = "app"
-            applicationId = "com.gage.driver"
-            manifestPlaceholders["appName"] = "GAGE Driver"
+            applicationId = "com.gagepracimantoro.driver"
+            manifestPlaceholders["appName"] = "Gage Pracimantoro Driver"
         }
         create("admin") {
             dimension = "app"
-            applicationId = "com.gage.admin"
-            manifestPlaceholders["appName"] = "GAGE Admin"
+            applicationId = "com.gagepracimantoro.admin"
+            manifestPlaceholders["appName"] = "Gage Pracimantoro Admin"
         }
     }
 

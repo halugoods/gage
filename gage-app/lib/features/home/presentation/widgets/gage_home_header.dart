@@ -14,8 +14,8 @@ import 'package:gage_app/features/admin/presentation/widgets/in_place_banner_edi
 
 /// 1. Banner Hero Beranda: 1 banner tunggal 16:9 statis tanpa slide/PageView dan tanpa dots indicator.
 /// Menyatu edge-to-edge dari puncak layar (y = 0) ke bawah status bar.
-class JogjaHeroBanner extends StatelessWidget {
-  const JogjaHeroBanner({super.key});
+class GageHomeHeroBanner extends StatelessWidget {
+  const GageHomeHeroBanner({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -123,13 +123,13 @@ class JogjaHeroBanner extends StatelessWidget {
 /// 2. Sticky Header Beranda: Search Bar & Avatar Profil
 /// Di posisi puncak (offset == 0): Background 100% transparan, menyatu edge-to-edge dengan banner hero.
 /// Saat scroll ke bawah: Background memudar masuk (faded in) dengan rounded bottom corner & bayangan halus.
-class JogjaHeader extends StatefulWidget {
+class GageHomeHeader extends StatefulWidget {
   final ScrollController? scrollController;
   final double? scrollOffset;
   final VoidCallback? onSearchTap;
   final VoidCallback? onProfileTap;
 
-  const JogjaHeader({
+  const GageHomeHeader({
     super.key,
     this.scrollController,
     this.scrollOffset,
@@ -138,10 +138,10 @@ class JogjaHeader extends StatefulWidget {
   });
 
   @override
-  State<JogjaHeader> createState() => _JogjaHeaderState();
+  State<GageHomeHeader> createState() => _GageHomeHeaderState();
 }
 
-class _JogjaHeaderState extends State<JogjaHeader> {
+class _GageHomeHeaderState extends State<GageHomeHeader> {
   @override
   Widget build(BuildContext context) {
     if (widget.scrollController != null) {

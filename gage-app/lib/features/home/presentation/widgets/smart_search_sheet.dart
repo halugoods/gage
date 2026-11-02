@@ -3,7 +3,8 @@ import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/food/presentation/food_explore_screen.dart';
 import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
 import 'package:gage_app/features/food/presentation/shop_screen.dart';
-import 'package:gage_app/features/food/presentation/tani_screen.dart';
+import 'package:gage_app/features/food/presentation/farm_screen.dart';
+import 'package:gage_app/features/food/presentation/build_screen.dart';
 import 'package:gage_app/features/babe/presentation/babe_screen.dart';
 import 'package:gage_app/features/ride/presentation/ride_booking_screen.dart';
 import 'package:gage_app/features/ride/presentation/send_booking_screen.dart';
@@ -14,7 +15,8 @@ enum SearchDomainCategory {
   service,
   food,
   shop,
-  tani,
+  farm,
+  build,
   babe,
 }
 
@@ -155,17 +157,31 @@ class _SmartSearchSheetState extends State<SmartSearchSheet> {
         },
       ),
       SearchSuggestionItem(
-        id: 'svc-tani',
-        title: 'GAGE Tani',
-        subtitle: 'Pupuk, bibit unggul, pakan ternak & hasil bumi petani lokal',
+        id: 'svc-farm',
+        title: 'GAGE Farm',
+        subtitle: 'Pupuk, benih unggul, obat hama, pakan ternak & vitamin hewan',
         category: SearchDomainCategory.service,
         categoryLabel: 'Layanan',
-        icon: Icons.agriculture_rounded,
+        icon: Icons.eco_rounded,
         themeColor: const Color(0xFF16A34A),
-        keywords: ['tani', 'pupuk', 'bibit', 'pakan', 'ternak', 'ayam', 'jagung', 'gabah', 'panen'],
+        keywords: ['farm', 'tani', 'pupuk', 'benih', 'pakan', 'ternak', 'sapi', 'kambing', 'ayam', 'konsentrat'],
         onSelect: () {
           Navigator.pop(context);
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const TaniScreen()));
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const FarmScreen()));
+        },
+      ),
+      SearchSuggestionItem(
+        id: 'svc-build',
+        title: 'GAGE Build',
+        subtitle: 'Toko bahan bangunan, semen, cat, besi beton, pipa & alat pertukangan',
+        category: SearchDomainCategory.service,
+        categoryLabel: 'Layanan',
+        icon: Icons.construction_rounded,
+        themeColor: const Color(0xFF0284C7),
+        keywords: ['build', 'bangunan', 'semen', 'pasir', 'cat', 'besi', 'pipa', 'material', 'alat tukang', 'baja ringan'],
+        onSelect: () {
+          Navigator.pop(context);
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const BuildScreen()));
         },
       ),
       SearchSuggestionItem(
@@ -376,42 +392,42 @@ class _SmartSearchSheetState extends State<SmartSearchSheet> {
         id: 'tn-pupuk-npk',
         title: 'Pupuk NPK Mutiara 16-16-16 (1 kg)',
         subtitle: 'Rp 18.000 • Nutrisi tanaman lengkap daun, bunga & buah • Kios Tani Makmur',
-        category: SearchDomainCategory.tani,
-        categoryLabel: 'GAGE Tani',
+        category: SearchDomainCategory.farm,
+        categoryLabel: 'GAGE Farm',
         icon: Icons.grass_rounded,
         themeColor: const Color(0xFF16A34A),
         keywords: ['pupuk', 'npk', 'mutiara', 'pertanian', 'kebun', 'tani', 'tanaman', '16-16-16'],
         onSelect: () {
           Navigator.pop(context);
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const TaniScreen()));
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const FarmScreen()));
         },
       ),
       SearchSuggestionItem(
         id: 'tn-pakan-ayam',
         title: 'Pakan Ayam Pedaging Broiler BR1 (5 kg)',
         subtitle: 'Rp 49.000 • Pelet pakan bergizi tinggi starter pembesaran • Toko Pakan Subur',
-        category: SearchDomainCategory.tani,
-        categoryLabel: 'GAGE Tani',
+        category: SearchDomainCategory.farm,
+        categoryLabel: 'GAGE Farm',
         icon: Icons.pets_rounded,
         themeColor: const Color(0xFF16A34A),
         keywords: ['pakan', 'ayam', 'broiler', 'br1', 'ternak', 'pelet', 'unggas'],
         onSelect: () {
           Navigator.pop(context);
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const TaniScreen()));
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const FarmScreen()));
         },
       ),
       SearchSuggestionItem(
         id: 'tn-bibit-jagung',
         title: 'Bibit Jagung Hibrida Pioneer P35 (1 kg)',
         subtitle: 'Rp 115.000 • Tahan kering, tongkol rapat dan bobot berat • Kios Tani Makmur',
-        category: SearchDomainCategory.tani,
-        categoryLabel: 'GAGE Tani',
+        category: SearchDomainCategory.farm,
+        categoryLabel: 'GAGE Farm',
         icon: Icons.eco_rounded,
         themeColor: const Color(0xFF16A34A),
         keywords: ['bibit', 'jagung', 'pioneer', 'hibrida', 'benih', 'panen', 'ladang'],
         onSelect: () {
           Navigator.pop(context);
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const TaniScreen()));
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const FarmScreen()));
         },
       ),
 
@@ -595,7 +611,7 @@ class _SmartSearchSheetState extends State<SmartSearchSheet> {
                 _buildCategoryChip('Layanan', SearchDomainCategory.service, isDark),
                 _buildCategoryChip('Kuliner (Food)', SearchDomainCategory.food, isDark),
                 _buildCategoryChip('Sembako (Shop)', SearchDomainCategory.shop, isDark),
-                _buildCategoryChip('Tani & Ternak', SearchDomainCategory.tani, isDark),
+                _buildCategoryChip('Tani & Ternak', SearchDomainCategory.farm, isDark),
                 _buildCategoryChip('BaBe (Bekas)', SearchDomainCategory.babe, isDark),
               ],
             ),
@@ -729,11 +745,11 @@ class _SmartSearchSheetState extends State<SmartSearchSheet> {
         _buildQuickShortcutTile(
           icon: Icons.agriculture_rounded,
           color: const Color(0xFF16A34A),
-          title: 'Kebutuhan Tani & Pakan (GAGE Tani)',
+          title: 'Kebutuhan Tani & Ternak (GAGE Farm)',
           subtitle: 'Pupuk resmi, bibit tanaman & pakan ternak warga',
           onTap: () {
             Navigator.pop(context);
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const TaniScreen()));
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const FarmScreen()));
           },
           isDark: isDark,
         ),

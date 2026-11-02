@@ -4,9 +4,9 @@ import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/providers/auth_provider.dart';
 import 'package:gage_app/providers/wallet_provider.dart';
-import 'package:gage_app/features/home/presentation/widgets/jogja_header.dart';
+import 'package:gage_app/features/home/presentation/widgets/gage_home_header.dart';
 import 'package:gage_app/features/home/presentation/widgets/floating_wallet_card.dart';
-import 'package:gage_app/features/home/presentation/widgets/service_grid_clay.dart';
+import 'package:gage_app/features/home/presentation/widgets/gage_service_grid.dart';
 import 'package:gage_app/features/home/presentation/widgets/promo_carousel.dart';
 import 'package:gage_app/features/home/presentation/widgets/hemat_resto_list.dart';
 import 'package:gage_app/features/home/presentation/widgets/smart_search_sheet.dart';
@@ -115,7 +115,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     clipBehavior: Clip.none,
                     alignment: Alignment.bottomCenter,
                     children: [
-                      const JogjaHeroBanner(),
+                      const GageHomeHeroBanner(),
                       const Positioned(
                         bottom: -46,
                         left: 0,
@@ -133,7 +133,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // 2. Grid 8 Layanan GAGE (100% Transparan Tanpa Card & Tanpa Overlap)
-                      ServiceGridClay(
+                      GageServiceGrid(
                         onFoodTap: _openFoodExplorer,
                       ),
 
@@ -163,7 +163,7 @@ class _HomeScreenState extends State<HomeScreen> {
             top: 0,
             left: 0,
             right: 0,
-            child: JogjaHeader(
+            child: GageHomeHeader(
               scrollController: _scrollController,
               onSearchTap: _openSmartSearch,
               onProfileTap: _navigateToProfile,

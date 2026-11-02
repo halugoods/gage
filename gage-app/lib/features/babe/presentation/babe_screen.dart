@@ -271,7 +271,7 @@ class _BabeScreenState extends State<BabeScreen> {
     } catch (_) {
       if (mounted) {
         setState(() {
-          _deliveryLocation = 'Kecamatan Pracimantoro, Wonogiri';
+          _deliveryLocation = 'Pracimantoro, Wonogiri';
         });
       }
     }

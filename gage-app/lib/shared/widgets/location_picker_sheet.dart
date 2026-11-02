@@ -546,7 +546,7 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                     style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13.5),
                     decoration: InputDecoration(
                       isDense: true,
-                      hintText: 'Ketik nama jalan, gedung, atau desa...',
+                      hintText: 'Ketik nama jalan, gedung, atau area...',
                       hintStyle: TextStyle(fontSize: 12.5, color: isDark ? Colors.white38 : Colors.grey.shade400),
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.zero,
@@ -746,7 +746,7 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
               SizedBox(height: 10),
               Text('Lokasi tidak ditemukan', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black54)),
               SizedBox(height: 4),
-              Text('Coba ketik nama desa atau fasilitas publik', style: TextStyle(fontSize: 12, color: Colors.black38)),
+              Text('Coba ketik nama lokasi atau fasilitas publik', style: TextStyle(fontSize: 12, color: Colors.black38)),
             ],
           ),
         ),

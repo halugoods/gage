@@ -7,7 +7,7 @@ import 'package:gage_app/providers/wallet_provider.dart';
 import 'package:gage_app/providers/order_provider.dart';
 import 'package:gage_app/providers/auth_provider.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
-import 'package:gage_app/features/order/presentation/order_tracking_screen.dart';
+import 'package:gage_app/features/orders/presentation/order_tracking_screen.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
@@ -122,7 +122,7 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
       {
         'code': 'PELAJARPRACI',
         'title': 'Diskon Pelajar Rp 1.500',
-        'desc': 'Tarif hemat pulang pergi sekolah se-Kecamatan',
+        'desc': 'Tarif hemat antar jemput sekolah di Pracimantoro',
         'discount': 1500,
       },
     ];
