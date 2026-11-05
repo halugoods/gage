@@ -939,7 +939,9 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
               mapController: _miniMapController,
             ),
             const SizedBox(height: 12),
+          ],
 
+          if (!_isAddingNewAddress) ...[
             // 1. Search Box (Full Rounded 24px)
             Container(
               height: 44,

@@ -78,7 +78,7 @@ class GageBottomNavBar extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
           child: Container(
-            height: 56,
+            height: 60,
             decoration: BoxDecoration(
               color: isDark
                   ? const Color(0xFF1E293B).withValues(alpha: 0.94)
@@ -173,104 +173,87 @@ class GageBottomNavBar extends StatelessWidget {
     final inactiveColor = isDark ? Colors.white60 : const Color(0xFF64748B);
 
     return Expanded(
-      flex: isSelected ? 2 : 1,
       child: InkWell(
         onTap: () => _onTap(context, index),
-        borderRadius: BorderRadius.circular(24),
-        child: Center(
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            padding: EdgeInsets.symmetric(
-              horizontal: isSelected ? 8 : 4,
-              vertical: 6,
-            ),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? GageTheme.primary.withValues(alpha: 0.12)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Stack(
-                  clipBehavior: Clip.none,
-                  alignment: Alignment.center,
-                  children: [
-                    iconOverride != null
-                        ? Icon(
-                            iconOverride,
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.center,
+                children: [
+                  iconOverride != null
+                      ? Icon(
+                          iconOverride,
+                          size: 22,
+                          color: isSelected ? activeColor : inactiveColor,
+                        )
+                      : Image.asset(
+                          isSelected ? activeAsset : inactiveAsset,
+                          width: 22,
+                          height: 22,
+                          errorBuilder: (ctx, err, stack) => Icon(
+                            _getFallbackIcon(index),
                             size: 22,
                             color: isSelected ? activeColor : inactiveColor,
-                          )
-                        : Image.asset(
-                            isSelected ? activeAsset : inactiveAsset,
-                            width: 22,
-                            height: 22,
-                            errorBuilder: (ctx, err, stack) => Icon(
-                              _getFallbackIcon(index),
-                              size: 22,
-                              color: isSelected ? activeColor : inactiveColor,
-                            ),
-                          ),
-                    if (badgeText != null && badgeText.isNotEmpty)
-                      Positioned(
-                        top: -4,
-                        right: -7,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: GageTheme.primary,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
-                          child: Text(
-                            badgeText,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 8.5,
-                              fontWeight: FontWeight.bold,
-                              height: 1.1,
-                            ),
                           ),
                         ),
-                      )
-                    else if (hasDotBadge)
-                      Positioned(
-                        top: 0,
-                        right: -2,
-                        child: Container(
-                          width: 6,
-                          height: 6,
-                          decoration: const BoxDecoration(
-                            color: GageTheme.primary,
-                            shape: BoxShape.circle,
+                  if (badgeText != null && badgeText.isNotEmpty)
+                    Positioned(
+                      top: -4,
+                      right: -7,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: GageTheme.primary,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
+                        child: Text(
+                          badgeText,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 8.5,
+                            fontWeight: FontWeight.bold,
+                            height: 1.1,
                           ),
                         ),
                       ),
-                  ],
-                ),
-                if (isSelected) ...[
-                  const SizedBox(width: 4),
-                  Flexible(
-                    child: Text(
-                      label,
-                      style: TextStyle(
-                        color: activeColor,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 11.5,
+                    )
+                  else if (hasDotBadge)
+                    Positioned(
+                      top: 0,
+                      right: -2,
+                      child: Container(
+                        width: 6,
+                        height: 6,
+                        decoration: const BoxDecoration(
+                          color: GageTheme.primary,
+                          shape: BoxShape.circle,
+                        ),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
                 ],
-              ],
-            ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                  color: isSelected ? activeColor : inactiveColor,
+                  height: 1.1,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
         ),
       ),

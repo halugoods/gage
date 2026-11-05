@@ -432,26 +432,29 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
                                     ),
                                   ),
 
-                                // A. Gambar Dinamis (Natural Aspect Ratio)
+                                // A. Gambar Dinamis (Natural Aspect Ratio & Fullscreen Viewer)
                                 if (msg.isImage && msg.mediaUrl != null) ...[
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: ConstrainedBox(
-                                      constraints: BoxConstraints(
-                                        maxWidth: MediaQuery.of(context).size.width * 0.68,
-                                        maxHeight: 280,
+                                  GestureDetector(
+                                    onTap: () => _openFullScreenImage(context, msg.mediaUrl!),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: ConstrainedBox(
+                                        constraints: BoxConstraints(
+                                          maxWidth: MediaQuery.of(context).size.width * 0.68,
+                                          maxHeight: 280,
+                                        ),
+                                        child: msg.mediaUrl!.startsWith('http')
+                                            ? Image.network(
+                                                msg.mediaUrl!,
+                                                fit: BoxFit.contain,
+                                                errorBuilder: (c, e, s) => const Icon(Icons.broken_image_rounded, size: 36),
+                                              )
+                                            : Image.file(
+                                                File(msg.mediaUrl!),
+                                                fit: BoxFit.contain,
+                                                errorBuilder: (c, e, s) => const Icon(Icons.image_rounded, size: 36),
+                                              ),
                                       ),
-                                      child: msg.mediaUrl!.startsWith('http')
-                                          ? Image.network(
-                                              msg.mediaUrl!,
-                                              fit: BoxFit.contain,
-                                              errorBuilder: (c, e, s) => const Icon(Icons.broken_image_rounded, size: 36),
-                                            )
-                                          : Image.file(
-                                              File(msg.mediaUrl!),
-                                              fit: BoxFit.contain,
-                                              errorBuilder: (c, e, s) => const Icon(Icons.image_rounded, size: 36),
-                                            ),
                                     ),
                                   ),
                                   const SizedBox(height: 6),
@@ -612,6 +615,53 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _openFullScreenImage(BuildContext context, String mediaUrl) {
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: Colors.black,
+        pageBuilder: (ctx, anim, secAnim) {
+          return Scaffold(
+            backgroundColor: Colors.black,
+            appBar: AppBar(
+              backgroundColor: Colors.black.withValues(alpha: 0.6),
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                onPressed: () => Navigator.pop(ctx),
+              ),
+              title: Text(
+                widget.recipientName,
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+            ),
+            body: Center(
+              child: InteractiveViewer(
+                minScale: 0.8,
+                maxScale: 4.0,
+                child: mediaUrl.startsWith('http')
+                    ? Image.network(
+                        mediaUrl,
+                        fit: BoxFit.contain,
+                        errorBuilder: (c, e, s) => const Icon(Icons.broken_image_rounded, size: 64, color: Colors.white54),
+                      )
+                    : Image.file(
+                        File(mediaUrl),
+                        fit: BoxFit.contain,
+                        errorBuilder: (c, e, s) => const Icon(Icons.image_rounded, size: 64, color: Colors.white54),
+                      ),
+              ),
+            ),
+          );
+        },
+        transitionsBuilder: (ctx, anim, secAnim, child) {
+          return FadeTransition(opacity: anim, child: child);
+        },
       ),
     );
   }
