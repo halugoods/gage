@@ -825,17 +825,17 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
                       ),
                       const SizedBox(height: 6),
                       const Text(
-                        'Scan QR Code',
+                        'QRIS Merchant GAGE',
                         style: TextStyle(
                           color: Color(0xFF0F172A),
                           fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w900,
                           letterSpacing: -0.3,
                         ),
                       ),
                       const SizedBox(height: 2),
                       const Text(
-                        'Arahkan kamera ke kode QR untuk pembayaran',
+                        'Scan QR Meja/Kasir • 0% Biaya • Makan di Tempat',
                         style: TextStyle(
                           color: Color(0xFF64748B),
                           fontSize: 11.5,

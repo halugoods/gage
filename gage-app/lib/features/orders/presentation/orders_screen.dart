@@ -535,7 +535,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                     context,
                                     orderId: order.orderNumber,
                                     merchantName: merchantTitle,
+                                    merchantAvatar: order.merchantAvatar,
                                     driverName: 'Syamsul Maarif',
+                                    driverAvatar: order.driverAvatar,
                                     driverVehicle: 'Honda Vario • AD 4921 HG',
                                     initialStar: starNum,
                                     onSubmitted: (mRating, dRating) {

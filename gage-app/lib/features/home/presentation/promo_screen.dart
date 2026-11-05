@@ -11,7 +11,8 @@ import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_bottom_nav_bar.dart';
 import 'package:gage_app/features/home/presentation/home_screen.dart';
-import 'package:gage_app/features/home/presentation/widgets/shopee_ticket_voucher_card.dart';
+import 'package:gage_app/features/home/presentation/widgets/gage_ticket_voucher_card.dart';
+import 'package:gage_app/features/home/presentation/voucher_history_screen.dart';
 
 class PromoScreen extends StatefulWidget {
   const PromoScreen({super.key});
@@ -23,6 +24,7 @@ class PromoScreen extends StatefulWidget {
 class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _codeCtrl = TextEditingController();
+  int _selectedTabIndex = 0;
 
   final List<String> _tabs = ['Semua', 'Makanan', 'Gratis Ongkir', 'Transport'];
 
@@ -160,6 +162,11 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging && _selectedTabIndex != _tabController.index) {
+        setState(() => _selectedTabIndex = _tabController.index);
+      }
+    });
   }
 
   @override
@@ -320,161 +327,76 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
     );
   }
 
-  void _showClaimPromoDialog() {
+  void _showClaimPromoSheet(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     _codeCtrl.clear();
 
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: const [
-            Icon(Icons.confirmation_number_rounded, color: GageTheme.primary, size: 24),
-            SizedBox(width: 8),
-            Text('Klaim Kode Promo', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Masukkan kode promo atau voucher unik dari GAGE untuk mendapatkan potongan harga spesial:',
-              style: TextStyle(fontSize: 12.5, color: isDark ? Colors.white70 : Colors.grey.shade700),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _codeCtrl,
-              textCapitalization: TextCapitalization.characters,
-              decoration: InputDecoration(
-                hintText: 'Misal: DISKON50, ONGKIRGRATIS',
-                hintStyle: TextStyle(fontSize: 12, color: Colors.grey.shade400),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                filled: true,
-                fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade300),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: GageTheme.primary, width: 1.5),
-                ),
-              ),
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Batal', style: TextStyle(color: isDark ? Colors.white60 : Colors.grey.shade600)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: GageTheme.primary,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            onPressed: () {
-              final code = _codeCtrl.text.trim().toUpperCase();
-              if (code.isEmpty) return;
-              Navigator.pop(ctx);
-
-              final match = _allVouchers.firstWhere(
-                (v) => (v['code'] as String).toUpperCase() == code,
-                orElse: () => {},
-              );
-
-              if (match.isNotEmpty) {
-                HapticFeedback.mediumImpact();
-                GageToast.show(context, 'Selamat! Voucher $code berhasil diklaim.', type: GageToastType.success);
-              } else {
-                HapticFeedback.heavyImpact();
-                GageToast.show(context, 'Kode promo "$code" tidak ditemukan atau sudah habis.', type: GageToastType.error);
-              }
-            },
-            child: const Text('Klaim', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showHistorySheet() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     GageFloatingSheet.show(
       context: context,
-      title: 'Riwayat Voucher',
+      title: 'Klaim Kode Promo',
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            margin: const EdgeInsets.only(bottom: 8),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'DISKON50 • Hemat Rp15.000',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                      ),
-                      Text(
-                        'Digunakan pada Pesanan #GAGE-20261104-001',
-                        style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.grey.shade600),
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  'Terpakai',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey.shade500),
-                ),
-              ],
+          Text(
+            'Masukkan kode promo atau voucher unik GAGE untuk mendapatkan potongan harga spesial:',
+            style: TextStyle(
+              fontSize: 12.5,
+              color: isDark ? Colors.white70 : Colors.grey.shade700,
             ),
           ),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(10),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _codeCtrl,
+            textCapitalization: TextCapitalization.characters,
+            decoration: InputDecoration(
+              hintText: 'Misal: DISKON50, ONGKIRGRATIS',
+              hintStyle: TextStyle(fontSize: 12.5, color: Colors.grey.shade400),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              filled: true,
+              fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(24),
+                borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(24),
+                borderSide: const BorderSide(color: GageTheme.primary, width: 1.5),
+              ),
             ),
-            child: Row(
-              children: [
-                const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'ONGKIRGRATIS • Potongan Rp7.000',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                      ),
-                      Text(
-                        'Digunakan pada Pengantaran Dimsum Sewu',
-                        style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.grey.shade600),
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  'Terpakai',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey.shade500),
-                ),
-              ],
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5),
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: GageTheme.primary,
+                foregroundColor: Colors.white,
+                shape: const StadiumBorder(),
+              ),
+              onPressed: () {
+                final code = _codeCtrl.text.trim().toUpperCase();
+                if (code.isEmpty) return;
+                Navigator.pop(context);
+
+                final match = _allVouchers.firstWhere(
+                  (v) => (v['code'] as String).toUpperCase() == code,
+                  orElse: () => {},
+                );
+
+                if (match.isNotEmpty) {
+                  HapticFeedback.mediumImpact();
+                  GageToast.show(context, 'Selamat! Voucher $code berhasil diklaim.', type: GageToastType.success);
+                } else {
+                  HapticFeedback.heavyImpact();
+                  GageToast.show(context, 'Kode promo "$code" tidak ditemukan atau sudah habis.', type: GageToastType.error);
+                }
+              },
+              child: const Text('Klaim Voucher', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5)),
             ),
           ),
+          const SizedBox(height: 8),
         ],
       ),
     );
@@ -514,7 +436,12 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
           elevation: 0,
           actions: [
             TextButton(
-              onPressed: _showHistorySheet,
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const VoucherHistoryScreen()),
+                );
+              },
               child: const Text(
                 'Riwayat',
                 style: TextStyle(
@@ -529,19 +456,19 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
         ),
         body: Column(
           children: [
-            // 1. Input Kode Promo Bar (ShopeeFood Style)
+            // 1. Input Kode Promo Bar (Full-Rounded & Frosted Blur Floating Sheet)
             Container(
               color: isDark ? GageTheme.darkSurface : Colors.white,
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
               child: InkWell(
-                onTap: _showClaimPromoDialog,
-                borderRadius: BorderRadius.circular(10),
+                onTap: () => _showClaimPromoSheet(context),
+                borderRadius: BorderRadius.circular(24),
                 child: Container(
-                  height: 42,
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  height: 44,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
                     color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(24),
                     border: Border.all(
                       color: isDark ? Colors.white12 : Colors.grey.shade300,
                     ),
@@ -566,32 +493,62 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
               ),
             ),
 
-            // 2. Segmented Tab Bar (ShopeeFood Style: Semua, Makanan, Gratis Ongkir, Transport)
+            // 2. Segmented Tab Switch Khas GAGE (Full Rounded Pill)
             Container(
-              decoration: BoxDecoration(
-                color: isDark ? GageTheme.darkSurface : Colors.white,
-                border: Border(
-                  bottom: BorderSide(
-                    color: isDark ? GageTheme.darkBorder : Colors.grey.shade200,
-                  ),
+              color: isDark ? GageTheme.darkSurface : Colors.white,
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(24),
                 ),
-              ),
-              child: TabBar(
-                controller: _tabController,
-                isScrollable: true,
-                tabAlignment: TabAlignment.start,
-                labelColor: GageTheme.primary,
-                unselectedLabelColor: isDark ? Colors.white60 : Colors.grey.shade600,
-                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
-                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 13.5),
-                indicatorColor: GageTheme.primary,
-                indicatorWeight: 2.8,
-                indicatorSize: TabBarIndicatorSize.label,
-                tabs: _tabs.map((tab) => Tab(text: tab)).toList(),
+                child: Row(
+                  children: List.generate(_tabs.length, (idx) {
+                    final isSel = _selectedTabIndex == idx;
+                    return Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          _tabController.animateTo(idx);
+                          setState(() => _selectedTabIndex = idx);
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isSel ? GageTheme.primary : Colors.transparent,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: isSel
+                                ? [
+                                    BoxShadow(
+                                      color: GageTheme.primary.withValues(alpha: 0.3),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    )
+                                  ]
+                                : null,
+                          ),
+                          child: Text(
+                            _tabs[idx],
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
+                              color: isSel
+                                  ? Colors.white
+                                  : (isDark ? Colors.white60 : const Color(0xFF64748B)),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ),
               ),
             ),
 
-            // 3. TabBarView dengan List Tiket Voucher (ShopeeFood Scalloped Ticket Style)
+            // 3. TabBarView dengan List Tiket Voucher Khas GAGE
             Expanded(
               child: TabBarView(
                 controller: _tabController,
@@ -619,7 +576,7 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
                     itemCount: list.length,
                     itemBuilder: (ctx, idx) {
                       final v = list[idx];
-                      return ShopeeTicketVoucherCard(
+                      return GageTicketVoucherCard(
                         voucher: v,
                         onApply: () => _applyAndRedirect(context, v),
                         onTermsTap: () => _showVoucherTerms(context, v),

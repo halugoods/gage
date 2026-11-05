@@ -12,6 +12,7 @@ class GagePocketWallet extends StatefulWidget {
   final int points;
   final void Function(Map<String, dynamic> selectedCard)? onCardSelected;
   final VoidCallback? onEyeToggle;
+  final VoidCallback? onManageCardsTap;
 
   const GagePocketWallet({
     super.key,
@@ -19,6 +20,7 @@ class GagePocketWallet extends StatefulWidget {
     this.points = 100,
     this.onCardSelected,
     this.onEyeToggle,
+    this.onManageCardsTap,
   });
 
   @override
@@ -234,7 +236,12 @@ class _GagePocketWalletState extends State<GagePocketWallet>
                 if (!_isFannedOut) {
                   _toggleFan();
                 } else {
-                  _selectCard(index);
+                  HapticFeedback.lightImpact();
+                  if (widget.onManageCardsTap != null) {
+                    widget.onManageCardsTap!();
+                  } else {
+                    _selectCard(index);
+                  }
                 }
               },
               child: Container(

@@ -100,6 +100,50 @@ class _RatingReviewSheetState extends State<RatingReviewSheet> {
     super.dispose();
   }
 
+  Widget _buildMerchantAvatar() {
+    if (widget.merchantAvatar != null && widget.merchantAvatar!.isNotEmpty) {
+      if (widget.merchantAvatar!.startsWith('http')) {
+        return CircleAvatar(
+          radius: 20,
+          backgroundImage: NetworkImage(widget.merchantAvatar!),
+          backgroundColor: GageTheme.primaryLight,
+        );
+      }
+      return CircleAvatar(
+        radius: 20,
+        backgroundImage: AssetImage(widget.merchantAvatar!),
+        backgroundColor: GageTheme.primaryLight,
+      );
+    }
+    return CircleAvatar(
+      radius: 20,
+      backgroundColor: GageTheme.primaryLight,
+      child: const Icon(Icons.storefront_rounded, color: GageTheme.primary, size: 22),
+    );
+  }
+
+  Widget _buildDriverAvatar() {
+    if (widget.driverAvatar != null && widget.driverAvatar!.isNotEmpty) {
+      if (widget.driverAvatar!.startsWith('http')) {
+        return CircleAvatar(
+          radius: 20,
+          backgroundImage: NetworkImage(widget.driverAvatar!),
+          backgroundColor: const Color(0xFFEFF6FF),
+        );
+      }
+      return CircleAvatar(
+        radius: 20,
+        backgroundImage: AssetImage(widget.driverAvatar!),
+        backgroundColor: const Color(0xFFEFF6FF),
+      );
+    }
+    return CircleAvatar(
+      radius: 20,
+      backgroundColor: const Color(0xFFEFF6FF),
+      child: const Icon(Icons.two_wheeler_rounded, color: Color(0xFF2563EB), size: 22),
+    );
+  }
+
   Widget _buildStarRow(int currentStars, ValueChanged<int> onStarTap) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -149,11 +193,7 @@ class _RatingReviewSheetState extends State<RatingReviewSheet> {
               children: [
                 Row(
                   children: [
-                    CircleAvatar(
-                      radius: 18,
-                      backgroundColor: GageTheme.primaryLight,
-                      child: const Icon(Icons.restaurant_rounded, color: GageTheme.primary, size: 20),
-                    ),
+                    _buildMerchantAvatar(),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
@@ -246,11 +286,7 @@ class _RatingReviewSheetState extends State<RatingReviewSheet> {
               children: [
                 Row(
                   children: [
-                    CircleAvatar(
-                      radius: 18,
-                      backgroundColor: const Color(0xFFEFF6FF),
-                      child: const Icon(Icons.two_wheeler_rounded, color: Color(0xFF2563EB), size: 20),
-                    ),
+                    _buildDriverAvatar(),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
@@ -338,8 +374,8 @@ class _RatingReviewSheetState extends State<RatingReviewSheet> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: GageTheme.primary,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                padding: const EdgeInsets.symmetric(vertical: 13),
+                shape: const StadiumBorder(),
+                padding: const EdgeInsets.symmetric(vertical: 14),
               ),
               onPressed: () {
                 HapticFeedback.mediumImpact();

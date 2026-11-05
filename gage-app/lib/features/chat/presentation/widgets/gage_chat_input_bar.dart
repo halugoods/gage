@@ -16,6 +16,7 @@ class GageChatInputBar extends StatefulWidget {
   final ValueChanged<String> onSend;
   final VoidCallback? onVoiceTap;
   final ValueChanged<int>? onVoiceRecorded;
+  final void Function(int duration, String? filePath)? onVoiceRecordedWithFile;
   final VoidCallback? onCameraTap;
   final VoidCallback? onGalleryTap;
   final VoidCallback? onFileTap;
@@ -27,6 +28,7 @@ class GageChatInputBar extends StatefulWidget {
     required this.onSend,
     this.onVoiceTap,
     this.onVoiceRecorded,
+    this.onVoiceRecordedWithFile,
     this.onCameraTap,
     this.onGalleryTap,
     this.onFileTap,
@@ -72,13 +74,17 @@ class _GageChatInputBarState extends State<GageChatInputBar> with SingleTickerPr
     if (mounted) setState(() {});
   }
 
-  void _toggleRecording() {
+  void _toggleRecording() async {
     HapticFeedback.heavyImpact();
-    setState(() {
-      if (!_isRecording) {
+    if (!_isRecording) {
+      final success = await GageAudioService.instance.startRecording();
+      if (!success && mounted) {
+        return;
+      }
+      if (!mounted) return;
+      setState(() {
         _isRecording = true;
         _recordDuration = 0;
-        GageAudioService.instance.playRecordStartChime();
         _waveAnimCtrl.repeat(reverse: true);
         _recordTimer = Timer.periodic(const Duration(seconds: 1), (t) {
           if (mounted) {
@@ -86,14 +92,22 @@ class _GageChatInputBarState extends State<GageChatInputBar> with SingleTickerPr
           }
         });
         widget.onVoiceTap?.call();
-      } else {
+      });
+    } else {
+      final recordedPath = await GageAudioService.instance.stopRecording();
+      if (!mounted) return;
+      setState(() {
         _isRecording = false;
         _waveAnimCtrl.stop();
         _recordTimer?.cancel();
         final finalDuration = _recordDuration > 0 ? _recordDuration : 3;
-        widget.onVoiceRecorded?.call(finalDuration);
-      }
-    });
+        if (widget.onVoiceRecordedWithFile != null) {
+          widget.onVoiceRecordedWithFile!(finalDuration, recordedPath);
+        } else {
+          widget.onVoiceRecorded?.call(finalDuration);
+        }
+      });
+    }
   }
 
   @override

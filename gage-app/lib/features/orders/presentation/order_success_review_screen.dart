@@ -392,7 +392,7 @@ class _OrderSuccessReviewScreenState extends State<OrderSuccessReviewScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: GageTheme.primary,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: const StadiumBorder(),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   onPressed: () {

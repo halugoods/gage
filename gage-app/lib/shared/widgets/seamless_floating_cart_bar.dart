@@ -9,7 +9,7 @@ import 'package:gage_app/providers/cart_provider.dart';
 import 'package:gage_app/features/checkout/presentation/checkout_screen.dart';
 import 'package:gage_app/shared/widgets/gage_cart_sheet.dart';
 
-/// Floating Cart Bar Seamless & Multi-Tier Diskon Bertahap (Gojek / ShopeeFood standard)
+/// Floating Cart Bar Seamless & Multi-Tier Diskon Bertahap (Standar Superapp GAGE)
 /// - Clean capsule design with backdrop blur 16px
 /// - Dynamic label: Menu vs Produk based on store vertical
 /// - Saved green badge: 'Hemat 5RB' + '+5RB lagi disc 10RB' (tanpa '[ ]')

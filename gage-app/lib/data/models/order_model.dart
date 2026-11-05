@@ -25,11 +25,13 @@ class OrderModel {
   final String merchantName;
   final String merchantAddress;
   final String? merchantPhone;
+  final String? merchantAvatar;
   final String? customerName;
   final String? customerPhone;
   final String? driverName;
   final String? driverPlate;
   final String? driverPhone;
+  final String? driverAvatar;
   final String status;
   final String paymentMethod;
   final String paymentStatus;
@@ -61,11 +63,13 @@ class OrderModel {
     required this.merchantName,
     required this.merchantAddress,
     this.merchantPhone,
+    this.merchantAvatar,
     this.customerName,
     this.customerPhone,
     this.driverName,
     this.driverPlate,
     this.driverPhone,
+    this.driverAvatar,
     required this.status,
     required this.paymentMethod,
     required this.paymentStatus,
@@ -157,11 +161,13 @@ class OrderModel {
       merchantName: merchantName,
       merchantAddress: merchantAddress,
       merchantPhone: merchantPhone,
+      merchantAvatar: merchantAvatar,
       customerName: customerName ?? this.customerName,
       customerPhone: customerPhone ?? this.customerPhone,
       driverName: driverName ?? this.driverName,
       driverPlate: driverPlate ?? this.driverPlate,
       driverPhone: driverPhone ?? this.driverPhone,
+      driverAvatar: driverAvatar,
       status: status ?? this.status,
       paymentMethod: paymentMethod,
       paymentStatus: paymentStatus ?? this.paymentStatus,

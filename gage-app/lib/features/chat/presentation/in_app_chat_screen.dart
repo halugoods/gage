@@ -139,7 +139,7 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
     _scrollToBottom();
   }
 
-  void _sendVoiceMessage(int durationSeconds) {
+  void _sendVoiceMessage(int durationSeconds, [String? audioFilePath]) {
     final chatProv = context.read<InAppChatProvider>();
     final senderName = widget.currentRole == 'driver'
         ? 'Syamsul Maarif (Driver)'
@@ -151,6 +151,7 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
       senderRole: widget.currentRole,
       senderName: senderName,
       durationSeconds: durationSeconds,
+      audioFilePath: audioFilePath,
     );
     _scrollToBottom();
     GageToast.show(context, 'Pesan suara ($durationSeconds d) terkirim', type: GageToastType.success);
@@ -260,18 +261,35 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
         _voiceCurrentSeconds = 0;
       });
 
-      GageAudioService.instance.playVoiceNote(
-        voiceNoteId: msg.id,
-        durationSeconds: totalDuration.toDouble(),
-        onComplete: () {
-          if (mounted) {
-            setState(() {
-              _playingVoiceMsgId = null;
-              _voiceCurrentSeconds = 0;
-            });
-          }
-        },
-      );
+      if (msg.mediaUrl != null &&
+          msg.mediaUrl!.isNotEmpty &&
+          (msg.mediaUrl!.endsWith('.m4a') || msg.mediaUrl!.endsWith('.aac') || msg.mediaUrl!.endsWith('.wav'))) {
+        GageAudioService.instance.playVoiceNoteFile(
+          voiceNoteId: msg.id,
+          filePath: msg.mediaUrl!,
+          onComplete: () {
+            if (mounted) {
+              setState(() {
+                _playingVoiceMsgId = null;
+                _voiceCurrentSeconds = 0;
+              });
+            }
+          },
+        );
+      } else {
+        GageAudioService.instance.playVoiceNote(
+          voiceNoteId: msg.id,
+          durationSeconds: totalDuration.toDouble(),
+          onComplete: () {
+            if (mounted) {
+              setState(() {
+                _playingVoiceMsgId = null;
+                _voiceCurrentSeconds = 0;
+              });
+            }
+          },
+        );
+      }
 
       _voicePlaybackTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
         if (!mounted) {
@@ -454,22 +472,31 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
                                   GestureDetector(
                                     onTap: () => _openFullScreenImage(context, msg.mediaUrl!),
                                     child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(12),
-                                      child: ConstrainedBox(
+                                      borderRadius: BorderRadius.circular(14),
+                                      child: Container(
                                         constraints: BoxConstraints(
-                                          maxWidth: MediaQuery.of(context).size.width * 0.68,
-                                          maxHeight: 280,
+                                          minWidth: 140,
+                                          maxWidth: MediaQuery.of(context).size.width * 0.70,
+                                          maxHeight: 320,
                                         ),
                                         child: msg.mediaUrl!.startsWith('http')
                                             ? Image.network(
                                                 msg.mediaUrl!,
-                                                fit: BoxFit.contain,
-                                                errorBuilder: (c, e, s) => const Icon(Icons.broken_image_rounded, size: 36),
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (c, e, s) => Container(
+                                                  height: 120,
+                                                  color: Colors.black12,
+                                                  child: const Icon(Icons.broken_image_rounded, size: 36),
+                                                ),
                                               )
                                             : Image.file(
                                                 File(msg.mediaUrl!),
-                                                fit: BoxFit.contain,
-                                                errorBuilder: (c, e, s) => const Icon(Icons.image_rounded, size: 36),
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (c, e, s) => Container(
+                                                  height: 120,
+                                                  color: Colors.black12,
+                                                  child: const Icon(Icons.image_rounded, size: 36),
+                                                ),
                                               ),
                                       ),
                                     ),
@@ -620,12 +647,12 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
 
             const SizedBox(height: 6),
 
-            // Input Bar Modern (Hint Ramping & Inline Audio Wave Recording)
+            // Input Bar Modern (Hint Ramping & Inline Physical Voice Recording)
             GageChatInputBar(
               controller: _textCtrl,
               hintText: 'Ketik pesan disini...',
               onSend: (text) => _sendMessage(text),
-              onVoiceRecorded: (duration) => _sendVoiceMessage(duration),
+              onVoiceRecordedWithFile: (duration, path) => _sendVoiceMessage(duration, path),
               onCameraTap: _handleCameraPick,
               onGalleryTap: _handleGalleryPick,
               onFileTap: _handleFileCatalog,

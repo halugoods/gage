@@ -1,0 +1,280 @@
+import 'package:flutter/material.dart';
+import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:intl/intl.dart';
+
+/// VoucherHistoryScreen
+/// Layar penuh riwayat pemakaian voucher kupon di aplikasi GAGE.
+/// Menampilkan daftar kupon yang telah digunakan atau kedaluwarsa beserta invoice pemesanan terkait.
+class VoucherHistoryScreen extends StatefulWidget {
+  const VoucherHistoryScreen({super.key});
+
+  @override
+  State<VoucherHistoryScreen> createState() => _VoucherHistoryScreenState();
+}
+
+class _VoucherHistoryScreenState extends State<VoucherHistoryScreen> {
+  String _activeFilter = 'SEMUA'; // 'SEMUA', 'TERPAKAI', 'KEDALUWARSA'
+
+  final List<Map<String, dynamic>> _historyData = [
+    {
+      'id': 'hist-01',
+      'code': 'DISKON50',
+      'title': 'Diskon 50% Kuliner Pengguna Baru',
+      'service': 'GAGE Food',
+      'discountAmount': 15000,
+      'status': 'USED',
+      'usedAt': '04 Nov 2026, 12:45 WIB',
+      'orderNumber': 'GAGE-20261104-001',
+      'merchantName': 'Dimsum Sewu Pracimantoro',
+    },
+    {
+      'id': 'hist-02',
+      'code': 'ONGKIRGRATIS',
+      'title': 'Gratis Ongkir Xtra s/d Rp7.000',
+      'service': 'GAGE Food',
+      'discountAmount': 7000,
+      'status': 'USED',
+      'usedAt': '04 Nov 2026, 12:45 WIB',
+      'orderNumber': 'GAGE-20261104-001',
+      'merchantName': 'Dimsum Sewu Pracimantoro',
+    },
+    {
+      'id': 'hist-03',
+      'code': 'RIDEHEMAT',
+      'title': 'Potongan Rp4.000 Motor GAGE Ride',
+      'service': 'GAGE Ride',
+      'discountAmount': 4000,
+      'status': 'USED',
+      'usedAt': '02 Nov 2026, 08:15 WIB',
+      'orderNumber': 'GAGE-20261102-044',
+      'merchantName': 'Ojek Motor Stasiun',
+    },
+    {
+      'id': 'hist-04',
+      'code': 'GAJIANOKT',
+      'title': 'Cashback Spesial Gajian Oktober',
+      'service': 'GAGE Pay',
+      'discountAmount': 10000,
+      'status': 'EXPIRED',
+      'usedAt': 'Kedaluwarsa 31 Okt 2026',
+      'orderNumber': null,
+      'merchantName': null,
+    },
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final currencyFmt = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+
+    final filteredList = _historyData.where((item) {
+      if (_activeFilter == 'TERPAKAI') return item['status'] == 'USED';
+      if (_activeFilter == 'KEDALUWARSA') return item['status'] == 'EXPIRED';
+      return true;
+    }).toList();
+
+    return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        title: Text(
+          'Riwayat Voucher',
+          style: TextStyle(
+            fontWeight: FontWeight.w900,
+            fontSize: 17,
+            color: isDark ? Colors.white : const Color(0xFF1E293B),
+          ),
+        ),
+        backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
+        foregroundColor: isDark ? Colors.white : Colors.black87,
+        elevation: 0.5,
+      ),
+      body: Column(
+        children: [
+          // Filter Tabs Full-Rounded Pill
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            color: isDark ? GageTheme.darkSurface : Colors.white,
+            child: Row(
+              children: [
+                _buildFilterChip('Semua', 'SEMUA', isDark),
+                const SizedBox(width: 8),
+                _buildFilterChip('Terpakai', 'TERPAKAI', isDark),
+                const SizedBox(width: 8),
+                _buildFilterChip('Kedaluwarsa', 'KEDALUWARSA', isDark),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          // List Riwayat Voucher
+          Expanded(
+            child: filteredList.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.history_toggle_off_rounded, size: 54, color: Colors.grey.shade400),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Belum ada riwayat voucher',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.grey.shade600),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    itemCount: filteredList.length,
+                    itemBuilder: (context, index) {
+                      final item = filteredList[index];
+                      final isUsed = item['status'] == 'USED';
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
+                          boxShadow: [
+                            BoxShadow(
+                              color: isDark ? Colors.black26 : Colors.black.withValues(alpha: 0.03),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Icon Status
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: isUsed
+                                    ? const Color(0xFFDCFCE7)
+                                    : (isDark ? Colors.white10 : Colors.grey.shade200),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                isUsed ? Icons.check_circle_rounded : Icons.timer_off_rounded,
+                                color: isUsed ? const Color(0xFF16A34A) : Colors.grey.shade500,
+                                size: 22,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            // Info Detail
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        item['code'] as String,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w900,
+                                          fontSize: 14,
+                                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: isUsed
+                                              ? const Color(0xFFDCFCE7)
+                                              : (isDark ? Colors.white10 : Colors.grey.shade100),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Text(
+                                          isUsed ? 'Terpakai' : 'Kedaluwarsa',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w800,
+                                            color: isUsed ? const Color(0xFF16A34A) : Colors.grey.shade600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    item['title'] as String,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark ? Colors.white70 : Colors.grey.shade700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Hemat ${currencyFmt.format(item['discountAmount'])}',
+                                    style: const TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w900,
+                                      color: GageTheme.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  if (item['orderNumber'] != null)
+                                    Text(
+                                      'Pesanan: #${item['orderNumber']} • ${item['merchantName']}',
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        color: isDark ? Colors.white54 : Colors.grey.shade500,
+                                      ),
+                                    ),
+                                  Text(
+                                    item['usedAt'] as String,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: isDark ? Colors.white38 : Colors.grey.shade400,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(String label, String value, bool isDark) {
+    final isSelected = _activeFilter == value;
+    return GestureDetector(
+      onTap: () => setState(() => _activeFilter = value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? GageTheme.primary
+              : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? GageTheme.primary
+                : (isDark ? Colors.white12 : Colors.grey.shade300),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11.5,
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+            color: isSelected ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF475569)),
+          ),
+        ),
+      ),
+    );
+  }
+}

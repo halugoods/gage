@@ -799,7 +799,7 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                   isSelected: scheduleMode == '1hour',
                   icon: Icons.schedule_rounded,
                   title: '1 Jam Lagi',
-                  subtitle: '\ WIB',
+                  subtitle: '${nowPlus1Hour.hour.toString().padLeft(2, '0')}:${nowPlus1Hour.minute.toString().padLeft(2, '0')} WIB',
                   onTap: () {
                     HapticFeedback.selectionClick();
                     setSheetState(() {
@@ -818,7 +818,7 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                   icon: Icons.edit_calendar_rounded,
                   title: 'Atur Sendiri',
                   subtitle: selectedTime != null && scheduleMode == 'custom'
-                      ? '\ WIB'
+                      ? '${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')} WIB'
                       : 'Pilih tanggal & jam pengantaran bebas',
                   onTap: () async {
                     HapticFeedback.selectionClick();
@@ -852,7 +852,7 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                       GageToast.show(
                         context,
                         selectedTime != null
-                            ? 'Pengantaran dijadwalkan pukul \ WIB'
+                            ? 'Pengantaran dijadwalkan pukul ${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')} WIB'
                             : 'Pengantaran diatur langsung (Kirim Sekarang)',
                         type: GageToastType.info,
                       );

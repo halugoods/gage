@@ -1,21 +1,122 @@
+import 'dart:io';
 import 'dart:math';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
+import 'package:record/record.dart';
 
-/// Lightweight self-contained audio service for voice notes and in-app sound effects.
-/// Generates clean PCM WAV audio in-memory so it works 100% offline without missing asset files.
+/// Lightweight self-contained audio service for physical voice recording and sound effects.
+/// Uses 'record' package for real microphone recording to standard .m4a AAC audio,
+/// and 'audioplayers' for crystal-clear playback.
 class GageAudioService {
   GageAudioService._();
   static final GageAudioService instance = GageAudioService._();
 
   final AudioPlayer _player = AudioPlayer();
+  final AudioRecorder _recorder = AudioRecorder();
+
   bool _isPlaying = false;
+  bool _isRecording = false;
   String? _currentlyPlayingId;
+  String? _currentRecordingPath;
 
   bool get isPlaying => _isPlaying;
+  bool get isRecording => _isRecording;
   String? get currentlyPlayingId => _currentlyPlayingId;
 
-  /// Generate a valid 16-bit Mono WAV in memory.
+  /// Start recording voice note from device microphone
+  Future<bool> startRecording() async {
+    try {
+      final hasPerm = await _recorder.hasPermission();
+      if (!hasPerm) {
+        debugPrint('[GageAudio] Microphone permission not granted');
+        return false;
+      }
+
+      await playRecordStartChime();
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      final tempDir = Directory.systemTemp.path;
+      final filePath = '$tempDir/gage_vn_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      _currentRecordingPath = filePath;
+
+      await _recorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.aacLc,
+          bitRate: 128000,
+          sampleRate: 44100,
+        ),
+        path: filePath,
+      );
+      _isRecording = true;
+      return true;
+    } catch (e) {
+      debugPrint('[GageAudio] startRecording error: $e');
+      _isRecording = false;
+      return false;
+    }
+  }
+
+  /// Stop recording voice note and return the saved .m4a file path
+  Future<String?> stopRecording() async {
+    try {
+      if (!_isRecording) return null;
+      final path = await _recorder.stop();
+      _isRecording = false;
+      return path ?? _currentRecordingPath;
+    } catch (e) {
+      debugPrint('[GageAudio] stopRecording error: $e');
+      _isRecording = false;
+      return null;
+    }
+  }
+
+  /// Cancel current recording
+  Future<void> cancelRecording() async {
+    try {
+      if (_isRecording) {
+        await _recorder.cancel();
+        _isRecording = false;
+      }
+    } catch (e) {
+      debugPrint('[GageAudio] cancelRecording error: $e');
+    }
+  }
+
+  /// Play a recorded audio file (.m4a / .aac / .wav)
+  Future<void> playVoiceNoteFile({
+    required String voiceNoteId,
+    required String filePath,
+    VoidCallback? onComplete,
+  }) async {
+    try {
+      if (_isPlaying && _currentlyPlayingId == voiceNoteId) {
+        await stopVoiceNote();
+        return;
+      }
+
+      await _player.stop();
+      _isPlaying = true;
+      _currentlyPlayingId = voiceNoteId;
+
+      _player.onPlayerComplete.listen((_) {
+        _isPlaying = false;
+        _currentlyPlayingId = null;
+        if (onComplete != null) onComplete();
+      });
+
+      final file = File(filePath);
+      if (await file.exists()) {
+        await _player.play(DeviceFileSource(filePath));
+      } else {
+        await playVoiceNote(voiceNoteId: voiceNoteId, onComplete: onComplete);
+      }
+    } catch (e) {
+      debugPrint('[GageAudio] playVoiceNoteFile error: $e');
+      await stopVoiceNote();
+    }
+  }
+
+  /// Generate a valid 16-bit Mono WAV in memory for chimes/sound effects.
   static Uint8List createWav({
     required int sampleRate,
     required double durationSec,
@@ -41,13 +142,13 @@ class GageAudioService {
     bd.setUint8(13, 0x6D); // 'm'
     bd.setUint8(14, 0x74); // 't'
     bd.setUint8(15, 0x20); // ' '
-    bd.setUint32(16, 16, Endian.little); // Subchunk1Size (16 for PCM)
-    bd.setUint16(20, 1, Endian.little);  // AudioFormat (1 for PCM)
-    bd.setUint16(22, 1, Endian.little);  // NumChannels (1 mono)
-    bd.setUint32(24, sampleRate, Endian.little); // SampleRate
-    bd.setUint32(28, sampleRate * 2, Endian.little); // ByteRate (SampleRate * NumChannels * BitsPerSample/8)
-    bd.setUint16(32, 2, Endian.little);  // BlockAlign
-    bd.setUint16(34, 16, Endian.little); // BitsPerSample (16)
+    bd.setUint32(16, 16, Endian.little);
+    bd.setUint16(20, 1, Endian.little);
+    bd.setUint16(22, 1, Endian.little);
+    bd.setUint32(24, sampleRate, Endian.little);
+    bd.setUint32(28, sampleRate * 2, Endian.little);
+    bd.setUint16(32, 2, Endian.little);
+    bd.setUint16(34, 16, Endian.little);
 
     // data subchunk
     bd.setUint8(36, 0x64); // 'd'
@@ -87,8 +188,7 @@ class GageAudioService {
     }
   }
 
-  /// Play a realistic voice message audio clip through the phone's speaker.
-  /// Modulates voice frequencies (~200Hz - 600Hz) with human-like cadence.
+  /// Play realistic natural voice note audio
   Future<void> playVoiceNote({
     required String voiceNoteId,
     double durationSeconds = 3.0,
@@ -108,17 +208,12 @@ class GageAudioService {
         sampleRate: 22050,
         durationSec: durationSeconds,
         waveform: (t) {
-          // Voice fundamental and harmonics
-          final double f0 = 220.0 + 30.0 * sin(2 * pi * 2.5 * t);
-          final double h1 = sin(2 * pi * f0 * t) * 0.4;
-          final double h2 = sin(2 * pi * (f0 * 2) * t) * 0.25;
-          final double h3 = sin(2 * pi * (f0 * 3) * t) * 0.15;
-          
-          // Speech cadence envelope (simulates word pauses and natural flow)
-          final double cadence = (0.5 + 0.5 * sin(2 * pi * 3.0 * t)).clamp(0.1, 1.0);
+          final double f0 = 180.0 + 20.0 * sin(2 * pi * 2.0 * t);
+          final double h1 = sin(2 * pi * f0 * t) * 0.35;
+          final double h2 = sin(2 * pi * (f0 * 2) * t) * 0.20;
+          final double cadence = (0.6 + 0.4 * sin(2 * pi * 3.0 * t)).clamp(0.1, 1.0);
           final double fade = (t < 0.05) ? (t / 0.05) : ((durationSeconds - t < 0.05) ? (durationSeconds - t) / 0.05 : 1.0);
-
-          return (h1 + h2 + h3) * cadence * fade * 0.65;
+          return (h1 + h2) * cadence * fade * 0.55;
         },
       );
 
@@ -131,19 +226,21 @@ class GageAudioService {
       await _player.play(BytesSource(wav));
     } catch (e) {
       debugPrint('[GageAudio] playVoiceNote error: $e');
-      _isPlaying = false;
-      _currentlyPlayingId = null;
+      await stopVoiceNote();
     }
   }
 
-  /// Stop current playback.
+  /// Stop voice note playback immediately.
   Future<void> stopVoiceNote() async {
     try {
       await _player.stop();
-      _isPlaying = false;
-      _currentlyPlayingId = null;
-    } catch (e) {
-      debugPrint('[GageAudio] stopVoiceNote error: $e');
-    }
+    } catch (_) {}
+    _isPlaying = false;
+    _currentlyPlayingId = null;
+  }
+
+  void dispose() {
+    _player.dispose();
+    _recorder.dispose();
   }
 }

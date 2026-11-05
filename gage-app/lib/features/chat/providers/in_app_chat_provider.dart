@@ -94,6 +94,7 @@ class InAppChatProvider with ChangeNotifier {
     required String senderRole,
     required String senderName,
     required int durationSeconds,
+    String? audioFilePath,
   }) {
     HapticFeedback.lightImpact();
 
@@ -106,6 +107,7 @@ class InAppChatProvider with ChangeNotifier {
       text: 'Pesan Suara (${durationSeconds}s)',
       messageType: 'voice',
       voiceDurationSeconds: durationSeconds,
+      mediaUrl: audioFilePath,
       timestamp: DateTime.now(),
       status: 'delivered',
     );
