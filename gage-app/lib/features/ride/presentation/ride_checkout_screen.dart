@@ -7,6 +7,7 @@ import 'package:gage_app/providers/wallet_provider.dart';
 import 'package:gage_app/providers/order_provider.dart';
 import 'package:gage_app/providers/auth_provider.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/core/services/gage_pricing_service.dart';
 import 'package:gage_app/features/orders/presentation/order_tracking_screen.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
@@ -98,7 +99,7 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
     };
   }
 
-  int get _adminFee => 1000;
+  int get _adminFee => GagePricingService.calculateAdminFee(paymentMethod: _selectedPaymentMethod ?? 'gagepay');
 
   int get _totalAmount {
     final raw = widget.baseFare - _voucherDiscount + _adminFee;
@@ -237,7 +238,7 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'QRIS Dinamis GAGE Pay',
+                'QRIS',
                 style: TextStyle(
                   fontSize: 16.5,
                   fontWeight: FontWeight.bold,
@@ -764,10 +765,10 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
 
                         const SizedBox(height: 8),
 
-                        // Opsi 2: QRIS Dinamis
+                        // Opsi 2: QRIS
                         _buildPaymentOptionTile(
                           id: 'qris',
-                          title: 'QRIS Dinamis',
+                          title: 'QRIS',
                           subtitle: 'Scan via BCA Mobile, GoPay, ShopeePay, OVO',
                           icon: Icons.qr_code_2_rounded,
                           iconColor: const Color(0xFF0284C7),

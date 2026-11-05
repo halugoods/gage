@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gage_app/data/models/cart_item_model.dart';
 import 'package:gage_app/core/services/gage_pricing_service.dart';
+import 'package:gage_app/core/services/multi_merchant_cart_service.dart';
 
 class CartProvider extends ChangeNotifier {
   final List<CartItemModel> _items = [];
@@ -64,6 +65,51 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void activateGroupOrder(String roomId, {required String merchantId, required String merchantName}) {
+    _groupOrderId = roomId;
+    if (!_items.any((i) => i.menuId == 'g-budi-01')) {
+      _items.add(
+        CartItemModel(
+          menuId: 'g-budi-01',
+          merchantId: merchantId,
+          merchantName: merchantName,
+          name: 'Siomay Ayam Original 4 Pcs',
+          price: 12000,
+          quantity: 1,
+          notes: 'Pesanan Budi',
+          category: 'Dimsum',
+          imageUrl: 'assets/images/dish_dimsum_original.png',
+          serviceType: 'food',
+        ),
+      );
+    }
+    if (!_items.any((i) => i.menuId == 'g-siti-01')) {
+      _items.add(
+        CartItemModel(
+          menuId: 'g-siti-01',
+          merchantId: merchantId,
+          merchantName: merchantName,
+          name: 'Es Teh Solo Segar Jumbo',
+          price: 4000,
+          quantity: 1,
+          notes: 'Pesanan Siti',
+          category: 'Minuman',
+          imageUrl: 'assets/images/dish_es_teh.png',
+          serviceType: 'food',
+        ),
+      );
+    }
+    _saveCart();
+    notifyListeners();
+  }
+
+  void deactivateGroupOrder() {
+    _groupOrderId = null;
+    _items.removeWhere((i) => i.menuId.startsWith('g-'));
+    _saveCart();
+    notifyListeners();
+  }
+
   CartProvider() {
     _loadSavedCart();
   }
@@ -86,6 +132,7 @@ class CartProvider extends ChangeNotifier {
           for (var i in rawList) {
             _items.add(CartItemModel.fromJson(i));
           }
+          _syncToMultiMerchantCartService();
         }
         notifyListeners();
       }
@@ -124,10 +171,33 @@ class CartProvider extends ChangeNotifier {
     return idx >= 0 ? _items[idx].quantity : 0;
   }
 
-  // Tambah item ke keranjang (Mendukung Universal Multi-Merchant: Food + Shop + Tani)
+  /// Sinkronisasi otomatis ke MultiMerchantCartService (1:1 state mirror)
+  void _syncToMultiMerchantCartService() {
+    final mmCart = MultiMerchantCartService.instance;
+    mmCart.clearCart();
+    for (final i in _items) {
+      mmCart.addItem(
+        CartItem(
+          id: i.menuId,
+          name: i.name,
+          price: i.price,
+          quantity: i.quantity,
+          storeId: i.merchantId,
+          storeName: i.merchantName,
+          category: i.category,
+          image: i.imageUrl ?? '',
+          note: i.notes,
+          menuOrigin: i.serviceType,
+        ),
+      );
+    }
+  }
+
+  // Tambah item ke keranjang (Mendukung Universal Single-Merchant: Food, Shop, Farm, Build)
   bool addItem(CartItemModel newItem, {bool forceReplace = false}) {
     if (forceReplace) {
       _items.clear();
+      MultiMerchantCartService.instance.clearCart();
     } else {
       // Cek aturan Single Merchant: 1 pengantaran = 1 toko
       final currentMerchants = merchantIds;
@@ -149,6 +219,7 @@ class CartProvider extends ChangeNotifier {
       _items.add(newItem);
     }
 
+    _syncToMultiMerchantCartService();
     _saveCart();
     notifyListeners();
     return true;
@@ -167,6 +238,7 @@ class CartProvider extends ChangeNotifier {
       } else {
         _items[idx].quantity = newQty;
       }
+      _syncToMultiMerchantCartService();
       _saveCart();
       notifyListeners();
     }
@@ -176,6 +248,30 @@ class CartProvider extends ChangeNotifier {
     final idx = _items.indexWhere((i) => i.menuId == menuId);
     if (idx >= 0) {
       _items[idx].notes = notes;
+      _saveCart();
+      notifyListeners();
+    }
+  }
+
+  void updateItemVariants(String menuId, {required List<String> variants, required int variantPrice, String? notes}) {
+    final idx = _items.indexWhere((i) => i.menuId == menuId);
+    if (idx >= 0) {
+      final old = _items[idx];
+      _items[idx] = CartItemModel(
+        menuId: old.menuId,
+        merchantId: old.merchantId,
+        merchantName: old.merchantName,
+        name: old.name,
+        price: old.price,
+        quantity: old.quantity,
+        notes: notes ?? old.notes,
+        category: old.category,
+        imageUrl: old.imageUrl,
+        serviceType: old.serviceType,
+        selectedVariants: variants,
+        variantPrice: variantPrice,
+      );
+      _syncToMultiMerchantCartService();
       _saveCart();
       notifyListeners();
     }
@@ -200,8 +296,14 @@ class CartProvider extends ChangeNotifier {
 
   String? get foodPromoCode => _foodPromoCode;
   int get foodPromoDiscount => _foodPromoDiscount;
+  String? get merchantDiscountCode => _foodPromoCode;
+  int get merchantDiscountAmount => _foodPromoDiscount;
   String? get deliveryPromoCode => _deliveryPromoCode;
   int get deliveryPromoDiscount => _deliveryPromoDiscount;
+
+  bool get isFoodCart => _items.isEmpty || _items.any((i) => i.serviceType == 'food');
+  String get primaryServiceType => _items.isNotEmpty ? _items.first.serviceType : 'food';
+  String get itemQuantityLabel => isFoodCart ? 'Menu' : 'Produk';
 
   void setFoodPromo(String? code, int discount) {
     _foodPromoCode = code?.trim().toUpperCase();
@@ -209,6 +311,8 @@ class CartProvider extends ChangeNotifier {
     _saveCart();
     notifyListeners();
   }
+
+  void setMerchantDiscount(String? code, int discount) => setFoodPromo(code, discount);
 
   void setDeliveryPromo(String? code, int discount) {
     _deliveryPromoCode = code?.trim().toUpperCase();
@@ -223,6 +327,8 @@ class CartProvider extends ChangeNotifier {
     _saveCart();
     notifyListeners();
   }
+
+  void removeMerchantDiscount() => removeFoodPromo();
 
   void removeDeliveryPromo() {
     _deliveryPromoCode = null;
@@ -254,20 +360,36 @@ class CartProvider extends ChangeNotifier {
     _deliveryPromoDiscount = 0;
     _scheduledDeliveryTime = null;
     _groupOrderId = null;
+    MultiMerchantCartService.instance.clearCart();
     _saveCart();
     notifyListeners();
   }
 
-  // ── Hitungan Keuangan Otomatis Dual-Tier Vouchers ──
+  // ── Hitungan Keuangan Otomatis Dual-Tier Vouchers & Decoy Effect ──
   int get totalItemCount => _items.fold(0, (sum, i) => sum + i.quantity);
 
   int get subtotal => _items.fold(0, (sum, i) => sum + i.subtotal);
 
   int get totalFoodDiscount => _foodPromoDiscount.clamp(0, subtotal);
 
-  // Ongkir Customer dengan pembulatan kelipatan Rp 500 & kompensasi multi-merchant stop
+  // Ongkir Customer dengan perhitungan Decoy Effect (0-3km: 9rb vs 12rb)
   int get rawShippingFee => GagePricingService.calculateCustomerShippingFee(
         distanceKm: _distanceKm,
+        deliveryOption: _deliveryOption,
+        merchantCount: merchantCount,
+      );
+
+  // Opsi Reguler (Decoy Prioritas: 0-3km Rp 12.000)
+  int get regulerShippingFee => GagePricingService.calculateCustomerShippingFee(
+        distanceKm: _distanceKm,
+        deliveryOption: 'REGULER',
+        merchantCount: merchantCount,
+      );
+
+  // Opsi Hemat (Tarif Dasar: 0-3km Rp 9.000)
+  int get hematShippingFee => GagePricingService.calculateCustomerShippingFee(
+        distanceKm: _distanceKm,
+        deliveryOption: 'HEMAT',
         merchantCount: merchantCount,
       );
 
@@ -275,11 +397,10 @@ class CartProvider extends ChangeNotifier {
 
   int get finalShippingFee {
     if (_isPickup) return 0;
-    final expressSurcharge = _deliveryOption == 'EXPRESS' ? 2000 : 0;
-    return ((rawShippingFee + expressSurcharge) - totalShippingDiscount).clamp(0, 50000);
+    return (rawShippingFee - totalShippingDiscount).clamp(0, 99999999);
   }
 
-  // Biaya Layanan & Penanganan per Merchant (Cashless: 1rb x toko | COD: 3rb + 1rb x toko tambahan)
+  // Biaya Layanan: Cashless Rp 1.000 | COD Rp 3.000
   int get adminFee => GagePricingService.calculateAdminFee(
         paymentMethod: _paymentMethod,
         merchantCount: merchantCount,

@@ -178,6 +178,7 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> {
       },
       child: Scaffold(
         backgroundColor: Colors.black,
+        extendBody: true,
       body: PageView.builder(
         controller: _pageController,
         scrollDirection: Axis.vertical,
@@ -185,6 +186,7 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> {
         itemBuilder: (context, index) {
           final video = _videos[index];
           final gradientColors = video['gradient'] as List<Color>;
+          final bottomInset = MediaQuery.of(context).padding.bottom;
 
           return Stack(
             fit: StackFit.expand,
@@ -230,7 +232,7 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> {
                 bottom: 0,
                 left: 0,
                 right: 0,
-                height: 320,
+                height: 380,
                 child: Container(
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
@@ -242,10 +244,10 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> {
                 ),
               ),
 
-              // Sisi Kanan: Interaksi (Like, Comment, Share)
+              // Sisi Kanan: Interaksi (Like, Comment, Share) - Melayang Tepat di Atas Floating Navbar
               Positioned(
                 right: 16,
-                bottom: 90,
+                bottom: 88 + bottomInset,
                 child: Column(
                   children: [
                     _buildActionButton(Icons.favorite_rounded, video['likes'], Colors.red),
@@ -257,10 +259,10 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> {
                 ),
               ),
 
-              // Sisi Bawah Kiri: Informasi Video & Tombol Keranjang Kuning
+              // Sisi Bawah Kiri: Informasi Video & Tombol Keranjang Kuning - Celah Rapi ~6px di Atas Floating Navbar
               Positioned(
                 left: 16,
-                bottom: 24,
+                bottom: 82 + bottomInset,
                 right: 80,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -318,7 +320,7 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> {
           );
         },
       ),
-      bottomNavigationBar: const GageBottomNavBar(currentIndex: 3),
+      bottomNavigationBar: const GageBottomNavBar(currentIndex: 4),
     ),
   );
   }

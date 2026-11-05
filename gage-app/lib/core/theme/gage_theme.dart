@@ -17,6 +17,8 @@ class GageTheme {
   static const Color accentGreen = Color(0xFF16A34A);
   static const Color accentYellow = Color(0xFFF59E0B);
   static const Color accentBlue = Color(0xFF2563EB);
+  static const Color accentRed = Color(0xFFDC2626);
+  static const Color accentOrange = Color(0xFFEA580C);
 
   // Dark Theme Palette
   static const Color darkBackground = Color(0xFF0F172A); // Dark Slate 900
@@ -34,9 +36,13 @@ class GageTheme {
         surface: surface,
       ),
       scaffoldBackgroundColor: background,
-      textTheme: GoogleFonts.plusJakartaSansTextTheme().apply(
+      textTheme: GoogleFonts.poppinsTextTheme().apply(
         bodyColor: textPrimary,
         displayColor: textPrimary,
+      ),
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: surface,
@@ -47,6 +53,9 @@ class GageTheme {
           statusBarColor: Colors.transparent,
           statusBarIconBrightness: Brightness.dark,
           statusBarBrightness: Brightness.light,
+          systemNavigationBarColor: Colors.transparent,
+          systemNavigationBarDividerColor: Colors.transparent,
+          systemNavigationBarIconBrightness: Brightness.dark,
         ),
       ),
       cardTheme: CardThemeData(
@@ -71,9 +80,13 @@ class GageTheme {
         surface: darkSurface,
       ),
       scaffoldBackgroundColor: darkBackground,
-      textTheme: GoogleFonts.plusJakartaSansTextTheme(ThemeData.dark().textTheme).apply(
+      textTheme: GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme).apply(
         bodyColor: darkTextPrimary,
         displayColor: darkTextPrimary,
+      ),
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: darkSurface,
@@ -84,6 +97,9 @@ class GageTheme {
           statusBarColor: Colors.transparent,
           statusBarIconBrightness: Brightness.light,
           statusBarBrightness: Brightness.dark,
+          systemNavigationBarColor: Colors.transparent,
+          systemNavigationBarDividerColor: Colors.transparent,
+          systemNavigationBarIconBrightness: Brightness.light,
         ),
       ),
       cardTheme: CardThemeData(

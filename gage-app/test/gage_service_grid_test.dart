@@ -43,7 +43,7 @@ void main() {
       // 4. GAGE Shop
       expect(services[3]['id'], equals('shop'));
       expect(services[3]['name'], equals('GAGE Shop'));
-      expect(services[3]['icon'], equals('assets/icons/ic_mart.png'));
+      expect(services[3]['icon'], equals('assets/icons/ic_shop.png'));
 
       // 5. GAGE Send
       expect(services[4]['id'], equals('send'));

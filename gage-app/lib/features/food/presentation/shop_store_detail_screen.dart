@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/providers/cart_provider.dart';
 import 'package:gage_app/core/services/multi_merchant_cart_service.dart';
 import 'package:gage_app/data/models/cart_item_model.dart';
 import 'package:gage_app/shared/widgets/seamless_floating_cart_bar.dart';
 import 'shop_favorite_screen.dart';
+import 'resto_info_screen.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
@@ -87,6 +87,8 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
       );
     }
   }
+
+  
 
   void _showShareBottomSheet(BuildContext context, String storeName, String storeAddress) {
     GageFloatingSheet.show(
@@ -711,14 +713,6 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
     return list;
   }
 
-  Future<void> _openWhatsApp() async {
-    final phone = widget.store['phone_wa'] ?? '081234567890';
-    final name = widget.store['name'] ?? 'Toko';
-    final uri = Uri.parse('https://wa.me/$phone?text=Halo%20${Uri.encodeComponent(name)},%20saya%20mau%20tanya%20stok%20belanja%20di%20GAGE');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-  }
 
   void _showJadwalinSheet(BuildContext context, CartProvider cart) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -732,19 +726,17 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
             final options = [
               {'label': 'Kirim Sekarang', 'sub': 'Estimasi tiba 20-30 menit', 'time': null},
               {
-                'label': 'Hari Ini, 1 Jam Lagi',
+                'label': '1 Jam Lagi',
                 'sub': DateFormat('HH:mm').format(DateTime.now().add(const Duration(hours: 1))),
                 'time': DateTime.now().add(const Duration(hours: 1)),
               },
               {
-                'label': 'Siang Ini (12:00 WIB)',
-                'sub': 'Pesanan belanja disiapkan tepat waktu',
-                'time': DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day, 12, 0),
-              },
-              {
-                'label': 'Besok Pagi (08:00 WIB)',
-                'sub': 'Sembako dan sayur segar langsung diantar',
-                'time': DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day + 1, 8, 0),
+                'label': 'Atur Sendiri',
+                'sub': selectedTime != null && selectedTime != cart.scheduledDeliveryTime
+                    ? DateFormat('dd MMM, HH:mm').format(selectedTime!)
+                    : 'Pilih tanggal & jam pengantaran bebas',
+                'isCustom': true,
+                'time': selectedTime,
               },
             ];
 
@@ -756,7 +748,7 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Jadwal Pengantaran Belanja',
+                      'Jadwalkan Pengantaran',
                       style: TextStyle(
                         fontSize: 16.5,
                         fontWeight: FontWeight.bold,
@@ -783,16 +775,19 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Pilih kapan toko harus menyiapkan dan mengantar pesanan belanja Anda.',
+                  'Pilih waktu persiapan & pengantaran dari toko mitra.',
                   style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
                 ),
                 const SizedBox(height: 16),
                 ...options.map((opt) {
                   final target = opt['time'] as DateTime?;
-                  final isSelected = (target == null && selectedTime == null) ||
-                      (target != null && selectedTime != null &&
-                          target.hour == selectedTime!.hour &&
-                          target.day == selectedTime!.day);
+                  final isCustom = opt['isCustom'] == true;
+                  final isSelected = isCustom
+                      ? (selectedTime != null && (selectedTime!.difference(DateTime.now()).inMinutes > 70 || selectedTime!.day != DateTime.now().day))
+                      : ((target == null && selectedTime == null) ||
+                          (target != null && selectedTime != null &&
+                              target.hour == selectedTime!.hour &&
+                              target.day == selectedTime!.day));
                   return Container(
                     margin: const EdgeInsets.only(bottom: 10),
                     decoration: BoxDecoration(
@@ -806,7 +801,35 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                       ),
                     ),
                     child: ListTile(
-                      onTap: () => setSheetState(() => selectedTime = target),
+                      onTap: () async {
+                        if (isCustom) {
+                          final now = DateTime.now();
+                          final pickedDate = await showDatePicker(
+                            context: context,
+                            initialDate: selectedTime ?? now,
+                            firstDate: now,
+                            lastDate: now.add(const Duration(days: 7)),
+                          );
+                          if (pickedDate != null && context.mounted) {
+                            final pickedTime = await showTimePicker(
+                              context: context,
+                              initialTime: TimeOfDay.fromDateTime(selectedTime ?? now.add(const Duration(hours: 2))),
+                            );
+                            if (pickedTime != null) {
+                              final combined = DateTime(
+                                pickedDate.year,
+                                pickedDate.month,
+                                pickedDate.day,
+                                pickedTime.hour,
+                                pickedTime.minute,
+                              );
+                              setSheetState(() => selectedTime = combined);
+                            }
+                          }
+                        } else {
+                          setSheetState(() => selectedTime = target);
+                        }
+                      },
                       leading: Container(
                         width: 36,
                         height: 36,
@@ -817,7 +840,9 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
-                          target == null ? Icons.bolt_rounded : Icons.schedule_rounded,
+                          target == null
+                              ? Icons.bolt_rounded
+                              : (isCustom ? Icons.edit_calendar_rounded : Icons.schedule_rounded),
                           color: isSelected ? GageTheme.primary : Colors.grey.shade600,
                           size: 19,
                         ),
@@ -850,7 +875,7 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: GageTheme.primary,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                       elevation: 0,
                     ),
                     onPressed: () {
@@ -859,7 +884,7 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                       GageToast.show(
                         context,
                         selectedTime != null
-                            ? 'Pengantaran belanja dijadwalkan pukul ${DateFormat('HH:mm').format(selectedTime!)} WIB'
+                            ? 'Pengantaran belanja dijadwalkan: ${DateFormat('dd MMM HH:mm').format(selectedTime!)} WIB'
                             : 'Pengantaran diatur langsung (Kirim Sekarang)',
                         type: GageToastType.info,
                       );
@@ -867,6 +892,520 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                     child: const Text('Simpan Jadwal', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
                   ),
                 ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showGroupOrderSheet(BuildContext context, CartProvider cart) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isGroupActive = cart.groupOrderId != null;
+    final roomId = cart.groupOrderId ?? 'GAGE-${widget.store['id']?.toString().split('-').last.toUpperCase() ?? '8821'}';
+    final storeName = widget.store['name'] ?? 'Toko';
+
+    GageFloatingSheet.show(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Pesan Bareng (Group Order)',
+                      style: TextStyle(
+                        fontSize: 16.5,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () => Navigator.pop(ctx),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF27272A) : const Color(0xFFF3F4F6),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.close_rounded,
+                          size: 16,
+                          color: isDark ? Colors.white70 : Colors.black87,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isDark ? const Color(0xFF334155) : const Color(0xFFBFDBFE),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.groups_rounded, color: Color(0xFF2563EB), size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Pesan Belanja Bareng ke 1 Alamat',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13.5,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Ajak teman atau tetangga belanja di $storeName sekaligus. Tagihan otomatis dipisahkan per orang dan ongkos kirim dibagi hemat bersama!',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                // Room Code Container
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF27272A) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'KODE RUANGAN BELANJA',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            roomId,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              color: GageTheme.primary,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: GageTheme.primary,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          visualDensity: VisualDensity.compact,
+                          elevation: 0,
+                        ),
+                        icon: const Icon(Icons.share_rounded, size: 14),
+                        label: const Text('Bagi ke WA', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
+                        onPressed: () {
+                          GageToast.show(
+                            context,
+                            'Tautan Pesan Bareng $roomId disalin ke WhatsApp!',
+                            type: GageToastType.success,
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Anggota Pesan Bareng (2 Orang)',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          const CircleAvatar(
+                            radius: 14,
+                            backgroundColor: GageTheme.primary,
+                            child: Text('K', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                          ),
+                          const SizedBox(width: 10),
+                          const Expanded(
+                            child: Text('Kamu (Host Pesanan)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade50,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text('Siap Order', style: TextStyle(color: Colors.green.shade700, fontSize: 10, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                      const Divider(height: 16),
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 14,
+                            backgroundColor: Colors.blue.shade600,
+                            child: const Text('B', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                          ),
+                          const SizedBox(width: 10),
+                          const Expanded(
+                            child: Text('Budi (Anggota)', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12.5)),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.shade50,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text('Memilih Produk...', style: TextStyle(color: Colors.amber.shade800, fontSize: 10, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isGroupActive ? Colors.grey.shade700 : GageTheme.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                      elevation: 0,
+                    ),
+                    onPressed: () {
+                      if (isGroupActive) {
+                        cart.deactivateGroupOrder();
+                        GageToast.show(
+                          context,
+                          'Pesan Bareng dinonaktifkan',
+                          type: GageToastType.info,
+                        );
+                      } else {
+                        cart.activateGroupOrder(
+                          roomId,
+                          merchantId: widget.store['id'] ?? 'store-default',
+                          merchantName: widget.store['name'] ?? 'Toko Mitra',
+                        );
+                        GageToast.show(
+                          context,
+                          'Pesan Bareng aktif ($roomId)! 2 Teman bergabung',
+                          type: GageToastType.success,
+                        );
+                      }
+                      Navigator.pop(ctx);
+                    },
+                    child: Text(
+                      isGroupActive ? 'Bubarkan Pesan Bareng' : 'Mulai Pesan Bareng Sekarang',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showProductDetailModal(
+    BuildContext context,
+    Map<String, dynamic> prod,
+    CartProvider cart,
+  ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+    final prodId = prod['id'] as String;
+    final prodName = prod['name'] ?? 'Produk';
+    final prodImage = prod['image'] ?? 'assets/images/prod_beras.png';
+    final price = prod['price'] as int;
+    final unit = prod['unit'] ?? 'pcs';
+    final desc = prod['desc'] ?? 'Produk segar & berkualitas terbaik pilihan langsung dari toko mitra resmi GAGE.';
+    final storeId = widget.store['id'] ?? 'store-default';
+    final storeName = widget.store['name'] ?? 'Toko';
+    final category = prod['category'] ?? 'Sembako';
+
+    GageFloatingSheet.show(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            final inCartQty = cart.getItemQuantity(prodId);
+
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Top Header: Title & Close
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        prodName,
+                        style: TextStyle(
+                          fontSize: 16.5,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 20),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+
+                // Foto Produk 1:1 Square dengan Badge Kategori di Pojok Kanan Atas
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: AspectRatio(
+                    aspectRatio: 1.0,
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: Image.asset(
+                            prodImage,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                              child: const Icon(Icons.shopping_bag_rounded, size: 48, color: GageTheme.primary),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          top: 10,
+                          right: 10,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.65),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              category,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // Baris: Harga & Satuan di kiri, Tombol Tambah / Stepper di kanan
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          currencyFormatter.format(price),
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            color: GageTheme.primary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Satuan: $unit',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: isDark ? Colors.grey.shade400 : Colors.black54,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (inCartQty == 0)
+                      SizedBox(
+                        height: 36,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: GageTheme.primary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            elevation: 0,
+                          ),
+                          onPressed: () {
+                            final added = cart.addItem(
+                              CartItemModel(
+                                menuId: prodId,
+                                merchantId: storeId,
+                                merchantName: storeName,
+                                name: prod['name'],
+                                price: price,
+                                quantity: 1,
+                                category: category,
+                                imageUrl: prodImage,
+                                serviceType: 'shop',
+                              ),
+                            );
+                            if (!added) {
+                              GageToast.show(
+                                context,
+                                'Maksimal 3 toko berbeda dalam satu kali pengantaran.',
+                                type: GageToastType.warning,
+                              );
+                            } else {
+                              MultiMerchantCartService.instance.addItem(
+                                CartItem(
+                                  id: prodId,
+                                  name: prod['name'],
+                                  price: price,
+                                  quantity: 1,
+                                  storeId: storeId,
+                                  storeName: storeName,
+                                  category: category,
+                                  image: prodImage,
+                                  menuOrigin: 'shop',
+                                ),
+                              );
+                            }
+                            setModalState(() {});
+                          },
+                          icon: const Icon(Icons.add, size: 16),
+                          label: const Text(
+                            'Tambah',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
+                        ),
+                      )
+                    else
+                      Container(
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFF16A34A), width: 1.5),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            InkWell(
+                              onTap: () {
+                                if (inCartQty > 0) {
+                                  cart.updateQuantity(prodId, -1);
+                                  final newQty = cart.getItemQuantity(prodId);
+                                  MultiMerchantCartService.instance.updateQuantity(storeId, prodId, newQty);
+                                  setModalState(() {});
+                                }
+                              },
+                              borderRadius: const BorderRadius.horizontal(left: Radius.circular(18)),
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                child: Icon(Icons.remove, size: 16, color: Color(0xFF16A34A)),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              child: Text(
+                                '$inCartQty',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                              ),
+                            ),
+                            InkWell(
+                              onTap: () {
+                                cart.updateQuantity(prodId, 1);
+                                final newQty = cart.getItemQuantity(prodId);
+                                MultiMerchantCartService.instance.updateQuantity(storeId, prodId, newQty);
+                                setModalState(() {});
+                              },
+                              borderRadius: const BorderRadius.horizontal(right: Radius.circular(18)),
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                child: Icon(Icons.add, size: 16, color: Color(0xFF16A34A)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Deskripsi Produk
+                Text(
+                  desc,
+                  style: TextStyle(
+                    fontSize: 13,
+                    height: 1.4,
+                    color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                  ),
+                ),
+                const SizedBox(height: 16),
               ],
             );
           },
@@ -885,109 +1424,95 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
     required bool isFood,
     required bool isDark,
   }) {
-    final isApplied = isFood ? (cart.foodPromoCode == code) : (cart.deliveryPromoCode == code);
+    // Sunset Orange (#EA580C) for Product discount, Deep Teal (#0D9488) for Delivery discount
+    final activeColor = isFood ? const Color(0xFFEA580C) : const Color(0xFF0D9488);
+    final bgColor = isFood
+        ? (isDark ? const Color(0xFF2A170A) : const Color(0xFFFFF7ED))
+        : (isDark ? const Color(0xFF032726) : const Color(0xFFF0FDFA));
+    final badgeTag = isFood ? '-${discount ~/ 1000}RB' : 'ONGKIR';
 
     return Container(
-      width: 260,
+      width: 240,
       margin: const EdgeInsets.only(right: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: isDark ? GageTheme.darkSurface : Colors.white,
-        borderRadius: BorderRadius.circular(10),
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isApplied ? GageTheme.primary : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
-          width: isApplied ? 1.5 : 1.0,
+          color: activeColor.withValues(alpha: 0.35),
+          width: 1.0,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
-      child: InkWell(
-        onTap: () {
-          if (isApplied) {
-            if (isFood) {
-              cart.removeFoodPromo();
-            } else {
-              cart.removeDeliveryPromo();
-            }
-            GageToast.show(
-              context,
-              'Voucher $code dilepas',
-              type: GageToastType.info,
-            );
-          } else {
-            if (isFood) {
-              cart.setFoodPromo(code, discount);
-            } else {
-              cart.setDeliveryPromo(code, discount);
-            }
-            GageToast.show(
-              context,
-              'Voucher $code berhasil diterapkan!',
-              type: GageToastType.success,
-            );
-          }
-        },
-        borderRadius: BorderRadius.circular(10),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: isApplied ? const Color(0xFF16A34A) : GageTheme.primary,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  isApplied ? Icons.check_rounded : Icons.percent_rounded,
-                  color: Colors.white,
-                  size: 13,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: activeColor.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isFood ? Icons.local_offer_rounded : Icons.delivery_dining_rounded,
+              color: activeColor,
+              size: 16,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      sub,
-                      style: TextStyle(
-                        fontSize: 10.5,
-                        color: isDark ? Colors.grey.shade400 : Colors.black54,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                      decoration: BoxDecoration(
+                        color: activeColor,
+                        borderRadius: BorderRadius.circular(5),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      child: Text(
+                        badgeTag,
+                        style: const TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                isApplied ? 'Batal' : 'Pakai',
-                style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.bold,
-                  color: isApplied ? Colors.red.shade700 : GageTheme.primary,
+                const SizedBox(height: 2),
+                Text(
+                  sub,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    color: isDark ? Colors.grey.shade400 : Colors.black54,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -1001,6 +1526,7 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
     final storeRating = widget.store['rating'] ?? 4.9;
     final storeId = widget.store['id'] ?? 'ret-berkah-01';
     final storeImage = widget.store['image'] ?? 'assets/images/shop_banner_1.png';
+    final storeCategory = widget.store['category'] ?? 'Toko Mitra';
 
     return Scaffold(
       backgroundColor: isDark ? GageTheme.darkBackground : const Color(0xFFF8F9FA),
@@ -1244,22 +1770,42 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                         ],
                       ),
                       const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          const Icon(Icons.star_rounded, color: Color(0xFFF97316), size: 18),
-                          const SizedBox(width: 4),
-                          Text(
-                            '$storeRating (40+)',
-                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87),
-                          ),
-                          const SizedBox(width: 8),
-                          Text('•', style: TextStyle(color: Colors.grey.shade400)),
-                          const SizedBox(width: 8),
-                          Text(
-                            '15-25 min ($storeDistance)',
-                            style: TextStyle(fontSize: 12.5, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
-                          ),
-                        ],
+                      InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (ctx) => RestoInfoScreen(
+                                restoName: storeName,
+                                restoImage: storeImage,
+                                address: storeAddress,
+                                distance: storeDistance,
+                                rating: storeRating is num ? storeRating.toDouble() : 4.9,
+                                ratingCount: '40+',
+                                category: storeCategory,
+                              ),
+                            ),
+                          );
+                        },
+                        child: Row(
+                          children: [
+                            const Icon(Icons.star_rounded, color: Color(0xFFF97316), size: 18),
+                            const SizedBox(width: 4),
+                            Text(
+                              '$storeRating (40+)',
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(Icons.chevron_right_rounded, size: 18, color: Colors.grey.shade500),
+                            const SizedBox(width: 6),
+                            Text('•', style: TextStyle(color: Colors.grey.shade400)),
+                            const SizedBox(width: 6),
+                            Text(
+                              '15-25 min ($storeDistance)',
+                              style: TextStyle(fontSize: 12.5, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Row(
@@ -1401,31 +1947,45 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                           ),
                           const SizedBox(width: 10),
 
-                          // Chat Toko
+                          // Group Order (Pesan Bareng)
                           InkWell(
-                            onTap: _openWhatsApp,
-                            borderRadius: BorderRadius.circular(10),
+                            onTap: () => _showGroupOrderSheet(context, cart),
+                            borderRadius: BorderRadius.circular(24),
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                               decoration: BoxDecoration(
-                                color: isDark ? GageTheme.darkSurface : Colors.white,
-                                borderRadius: BorderRadius.circular(10),
+                                color: cart.groupOrderId != null
+                                    ? (isDark ? const Color(0xFF2C1E1E) : const Color(0xFFFFF1F0))
+                                    : (isDark ? GageTheme.darkSurface : Colors.white),
+                                borderRadius: BorderRadius.circular(24),
                                 border: Border.all(
-                                  color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
-                                  width: 1.0,
+                                  color: cart.groupOrderId != null ? GageTheme.primary : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                                  width: cart.groupOrderId != null ? 1.5 : 1.0,
                                 ),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.chat_bubble_outline_rounded, size: 15, color: GageTheme.accentGreen),
+                                  const Icon(Icons.group_rounded, size: 16, color: GageTheme.primary),
                                   const SizedBox(width: 6),
                                   Text(
-                                    'Chat Toko',
+                                    cart.groupOrderId != null ? 'Group: ${cart.groupOrderId}' : 'Group Order',
                                     style: TextStyle(
                                       fontSize: 11.5,
                                       fontWeight: FontWeight.bold,
-                                      color: isDark ? Colors.white : Colors.black87,
+                                      color: cart.groupOrderId != null ? GageTheme.primary : (isDark ? Colors.white : Colors.black87),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                    decoration: BoxDecoration(
+                                      color: GageTheme.primary,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      cart.groupOrderId != null ? 'AKTIF' : 'NEW',
+                                      style: const TextStyle(color: Colors.white, fontSize: 8.5, fontWeight: FontWeight.bold),
                                     ),
                                   ),
                                 ],
@@ -1563,9 +2123,12 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // KIRI: Info Produk & Harga
+                          // KIRI: Info Produk & Harga (Klik Detail Modal)
                           Expanded(
-                            child: Column(
+                            child: InkWell(
+                              onTap: () => _showProductDetailModal(context, prod, cart),
+                              borderRadius: BorderRadius.circular(8),
+                              child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
@@ -1598,6 +2161,7 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                                 ),
                               ],
                             ),
+                            ),
                           ),
                           const SizedBox(width: 14),
 
@@ -1607,17 +2171,21 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                             children: [
                               Stack(
                                 children: [
-                                  ClipRRect(
+                                  InkWell(
+                                    onTap: () => _showProductDetailModal(context, prod, cart),
                                     borderRadius: BorderRadius.circular(12),
-                                    child: SizedBox(
-                                      width: 80,
-                                      height: 80,
-                                      child: Image.asset(
-                                        prod['image'] ?? 'assets/images/prod_beras.png',
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (c, e, s) => Container(
-                                          color: GageTheme.primaryLight,
-                                          child: const Icon(Icons.shopping_bag_rounded, color: GageTheme.primary),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: SizedBox(
+                                        width: 80,
+                                        height: 80,
+                                        child: Image.asset(
+                                          prod['image'] ?? 'assets/images/prod_beras.png',
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (c, e, s) => Container(
+                                            color: GageTheme.primaryLight,
+                                            child: const Icon(Icons.shopping_bag_rounded, color: GageTheme.primary),
+                                          ),
                                         ),
                                       ),
                                     ),

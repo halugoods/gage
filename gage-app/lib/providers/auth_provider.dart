@@ -152,6 +152,43 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  // Masuk / Daftar dengan Nomor WhatsApp (OTP Ready)
+  Future<bool> signInWithPhone({
+    required String phone,
+    String? name,
+    String? referralCode,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final cleanDigits = phone.replaceAll(RegExp(r'\D'), '');
+      final formattedPhone = cleanDigits.startsWith('0')
+          ? cleanDigits
+          : (cleanDigits.startsWith('62') ? '0${cleanDigits.substring(2)}' : '0$cleanDigits');
+      final userId = 'usr-wa-${formattedPhone.length > 4 ? formattedPhone.substring(formattedPhone.length - 6) : formattedPhone}';
+      final displayName = (name != null && name.trim().isNotEmpty) ? name.trim() : 'Pengguna GAGE';
+
+      _currentUser = UserModel(
+        id: userId,
+        name: displayName,
+        phone: formattedPhone,
+        email: '$formattedPhone@gage.id',
+        role: 'customer',
+      );
+      await _saveSession(_currentUser!);
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = 'Gagal masuk dengan nomor WhatsApp: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   // Perbarui Profil Pengguna (Nama, No WhatsApp, Email, & Avatar)
   Future<bool> updateProfile({
     String? name,

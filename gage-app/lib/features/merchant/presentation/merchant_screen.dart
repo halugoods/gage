@@ -670,7 +670,7 @@ class _MerchantScreenState extends State<MerchantScreen> with SingleTickerProvid
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          order.customerName,
+                          order.customerName ?? 'Pelanggan GAGE',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
@@ -678,7 +678,7 @@ class _MerchantScreenState extends State<MerchantScreen> with SingleTickerProvid
                           ),
                         ),
                         Text(
-                          '${DateFormat('HH:mm').format(order.createdAt)} WIB • ${order.deliveryAddress}',
+                          '${DateFormat('HH:mm').format(order.createdAt > 0 ? DateTime.fromMillisecondsSinceEpoch(order.createdAt * 1000) : DateTime.now())} WIB • ${order.deliveryAddress}',
                           style: TextStyle(
                             fontSize: 11,
                             color: isDark ? Colors.white60 : GageTheme.textSecondary,
@@ -1359,9 +1359,9 @@ class _MerchantScreenState extends State<MerchantScreen> with SingleTickerProvid
       MaterialPageRoute(
         builder: (_) => InAppChatScreen(
           orderId: order.orderNumber,
-          recipientName: order.customerName,
+          recipientName: order.customerName ?? 'Pelanggan GAGE',
           recipientRole: 'customer',
-          recipientPhone: order.customerPhone,
+          recipientPhone: order.customerPhone ?? '081234567890',
           currentRole: 'merchant',
         ),
       ),

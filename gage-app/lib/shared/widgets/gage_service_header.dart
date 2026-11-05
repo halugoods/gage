@@ -193,6 +193,8 @@ class GageServiceStickyHeader extends StatelessWidget {
   final ValueChanged<String>? onSearchChanged;
   final VoidCallback? onSearchTap;
   final IconData? serviceIcon;
+  final IconData? actionIcon;
+  final int? actionBadgeCount;
 
   const GageServiceStickyHeader({
     super.key,
@@ -207,6 +209,8 @@ class GageServiceStickyHeader extends StatelessWidget {
     this.onSearchChanged,
     this.onSearchTap,
     this.serviceIcon,
+    this.actionIcon,
+    this.actionBadgeCount,
   });
 
   @override
@@ -396,28 +400,59 @@ class GageServiceStickyHeader extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
 
-                      // Tombol Riwayat Pesanan
+                      // Tombol Aksi Kanan (Keranjang / Riwayat Pesanan)
                       GestureDetector(
                         onTap: onHistoryTap,
-                        child: Container(
-                          width: actionButtonSize,
-                          height: actionButtonSize,
-                          decoration: BoxDecoration(
-                            color: isDark ? GageTheme.darkCard : Colors.white,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: isDark ? GageTheme.darkBorder : Colors.black12,
-                              width: 0.8,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Container(
+                              width: actionButtonSize,
+                              height: actionButtonSize,
+                              decoration: BoxDecoration(
+                                color: isDark ? GageTheme.darkCard : Colors.white,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: isDark ? GageTheme.darkBorder : Colors.black12,
+                                  width: 0.8,
+                                ),
+                                boxShadow: const [
+                                  BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2)),
+                                ],
+                              ),
+                              child: Icon(
+                                actionIcon ?? Icons.receipt_long_rounded,
+                                color: isDark ? Colors.white : Colors.black87,
+                                size: 20,
+                              ),
                             ),
-                            boxShadow: const [
-                              BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2)),
-                            ],
-                          ),
-                          child: Icon(
-                            Icons.receipt_long_rounded,
-                            color: isDark ? Colors.white : Colors.black87,
-                            size: 20,
-                          ),
+                            if (actionBadgeCount != null && actionBadgeCount! > 0)
+                              Positioned(
+                                top: -2,
+                                right: -2,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: GageTheme.primary,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  constraints: const BoxConstraints(
+                                    minWidth: 16,
+                                    minHeight: 16,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      actionBadgeCount! > 9 ? '9+' : '$actionBadgeCount',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                     ],
@@ -440,7 +475,7 @@ class GageServiceStickyHeader extends StatelessWidget {
                         height: searchBarHeight,
                         decoration: BoxDecoration(
                           color: isDark ? GageTheme.darkCard : Colors.white,
-                          borderRadius: BorderRadius.circular(22),
+                          borderRadius: BorderRadius.circular(24),
                           border: Border.all(
                             color: isDark ? GageTheme.darkBorder : Colors.black12,
                             width: 0.8,

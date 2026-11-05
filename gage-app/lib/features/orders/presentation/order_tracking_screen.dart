@@ -13,6 +13,7 @@ import 'package:gage_app/data/models/order_model.dart';
 import 'package:gage_app/providers/order_provider.dart';
 import 'package:gage_app/core/services/osrm_routing_service.dart';
 import 'package:gage_app/core/services/location_service.dart';
+import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
 
 /// Layar Pelacakan Pesanan Realtime (Live Order Tracking & Delivery Lifecycle)
 /// Didesain dengan standar industri terdepan (Clean-Room Flutter Code & $0 Infra)
@@ -233,28 +234,35 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
         orderNum.contains('car');
   }
 
-  /// Menentukan tahap lifecycle pesanan (1 sampai 5)
+  /// Menentukan tahap lifecycle pesanan standar industri (1 sampai 5):
+  /// 1: Pesanan Diterima -> 2: Sedang Disiapkan -> 3: Pesanan Siap -> 4: Dalam Pengantaran -> 5: Pesanan Selesai
   int _determineLifecycleStage(OrderModel order) {
     if (_manualStep > 0) return _manualStep;
 
     switch (order.status) {
+      case 'ORDER_RECEIVED':
       case 'PAYMENT_PENDING':
+      case 'PAID':
+      case 'PENDING':
       case 'SEARCHING_DRIVER':
         return 1;
-      case 'PAID':
-      case 'DRIVER_ASSIGNED':
-      case 'HEADING_TO_STORE':
-        return 2;
       case 'COOKING':
-      case 'READY_FOR_PICKUP':
+      case 'PROCESSING':
+      case 'PREPARING':
+      case 'HEADING_TO_STORE':
       case 'AT_STORE':
+      case 'DRIVER_ASSIGNED':
+        return 2;
+      case 'READY_FOR_PICKUP':
+      case 'READY':
         return 3;
       case 'ON_DELIVERY':
+      case 'DELIVERING':
         return 4;
       case 'COMPLETED':
         return 5;
       default:
-        return 4;
+        return 2;
     }
   }
 
@@ -394,13 +402,37 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
               ),
             ),
 
-          // 2. TOMBOL KONTROL PETA (ZOOM OUT RUTE & RECENTER) MELAYANG DI ATAS PETA
+          // 2. TOMBOL KONTROL PETA (ZOOM OUT RUTE, RECENTER & QUICK CHAT) MELAYANG DI ATAS PETA
           Positioned(
             right: 16,
             bottom: 250,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                FloatingActionButton.small(
+                  heroTag: 'track_quick_chat',
+                  backgroundColor: GageTheme.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 3,
+                  tooltip: 'Chat In-App',
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (ctx) => InAppChatScreen(
+                          orderId: order.id,
+                          recipientName: order.driverName ?? 'Kurir GAGE',
+                          recipientRole: 'driver',
+                          recipientPhone: order.driverPhone ?? '081234567890',
+                          currentRole: 'customer',
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Icon(Icons.chat_bubble_rounded, size: 18),
+                ),
+                const SizedBox(height: 8),
                 FloatingActionButton.small(
                   heroTag: 'track_fit_route',
                   backgroundColor: Colors.white,
@@ -663,32 +695,32 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
     final stages = [
       {
         'step': 1,
-        'title': 'Mencari Driver Terdekat',
-        'desc': 'Sistem mencocokkan mitra driver aktif di area Pracimantoro',
-        'icon': Icons.radar_rounded,
+        'title': 'Pesanan Diterima',
+        'desc': 'Pesanan telah masuk antrean resto/toko dan sistem GAGE',
+        'icon': Icons.receipt_long_rounded,
       },
       {
         'step': 2,
-        'title': 'Driver Menuju Lokasi Toko',
-        'desc': '${order.driverName ?? "Driver"} meluncur menjemput pesanan Anda',
-        'icon': Icons.two_wheeler_rounded,
-      },
-      {
-        'step': 3,
-        'title': 'Driver Membeli / Menyiapkan di Toko',
-        'desc': 'Pesanan sedang dipersiapkan hangat & dicek kelengkapannya',
+        'title': 'Sedang Disiapkan',
+        'desc': 'Toko/resto sedang memasak & menyiapkan pesanan Anda',
         'icon': Icons.outdoor_grill_rounded,
       },
       {
+        'step': 3,
+        'title': 'Pesanan Siap',
+        'desc': 'Pesanan telah selesai dikemas rapi, siap dipickup kurir',
+        'icon': Icons.inventory_2_rounded,
+      },
+      {
         'step': 4,
-        'title': 'Driver Mengantar ke Rumah Anda',
-        'desc': 'Paket dibawa rapi dalam box pengantar menuju alamat Anda',
+        'title': 'Dalam Pengantaran',
+        'desc': '${order.driverName ?? "Kurir GAGE"} sedang mengantar menuju alamat Anda',
         'icon': Icons.delivery_dining_rounded,
       },
       {
         'step': 5,
-        'title': 'Pesanan Tiba & Selesai',
-        'desc': 'Pesanan telah diterima. Silakan nikmati dan berikan ulasan',
+        'title': 'Pesanan Selesai',
+        'desc': 'Pesanan telah diterima di tujuan. Selamat menikmati!',
         'icon': Icons.check_circle_rounded,
       },
     ];
@@ -951,15 +983,15 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
   String _getStageTitle(int stage) {
     switch (stage) {
       case 1:
-        return 'Mencari Driver Terdekat';
+        return 'Pesanan Diterima';
       case 2:
-        return 'Driver Menuju Toko';
+        return 'Sedang Disiapkan';
       case 3:
-        return 'Pesanan Sedang Disiapkan';
+        return 'Pesanan Siap Dipickup';
       case 4:
-        return 'Pesanan Sedang Diantar';
+        return 'Dalam Pengantaran';
       case 5:
-        return 'Pesanan Tiba & Selesai';
+        return 'Pesanan Selesai';
       default:
         return 'Pesanan Diproses';
     }
@@ -968,32 +1000,32 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
   String _getStageSubtitle(int stage, OrderModel order) {
     switch (stage) {
       case 1:
-        return 'Mencocokkan driver di Pracimantoro';
+        return 'Pesanan masuk antrean sistem & toko';
       case 2:
-        return '${order.driverName ?? "Driver"} menuju toko';
+        return 'Toko sedang memasak & mengemas pesanan';
       case 3:
-        return 'Pesanan dimasak hangat & rapi';
+        return 'Menunggu kurir mengambil pesanan di toko';
       case 4:
-        return 'Menuju alamat Anda (${_routeDistanceKm.toStringAsFixed(1)} km)';
+        return '${order.driverName ?? "Kurir"} meluncur (${_routeDistanceKm.toStringAsFixed(1)} km)';
       case 5:
         return 'Paket diterima di alamat tujuan';
       default:
-        return 'Memproses rute';
+        return 'Memproses pesanan';
     }
   }
 
   Color _getStageColor(int stage) {
     switch (stage) {
       case 1:
-        return const Color(0xFFD97706);
+        return const Color(0xFF2563EB); // Biru Info Diterima
       case 2:
-        return const Color(0xFF1D4ED8);
+        return const Color(0xFFD97706); // Kuning Masak
       case 3:
-        return const Color(0xFFC2410C);
+        return const Color(0xFFC2410C); // Oranye Siap
       case 4:
-        return const Color(0xFFE52320);
+        return const Color(0xFFE52320); // Merah GAGE Antar
       case 5:
-        return const Color(0xFF16A34A);
+        return const Color(0xFF16A34A); // Hijau Selesai
       default:
         return GageTheme.primary;
     }
@@ -1002,11 +1034,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
   IconData _getStageIcon(int stage) {
     switch (stage) {
       case 1:
-        return Icons.radar_rounded;
+        return Icons.receipt_long_rounded;
       case 2:
-        return Icons.two_wheeler_rounded;
-      case 3:
         return Icons.outdoor_grill_rounded;
+      case 3:
+        return Icons.inventory_2_rounded;
       case 4:
         return Icons.delivery_dining_rounded;
       case 5:
@@ -1219,41 +1251,77 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
           const Divider(height: 1),
           const SizedBox(height: 12),
 
-          // Tombol Hubungi: WhatsApp & Telepon
+          // Tombol Hubungi Driver: Chat Native In-App & WhatsApp / Telepon
           Row(
             children: [
               Expanded(
+                flex: 5,
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF22C55E),
+                    backgroundColor: GageTheme.primary,
                     foregroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     padding: const EdgeInsets.symmetric(vertical: 10),
                   ),
-                  icon: const Icon(Icons.chat_bubble_rounded, size: 17),
+                  icon: const Icon(Icons.chat_bubble_rounded, size: 16),
                   label: const Text(
-                    'Chat WhatsApp',
+                    'Chat In-App',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
                   ),
-                  onPressed: () => _launchWhatsApp(driverPhone, driverName, order.orderNumber),
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (ctx) => InAppChatScreen(
+                          orderId: order.id,
+                          recipientName: driverName,
+                          recipientRole: 'driver',
+                          recipientPhone: driverPhone,
+                          currentRole: 'customer',
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
+                flex: 4,
                 child: OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF0F172A),
-                    side: BorderSide(color: Colors.grey.shade300),
+                    foregroundColor: const Color(0xFF16A34A),
+                    side: const BorderSide(color: Color(0xFF16A34A)),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     padding: const EdgeInsets.symmetric(vertical: 10),
                   ),
-                  icon: const Icon(Icons.phone_in_talk_rounded, size: 17),
+                  icon: const Icon(Icons.phone_forwarded_rounded, size: 16),
                   label: const Text(
-                    'Telepon Driver',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                    'WhatsApp',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                   ),
-                  onPressed: () => _launchCall(driverPhone),
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    _launchWhatsApp(driverPhone, driverName, order.orderNumber);
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              InkWell(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  _launchCall(driverPhone);
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: const Icon(Icons.phone_in_talk_rounded, size: 18, color: Colors.black87),
                 ),
               ),
             ],
@@ -1318,14 +1386,41 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                   ],
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.chat_outlined, color: Color(0xFF16A34A), size: 20),
-                tooltip: 'Chat Resto',
-                onPressed: () => _launchWhatsApp(
-                  order.merchantPhone ?? '081234567890',
-                  order.merchantName,
-                  order.orderNumber,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.chat_bubble_rounded, color: GageTheme.primary, size: 20),
+                    tooltip: 'Chat Toko (In-App)',
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (ctx) => InAppChatScreen(
+                            orderId: order.id,
+                            recipientName: order.merchantName,
+                            recipientRole: 'merchant',
+                            recipientPhone: order.merchantPhone ?? '081234567890',
+                            currentRole: 'customer',
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.phone_forwarded_rounded, color: Color(0xFF16A34A), size: 19),
+                    tooltip: 'WhatsApp Resto',
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      _launchWhatsApp(
+                        order.merchantPhone ?? '081234567890',
+                        order.merchantName,
+                        order.orderNumber,
+                      );
+                    },
+                  ),
+                ],
               ),
             ],
           ),

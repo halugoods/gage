@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/driver/presentation/widgets/driver_bottom_nav_bar.dart';
 
 class DriverAccountScreen extends StatefulWidget {
-  const DriverAccountScreen({super.key});
+  final bool showBottomNav;
+  const DriverAccountScreen({super.key, this.showBottomNav = false});
 
   @override
   State<DriverAccountScreen> createState() => _DriverAccountScreenState();
@@ -48,49 +50,74 @@ class _DriverAccountScreenState extends State<DriverAccountScreen> {
                 ),
                 child: Row(
                   children: [
-                    CircleAvatar(
-                      radius: 30,
-                      backgroundColor: GageTheme.primary.withValues(alpha: 0.12),
-                      child: const Text(
-                        'S',
-                        style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: GageTheme.primary),
-                      ),
+                    Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 28,
+                          backgroundColor: GageTheme.primary.withValues(alpha: 0.12),
+                          child: const Text(
+                            'S',
+                            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: GageTheme.primary),
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            width: 14,
+                            height: 14,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF16A34A),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
+                          const Row(
                             children: [
-                              const Flexible(
-                                child: Text(
-                                  'Syamsul Maarif',
-                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                              Text(
+                                'Syamsul Maarif',
+                                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
                               ),
-                              const SizedBox(width: 6),
-                              const Icon(Icons.verified_rounded, color: Color(0xFF2563EB), size: 18),
+                              SizedBox(width: 6),
+                              Icon(Icons.verified_rounded, size: 16, color: Color(0xFF1E88E5)),
                             ],
                           ),
-                          const SizedBox(height: 3),
+                          const SizedBox(height: 2),
                           Text(
-                            '+62 812-3456-7890',
-                            style: TextStyle(fontSize: 12.5, color: isDark ? Colors.white60 : Colors.black54),
+                            'Mitra Kurir Motor • GAGE Pracimantoro',
+                            style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : Colors.black54),
                           ),
-                          const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF0F172A),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Text(
-                              'AD 4521 WN',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0.5),
-                            ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.shade50,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Row(
+                                  children: [
+                                    Icon(Icons.star_rounded, size: 13, color: Color(0xFFD97706)),
+                                    SizedBox(width: 3),
+                                    Text('4.96', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFFB45309))),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'AD 5821 QG',
+                                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.black87),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -99,40 +126,40 @@ class _DriverAccountScreenState extends State<DriverAccountScreen> {
                 ),
               ),
 
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
 
-              // 2. Tiga Kartu Metrik Performa Mitra
+              // 2. Metrik Performa Kerja
               Row(
                 children: [
                   Expanded(
                     child: _buildMetricCard(
-                      'Rating Bintang',
-                      '4.96 ★',
-                      '520 Ulasan',
-                      const Color(0xFFD97706),
-                      const Color(0xFFFEF3C7),
-                      isDark,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _buildMetricCard(
                       'Penerimaan',
                       '100%',
-                      'Target > 80%',
+                      'Target min 80%',
                       GageTheme.accentGreen,
-                      const Color(0xFFDCFCE7),
+                      isDark ? const Color(0xFF1E293B) : Colors.white,
                       isDark,
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: _buildMetricCard(
                       'Penyelesaian',
-                      '100%',
-                      'Target > 85%',
-                      const Color(0xFF2563EB),
-                      const Color(0xFFDBEAFE),
+                      '98.5%',
+                      'Bagus sekali',
+                      const Color(0xFF1E88E5),
+                      isDark ? const Color(0xFF1E293B) : Colors.white,
+                      isDark,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildMetricCard(
+                      'Rating',
+                      '4.96',
+                      '500+ Trip',
+                      const Color(0xFFD97706),
+                      isDark ? const Color(0xFF1E293B) : Colors.white,
                       isDark,
                     ),
                   ),
@@ -141,7 +168,7 @@ class _DriverAccountScreenState extends State<DriverAccountScreen> {
 
               const SizedBox(height: 16),
 
-              // 3. Kendaraan Mitra
+              // 3. Kendaraan & Dokumen
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -153,39 +180,17 @@ class _DriverAccountScreenState extends State<DriverAccountScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Kendaraan Terdaftar',
+                      'Informasi Kendaraan & Legalitas',
                       style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
                     ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.two_wheeler_rounded, size: 28, color: GageTheme.primary),
-                        ),
-                        const SizedBox(width: 12),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Honda Vario 160cc (2023)',
-                                style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
-                              ),
-                              SizedBox(height: 2),
-                              Text(
-                                'Plat AD 4521 WN • STNK Aktif s/d Okt 2028',
-                                style: TextStyle(fontSize: 11.5, color: Colors.grey),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                    const SizedBox(height: 12),
+                    _buildInfoRow('Jenis Kendaraan', 'Sepeda Motor (Honda Vario 125)', isDark),
+                    const Divider(height: 16),
+                    _buildInfoRow('Plat Nomor', 'AD 5821 QG', isDark),
+                    const Divider(height: 16),
+                    _buildInfoRow('Masa Berlaku SIM C', 'Aktif s/d 2028', isDark),
+                    const Divider(height: 16),
+                    _buildInfoRow('Status STNK', 'Terverifikasi Tim Pusat', isDark),
                   ],
                 ),
               ),
@@ -228,27 +233,47 @@ class _DriverAccountScreenState extends State<DriverAccountScreen> {
                         setState(() => _maxDistance = val);
                       },
                     ),
-                    const Divider(height: 20),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('GageFood (Pesan Antar Makanan)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                      value: _acceptFood,
-                      activeThumbColor: GageTheme.primary,
-                      onChanged: (v) => setState(() => _acceptFood = v),
+                    const Divider(height: 16),
+
+                    // Toggle Food
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('GAGE Food (Pesan Antar Makanan)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                        Switch(
+                          value: _acceptFood,
+                          activeThumbColor: GageTheme.primary,
+                          onChanged: (v) => setState(() => _acceptFood = v),
+                        ),
+                      ],
                     ),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('GageRide (Ojek Penumpang)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                      value: _acceptRide,
-                      activeThumbColor: GageTheme.primary,
-                      onChanged: (v) => setState(() => _acceptRide = v),
+                    const Divider(height: 12),
+
+                    // Toggle Ride
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('GAGE Ride (Ojek Penumpang)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                        Switch(
+                          value: _acceptRide,
+                          activeThumbColor: GageTheme.primary,
+                          onChanged: (v) => setState(() => _acceptRide = v),
+                        ),
+                      ],
                     ),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('GageSend (Kirim Paket / Titip)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                      value: _acceptSend,
-                      activeThumbColor: GageTheme.primary,
-                      onChanged: (v) => setState(() => _acceptSend = v),
+                    const Divider(height: 12),
+
+                    // Toggle Send
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('GAGE Send (Kirim Paket / Titip)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                        Switch(
+                          value: _acceptSend,
+                          activeThumbColor: GageTheme.primary,
+                          onChanged: (v) => setState(() => _acceptSend = v),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -265,18 +290,44 @@ class _DriverAccountScreenState extends State<DriverAccountScreen> {
                 ),
                 child: Column(
                   children: [
-                    ListTile(
-                      leading: const Icon(Icons.help_outline_rounded, color: GageTheme.primary),
-                      title: const Text('Pusat Bantuan & CS GAGE', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () {},
+                    InkWell(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                      },
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        child: Row(
+                          children: [
+                            Icon(Icons.help_outline_rounded, color: GageTheme.primary, size: 20),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text('Pusat Bantuan & CS GAGE', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+                            ),
+                            Icon(Icons.chevron_right_rounded, size: 20),
+                          ],
+                        ),
+                      ),
                     ),
                     const Divider(height: 1),
-                    ListTile(
-                      leading: const Icon(Icons.shield_outlined, color: GageTheme.accentGreen),
-                      title: const Text('SOP & Standar Keselamatan Mitra', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () {},
+                    InkWell(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                      },
+                      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        child: Row(
+                          children: [
+                            Icon(Icons.shield_outlined, color: GageTheme.accentGreen, size: 20),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text('SOP & Standar Keselamatan Mitra', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+                            ),
+                            Icon(Icons.chevron_right_rounded, size: 20),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -287,7 +338,7 @@ class _DriverAccountScreenState extends State<DriverAccountScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: const DriverBottomNavBar(currentIndex: 4),
+      bottomNavigationBar: widget.showBottomNav ? const DriverBottomNavBar(currentIndex: 4) : null,
     );
   }
 
@@ -300,34 +351,32 @@ class _DriverAccountScreenState extends State<DriverAccountScreen> {
     bool isDark,
   ) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        color: bg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: isDark ? const Color(0xFF334155) : Colors.grey.shade200),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white60 : Colors.black54, fontWeight: FontWeight.w600),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
+          Text(title, style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.black54)),
           const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w900, color: color),
-          ),
+          Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: color)),
           const SizedBox(height: 2),
-          Text(
-            subtitle,
-            style: const TextStyle(fontSize: 9.5, color: Colors.grey),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
+          Text(subtitle, style: TextStyle(fontSize: 10, color: isDark ? Colors.white54 : Colors.grey.shade600)),
         ],
       ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value, bool isDark) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: TextStyle(fontSize: 12.5, color: isDark ? Colors.white60 : Colors.black54)),
+        Text(value, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+      ],
     );
   }
 }

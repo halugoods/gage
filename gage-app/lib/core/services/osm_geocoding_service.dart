@@ -9,12 +9,14 @@ class OsmPlace {
   final String title;
   final LatLng location;
   final double? distanceMeters;
+  final String? category;
 
   const OsmPlace({
     required this.displayName,
     required this.title,
     required this.location,
     this.distanceMeters,
+    this.category,
   });
 
   String get distanceText {

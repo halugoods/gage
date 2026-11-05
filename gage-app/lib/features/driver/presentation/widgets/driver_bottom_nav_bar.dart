@@ -8,20 +8,27 @@ import 'package:gage_app/features/driver/presentation/driver_chat_list_screen.da
 import 'package:gage_app/features/driver/presentation/driver_account_screen.dart';
 
 /// Universal Bottom Navigation Bar untuk GAGE Driver (GoPartner Style)
-/// Menggunakan arsitektur Independent Top-Level Route (tanpa nested Scaffold di IndexedStack)
-/// 100% bebas dari risiko viewport collapse AOT di seluruh device.
+/// Mendukung callback [onTabSelected] untuk workstation terpusat (DriverRootScreen)
+/// serta fallback navigasi mandiri antar layar.
 class DriverBottomNavBar extends StatelessWidget {
   final int currentIndex;
+  final ValueChanged<int>? onTabSelected;
 
   const DriverBottomNavBar({
     super.key,
     required this.currentIndex,
+    this.onTabSelected,
   });
 
   void _onTap(BuildContext context, int index) {
     if (index == currentIndex) return;
 
     HapticFeedback.selectionClick();
+
+    if (onTabSelected != null) {
+      onTabSelected!(index);
+      return;
+    }
 
     Widget target;
     switch (index) {
@@ -100,55 +107,49 @@ class DriverBottomNavBar extends StatelessWidget {
     bool isDark = false,
   }) {
     final isSelected = index == currentIndex;
-    final activeColor = GageTheme.primary;
-    final inactiveColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final color = isSelected ? GageTheme.primary : (isDark ? Colors.white60 : Colors.black54);
 
     return Expanded(
-      child: InkWell(
-        onTap: () => _onTap(context, index),
-        splashColor: Colors.transparent,
-        highlightColor: Colors.transparent,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Icon(
-                    icon,
-                    size: 22,
-                    color: isSelected ? activeColor : inactiveColor,
-                  ),
-                  if (hasBadge)
-                    Positioned(
-                      top: -2,
-                      right: -3,
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: GageTheme.primary,
-                          shape: BoxShape.circle,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _onTap(context, index),
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Icon(icon, color: color, size: 22),
+                    if (hasBadge)
+                      Positioned(
+                        right: -3,
+                        top: -3,
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: GageTheme.primary,
+                            shape: BoxShape.circle,
+                          ),
                         ),
                       ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 3),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                  color: isSelected ? activeColor : inactiveColor,
-                  letterSpacing: -0.1,
+                  ],
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+                const SizedBox(height: 3),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

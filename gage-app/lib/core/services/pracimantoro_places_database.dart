@@ -397,6 +397,7 @@ class PracimantoroPlacesDatabase {
       name: 'Kantor Kecamatan Pracimantoro',
       shortName: 'Kantor Camat Pracimantoro',
       category: 'Pemerintahan',
+      prominence: 55,
       address: 'Jl. Raya Pracimantoro, Kec. Pracimantoro, Wonogiri',
       location: const LatLng(-8.05600, 110.80800),
       isPrimaryScope: true,
@@ -533,6 +534,7 @@ class PracimantoroPlacesDatabase {
       name: 'Pasar Pracimantoro (Pasar Pusat / Pasar Wage)',
       shortName: 'Pasar Pracimantoro',
       category: 'Pasar & Belanja',
+      prominence: 65,
       address: 'Pusat Kota Pracimantoro, Wonogiri',
       location: const LatLng(-8.05533, 110.80881),
       isPrimaryScope: true,
@@ -580,6 +582,7 @@ class PracimantoroPlacesDatabase {
       name: 'Terminal Bus Pracimantoro',
       shortName: 'Terminal Pracimantoro',
       category: 'Transportasi',
+      prominence: 60,
       address: 'Jl. Raya Pracimantoro',
       location: const LatLng(-8.05700, 110.80950),
       isPrimaryScope: true,
@@ -589,6 +592,7 @@ class PracimantoroPlacesDatabase {
       name: 'SPBU Pertamina 44.576.09 Sambiroto Lor Pracimantoro',
       shortName: 'SPBU Sambiroto Lor Pracimantoro',
       category: 'SPBU & Bahan Bakar',
+      prominence: 60,
       address: 'Jl. Raya Pracimantoro, Sambiroto Lor',
       location: const LatLng(-8.05871, 110.81191),
       isPrimaryScope: true,
@@ -620,6 +624,80 @@ class PracimantoroPlacesDatabase {
       location: const LatLng(-8.05570, 110.80870),
       isPrimaryScope: true,
       aliases: ['indomaret pracimantoro', 'indomart pracimantoro', 'indomaret'],
+    ),
+
+    // ══════════════════════════════════════════════════════════════════════
+    // PERBANKAN, ATM & FASILITAS UMUM GOOGLE MAPS PRACIMANTORO
+    // ══════════════════════════════════════════════════════════════════════
+    LocalPlaceRecord(
+      name: 'Bank BRI Unit Pracimantoro',
+      shortName: 'Bank BRI Pracimantoro',
+      category: 'Perbankan & ATM',
+      address: 'Jl. Raya Wonogiri - Pracimantoro, Sedayu, Kec. Pracimantoro (57664)',
+      location: const LatLng(-8.05585, 110.80875),
+      isPrimaryScope: true,
+      prominence: 60,
+      aliases: ['bank bri', 'bri pracimantoro', 'atm bri', 'bank bri pracimantoro', 'bank rakyat indonesia'],
+    ),
+    LocalPlaceRecord(
+      name: 'Bank BNI Kantor Kas Pracimantoro',
+      shortName: 'Bank BNI Pracimantoro',
+      category: 'Perbankan & ATM',
+      address: 'Jl. Raya Pracimantoro, Kec. Pracimantoro (57664)',
+      location: const LatLng(-8.05612, 110.80910),
+      isPrimaryScope: true,
+      prominence: 55,
+      aliases: ['bank bni', 'bni pracimantoro', 'atm bni', 'bank bni pracimantoro'],
+    ),
+    LocalPlaceRecord(
+      name: 'Bank Jateng Capem Pracimantoro',
+      shortName: 'Bank Jateng Pracimantoro',
+      category: 'Perbankan & ATM',
+      address: 'Jl. Raya Pracimantoro, Kec. Pracimantoro (57664)',
+      location: const LatLng(-8.05570, 110.80820),
+      isPrimaryScope: true,
+      prominence: 55,
+      aliases: ['bank jateng', 'jateng pracimantoro', 'atm bank jateng', 'bank bpd jateng'],
+    ),
+    LocalPlaceRecord(
+      name: 'ATM BCA Indomaret Pracimantoro',
+      shortName: 'ATM BCA Pracimantoro',
+      category: 'Perbankan & ATM',
+      address: 'Indomaret Pasar Pracimantoro, Jl. Raya Wonogiri - Pracimantoro',
+      location: const LatLng(-8.05545, 110.80860),
+      isPrimaryScope: true,
+      prominence: 50,
+      aliases: ['atm bca', 'bca pracimantoro', 'bca', 'bank bca'],
+    ),
+    LocalPlaceRecord(
+      name: 'Lapangan Bantarangin Pracimantoro',
+      shortName: 'Lapangan Bantarangin',
+      category: 'Olahraga & Ruang Publik',
+      address: 'Jl. Taruna HS, Sedayu, Kec. Pracimantoro (57664)',
+      location: const LatLng(-8.05410, 110.80620),
+      isPrimaryScope: true,
+      prominence: 60,
+      aliases: ['lapangan bantarangin', 'bantarangin', 'alun alun pracimantoro', 'lapangan bola pracimantoro'],
+    ),
+    LocalPlaceRecord(
+      name: 'Rocket Chicken Sambiroto Pracimantoro',
+      shortName: 'Rocket Chicken Pracimantoro',
+      category: 'Kuliner & Restoran',
+      address: 'Jl. Raya Pracimantoro - Wonogiri, Sambiroto, Kec. Pracimantoro',
+      location: const LatLng(-8.05790, 110.81150),
+      isPrimaryScope: true,
+      prominence: 55,
+      aliases: ['rocket chicken', 'rc pracimantoro', 'ayam rocket', 'ayam goreng rocket'],
+    ),
+    LocalPlaceRecord(
+      name: 'Alfamidi Super Pracimantoro',
+      shortName: 'Alfamidi Pracimantoro',
+      category: 'Pasar & Belanja',
+      address: 'Jl. Raya Wonogiri - Pracimantoro, Kec. Pracimantoro (57664)',
+      location: const LatLng(-8.05680, 110.80980),
+      isPrimaryScope: true,
+      prominence: 55,
+      aliases: ['alfamidi', 'alfamidi pracimantoro', 'dimsum sewu alfamidi'],
     ),
 
     // ══════════════════════════════════════════════════════════════════════
@@ -895,7 +973,10 @@ class PracimantoroPlacesDatabase {
   /// Algoritma Pencarian Cerdas Fundamental GAGE Pracimantoro:
   /// - Memberikan Prioritas Tertinggi (#1) untuk titik di Kecamatan Pracimantoro
   /// - Mendukung singkatan umum: 'sd', 'smp', 'sma', 'rs', 'camat', 'polsek', 'pasar'
-  static List<OsmPlace> searchLocalPlaces(String query, {LatLng? userLocation}) {
+  static List<OsmPlace> searchLocalPlaces(
+    String query, {
+    LatLng? userLocation,
+  }) {
     final cleanQuery = query.trim().toLowerCase();
     if (cleanQuery.isEmpty) return [];
 
@@ -905,67 +986,70 @@ class PracimantoroPlacesDatabase {
     final List<ScoredPlace> matches = [];
 
     for (final p in allPlaces) {
-      int score = 0;
+      int score = p.prominence; // Base prominence weight (10 - 65)
       final nameLower = p.name.toLowerCase();
       final shortNameLower = p.shortName.toLowerCase();
+      final catLower = p.category.toLowerCase();
 
-      // 1. Exact Name Matching
-      if (nameLower == cleanQuery || shortNameLower == cleanQuery) {
-        score += 150;
+      // 1. Exact Name / ShortName Matching
+      if (shortNameLower == cleanQuery || nameLower == cleanQuery) {
+        score += 260;
       }
-      // 2. Alias / Akronim Matching
+      // 2. Exact Alias Matching
       else if (p.aliases.any((a) => a == cleanQuery)) {
-        score += 130;
+        score += 220;
       }
-      // 3. Name Starts With Query
-      else if (nameLower.startsWith(cleanQuery) || shortNameLower.startsWith(cleanQuery)) {
-        score += 100;
+      // 3. ShortName Starts With Query
+      else if (shortNameLower.startsWith(cleanQuery)) {
+        score += 160;
       }
-      // 4. Words Matching
+      // 4. Word Boundary / Phrase Matching
       else {
         final queryWords = cleanQuery.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
         int matchedWords = 0;
         for (final w in queryWords) {
-          if (nameLower.contains(w) ||
-              shortNameLower.contains(w) ||
+          if (shortNameLower.contains(w) ||
+              nameLower.contains(w) ||
               p.aliases.any((a) => a.contains(w))) {
             matchedWords++;
           }
         }
         if (matchedWords == queryWords.length && queryWords.isNotEmpty) {
-          score += 85;
+          score += 120;
         } else if (matchedWords > 0) {
-          score += (matchedWords * 30);
+          score += (matchedWords * 35);
         }
       }
 
-      // Khusus Query Umum Jenjang Sekolah: misal user ketik "sd"
+      // Khusus Query Umum Kategori / Singkatan Populer (Google Maps style intent recognition)
       if (cleanQuery == 'sd' || cleanQuery == 'sdn') {
-        if (p.name.toLowerCase().startsWith('sd')) {
-          score += 90;
-        }
+        if (shortNameLower.startsWith('sd')) score += 100;
       } else if (cleanQuery == 'smp' || cleanQuery == 'smpn') {
-        if (p.name.toLowerCase().startsWith('smp')) {
-          score += 90;
-        }
-      } else if (cleanQuery == 'sma' || cleanQuery == 'smk') {
-        if (p.name.toLowerCase().startsWith('sma') || p.name.toLowerCase().startsWith('smk')) {
-          score += 90;
-        }
+        if (shortNameLower.startsWith('smp')) score += 100;
+      } else if (cleanQuery == 'sma' || cleanQuery == 'smk' || cleanQuery == 'sman' || cleanQuery == 'smkn') {
+        if (shortNameLower.startsWith('sma') || shortNameLower.startsWith('smk')) score += 100;
       } else if (cleanQuery == 'rs' || cleanQuery == 'rsu' || cleanQuery == 'rumah sakit') {
-        if (p.category == 'Kesehatan') {
-          score += 95;
-        }
+        if (catLower.contains('kesehatan')) score += 140;
+      } else if (cleanQuery == 'pasar') {
+        if (shortNameLower.contains('pasar')) score += 130;
+      } else if (cleanQuery == 'spbu' || cleanQuery == 'pom' || cleanQuery == 'pom bensin' || cleanQuery == 'bensin') {
+        if (catLower.contains('spbu')) score += 140;
+      } else if (cleanQuery == 'bank' || cleanQuery == 'atm') {
+        if (catLower.contains('perbankan') || shortNameLower.contains('bank') || shortNameLower.contains('atm')) score += 130;
       }
 
       // 5. Scope Prioritization (Pracimantoro adalah Wilayah Inti)
-      if (p.isPrimaryScope && score > 0) {
-        score += 40; // Bonus besar untuk lokasi di dalam Kecamatan Pracimantoro
+      if (p.isPrimaryScope && score > p.prominence) {
+        score += 30; // Bonus wilayah inti Pracimantoro
       }
 
-      if (score > 0) {
+      if (score > p.prominence) {
         final dist = distCalc.as(LengthUnit.Meter, refLocation, p.location);
-        matches.add(ScoredPlace(place: p, score: score, distanceMeters: dist));
+        // Proximity decay: setiap 1 km mengurangi 2.5 poin relevansi (maksimal pinalti -35)
+        final distancePenalty = (dist / 1000.0 * 2.5).clamp(0.0, 35.0).round();
+        final finalScore = score - distancePenalty;
+
+        matches.add(ScoredPlace(place: p, score: finalScore, distanceMeters: dist));
       }
     }
 
@@ -980,9 +1064,10 @@ class PracimantoroPlacesDatabase {
     return matches.map((m) {
       return OsmPlace(
         title: m.place.shortName,
-        displayName: '${m.place.name}, ${m.place.address}',
+        displayName: m.place.address,
         location: m.place.location,
         distanceMeters: m.distanceMeters,
+        category: m.place.category,
       );
     }).toList();
   }
@@ -996,6 +1081,7 @@ class LocalPlaceRecord {
   final LatLng location;
   final bool isPrimaryScope;
   final List<String> aliases;
+  final int prominence;
 
   const LocalPlaceRecord({
     required this.name,
@@ -1005,6 +1091,7 @@ class LocalPlaceRecord {
     required this.location,
     required this.isPrimaryScope,
     required this.aliases,
+    this.prominence = 20,
   });
 }
 

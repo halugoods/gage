@@ -648,7 +648,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
             padding: const EdgeInsets.all(3),
             decoration: BoxDecoration(
               color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(30),
             ),
             child: Row(
               children: [
@@ -662,7 +662,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                       padding: const EdgeInsets.symmetric(vertical: 9),
                       decoration: BoxDecoration(
                         color: _selectedTab == 'ride' ? Colors.white : Colors.transparent,
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(26),
                         boxShadow: _selectedTab == 'ride'
                             ? const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 1))]
                             : null,
@@ -690,7 +690,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                       padding: const EdgeInsets.symmetric(vertical: 9),
                       decoration: BoxDecoration(
                         color: _selectedTab == 'car' ? Colors.white : Colors.transparent,
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(26),
                         boxShadow: _selectedTab == 'car'
                             ? const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 1))]
                             : null,
@@ -914,7 +914,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                       _savedPaymentMethod == 'gagepay'
                           ? 'GAGEPay (${currencyFormatter.format(wallet.balance)})'
                           : (_savedPaymentMethod == 'qris'
-                              ? 'QRIS Dinamis GAGE Pay'
+                              ? 'QRIS'
                               : (_savedPaymentMethod == 'cash'
                                   ? 'Tunai ke Driver'
                                   : 'Metode Pembayaran: Belum Dipilih')),

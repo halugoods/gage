@@ -6,6 +6,10 @@ class ChatMessage {
   final String senderName;
   final String text;
   final String? mediaUrl;
+  final String messageType; // 'text' | 'image' | 'product'
+  final String? productName;
+  final int? productPrice;
+  final String? productImage;
   final DateTime timestamp;
   final String status; // 'sending' | 'sent' | 'delivered' | 'read'
 
@@ -17,6 +21,10 @@ class ChatMessage {
     required this.senderName,
     required this.text,
     this.mediaUrl,
+    this.messageType = 'text',
+    this.productName,
+    this.productPrice,
+    this.productImage,
     required this.timestamp,
     this.status = 'sent',
   });
@@ -25,6 +33,8 @@ class ChatMessage {
   bool get isFromCustomer => senderRole == 'customer';
   bool get isFromMerchant => senderRole == 'merchant';
   bool get isFromAdmin => senderRole == 'admin';
+  bool get isImage => messageType == 'image' || (mediaUrl != null && mediaUrl!.isNotEmpty);
+  bool get isProduct => messageType == 'product' || productName != null;
 
   Map<String, dynamic> toJson() {
     return {
@@ -35,6 +45,10 @@ class ChatMessage {
       'senderName': senderName,
       'text': text,
       'mediaUrl': mediaUrl,
+      'messageType': messageType,
+      'productName': productName,
+      'productPrice': productPrice,
+      'productImage': productImage,
       'timestamp': timestamp.millisecondsSinceEpoch,
       'status': status,
     };
@@ -49,6 +63,10 @@ class ChatMessage {
       senderName: json['senderName'] as String? ?? 'Pengguna',
       text: json['text'] as String? ?? '',
       mediaUrl: json['mediaUrl'] as String?,
+      messageType: json['messageType'] as String? ?? 'text',
+      productName: json['productName'] as String?,
+      productPrice: json['productPrice'] as int?,
+      productImage: json['productImage'] as String?,
       timestamp: json['timestamp'] != null
           ? DateTime.fromMillisecondsSinceEpoch(json['timestamp'] as int)
           : DateTime.now(),

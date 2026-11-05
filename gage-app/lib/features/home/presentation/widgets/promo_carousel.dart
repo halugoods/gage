@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/core/services/banner_manager_service.dart';
@@ -9,6 +10,7 @@ import 'package:gage_app/features/ride/presentation/ride_booking_screen.dart';
 import 'package:gage_app/features/ride/presentation/send_booking_screen.dart';
 import 'package:gage_app/features/membership/presentation/membership_screen.dart';
 import 'package:gage_app/providers/wallet_provider.dart';
+import 'package:gage_app/features/wallet/presentation/gagepay_screen.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/features/admin/presentation/widgets/in_place_banner_editor_sheet.dart';
 
@@ -360,15 +362,33 @@ class _DailyCheckInCardState extends State<DailyCheckInCard> {
             width: double.infinity,
             height: 46,
             child: ElevatedButton(
-              onPressed: () => Navigator.pop(ctx),
+              onPressed: () {
+                Navigator.pop(ctx);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const GagePayScreen()),
+                );
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: GageTheme.primary,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 elevation: 0,
               ),
-              child: const Text('Mantap!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('Lihat Saldo & Poin GAGE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                  SizedBox(width: 6),
+                  Icon(Icons.arrow_forward_rounded, size: 16),
+                ],
+              ),
             ),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Tutup', style: TextStyle(color: Colors.grey, fontSize: 12)),
           ),
         ],
       ),
@@ -396,53 +416,63 @@ class _DailyCheckInCardState extends State<DailyCheckInCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Row: Judul & Badge Streak
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.shade50,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.amber.shade300, width: 1),
+            // Header Row: Judul & Badge Streak (Tap membuka GAGE Poin / Wallet)
+            InkWell(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const GagePayScreen()),
+                );
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.amber.shade300, width: 1),
+                    ),
+                    child: const Icon(Icons.card_giftcard_rounded, color: Colors.amber, size: 20),
                   ),
-                  child: const Icon(Icons.card_giftcard_rounded, color: Colors.amber, size: 20),
-                ),
-                const SizedBox(width: 10),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Hadiah Login Harian',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: GageTheme.textPrimary),
-                      ),
-                      Text(
-                        'Check-in tiap hari, kumpulkan Koin GAGE Cuan!',
-                        style: TextStyle(fontSize: 11, color: Colors.grey),
-                      ),
-                    ],
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Hadiah Login Harian',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: GageTheme.textPrimary),
+                        ),
+                        Text(
+                          'Check-in tiap hari, kumpulkan Koin GAGE Cuan!',
+                          style: TextStyle(fontSize: 11, color: Colors.grey),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.orange.shade300, width: 0.8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.orange.shade300, width: 0.8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.local_fire_department_rounded, color: Colors.deepOrange, size: 14),
+                        const SizedBox(width: 2),
+                        Text(
+                          'Streak: $_currentStreak Hari',
+                          style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Colors.deepOrange),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.local_fire_department_rounded, color: Colors.deepOrange, size: 14),
-                      const SizedBox(width: 2),
-                      Text(
-                        'Streak: $_currentStreak Hari',
-                        style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Colors.deepOrange),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
 
             const SizedBox(height: 12),

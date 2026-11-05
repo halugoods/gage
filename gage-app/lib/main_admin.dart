@@ -12,7 +12,7 @@ import 'package:gage_app/providers/driver_wallet_provider.dart';
 import 'package:gage_app/core/services/multi_merchant_cart_service.dart';
 import 'package:gage_app/core/services/banner_manager_service.dart';
 import 'package:gage_app/features/chat/providers/in_app_chat_provider.dart';
-import 'package:gage_app/features/admin/presentation/admin_screen.dart';
+import 'package:gage_app/features/admin/presentation/admin_root_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -59,7 +59,7 @@ class GageAdminApp extends StatelessWidget {
       theme: GageTheme.lightTheme,
       darkTheme: GageTheme.darkTheme,
       themeMode: ThemeMode.system,
-      home: const AdminScreen(),
+      home: const AdminRootScreen(),
     );
   }
 }

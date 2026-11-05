@@ -75,4 +75,62 @@ class InAppChatProvider with ChangeNotifier {
     _messagesByOrder.putIfAbsent(orderId, () => []).add(newMsg);
     notifyListeners();
   }
+
+  void sendMediaMessage({
+    required String orderId,
+    required String senderId,
+    required String senderRole,
+    required String senderName,
+    required String filePath,
+    String? caption,
+  }) {
+    HapticFeedback.lightImpact();
+
+    final newMsg = ChatMessage(
+      id: 'msg-${DateTime.now().millisecondsSinceEpoch}',
+      orderId: orderId,
+      senderId: senderId,
+      senderRole: senderRole,
+      senderName: senderName,
+      text: caption ?? 'Foto',
+      mediaUrl: filePath,
+      messageType: 'image',
+      timestamp: DateTime.now(),
+      status: 'delivered',
+    );
+
+    _messagesByOrder.putIfAbsent(orderId, () => []).add(newMsg);
+    notifyListeners();
+  }
+
+  void sendProductMessage({
+    required String orderId,
+    required String senderId,
+    required String senderRole,
+    required String senderName,
+    required String productName,
+    required int productPrice,
+    required String productImage,
+    String? inquiryText,
+  }) {
+    HapticFeedback.lightImpact();
+
+    final newMsg = ChatMessage(
+      id: 'msg-${DateTime.now().millisecondsSinceEpoch}',
+      orderId: orderId,
+      senderId: senderId,
+      senderRole: senderRole,
+      senderName: senderName,
+      text: inquiryText ?? 'Halo, apakah produk ini masih tersedia?',
+      messageType: 'product',
+      productName: productName,
+      productPrice: productPrice,
+      productImage: productImage,
+      timestamp: DateTime.now(),
+      status: 'delivered',
+    );
+
+    _messagesByOrder.putIfAbsent(orderId, () => []).add(newMsg);
+    notifyListeners();
+  }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/core/services/location_service.dart';
@@ -6,12 +7,14 @@ import 'package:gage_app/core/services/osm_geocoding_service.dart';
 import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
 import 'package:gage_app/core/services/banner_manager_service.dart';
 import 'package:gage_app/features/food/presentation/shop_store_detail_screen.dart';
-import 'package:gage_app/features/orders/presentation/orders_screen.dart';
 import 'package:gage_app/shared/widgets/seamless_floating_cart_bar.dart';
+import 'package:gage_app/shared/widgets/gage_cart_sheet.dart';
+import 'package:gage_app/providers/cart_provider.dart';
 import 'package:gage_app/features/food/presentation/shop_favorite_screen.dart';
 import 'package:gage_app/shared/widgets/gage_service_header.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
+import 'package:gage_app/shared/widgets/gage_merchant_card.dart';
 
 typedef ShopExploreScreen = ShopScreen;
 
@@ -25,6 +28,7 @@ class ShopScreen extends StatefulWidget {
 class _ShopScreenState extends State<ShopScreen> {
   final ScrollController _scrollController = ScrollController();
   String _selectedCategory = 'Semua';
+  String _rankingSwitch = 'Rekomendasi'; // 'Rekomendasi', 'Terlaris', 'Toko Terdekat'
   String _searchQuery = '';
   bool _isLoading = true;
   String _deliveryLocation = 'Mendeteksi titik GPS Anda...';
@@ -112,11 +116,6 @@ class _ShopScreenState extends State<ShopScreen> {
   // ===========================================================================
   final List<Map<String, dynamic>> _categories = [
     {
-      'name': 'Semua',
-      'image': 'assets/images/hero_header_clean_16x9.png',
-      'icon': Icons.all_inclusive_rounded,
-    },
-    {
       'name': 'Sembako & Beras',
       'image': 'assets/images/prod_beras.png',
       'icon': Icons.rice_bowl_rounded,
@@ -127,14 +126,39 @@ class _ShopScreenState extends State<ShopScreen> {
       'icon': Icons.liquor_rounded,
     },
     {
-      'name': 'Makanan Ringan',
+      'name': 'Telur Segar',
+      'image': 'assets/images/prod_telur.png',
+      'icon': Icons.egg_rounded,
+    },
+    {
+      'name': 'Gula & Terigu',
+      'image': 'assets/images/prod_gula.png',
+      'icon': Icons.bakery_dining_rounded,
+    },
+    {
+      'name': 'Mie & Makanan Instan',
       'image': 'assets/images/prod_indomie.png',
-      'icon': Icons.fastfood_rounded,
+      'icon': Icons.ramen_dining_rounded,
+    },
+    {
+      'name': 'Sayur & Cabai',
+      'image': 'assets/images/prod_cabai.png',
+      'icon': Icons.eco_rounded,
     },
     {
       'name': 'Sabun & Kebersihan',
       'image': 'assets/images/hero_promo_1.png',
       'icon': Icons.cleaning_services_rounded,
+    },
+    {
+      'name': 'Makanan Ringan',
+      'image': 'assets/images/hero_promo_2.png',
+      'icon': Icons.fastfood_rounded,
+    },
+    {
+      'name': 'Minuman Dingin',
+      'image': 'assets/images/banner_gagepay_promo.png',
+      'icon': Icons.local_drink_rounded,
     },
   ];
 
@@ -239,7 +263,7 @@ class _ShopScreenState extends State<ShopScreen> {
 
   // Filter Merchant
   List<Map<String, dynamic>> get _filteredStores {
-    return _retailStores.where((s) {
+    final filtered = _retailStores.where((s) {
       final name = s['name'].toString().toLowerCase();
       final cat = s['category'].toString().toLowerCase();
       final q = _searchQuery.toLowerCase();
@@ -263,8 +287,104 @@ class _ShopScreenState extends State<ShopScreen> {
       if (_selectedCategory == 'Sabun & Kebersihan') {
         return cat.contains('sabun') || cat.contains('kebersihan');
       }
+      if (_selectedCategory == 'Telur Segar') {
+        return cat.contains('telur') || name.contains('telur');
+      }
+      if (_selectedCategory == 'Gula & Terigu') {
+        return cat.contains('gula') || cat.contains('terigu');
+      }
+      if (_selectedCategory == 'Mie & Makanan Instan') {
+        return cat.contains('mie') || cat.contains('pangan');
+      }
+      if (_selectedCategory == 'Sayur & Cabai') {
+        return cat.contains('sayur') || cat.contains('cabai');
+      }
+      if (_selectedCategory == 'Minuman Dingin') {
+        return cat.contains('galon') || cat.contains('minuman');
+      }
       return true;
     }).toList();
+
+    // Terapkan Ranking Switch
+    switch (_rankingSwitch) {
+      case 'Terlaris':
+        filtered.sort((a, b) {
+          final countA = int.tryParse((a['ratingCount'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+          final countB = int.tryParse((b['ratingCount'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+          return countB.compareTo(countA);
+        });
+        break;
+      case 'Toko Terdekat':
+        filtered.sort((a, b) {
+          final distA = double.tryParse((a['distance'] ?? '').toString().replaceAll(RegExp(r'[^0-9.]'), '')) ?? 99.0;
+          final distB = double.tryParse((b['distance'] ?? '').toString().replaceAll(RegExp(r'[^0-9.]'), '')) ?? 99.0;
+          return distA.compareTo(distB);
+        });
+        break;
+      case 'Rekomendasi':
+      default:
+        break;
+    }
+
+    return filtered;
+  }
+
+  Widget _buildRankingSwitch(bool isDark) {
+    final options = ['Rekomendasi', 'Terlaris', 'Toko Terdekat'];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        height: 40,
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+        ),
+        child: Row(
+          children: options.map((opt) {
+            final isSelected = _rankingSwitch == opt;
+            return Expanded(
+              child: InkWell(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() => _rankingSwitch = opt);
+                },
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isSelected ? GageTheme.primary : Colors.transparent,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: GageTheme.primary.withValues(alpha: 0.35),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Center(
+                    child: Text(
+                      opt,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                        color: isSelected
+                            ? Colors.white
+                            : (isDark ? Colors.white60 : const Color(0xFF64748B)),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
   }
 
 
@@ -275,11 +395,29 @@ class _ShopScreenState extends State<ShopScreen> {
   // WIDGET KARTU MERCHANT RESMI
   // ===========================================================================
   Widget _buildStoreCard(Map<String, dynamic> store) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final storeId = store['id'] as String;
-    final isFav = _favoriteStoreIds.contains(storeId);
+    String? tier;
+    if (storeId == 'shop-berkah-fajar' || storeId.contains('telur')) {
+      tier = 'star';
+    }
 
-    return InkWell(
+    final rating = (store['rating'] is num)
+        ? (store['rating'] as num).toDouble()
+        : double.tryParse(store['rating']?.toString() ?? '') ?? 4.9;
+
+    return GageMerchantCard(
+      id: storeId,
+      name: store['name'] ?? '',
+      category: store['category'] ?? 'Sembako',
+      rating: rating,
+      ratingCount: (store['ratingCount'] ?? '50+').toString(),
+      distance: (store['distance'] ?? '1.0 km').toString(),
+      eta: (store['eta'] ?? '15-20 min').toString(),
+      image: (store['image'] ?? 'assets/images/hero_banner_1.png').toString(),
+      tier: tier,
+      promoBadges: const ['Diskon 20%', 'Diskon Ongkir'],
+      isFavorite: _favoriteStoreIds.contains(storeId),
+      onFavoriteTap: () => _toggleFavorite(storeId, store['name']),
       onTap: () {
         Navigator.push(
           context,
@@ -288,104 +426,6 @@ class _ShopScreenState extends State<ShopScreen> {
           ),
         );
       },
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 14),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade200),
-          boxShadow: const [
-            BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Foto Thumbnail Toko
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                width: 84,
-                height: 84,
-                color: Colors.grey.shade100,
-                child: Image.asset(
-                  store['image'] ?? 'assets/images/hero_banner_1.png',
-                  fit: BoxFit.cover,
-                  errorBuilder: (c, e, s) => const Icon(Icons.storefront_rounded, color: Colors.grey, size: 36),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-
-            // Info Toko
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          store['name'] ?? '',
-                          style: const TextStyle(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.bold,
-                            color: GageTheme.textPrimary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      InkWell(
-                        onTap: () => _toggleFavorite(storeId, store['name']),
-                        borderRadius: BorderRadius.circular(10),
-                        child: Padding(
-                          padding: const EdgeInsets.all(4.0),
-                          child: Icon(
-                            isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                            size: 18,
-                            color: isFav ? Colors.red : Colors.grey,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 3),
-                  Row(
-                    children: [
-                      const Icon(Icons.star_rounded, color: Colors.amber, size: 16),
-                      const SizedBox(width: 3),
-                      Text(
-                        '${store['rating'] ?? 4.9} (${store['ratingCount'] ?? '50+'})',
-                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          '• ${store['category'] ?? ''}',
-                          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Text(
-                    '${store['eta'] ?? '15-20 min'} (${store['distance'] ?? '1.0 km'})',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                      fontWeight: FontWeight.normal,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -395,6 +435,7 @@ class _ShopScreenState extends State<ShopScreen> {
   @override
   Widget build(BuildContext context) {
     final bannerManager = context.watch<BannerManagerService>();
+    final cart = context.watch<CartProvider>();
     final shopBanner = bannerManager.getBanner('shop');
 
     final screenWidth = MediaQuery.of(context).size.width;
@@ -405,6 +446,7 @@ class _ShopScreenState extends State<ShopScreen> {
     return Scaffold(
       backgroundColor: isDark ? GageTheme.darkBackground : GageTheme.background,
       body: Stack(
+        fit: StackFit.expand,
         children: [
           // 1. Scrollable Content
           RefreshIndicator(
@@ -452,7 +494,7 @@ class _ShopScreenState extends State<ShopScreen> {
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     const Text(
-                                      'Kategori Belanja Sembako',
+                                      'Kategori',
                                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
                                     ),
                                     if (_selectedCategory != 'Semua')
@@ -471,107 +513,89 @@ class _ShopScreenState extends State<ShopScreen> {
                           const GageSkeletonCircularCategoriesRow(count: 6)
                         else
                           SizedBox(
-                            height: 94,
-                            child: ListView.separated(
+                            height: 196,
+                            child: GridView.builder(
                               padding: const EdgeInsets.symmetric(horizontal: 16),
                               scrollDirection: Axis.horizontal,
+                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 14,
+                                crossAxisSpacing: 12,
+                                childAspectRatio: 1.25,
+                              ),
                               itemCount: _categories.length,
-                              separatorBuilder: (context, index) => const SizedBox(width: 14),
                               itemBuilder: (ctx, idx) {
                                 final cat = _categories[idx];
                                 final name = cat['name'] as String;
                                 final isSel = _selectedCategory == name;
 
                                 return InkWell(
-                                  onTap: () => setState(() => _selectedCategory = name),
+                                  onTap: () {
+                                    HapticFeedback.selectionClick();
+                                    setState(() {
+                                      _selectedCategory = (_selectedCategory == name && name != 'Semua') ? 'Semua' : name;
+                                    });
+                                  },
                                   borderRadius: BorderRadius.circular(16),
-                                  child: SizedBox(
-                                    width: 62,
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Container(
-                                          width: 58,
-                                          height: 58,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            border: Border.all(
-                                              color: isSel ? GageTheme.primary : (isDark ? Colors.grey.shade700 : Colors.grey.shade200),
-                                              width: isSel ? 2.0 : 1.2,
-                                            ),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: isSel ? GageTheme.primary.withValues(alpha: 0.2) : Colors.black12,
-                                                blurRadius: 6,
-                                                offset: const Offset(0, 2),
-                                              ),
-                                            ],
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 56,
+                                        height: 56,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: isSel ? GageTheme.primary : (isDark ? Colors.grey.shade700 : Colors.grey.shade200),
+                                            width: isSel ? 2.5 : 1.2,
                                           ),
-                                          child: ClipOval(
-                                            child: Image.asset(
-                                              cat['image'] as String,
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (c, e, s) => Container(
-                                                color: GageTheme.primaryLight,
-                                                child: Icon(
-                                                  cat['icon'] as IconData? ?? Icons.shopping_basket_rounded,
-                                                  color: GageTheme.primary,
-                                                  size: 26,
-                                                ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: isSel ? GageTheme.primary.withValues(alpha: 0.25) : Colors.black12,
+                                              blurRadius: isSel ? 8 : 4,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: ClipOval(
+                                          child: Image.asset(
+                                            cat['image'] as String,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (c, e, s) => Container(
+                                              color: GageTheme.primaryLight,
+                                              child: Icon(
+                                                cat['icon'] as IconData? ?? Icons.shopping_basket_rounded,
+                                                color: GageTheme.primary,
+                                                size: 26,
                                               ),
                                             ),
                                           ),
                                         ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          name,
-                                          textAlign: TextAlign.center,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: isSel ? FontWeight.bold : FontWeight.w600,
-                                            color: isSel ? GageTheme.primary : (isDark ? Colors.white : GageTheme.textPrimary),
-                                          ),
+                                      ),
+                                      const SizedBox(height: 5),
+                                      Text(
+                                        name,
+                                        textAlign: TextAlign.center,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: isSel ? FontWeight.bold : FontWeight.w600,
+                                          color: isSel ? GageTheme.primary : (isDark ? Colors.white : GageTheme.textPrimary),
                                         ),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
                                 );
                               },
                             ),
                           ),
+                        const SizedBox(height: 16),
+                        _buildRankingSwitch(isDark),
 
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 14),
 
-                        // 5. Header Daftar Toko Merchant Resmi
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                          child: _isLoading
-                              ? const Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    GageSkeletonBox(width: 190, height: 16),
-                                    GageSkeletonBox(width: 80, height: 14),
-                                  ],
-                                )
-                              : Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const Text(
-                                      'Daftar Toko & Minimarket Mitra Resmi',
-                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                                    ),
-                                    Text(
-                                      '${_filteredStores.length} Toko Buka',
-                                      style: const TextStyle(fontSize: 12, color: GageTheme.accentGreen, fontWeight: FontWeight.bold),
-                                    ),
-                                  ],
-                                ),
-                        ),
-                        const SizedBox(height: 10),
-
-                        // 6. List of Store Cards (Responsive Grid saat Tablet)
+                        // 5. List of Store Cards (Responsive Grid saat Tablet)
                         if (_isLoading)
                           ListView.builder(
                             shrinkWrap: true,
@@ -647,11 +671,10 @@ class _ShopScreenState extends State<ShopScreen> {
               );
             },
             onHistoryTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (ctx) => const OrdersScreen()),
-              );
+              GageCartSheet.show(context);
             },
+            actionIcon: Icons.shopping_bag_outlined,
+            actionBadgeCount: cart.items.length,
             searchHint: 'Cari sembako & kebutuhan harian...',
             searchController: _searchController,
             onSearchChanged: (val) => setState(() => _searchQuery = val),

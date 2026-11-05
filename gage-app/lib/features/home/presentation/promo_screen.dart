@@ -385,6 +385,7 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
       },
       child: Scaffold(
         backgroundColor: isDark ? GageTheme.darkBackground : const Color(0xFFF8FAFC),
+        extendBody: true,
         appBar: AppBar(
           title: Text(
             'Voucher & paket voucher',

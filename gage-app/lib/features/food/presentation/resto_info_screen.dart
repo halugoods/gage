@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/gage_theme.dart';
+import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'resto_reviews_screen.dart';
 
 class RestoInfoScreen extends StatelessWidget {
@@ -125,98 +127,117 @@ class RestoInfoScreen extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-                    // Top Row: Alamat & Map Thumbnail (Gambar 5)
-                    Padding(
-                      padding: const EdgeInsets.all(14.0),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  address,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13.5,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    const Icon(Icons.location_on_rounded, size: 15, color: Colors.black54),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '$distance • 50-60 min',
-                                      style: TextStyle(
-                                        fontSize: 12.5,
-                                        color: Colors.grey.shade700,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-
-                          // Thumbnail Visual Google Maps (Gambar 5)
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Container(
-                              width: 76,
-                              height: 76,
-                              color: const Color(0xFFE8ECEF),
-                              child: Stack(
+                    // Top Row: Alamat & Map Thumbnail (Klik untuk Buka Google Maps)
+                    InkWell(
+                      onTap: () => _openGoogleMaps(context),
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                      child: Padding(
+                        padding: const EdgeInsets.all(14.0),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // Road grid texture
-                                  Positioned(
-                                    left: -10,
-                                    top: 36,
-                                    right: -10,
-                                    child: Container(height: 10, color: const Color(0xFFCBD5E1)),
-                                  ),
-                                  Positioned(
-                                    left: 32,
-                                    top: -10,
-                                    bottom: -10,
-                                    child: Container(width: 8, color: const Color(0xFFCBD5E1)),
-                                  ),
-                                  // Red food pin
-                                  Center(
-                                    child: Container(
-                                      padding: const EdgeInsets.all(5),
-                                      decoration: const BoxDecoration(
-                                        color: GageTheme.primary,
-                                        shape: BoxShape.circle,
-                                        boxShadow: [
-                                          BoxShadow(color: Colors.black26, blurRadius: 4),
-                                        ],
-                                      ),
-                                      child: const Icon(Icons.restaurant_rounded, size: 15, color: Colors.white),
+                                  Text(
+                                    address,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13.5,
+                                      color: Colors.black87,
                                     ),
                                   ),
-                                  // Google logo text at bottom
-                                  Positioned(
-                                    left: 4,
-                                    bottom: 3,
-                                    child: Text(
-                                      'Google',
-                                      style: TextStyle(
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.blueGrey.shade700,
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.location_on_rounded, size: 15, color: Colors.black54),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '$distance • 50-60 min',
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          color: Colors.grey.shade700,
+                                          fontWeight: FontWeight.w500,
+                                        ),
                                       ),
-                                    ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.map_rounded, size: 13, color: GageTheme.primary),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Buka di Google Maps ↗',
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          color: GageTheme.primary,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 14),
+
+                            // Thumbnail Visual Google Maps (Gambar 5)
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                width: 76,
+                                height: 76,
+                                color: const Color(0xFFE8ECEF),
+                                child: Stack(
+                                  children: [
+                                    // Road grid texture
+                                    Positioned(
+                                      left: -10,
+                                      top: 36,
+                                      right: -10,
+                                      child: Container(height: 10, color: const Color(0xFFCBD5E1)),
+                                    ),
+                                    Positioned(
+                                      left: 32,
+                                      top: -10,
+                                      bottom: -10,
+                                      child: Container(width: 8, color: const Color(0xFFCBD5E1)),
+                                    ),
+                                    // Red food pin
+                                    Center(
+                                      child: Container(
+                                        padding: const EdgeInsets.all(5),
+                                        decoration: const BoxDecoration(
+                                          color: GageTheme.primary,
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(color: Colors.black26, blurRadius: 4),
+                                          ],
+                                        ),
+                                        child: const Icon(Icons.restaurant_rounded, size: 15, color: Colors.white),
+                                      ),
+                                    ),
+                                    // Google logo text at bottom
+                                    Positioned(
+                                      left: 4,
+                                      bottom: 3,
+                                      child: Text(
+                                        'Google',
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.blueGrey.shade700,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
 
@@ -358,10 +379,30 @@ class RestoInfoScreen extends StatelessWidget {
                   ),
                 ),
               ),
+              const SizedBox(height: 24),
             ],
           ),
         ),
       ),
     );
+  }
+
+  // [PRODUCTION_CONTRACT: Merchant Geo-Location & Driver Routing]
+  // Terhubung ke koordinat titik lokasi merchant saat registrasi di Merchant Portal
+  // Digunakan untuk navigasi pelanggan dan rute penjemputan mitra driver.
+  Future<void> _openGoogleMaps(BuildContext context) async {
+    final query = Uri.encodeComponent('$restoName, $address');
+    final googleMapsUrl = Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
+    try {
+      if (await canLaunchUrl(googleMapsUrl)) {
+        await launchUrl(googleMapsUrl, mode: LaunchMode.externalApplication);
+      } else {
+        await launchUrl(googleMapsUrl);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        GageToast.show(context, 'Membuka Google Maps...', type: GageToastType.info);
+      }
+    }
   }
 }

@@ -207,94 +207,102 @@ class GageFloatingSheet {
                 ),
                 const SizedBox(height: 16),
 
-                // Inset Grouped Container
+                // Form Fields Terpisah per Kontainer
+                // Kontainer 1: Nama Penerima
                 Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                   decoration: BoxDecoration(
                     color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(14),
                     border: Border.all(
                       color: isDark ? const Color(0xFF334155) : Colors.grey.shade200,
                     ),
                   ),
-                  child: Column(
+                  child: Row(
                     children: [
-                      // Input 1: Nama Penerima
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.person_rounded, size: 18, color: GageTheme.primary),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: TextField(
-                                controller: nameCtrl,
-                                style: const TextStyle(fontSize: 13),
-                                decoration: const InputDecoration(
-                                  hintText: 'Nama Penerima (contoh: Bu Ani / Sahabat)',
-                                  hintStyle: TextStyle(fontSize: 12, color: Colors.grey),
-                                  border: InputBorder.none,
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(vertical: 12),
-                                ),
-                              ),
-                            ),
-                          ],
+                      const Icon(Icons.person_rounded, size: 20, color: GageTheme.primary),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: nameCtrl,
+                          style: const TextStyle(fontSize: 13.5),
+                          decoration: const InputDecoration(
+                            hintText: 'Nama Penerima (contoh: Bu Ani / Sahabat)',
+                            hintStyle: TextStyle(fontSize: 12.5, color: Colors.grey),
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(vertical: 12),
+                          ),
                         ),
                       ),
-                      Divider(height: 1, color: isDark ? const Color(0xFF334155) : Colors.grey.shade200),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
 
-                      // Input 2: No WhatsApp
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.phone_android_rounded, size: 18, color: Color(0xFF16A34A)),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: TextField(
-                                controller: phoneCtrl,
-                                keyboardType: TextInputType.phone,
-                                style: const TextStyle(fontSize: 13),
-                                decoration: const InputDecoration(
-                                  hintText: 'No. WhatsApp (contoh: 081234567890)',
-                                  hintStyle: TextStyle(fontSize: 12, color: Colors.grey),
-                                  border: InputBorder.none,
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(vertical: 12),
-                                ),
-                              ),
-                            ),
-                          ],
+                // Kontainer 2: No WhatsApp
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isDark ? const Color(0xFF334155) : Colors.grey.shade200,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.phone_android_rounded, size: 20, color: Color(0xFF16A34A)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: phoneCtrl,
+                          keyboardType: TextInputType.phone,
+                          style: const TextStyle(fontSize: 13.5),
+                          decoration: const InputDecoration(
+                            hintText: 'No. WhatsApp (contoh: 081234567890)',
+                            hintStyle: TextStyle(fontSize: 12.5, color: Colors.grey),
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(vertical: 12),
+                          ),
                         ),
                       ),
-                      Divider(height: 1, color: isDark ? const Color(0xFF334155) : Colors.grey.shade200),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
 
-                      // Input 3: Kartu Ucapan
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Padding(
-                              padding: EdgeInsets.only(top: 2),
-                              child: Icon(Icons.edit_note_rounded, size: 18, color: Colors.amber),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: TextField(
-                                controller: msgCtrl,
-                                maxLines: 2,
-                                style: const TextStyle(fontSize: 13),
-                                decoration: const InputDecoration(
-                                  hintText: 'Pesan / Kartu Ucapan Virtual...',
-                                  hintStyle: TextStyle(fontSize: 12, color: Colors.grey),
-                                  border: InputBorder.none,
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.zero,
-                                ),
-                              ),
-                            ),
-                          ],
+                // Kontainer 3: Kartu Ucapan Virtual
+                Container(
+                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isDark ? const Color(0xFF334155) : Colors.grey.shade200,
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.only(top: 2),
+                        child: Icon(Icons.edit_note_rounded, size: 20, color: Colors.amber),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: msgCtrl,
+                          maxLines: 2,
+                          style: const TextStyle(fontSize: 13.5),
+                          decoration: const InputDecoration(
+                            hintText: 'Pesan / Kartu Ucapan Virtual...',
+                            hintStyle: TextStyle(fontSize: 12.5, color: Colors.grey),
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
                         ),
                       ),
                     ],
@@ -314,7 +322,7 @@ class GageFloatingSheet {
                       return ActionChip(
                         label: Text(chip['label']!, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                         backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.grey.shade100,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                         side: BorderSide(color: isDark ? const Color(0xFF334155) : Colors.grey.shade300, width: 0.8),
                         padding: const EdgeInsets.symmetric(horizontal: 4),
                         visualDensity: VisualDensity.compact,
@@ -338,7 +346,7 @@ class GageFloatingSheet {
                       backgroundColor: GageTheme.primary,
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                     ),
                     onPressed: () {
                       HapticFeedback.lightImpact();
@@ -460,7 +468,7 @@ class GageFloatingSheet {
                   backgroundColor: GageTheme.primary,
                   foregroundColor: Colors.white,
                   elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                 ),
                 onPressed: () {
                   HapticFeedback.lightImpact();
@@ -533,11 +541,12 @@ class GageFloatingSheet {
                 Expanded(
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                      side: const BorderSide(color: Color(0xFFCBD5E1)),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
                     ),
                     onPressed: () => Navigator.pop(sheetContext, false),
-                    child: Text(cancelLabel, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    child: Text(cancelLabel, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -547,8 +556,8 @@ class GageFloatingSheet {
                       backgroundColor: confirmColor,
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
                     ),
                     onPressed: () {
                       HapticFeedback.lightImpact();

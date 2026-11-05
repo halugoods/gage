@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:intl/intl.dart';
@@ -12,7 +13,11 @@ import 'package:gage_app/core/services/osrm_routing_service.dart';
 import 'package:gage_app/providers/driver_order_provider.dart';
 import 'package:gage_app/providers/driver_wallet_provider.dart';
 
-/// Layar Navigasi & Eksekusi Pesanan Aktif Pengemudi (Active Trip Execution)
+/// Layar Perjalanan Aktif Pengemudi (Active Trip Screen)
+/// Dirancang dengan arsitektur 3 Tahap Eksekusi Ergonomis:
+/// - Tahap 1: Menuju Toko -> Tombol "Tiba di Toko"
+/// - Tahap 2: Menunggu Makanan / Verifikasi Barang -> Tombol "Mulai Antar ke Pembeli"
+/// - Tahap 3: Menuju Pembeli -> Tombol "Pesanan Selesai / Konfirmasi Terima Tunai (COD)"
 class ActiveTripScreen extends StatefulWidget {
   final DriverOrderOffer trip;
 
@@ -64,9 +69,12 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
     });
   }
 
+  /// Mengambil rute OSRM riil sesuai tahap aktif
   Future<void> _fetchOsrmRoute() async {
     final orderProv = context.read<DriverOrderProvider>();
-    final target = orderProv.tripStep == 2 ? widget.trip.dropoffLocation : widget.trip.pickupLocation;
+    final target = orderProv.tripStep == 2
+        ? widget.trip.dropoffLocation
+        : widget.trip.pickupLocation;
 
     setState(() => _isLoadingRoute = true);
     final res = await OsrmRoutingService.getRoute(_driverLocation, target);
@@ -91,6 +99,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
   }
 
   Future<void> _openGoogleMapsNavigation(LatLng dest) async {
+    HapticFeedback.lightImpact();
     final uri = Uri.parse('google.navigation:q=${dest.latitude},${dest.longitude}&mode=d');
     final fallbackUri = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=${dest.latitude},${dest.longitude}');
 
@@ -102,11 +111,12 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
   }
 
   Future<void> _openWhatsApp(String phone, String name) async {
+    HapticFeedback.lightImpact();
     var cleanPhone = phone.replaceAll(RegExp(r'\D'), '');
     if (cleanPhone.startsWith('0')) {
       cleanPhone = '62${cleanPhone.substring(1)}';
     }
-    final text = Uri.encodeComponent('Halo $name, saya driver GAGE sedang menuju lokasi Anda.');
+    final text = Uri.encodeComponent('Halo $name, saya kurir GAGE sedang memproses pesanan Anda.');
     final uri = Uri.parse('https://wa.me/$cleanPhone?text=$text');
 
     if (await canLaunchUrl(uri)) {
@@ -115,99 +125,210 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
   }
 
   Future<void> _callPhone(String phone) async {
+    HapticFeedback.lightImpact();
     final uri = Uri.parse('tel:$phone');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     }
   }
 
+  /// Memajukan Tahap Perjalanan dengan Rekonsiliasi Plafon COD & Upah Bersih
   void _handleAdvanceStep() async {
+    HapticFeedback.heavyImpact();
     final orderProv = context.read<DriverOrderProvider>();
     final walletProv = context.read<DriverWalletProvider>();
-    final isDone = await orderProv.advanceTripStep();
 
+    final isDone = await orderProv.advanceTripStep();
     if (!mounted) return;
 
     if (!isDone) {
+      // Masih berlanjut ke tahap berikutnya, segarkan rute OSRM
       _fetchOsrmRoute();
     } else {
-      // Tambahkan saldo komisi bersih ke dompet driver
-      walletProv.addEarnings(widget.trip.driverEarnings);
-
-      // Tampilkan dialog selamat
-      final currency = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.green.shade50,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.check_circle_rounded, color: GageTheme.accentGreen, size: 56),
-              ),
-              const SizedBox(height: 16),
-              const Text('Pesanan Selesai!', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900)),
-              const SizedBox(height: 6),
-              Text(
-                'Komisi bersih ${currency.format(widget.trip.driverEarnings)} telah otomatis masuk ke saldo dompet GAGE Driver Anda.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12.5, color: GageTheme.textSecondary, height: 1.4),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 46,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: GageTheme.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  onPressed: () {
-                    Navigator.pop(ctx); // Close dialog
-                    Navigator.pop(context); // Back to Driver Screen
-                  },
-                  child: const Text('Kembali ke Radar Siaga', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                ),
-              ),
-            ],
-          ),
-        ),
+      // Tahap 3 Selesai -> Rekonsiliasi dompet & plafon COD
+      walletProv.recordTripCompletion(
+        tripId: widget.trip.id,
+        serviceName: widget.trip.serviceName,
+        serviceType: widget.trip.serviceType,
+        storeName: widget.trip.storeName,
+        pickupAddress: widget.trip.pickupAddress,
+        dropoffAddress: widget.trip.dropoffAddress,
+        distanceKm: widget.trip.distanceKm,
+        driverEarnings: widget.trip.driverEarnings,
+        totalDeliveryFare: widget.trip.totalFare,
+        paymentMethod: widget.trip.paymentMethod,
       );
+
+      _showCompletionDialog();
     }
   }
 
+  void _showCompletionDialog() {
+    final currency = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+    final isCash = widget.trip.isCashCod;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        contentPadding: const EdgeInsets.all(22),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: GageTheme.accentGreen.withValues(alpha: 0.14),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.check_circle_rounded, color: GageTheme.accentGreen, size: 60),
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              'Pesanan Selesai!',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 8),
+
+            // Rincian Keuangan Bersih
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Upah Bersih Driver (80%):',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: GageTheme.accentGreen),
+                      ),
+                      Text(
+                        currency.format(widget.trip.driverEarnings),
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: GageTheme.accentGreen),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 16),
+                  if (isCash) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Tunai COD Diterima:',
+                          style: TextStyle(fontSize: 12, color: Colors.black87),
+                        ),
+                        Text(
+                          currency.format(widget.trip.totalFare),
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Bagi Hasil Platform (20%):',
+                          style: TextStyle(fontSize: 11, color: Colors.red),
+                        ),
+                        Text(
+                          '-${currency.format(widget.trip.platformFee)}',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.red),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Plafon COD Fleksibel: Sisa komisi otomatis terpotong dari saldo.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                    ),
+                  ] else ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Metode Pembayaran:',
+                          style: TextStyle(fontSize: 12, color: Colors.black87),
+                        ),
+                        const Text(
+                          'Non-Tunai (GagePay)',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2563EB)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Upah bersih langsung masuk ke saldo dompet Anda.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            SizedBox(
+              width: double.infinity,
+              height: 52, // Tombol besar mudah di-tap
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: GageTheme.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                onPressed: () {
+                  Navigator.pop(ctx); // Tutup dialog
+                  Navigator.pop(context); // Kembali ke root workstation kurir
+                },
+                child: const Text(
+                  'KEMBALI KE RADAR SIAGA',
+                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14.5, letterSpacing: 0.5),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Judul Tahap Perjalanan Aktif
   String _getStepTitle(int step) {
     switch (step) {
       case 0:
-        return '1. Menuju Lokasi Penjemputan';
+        return 'Tahap 1: Menuju Toko';
       case 1:
-        return '2. Tiba di Lokasi (Ambil Pesanan)';
+        return 'Tahap 2: Menunggu Makanan / Verifikasi Barang';
       case 2:
-        return '3. Mengantar ke Alamat Pembeli';
+        return 'Tahap 3: Menuju Pembeli';
       default:
         return 'Pesanan Selesai';
     }
   }
 
-  String _getActionButtonLabel(int step) {
+  /// Label Tombol Aksi Utama Sesuai Spesifikasi Instruksi
+  String _getActionButtonLabel(int step, bool isCash) {
     switch (step) {
       case 0:
-        return 'Konfirmasi: Tiba di Titik Jemput';
+        return 'Tiba di Toko';
       case 1:
-        return 'Konfirmasi: Pesanan Sudah Diterima';
+        return 'Mulai Antar ke Pembeli';
       case 2:
-        return 'Selesaikan Pesanan & Terima Ongkir';
+        return isCash
+            ? 'Pesanan Selesai / Konfirmasi Terima Tunai (COD)'
+            : 'Pesanan Selesai';
       default:
-        return 'Selesai';
+        return 'Pesanan Selesai';
     }
   }
 
@@ -217,8 +338,11 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
     final currentStep = orderProv.tripStep;
     final currency = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isCash = widget.trip.isCashCod;
 
-    final targetLocation = currentStep == 2 ? widget.trip.dropoffLocation : widget.trip.pickupLocation;
+    final targetLocation = currentStep == 2
+        ? widget.trip.dropoffLocation
+        : widget.trip.pickupLocation;
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
@@ -228,22 +352,24 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
           children: [
             Text(widget.trip.serviceName, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
             Text(
-              'ID: ${widget.trip.id}',
+              'Toko: ${widget.trip.storeName}',
               style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.black54),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
         actions: [
           IconButton(
             tooltip: 'Petunjuk Google Maps',
-            icon: const Icon(Icons.directions_outlined, color: GageTheme.primary),
+            icon: const Icon(Icons.directions_outlined, color: GageTheme.primary, size: 26),
             onPressed: () => _openGoogleMapsNavigation(targetLocation),
           ),
         ],
       ),
       body: Column(
         children: [
-          // 1. Peta Rute Navigasi (Interactive FlutterMap)
+          // 1. PETA NAVIGASI RUTE OSRM RIIL
           Expanded(
             flex: 3,
             child: Stack(
@@ -263,7 +389,8 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                       maxZoom: 21.0,
                       fallbackUrl: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     ),
-                    // Polyline rute jalan riil OSRM
+
+                    // Polylines Rute OSRM Riil Jalan Raya
                     PolylineLayer(
                       polylines: [
                         Polyline(
@@ -271,20 +398,24 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                               ? _routePoints
                               : [
                                   _driverLocation,
-                                  currentStep == 2 ? widget.trip.dropoffLocation : widget.trip.pickupLocation,
+                                  currentStep == 2
+                                      ? widget.trip.dropoffLocation
+                                      : widget.trip.pickupLocation,
                                 ],
-                          strokeWidth: 5.0,
+                          strokeWidth: 5.5,
                           color: GageTheme.primary,
                         ),
                       ],
                     ),
+
+                    // Marker Lapisan Peta
                     MarkerLayer(
                       markers: [
                         // Marker GPS Driver Aktual (Bergerak Realtime)
                         Marker(
                           point: _driverLocation,
-                          width: 44,
-                          height: 44,
+                          width: 46,
+                          height: 46,
                           child: Container(
                             decoration: BoxDecoration(
                               color: GageTheme.primary,
@@ -292,29 +423,47 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                               border: Border.all(color: Colors.white, width: 3),
                               boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 8)],
                             ),
-                            child: const Icon(Icons.two_wheeler_rounded, color: Colors.white, size: 22),
+                            child: const Icon(Icons.two_wheeler_rounded, color: Colors.white, size: 24),
                           ),
                         ),
-                        // Titik Jemput
+                        // Marker Toko / Titik Jemput
                         Marker(
                           point: widget.trip.pickupLocation,
-                          width: 40,
-                          height: 40,
-                          child: const Icon(Icons.location_on, color: GageTheme.primary, size: 36),
+                          width: 42,
+                          height: 42,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: const Color(0xFFEA580C), width: 2),
+                              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6)],
+                            ),
+                            child: const Icon(Icons.storefront_rounded, color: Color(0xFFEA580C), size: 20),
+                          ),
                         ),
-                        // Titik Tujuan
+                        // Marker Pembeli / Titik Antar
                         Marker(
                           point: widget.trip.dropoffLocation,
-                          width: 40,
-                          height: 40,
-                          child: const Icon(Icons.flag_circle_rounded, color: GageTheme.accentGreen, size: 36),
+                          width: 42,
+                          height: 42,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: GageTheme.accentGreen, width: 2),
+                              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6)],
+                            ),
+                            child: const Icon(Icons.flag_rounded, color: GageTheme.accentGreen, size: 22),
+                          ),
                         ),
                       ],
                     ),
                   ],
                 ),
 
-                // Floating Step Banner di atas Peta
+                // Step Banner Melayang di Atas Peta
                 Positioned(
                   top: 12,
                   left: 14,
@@ -323,7 +472,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
                       color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(16),
                       boxShadow: const [
                         BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 3)),
                       ],
@@ -332,11 +481,11 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                     child: Row(
                       children: [
                         CircleAvatar(
-                          radius: 14,
+                          radius: 16,
                           backgroundColor: GageTheme.primary,
                           child: Text(
                             '${currentStep + 1}',
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 13),
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -346,20 +495,24 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                             children: [
                               Text(
                                 _getStepTitle(currentStep),
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13.5),
                               ),
                               Text(
                                 _isLoadingRoute
-                                    ? (currentStep == 2 ? widget.trip.dropoffAddress : widget.trip.pickupAddress)
-                                    : '$_routeDistanceKm km (~$_routeDurationMin mnt) • ${currentStep == 2 ? widget.trip.dropoffAddress : widget.trip.pickupAddress}',
+                                    ? (currentStep == 2 ? widget.trip.dropoffAddress : widget.trip.storeName)
+                                    : '$_routeDistanceKm km (~$_routeDurationMin mnt) • ${currentStep == 2 ? widget.trip.dropoffAddress : widget.trip.storeName}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : GageTheme.textSecondary),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isDark ? Colors.white60 : GageTheme.textSecondary,
+                                ),
                               ),
                             ],
                           ),
                         ),
                         IconButton(
+                          tooltip: 'Navigasi Peta',
                           icon: const Icon(Icons.navigation_rounded, color: GageTheme.primary),
                           onPressed: () => _openGoogleMapsNavigation(targetLocation),
                         ),
@@ -371,14 +524,14 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
             ),
           ),
 
-          // 2. Panel Kontrol Navigasi & Info Customer
+          // 2. PANEL KONTROL TAHAP & EKSEKUSI JEMPOL DRIVER
           Container(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1E293B) : Colors.white,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               boxShadow: const [
-                BoxShadow(color: Colors.black12, blurRadius: 14, offset: Offset(0, -4)),
+                BoxShadow(color: Colors.black12, blurRadius: 16, offset: Offset(0, -4)),
               ],
             ),
             child: SafeArea(
@@ -387,14 +540,14 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Profil Customer & Tombol Kontak Cepat
+                  // Profil Pelanggan & Kontak WhatsApp/Telp
                   Row(
                     children: [
                       CircleAvatar(
                         radius: 20,
                         backgroundColor: GageTheme.primary.withValues(alpha: 0.12),
                         child: Text(
-                          widget.trip.customerName.isNotEmpty ? widget.trip.customerName[0] : 'C',
+                          widget.trip.customerName.isNotEmpty ? widget.trip.customerName[0] : 'P',
                           style: const TextStyle(fontWeight: FontWeight.bold, color: GageTheme.primary, fontSize: 16),
                         ),
                       ),
@@ -406,9 +559,11 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                             Text(
                               widget.trip.customerName,
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                             Text(
-                              'Pemesan • ${widget.trip.distanceKm} km',
+                              'Pelanggan GAGE • ${widget.trip.distanceKm.toStringAsFixed(1)} KM',
                               style: TextStyle(fontSize: 11, color: isDark ? Colors.white54 : GageTheme.textSecondary),
                             ),
                           ],
@@ -418,7 +573,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                       IconButton(
                         tooltip: 'Chat WhatsApp',
                         style: IconButton.styleFrom(
-                          backgroundColor: const Color(0xFF25D366).withValues(alpha: 0.12),
+                          backgroundColor: const Color(0xFF25D366).withValues(alpha: 0.14),
                           foregroundColor: const Color(0xFF25D366),
                         ),
                         icon: const Icon(Icons.chat_bubble_rounded, size: 20),
@@ -429,7 +584,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                       IconButton(
                         tooltip: 'Telepon Seluler',
                         style: IconButton.styleFrom(
-                          backgroundColor: Colors.blue.withValues(alpha: 0.12),
+                          backgroundColor: Colors.blue.withValues(alpha: 0.14),
                           foregroundColor: Colors.blue,
                         ),
                         icon: const Icon(Icons.phone_rounded, size: 20),
@@ -438,58 +593,107 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                     ],
                   ),
 
-                  const Divider(height: 20),
+                  // Detail Barang di Tahap 2 (Verifikasi Barang)
+                  if (currentStep == 1) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.amber.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.inventory_2_rounded, size: 14, color: Colors.amber.shade900),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Daftar Barang Pesanan (${widget.trip.storeName}):',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.amber.shade900,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            widget.trip.orderItems.isNotEmpty
+                                ? widget.trip.orderItems.join('\n')
+                                : 'Pesanan reguler sesuai struk resto.',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.brown.shade800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  const Divider(height: 18),
 
                   // Status Pembayaran & Tagihan
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: widget.trip.paymentMethod == 'CASH' ? Colors.orange.shade50 : Colors.blue.shade50,
+                      color: isCash ? Colors.orange.shade50 : Colors.blue.shade50,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          widget.trip.paymentMethod == 'CASH'
+                          isCash
                               ? 'Tagih Tunai ke Pembeli:'
-                              : 'Sudah Bayar via GagePay:',
+                              : 'Status Pembayaran:',
                           style: TextStyle(
                             fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: widget.trip.paymentMethod == 'CASH' ? Colors.orange.shade900 : Colors.blue.shade900,
+                            fontWeight: FontWeight.w700,
+                            color: isCash ? Colors.orange.shade900 : Colors.blue.shade900,
                           ),
                         ),
                         Text(
-                          widget.trip.paymentMethod == 'CASH'
+                          isCash
                               ? currency.format(widget.trip.totalFare)
-                              : 'LUNAS (Non-Tunai)',
+                              : 'LUNAS (GagePay)',
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: 13.5,
                             fontWeight: FontWeight.w900,
-                            color: widget.trip.paymentMethod == 'CASH' ? Colors.orange.shade900 : Colors.blue.shade900,
+                            color: isCash ? Colors.orange.shade900 : Colors.blue.shade900,
                           ),
                         ),
                       ],
                     ),
                   ),
+                  const SizedBox(height: 12),
 
-                  const SizedBox(height: 14),
-
-                  // Tombol Konfirmasi Aksi Per Step
+                  // TOMBOL AKSI UTAMA BESAR (TACTILE ZERO-SLOP JEMPOL MOTOR)
                   SizedBox(
-                    height: 50,
+                    height: 56, // Tombol besar 56px ergonomis jempol motor
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: currentStep == 2 ? GageTheme.accentGreen : GageTheme.primary,
+                        backgroundColor: currentStep == 2
+                            ? (isCash ? const Color(0xFFEA580C) : GageTheme.accentGreen)
+                            : GageTheme.primary,
                         foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
                       onPressed: _handleAdvanceStep,
                       child: Text(
-                        _getActionButtonLabel(currentStep),
-                        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14.5),
+                        _getActionButtonLabel(currentStep, isCash),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 15,
+                          letterSpacing: 0.3,
+                        ),
                       ),
                     ),
                   ),

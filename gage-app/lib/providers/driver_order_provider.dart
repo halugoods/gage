@@ -3,21 +3,22 @@ import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:gage_app/core/network/gage_api_client.dart';
 
-/// Model Tawaran Order Driver (Incoming Order Offer)
+/// Model Tawaran Pesanan Driver (Incoming Order Offer)
 class DriverOrderOffer {
   final String id;
-  final String serviceType; // 'ride', 'car', 'food', 'send', 'shop'
+  final String serviceType; // 'food', 'ride', 'send', 'car', 'shop'
   final String serviceName;
+  final String storeName; // Nama toko / resto mitra
   final String customerName;
   final String customerPhone;
-  final String pickupAddress;
+  final String pickupAddress; // Alamat jemput / toko
   final LatLng pickupLocation;
-  final String dropoffAddress;
+  final String dropoffAddress; // Alamat antar pembeli
   final LatLng dropoffLocation;
-  final int driverEarnings; // Ongkir bersih driver
-  final int totalFare;
-  final double distanceKm;
-  final String paymentMethod; // 'CASH' or 'GAGEPAY'
+  final int driverEarnings; // Upah bersih driver (Eksak 80% dari tarif murni OSRM)
+  final int totalFare; // Tarif murni delivery OSRM (100%)
+  final double distanceKm; // Jarak riil jalan OSRM
+  final String paymentMethod; // 'CASH' (COD) or 'GAGEPAY'
   final List<String> orderItems;
   final String notes;
 
@@ -25,6 +26,7 @@ class DriverOrderOffer {
     required this.id,
     required this.serviceType,
     required this.serviceName,
+    required this.storeName,
     required this.customerName,
     required this.customerPhone,
     required this.pickupAddress,
@@ -38,10 +40,19 @@ class DriverOrderOffer {
     this.orderItems = const [],
     this.notes = '',
   });
+
+  /// Bagi hasil platform (20% dari tarif murni delivery)
+  int get platformFee => totalFare - driverEarnings;
+
+  /// Apakah metode pembayaran ini COD / Tunai
+  bool get isCashCod =>
+      paymentMethod.toUpperCase().contains('CASH') ||
+      paymentMethod.toUpperCase().contains('COD');
 }
 
-/// Provider State Order & Operasional Mitra Pengemudi GAGE Driver
+/// Provider State Order & Workstation Operasional Mitra Pengemudi GAGE Driver
 class DriverOrderProvider extends ChangeNotifier {
+  // Saklar Siap Narik (Online / Offline Toggle)
   bool _isOnline = true;
   bool get isOnline => _isOnline;
 
@@ -54,7 +65,7 @@ class DriverOrderProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Preferensi tipe order yang diaktifkan driver (All-in-One)
+  // Preferensi tipe order yang diaktifkan driver (All-in-One: ride, car, food, send, shop)
   final Set<String> _activeServices = {'ride', 'car', 'food', 'send', 'shop'};
   Set<String> get activeServices => Set.unmodifiable(_activeServices);
 
@@ -62,23 +73,24 @@ class DriverOrderProvider extends ChangeNotifier {
   LatLng _currentLocation = const LatLng(-8.0967, 110.8406);
   LatLng get currentLocation => _currentLocation;
 
-  // Tawaran orderan masuk saat ini (Pop-up Gojek/Grab style)
+  // Radar tawaran pesanan masuk saat ini (Incoming Offer Sheet)
   DriverOrderOffer? _incomingOffer;
   DriverOrderOffer? get incomingOffer => _incomingOffer;
 
-  int _offerCountdown = 20; // 20 detik countdown
+  // Timer countdown terima tawaran: Eksak 30 detik
+  int _offerCountdown = 30;
   int get offerCountdown => _offerCountdown;
   Timer? _countdownTimer;
   Timer? _autoBidTimer;
 
-  // Pesanan yang sedang aktif dijalankan
+  // Pesanan yang sedang aktif dijalankan (Active Trip)
   DriverOrderOffer? _activeTrip;
   DriverOrderOffer? get activeTrip => _activeTrip;
 
-  // Tahap order aktif:
-  // 0: Menuju Titik Jemput / Resto
-  // 1: Tiba di Titik / Resto
-  // 2: Pesanan Diambil / Sedang Antar ke Tujuan
+  // Tahap Layar Perjalanan Aktif:
+  // 0: Tahap 1 - Menuju Toko (Tombol: "Tiba di Toko")
+  // 1: Tahap 2 - Menunggu Makanan / Verifikasi Barang (Tombol: "Mulai Antar ke Pembeli")
+  // 2: Tahap 3 - Menuju Pembeli (Tombol: "Pesanan Selesai / Konfirmasi Terima Tunai (COD)")
   // 3: Selesai
   int _tripStep = 0;
   int get tripStep => _tripStep;
@@ -101,6 +113,11 @@ class DriverOrderProvider extends ChangeNotifier {
     });
   }
 
+  /// Menghitung upah bersih eksak 80% dari tarif murni OSRM
+  static int calculateDriverCleanEarning(int totalFare) {
+    return (totalFare * 0.80).round();
+  }
+
   /// Mengambil pesanan riil dari Cloudflare D1 Backend
   Future<void> fetchAvailableOrdersFromCloud() async {
     if (!_isOnline || _activeTrip != null || _incomingOffer != null) return;
@@ -111,7 +128,6 @@ class DriverOrderProvider extends ChangeNotifier {
         final raw = list.first;
         final rawId = raw['id'] ?? 'ord-${DateTime.now().millisecondsSinceEpoch}';
 
-        // Parse koordinat jemput & antar
         final pickupLat = (raw['merchant_lat'] as num?)?.toDouble() ?? -8.0975;
         final pickupLng = (raw['merchant_lng'] as num?)?.toDouble() ?? 110.8415;
         final dropLat = (raw['delivery_lat'] as num?)?.toDouble() ?? -8.1020;
@@ -120,18 +136,25 @@ class DriverOrderProvider extends ChangeNotifier {
         final rawItems = raw['items'] as List? ?? [];
         final itemNames = rawItems.map((i) => '${i['quantity']}x ${i['name']}').toList();
 
+        final totalFare = (raw['total_amount'] as num?)?.toInt() ?? 10000;
+        // Eksak 80% dari tarif murni
+        final driverCleanCut = (raw['driver_cut'] as num?)?.toInt() ?? calculateDriverCleanEarning(totalFare);
+        final storeName = raw['merchant_name'] ?? 'Resto Mitra Pracimantoro';
+        final pickupAddr = raw['merchant_address'] ?? storeName;
+
         final offer = DriverOrderOffer(
           id: rawId,
           serviceType: 'food',
           serviceName: 'GAGE Food',
+          storeName: storeName,
           customerName: raw['customer_name'] ?? 'Pelanggan GAGE',
           customerPhone: raw['customer_phone'] ?? '081234567890',
-          pickupAddress: raw['merchant_name'] ?? raw['merchant_address'] ?? 'Resto Mitra Pracimantoro',
+          pickupAddress: pickupAddr,
           pickupLocation: LatLng(pickupLat, pickupLng),
           dropoffAddress: raw['delivery_address'] ?? 'Pracimantoro',
           dropoffLocation: LatLng(dropLat, dropLng),
-          driverEarnings: (raw['driver_cut'] as num?)?.toInt() ?? 8000,
-          totalFare: (raw['total_amount'] as num?)?.toInt() ?? 15000,
+          driverEarnings: driverCleanCut,
+          totalFare: totalFare,
           distanceKm: (raw['distance_km'] as num?)?.toDouble() ?? 2.0,
           paymentMethod: raw['payment_method'] ?? 'GAGEPAY',
           orderItems: itemNames.cast<String>(),
@@ -143,6 +166,7 @@ class DriverOrderProvider extends ChangeNotifier {
     } catch (_) {}
   }
 
+  /// Saklar Siap Narik (Online / Offline Toggle)
   void toggleOnline(bool val) {
     _isOnline = val;
     if (!_isOnline) {
@@ -169,7 +193,7 @@ class DriverOrderProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Menerima orderan pop-up
+  /// Menerima tawaran pesanan masuk (Accept incoming offer)
   Future<bool> acceptIncomingOffer() async {
     if (_incomingOffer == null) return false;
 
@@ -178,10 +202,10 @@ class DriverOrderProvider extends ChangeNotifier {
     _incomingOffer = null;
 
     _activeTrip = offer;
-    _tripStep = 0;
+    _tripStep = 0; // Mulai di Tahap 1: Menuju Toko
     notifyListeners();
 
-    // Sync status ke cloud jika terkoneksi
+    // Sinkronisasi status ke backend
     try {
       await GageApiClient.acceptDriverOrder(offer.id, 'drv-syamsul-01');
     } catch (_) {}
@@ -189,7 +213,7 @@ class DriverOrderProvider extends ChangeNotifier {
     return true;
   }
 
-  /// Menolak orderan pop-up atau timeout
+  /// Menolak tawaran pesanan masuk
   void declineIncomingOffer() {
     _dismissIncomingOffer();
   }
@@ -198,11 +222,14 @@ class DriverOrderProvider extends ChangeNotifier {
     _countdownTimer?.cancel();
     _autoBidTimer?.cancel();
     _incomingOffer = null;
-    _offerCountdown = 20;
+    _offerCountdown = 30; // Reset ke 30 detik
     notifyListeners();
   }
 
-  /// Memajukan tahap orderan aktif
+  /// Memajukan tahap perjalanan aktif kurir:
+  /// - Step 0 (Menuju Toko) -> Step 1 (Tiba di Toko / Verifikasi Barang)
+  /// - Step 1 (Verifikasi Barang) -> Step 2 (Mulai Antar ke Pembeli)
+  /// - Step 2 (Menuju Pembeli) -> Step 3 (Pesanan Selesai / COD)
   Future<bool> advanceTripStep() async {
     if (_activeTrip == null) return false;
 
@@ -210,12 +237,11 @@ class DriverOrderProvider extends ChangeNotifier {
       _tripStep += 1;
       notifyListeners();
 
-      // Sync ke backend
       final statusMap = ['AT_MERCHANT', 'PICKED_UP'];
       try {
         await GageApiClient.updateDriverOrderStatus(_activeTrip!.id, statusMap[_tripStep - 1]);
       } catch (_) {}
-      return false; // Belum selesai
+      return false; // Perjalanan belum selesai
     } else {
       // Step 2 -> Step 3 (Selesai Trip)
       _completeCurrentTrip();
@@ -232,6 +258,7 @@ class DriverOrderProvider extends ChangeNotifier {
       'id': trip.id,
       'service': trip.serviceName,
       'serviceType': trip.serviceType,
+      'store': trip.storeName,
       'customer': trip.customerName,
       'earnings': trip.driverEarnings,
       'distance': trip.distanceKm,
@@ -248,7 +275,7 @@ class DriverOrderProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Menampilkan tawaran order masuk dengan countdown timer
+  /// Menampilkan Radar Tawaran Pesanan Masuk dengan Timer Countdown 30 Detik
   void showIncomingOffer(DriverOrderOffer offer) {
     if (!_isOnline || _activeTrip != null) return;
     if (!_activeServices.contains(offer.serviceType)) return;
@@ -256,7 +283,7 @@ class DriverOrderProvider extends ChangeNotifier {
     _countdownTimer?.cancel();
     _autoBidTimer?.cancel();
     _incomingOffer = offer;
-    _offerCountdown = 20;
+    _offerCountdown = 30; // Eksak 30 detik
     notifyListeners();
 
     // Jika Autobid aktif, otomatis terima orderan dalam 1.2 detik (GoPartner Style)
@@ -279,7 +306,15 @@ class DriverOrderProvider extends ChangeNotifier {
   }
 
   /// Simulasi orderan masuk untuk testing unit test & demo offline
-  void triggerMockIncomingOrder({String serviceType = 'food'}) {
+  void triggerMockIncomingOrder({
+    String serviceType = 'food',
+    bool isCash = false,
+  }) {
+    // Tarif murni OSRM: Rp 10.000 untuk jarak 2.5 km
+    const totalFare = 10000;
+    // Eksak 80% dari tarif murni OSRM = Rp 8.000
+    final driverCleanEarnings = calculateDriverCleanEarning(totalFare);
+
     final offer = DriverOrderOffer(
       id: 'mock-${DateTime.now().millisecondsSinceEpoch}',
       serviceType: serviceType,
@@ -292,19 +327,27 @@ class DriverOrderProvider extends ChangeNotifier {
                   : serviceType == 'shop'
                       ? 'GAGE Shop'
                       : 'GAGE Send',
+      storeName: serviceType == 'food'
+          ? 'Mie Ayam & Bakso Pak Man (Pracimantoro)'
+          : serviceType == 'ride'
+              ? 'Pangkalan Ojek Terminal Pracimantoro'
+              : serviceType == 'shop'
+                  ? 'Toko Sembako Berkah Pracimantoro'
+                  : 'Kios Pupuk Sumber Rejeki',
       customerName: 'Budi Santoso',
       customerPhone: '081234567890',
-      pickupAddress: 'Resto Mitra Pracimantoro',
+      pickupAddress: 'Jl. Raya Pracimantoro-Wonogiri KM 1, Pracimantoro',
       pickupLocation: const LatLng(-8.0975, 110.8415),
-      dropoffAddress: 'Pasar Pracimantoro',
+      dropoffAddress: 'Dusun Sambiroto RT 02/03, Pracimantoro',
       dropoffLocation: const LatLng(-8.1020, 110.8490),
-      driverEarnings: 8000,
-      totalFare: 10000,
-      distanceKm: 2.0,
-      paymentMethod: 'GAGEPAY',
-      orderItems: const ['1x Nasi Goreng Spesial'],
-      notes: 'Dekat gapura masuk',
+      driverEarnings: driverCleanEarnings,
+      totalFare: totalFare,
+      distanceKm: 2.5,
+      paymentMethod: isCash ? 'CASH' : 'GAGEPAY',
+      orderItems: const ['1x Mie Ayam Jumbo Komplit', '1x Es Teh Manis'],
+      notes: 'Rumah cat hijau dekat gapura masuk dusun',
     );
+
     showIncomingOffer(offer);
   }
 

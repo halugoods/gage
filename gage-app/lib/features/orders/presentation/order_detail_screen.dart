@@ -657,7 +657,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       case 'GAGEPAY':
         return 'GAGE Pay';
       case 'QRIS':
-        return 'QRIS Dinamis';
+        return 'QRIS';
       case 'CASH_COD':
         return 'Tunai (COD)';
       default:

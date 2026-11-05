@@ -19,6 +19,11 @@ binding = "DB"
 database_name = "gage-db"
 database_id = "95067e5c-bff5-41fb-b4ea-e5170412caf9"
 
+# ── Cloudflare R2 Bucket for Chat Media & Uploads ────────────────
+[[r2_buckets]]
+binding = "MEDIA_BUCKET"
+bucket_name = "gage-chat-media"
+
 # ── Environment Variables ──────────────────────────────────────
 [vars]
 GAGE_ENV = "production"

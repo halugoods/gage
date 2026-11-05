@@ -4,11 +4,12 @@ import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/providers/auth_provider.dart';
 import 'package:gage_app/providers/wallet_provider.dart';
+import 'package:gage_app/providers/cart_provider.dart';
 import 'package:gage_app/features/home/presentation/widgets/gage_home_header.dart';
 import 'package:gage_app/features/home/presentation/widgets/floating_wallet_card.dart';
 import 'package:gage_app/features/home/presentation/widgets/gage_service_grid.dart';
 import 'package:gage_app/features/home/presentation/widgets/promo_carousel.dart';
-import 'package:gage_app/features/home/presentation/widgets/hemat_resto_list.dart';
+import 'package:gage_app/features/home/presentation/widgets/home_merchant_showcase_section.dart';
 import 'package:gage_app/features/home/presentation/widgets/smart_search_sheet.dart';
 import 'package:gage_app/features/food/presentation/food_explore_screen.dart';
 import 'package:gage_app/features/profile/presentation/profile_screen.dart';
@@ -98,6 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      extendBody: true,
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -144,15 +146,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
                       const SizedBox(height: 16),
 
-                      // 4. Katalog Resto Unggulan Terdekat
-                      HematRestoList(
-                        merchants: _merchants,
+                      // 4. Empat Section Layanan Utama: Kuliner, Sembako, Tani & Ternak, Bahan Bangunan
+                      HomeMerchantShowcaseSection(
+                        foodMerchants: _merchants,
                         isLoading: _isLoadingMerchants,
                       ),
                     ],
                   ),
 
-                  const SizedBox(height: 24),
+                  // Breathing room di bawah feed agar kartu terakhir tidak tertutup floating navbar / cart
+                  Consumer<CartProvider>(
+                    builder: (context, cart, _) {
+                      return SizedBox(
+                        height: cart.totalItemCount > 0 ? 170 : 100,
+                      );
+                    },
+                  ),
                 ],
               ),
             ),
@@ -169,17 +178,27 @@ class _HomeScreenState extends State<HomeScreen> {
               onProfileTap: _navigateToProfile,
             ),
           ),
-
-          // 3. Floating Cart Melayang tepat di atas Navbar
-          const Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: SeamlessFloatingCartBar(),
-          ),
         ],
       ),
-      bottomNavigationBar: const GageBottomNavBar(currentIndex: 0),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 3. Floating Cart Melayang tepat berdampingan vertikal di atas Floating Navbar (Gap 6px)
+          Consumer<CartProvider>(
+            builder: (context, cart, _) {
+              if (cart.totalItemCount <= 0) return const SizedBox.shrink();
+              return const Padding(
+                padding: EdgeInsets.only(bottom: 6),
+                child: SeamlessFloatingCartBar(
+                  bottomPadding: 0,
+                  useSafeArea: false,
+                ),
+              );
+            },
+          ),
+          const GageBottomNavBar(currentIndex: 0),
+        ],
+      ),
     );
   }
 }

@@ -6,7 +6,7 @@ import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/chat/providers/in_app_chat_provider.dart';
 import 'package:gage_app/core/services/banner_manager_service.dart';
 import 'package:gage_app/providers/merchant_order_provider.dart';
-import 'package:gage_app/features/merchant/presentation/merchant_screen.dart';
+import 'package:gage_app/features/merchant/presentation/merchant_root_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,10 +42,10 @@ class GageMerchantApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'GAGE Merchant',
+      title: 'GAGE Merchant - Mitra Usaha',
       debugShowCheckedModeBanner: false,
       theme: GageTheme.lightTheme,
-      home: const MerchantScreen(),
+      home: const MerchantRootScreen(),
     );
   }
 }

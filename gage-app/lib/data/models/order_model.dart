@@ -1,3 +1,22 @@
+typedef MerchantOrder = OrderModel;
+typedef MerchantOrderItem = OrderItemModel;
+
+class MerchantDriverInfo {
+  final String name;
+  final String phone;
+  final String plateNumber;
+  final String pin;
+  final String? avatarUrl;
+
+  const MerchantDriverInfo({
+    required this.name,
+    required this.phone,
+    required this.plateNumber,
+    required this.pin,
+    this.avatarUrl,
+  });
+}
+
 class OrderModel {
   final String id;
   final String orderNumber;
@@ -24,6 +43,7 @@ class OrderModel {
   final double distanceKm;
   final String trackingToken;
   final String? qrisString;
+  final int? qrisUniqueCode;
   final List<OrderItemModel> items;
   final int createdAt;
   final String? notes;
@@ -59,6 +79,7 @@ class OrderModel {
     required this.distanceKm,
     required this.trackingToken,
     this.qrisString,
+    this.qrisUniqueCode,
     this.items = const [],
     required this.createdAt,
     this.notes,
@@ -70,6 +91,18 @@ class OrderModel {
   });
 
   bool get isActive => !['COMPLETED', 'CANCELLED'].contains(status);
+
+  String get stage => status;
+  String? get kitchenNote => notes;
+
+  MerchantDriverInfo? get driver => (driverName != null && driverName!.isNotEmpty)
+      ? MerchantDriverInfo(
+          name: driverName!,
+          phone: driverPhone ?? '081234567890',
+          plateNumber: driverPlate ?? 'AD 4120 U',
+          pin: orderNumber.replaceAll(RegExp(r'[^0-9]'), '').padLeft(4, '0').substring(0, 4),
+        )
+      : null;
 
   String get statusLabel {
     switch (status) {
@@ -114,6 +147,7 @@ class OrderModel {
     int? refundAmount,
     int? autoAcceptSecondsRemaining,
     String? channel,
+    int? qrisUniqueCode,
   }) {
     return OrderModel(
       id: id,
@@ -141,6 +175,7 @@ class OrderModel {
       distanceKm: distanceKm,
       trackingToken: trackingToken,
       qrisString: qrisString,
+      qrisUniqueCode: qrisUniqueCode ?? this.qrisUniqueCode,
       items: items ?? this.items,
       createdAt: createdAt,
       notes: notes ?? this.notes,
@@ -248,6 +283,7 @@ class OrderModel {
       distanceKm: ((json['distance_km'] ?? 1.5) as num).toDouble(),
       trackingToken: json['tracking_token']?.toString() ?? '',
       qrisString: json['qris_string']?.toString(),
+      qrisUniqueCode: (json['qris_unique_code'] as num?)?.toInt(),
       items: parsedItems,
       createdAt: (json['created_at'] ?? 0) is num ? (json['created_at'] ?? 0).toInt() : int.tryParse(json['created_at'].toString()) ?? 0,
       notes: json['notes']?.toString() ?? json['kitchen_note']?.toString(),
@@ -282,6 +318,8 @@ class OrderItemModel {
     this.merchantName,
     this.isPicked = true,
   });
+
+  String? get variant => notes;
 
   OrderItemModel copyWith({
     String? id,

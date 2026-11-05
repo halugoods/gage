@@ -10,7 +10,8 @@ import 'package:gage_app/shared/widgets/gage_toast.dart';
 /// Floating Bottom Sheet Penarikan Dana GagePay (Withdrawal)
 /// - Menghubungkan ke Bank (BCA, BRI, Mandiri, BNI, Seabank) & E-Wallet (DANA, GoPay, ShopeePay, OVO)
 /// - Biaya admin flat Rp 1.000 (arbitrase transfer gratis via Flip, 100% net profit GAGE)
-/// - Konfirmasi keamanan PIN 6-Digit
+/// - UI Modern: Full-rounded capsule input fields, Modern Bank Selector Card & Interactive Picker Sheet,
+///   PIN verification in GageFloatingSheet, dan stadium action button.
 class GageWithdrawSheet extends StatefulWidget {
   const GageWithdrawSheet({super.key});
 
@@ -36,15 +37,15 @@ class _GageWithdrawSheetState extends State<GageWithdrawSheet> {
   static const int adminFee = 1000;
 
   final List<Map<String, dynamic>> _banks = [
-    {'name': 'BCA', 'type': 'bank', 'color': Color(0xFF005BAC)},
-    {'name': 'BRI', 'type': 'bank', 'color': Color(0xFF00529C)},
-    {'name': 'Mandiri', 'type': 'bank', 'color': Color(0xFF003D79)},
-    {'name': 'BNI', 'type': 'bank', 'color': Color(0xFFE55300)},
-    {'name': 'SeaBank', 'type': 'bank', 'color': Color(0xFFFF5722)},
-    {'name': 'DANA', 'type': 'ewallet', 'color': Color(0xFF118EEA)},
-    {'name': 'GoPay', 'type': 'ewallet', 'color': Color(0xFF00AED6)},
-    {'name': 'ShopeePay', 'type': 'ewallet', 'color': Color(0xFFEE4D2D)},
-    {'name': 'OVO', 'type': 'ewallet', 'color': Color(0xFF4C3494)},
+    {'name': 'BCA', 'type': 'bank', 'color': Color(0xFF005BAC), 'label': 'Bank Central Asia'},
+    {'name': 'BRI', 'type': 'bank', 'color': Color(0xFF00529C), 'label': 'Bank Rakyat Indonesia'},
+    {'name': 'Mandiri', 'type': 'bank', 'color': Color(0xFF003D79), 'label': 'Bank Mandiri'},
+    {'name': 'BNI', 'type': 'bank', 'color': Color(0xFFE55300), 'label': 'Bank Negara Indonesia'},
+    {'name': 'SeaBank', 'type': 'bank', 'color': Color(0xFFFF5722), 'label': 'SeaBank Indonesia'},
+    {'name': 'DANA', 'type': 'ewallet', 'color': Color(0xFF118EEA), 'label': 'Dompet Digital DANA'},
+    {'name': 'GoPay', 'type': 'ewallet', 'color': Color(0xFF00AED6), 'label': 'GoPay Wallet'},
+    {'name': 'ShopeePay', 'type': 'ewallet', 'color': Color(0xFFEE4D2D), 'label': 'ShopeePay Balance'},
+    {'name': 'OVO', 'type': 'ewallet', 'color': Color(0xFF4C3494), 'label': 'OVO Cash'},
   ];
 
   late String _selectedBank;
@@ -55,7 +56,7 @@ class _GageWithdrawSheetState extends State<GageWithdrawSheet> {
   @override
   void initState() {
     super.initState();
-    _selectedBank = _banks.first['name'];
+    _selectedBank = _banks.first['name'] as String;
     _loadSavedAccounts();
   }
 
@@ -103,6 +104,123 @@ class _GageWithdrawSheetState extends State<GageWithdrawSheet> {
     return int.tryParse(_amountCtrl.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
   }
 
+  Map<String, dynamic> get _currentBankObj {
+    return _banks.firstWhere(
+      (b) => b['name'] == _selectedBank,
+      orElse: () => _banks.first,
+    );
+  }
+
+  void _showBankSelectorSheet() {
+    GageFloatingSheet.show(
+      context: context,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: GageTheme.primary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.account_balance_rounded, color: GageTheme.primary, size: 20),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Pilih Rekening Tujuan',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close_rounded, size: 20),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Transfer Bank',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black54),
+          ),
+          const SizedBox(height: 6),
+          ..._banks.where((b) => b['type'] == 'bank').map((b) => _buildBankItem(b)),
+          const SizedBox(height: 12),
+          const Text(
+            'E-Wallet',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black54),
+          ),
+          const SizedBox(height: 6),
+          ..._banks.where((b) => b['type'] == 'ewallet').map((b) => _buildBankItem(b)),
+          const SizedBox(height: 10),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBankItem(Map<String, dynamic> b) {
+    final isSelected = _selectedBank == b['name'];
+    return InkWell(
+      onTap: () {
+        setState(() => _selectedBank = b['name'] as String);
+        Navigator.pop(context);
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFFFEBEE) : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? GageTheme.primary : const Color(0xFFE2E8F0),
+            width: isSelected ? 1.5 : 1.0,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(
+                color: b['color'] as Color,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    b['name'] as String,
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                      color: isSelected ? GageTheme.primary : Colors.black87,
+                    ),
+                  ),
+                  Text(
+                    b['label'] as String,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isSelected ? GageTheme.primary.withValues(alpha: 0.8) : Colors.black54,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (isSelected)
+              const Icon(Icons.check_circle_rounded, color: GageTheme.primary, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _handleWithdraw() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -124,8 +242,8 @@ class _GageWithdrawSheetState extends State<GageWithdrawSheet> {
       return;
     }
 
-    // Tampilkan Verifikasi PIN Keamanan 6-Digit
-    final pinConfirmed = await _showPinVerificationDialog();
+    // Tampilkan Verifikasi PIN Keamanan 6-Digit via GageFloatingSheet
+    final pinConfirmed = await _showPinVerificationSheet();
     if (pinConfirmed != true || !mounted) return;
 
     setState(() => _isLoading = true);
@@ -168,116 +286,131 @@ class _GageWithdrawSheetState extends State<GageWithdrawSheet> {
     }
   }
 
-  // Dialog Verifikasi PIN 6-Digit
-  Future<bool?> _showPinVerificationDialog() {
+  // Verifikasi PIN 6-Digit Berbasis GageFloatingSheet (Bukan Modal Kentang)
+  Future<bool?> _showPinVerificationSheet() {
     String enteredPin = '';
-    return showDialog<bool>(
+    return GageFloatingSheet.show<bool>(
       context: context,
-      barrierDismissible: false,
-      builder: (ctx) => StatefulBuilder(
-        builder: (c, setDialogState) {
-          return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: const Row(
-              children: [
-                Icon(Icons.lock_outline_rounded, color: GageTheme.primary, size: 22),
-                SizedBox(width: 8),
-                Text('Konfirmasi PIN', style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.bold)),
-              ],
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Masukkan 6 digit PIN GagePay Anda untuk mengonfirmasi penarikan dana',
-                  style: TextStyle(fontSize: 12.5, color: Colors.black54),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 18),
-                // 6 Pin Dots
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(6, (idx) {
-                    final isFilled = idx < enteredPin.length;
-                    return Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 5),
-                      width: 14,
-                      height: 14,
-                      decoration: BoxDecoration(
-                        color: isFilled ? GageTheme.primary : Colors.grey.shade200,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: isFilled ? GageTheme.primary : Colors.grey.shade400,
-                        ),
+      child: StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: GageTheme.primary.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.lock_outline_rounded, color: GageTheme.primary, size: 20),
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Konfirmasi PIN GAGEPay',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20),
+                    onPressed: () => Navigator.pop(ctx, false),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Masukkan 6 digit PIN GagePay Anda untuk mengonfirmasi penarikan dana',
+                style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              // 6 PIN Dots
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(6, (idx) {
+                  final isFilled = idx < enteredPin.length;
+                  return Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 6),
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: isFilled ? GageTheme.primary : const Color(0xFFE2E8F0),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isFilled ? GageTheme.primary : const Color(0xFFCBD5E1),
+                        width: 1.5,
                       ),
-                    );
-                  }),
-                ),
-                const SizedBox(height: 20),
-                // Numeric keypad mini
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 8,
-                  alignment: WrapAlignment.center,
-                  children: [
-                    ...List.generate(9, (idx) {
-                      final digit = '${idx + 1}';
-                      return _buildKeypadButton(digit, () {
-                        if (enteredPin.length < 6) {
-                          setDialogState(() => enteredPin += digit);
-                          if (enteredPin.length == 6) {
-                            Future.delayed(const Duration(milliseconds: 200), () {
-                              if (ctx.mounted) Navigator.pop(ctx, true);
-                            });
-                          }
-                        }
-                      });
-                    }),
-                    _buildKeypadButton('Batal', () => Navigator.pop(ctx, false), isAction: true),
-                    _buildKeypadButton('0', () {
+                    ),
+                  );
+                }),
+              ),
+              const SizedBox(height: 24),
+              // Modern Capsule Keypad
+              Wrap(
+                spacing: 16,
+                runSpacing: 10,
+                alignment: WrapAlignment.center,
+                children: [
+                  ...List.generate(9, (idx) {
+                    final digit = '${idx + 1}';
+                    return _buildCapsuleKeypadButton(digit, () {
                       if (enteredPin.length < 6) {
-                        setDialogState(() => enteredPin += '0');
+                        setSheetState(() => enteredPin += digit);
                         if (enteredPin.length == 6) {
                           Future.delayed(const Duration(milliseconds: 200), () {
                             if (ctx.mounted) Navigator.pop(ctx, true);
                           });
                         }
                       }
-                    }),
-                    _buildKeypadButton('⌫', () {
-                      if (enteredPin.isNotEmpty) {
-                        setDialogState(() => enteredPin = enteredPin.substring(0, enteredPin.length - 1));
+                    });
+                  }),
+                  _buildCapsuleKeypadButton('Batal', () => Navigator.pop(ctx, false), isAction: true),
+                  _buildCapsuleKeypadButton('0', () {
+                    if (enteredPin.length < 6) {
+                      setSheetState(() => enteredPin += '0');
+                      if (enteredPin.length == 6) {
+                        Future.delayed(const Duration(milliseconds: 200), () {
+                          if (ctx.mounted) Navigator.pop(ctx, true);
+                        });
                       }
-                    }, isAction: true),
-                  ],
-                ),
-              ],
-            ),
+                    }
+                  }),
+                  _buildCapsuleKeypadButton('⌫', () {
+                    if (enteredPin.isNotEmpty) {
+                      setSheetState(() => enteredPin = enteredPin.substring(0, enteredPin.length - 1));
+                    }
+                  }, isAction: true),
+                ],
+              ),
+              const SizedBox(height: 12),
+            ],
           );
         },
       ),
     );
   }
 
-  Widget _buildKeypadButton(String label, VoidCallback onTap, {bool isAction = false}) {
+  Widget _buildCapsuleKeypadButton(String label, VoidCallback onTap, {bool isAction = false}) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(24),
       child: Container(
-        width: 58,
-        height: 42,
+        width: 64,
+        height: 46,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: isAction ? Colors.grey.shade100 : const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.grey.shade200),
+          color: isAction ? const Color(0xFFF1F5F9) : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
         ),
         child: Text(
           label,
           style: TextStyle(
-            fontSize: isAction ? 12 : 17,
+            fontSize: isAction ? 12.5 : 18,
             fontWeight: FontWeight.bold,
-            color: isAction ? Colors.black54 : Colors.black87,
+            color: isAction ? const Color(0xFF64748B) : Colors.black87,
           ),
         ),
       ),
@@ -290,6 +423,7 @@ class _GageWithdrawSheetState extends State<GageWithdrawSheet> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final amount = _parsedAmount;
     final totalDeduct = amount + (amount > 0 ? adminFee : 0);
+    final bankObj = _currentBankObj;
 
     return Form(
       key: _formKey,
@@ -304,7 +438,7 @@ class _GageWithdrawSheetState extends State<GageWithdrawSheet> {
                 padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
                   color: GageTheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
+                  shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.outbox_rounded, color: GageTheme.primary, size: 22),
               ),
@@ -319,7 +453,7 @@ class _GageWithdrawSheetState extends State<GageWithdrawSheet> {
                     ),
                     Text(
                       'Pencairan ke rekening bank & e-wallet',
-                      style: TextStyle(fontSize: 12, color: Colors.black54),
+                      style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                     ),
                   ],
                 ),
@@ -333,20 +467,20 @@ class _GageWithdrawSheetState extends State<GageWithdrawSheet> {
 
           const SizedBox(height: 14),
 
-          // Saldo Aktif Banner
+          // Saldo Aktif Banner (Rounded 20px)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade300),
+              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
                   'Saldo Tersedia:',
-                  style: TextStyle(fontSize: 12.5, color: Colors.black54, fontWeight: FontWeight.w500),
+                  style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
                 ),
                 Text(
                   currencyFormatter.format(wallet.balance),
@@ -358,7 +492,7 @@ class _GageWithdrawSheetState extends State<GageWithdrawSheet> {
 
           const SizedBox(height: 16),
 
-          // 1. Input Nominal Penarikan
+          // 1. Input Nominal Penarikan (Capsule Pill Rounded 24px)
           const Text(
             'Nominal Penarikan',
             style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
@@ -372,13 +506,22 @@ class _GageWithdrawSheetState extends State<GageWithdrawSheet> {
               prefixText: 'Rp ',
               prefixStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
               hintText: 'Min. 10.000',
-              hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
+              hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13.5),
               filled: true,
               fillColor: isDark ? const Color(0xFF27272A) : const Color(0xFFF8FAFC),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: GageTheme.primary, width: 1.5)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(24),
+                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(24),
+                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(24),
+                borderSide: const BorderSide(color: GageTheme.primary, width: 1.5),
+              ),
             ),
             onChanged: (_) => setState(() {}),
             validator: (val) {
@@ -392,7 +535,7 @@ class _GageWithdrawSheetState extends State<GageWithdrawSheet> {
 
           const SizedBox(height: 8),
 
-          // Quick Amount Chips
+          // Quick Amount Chips (Capsule Pill)
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -421,7 +564,7 @@ class _GageWithdrawSheetState extends State<GageWithdrawSheet> {
                 ),
                 Text(
                   '${_savedAccounts.length} rekening',
-                  style: const TextStyle(fontSize: 11, color: Colors.black54),
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                 ),
               ],
             ),
@@ -441,17 +584,19 @@ class _GageWithdrawSheetState extends State<GageWithdrawSheet> {
 
                   return InkWell(
                     onTap: () => _fillFromSaved(raw),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(20),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: isSelected ? const Color(0xFFFFEBEE) : const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: isSelected ? GageTheme.primary : Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isSelected ? GageTheme.primary : const Color(0xFFE2E8F0),
+                        ),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.account_balance_rounded, size: 14, color: isSelected ? GageTheme.primary : Colors.black54),
+                          Icon(Icons.account_balance_rounded, size: 14, color: isSelected ? GageTheme.primary : const Color(0xFF64748B)),
                           const SizedBox(width: 6),
                           Text(
                             '$bName • $accNum',
@@ -471,63 +616,72 @@ class _GageWithdrawSheetState extends State<GageWithdrawSheet> {
             const SizedBox(height: 14),
           ],
 
-          // 3. Pilihan Bank / E-Wallet
+          // 3. Pilihan Bank / E-Wallet (Modern Selector Card)
           const Text(
             'Bank atau E-Wallet Tujuan',
             style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 6),
-          DropdownButtonFormField<String>(
-            initialValue: _selectedBank,
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: isDark ? const Color(0xFF27272A) : const Color(0xFFF8FAFC),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-            ),
-            items: _banks.map((b) {
-              return DropdownMenuItem<String>(
-                value: b['name'] as String,
-                child: Row(
-                  children: [
-                    Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: b['color'] as Color,
-                        shape: BoxShape.circle,
-                      ),
+          InkWell(
+            onTap: _showBankSelectorSheet,
+            borderRadius: BorderRadius.circular(24),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF27272A) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: bankObj['color'] as Color,
+                      shape: BoxShape.circle,
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${b['name']} (${(b['type'] as String).toUpperCase()})',
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '${bankObj['name']} (${(bankObj['type'] as String).toUpperCase()}) - ${bankObj['label']}',
                       style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
                     ),
-                  ],
-                ),
-              );
-            }).toList(),
-            onChanged: (val) {
-              if (val != null) setState(() => _selectedBank = val);
-            },
+                  ),
+                  const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF64748B)),
+                ],
+              ),
+            ),
           ),
 
           const SizedBox(height: 12),
 
-          // Nomor Rekening / No HP
+          // Nomor Rekening / No HP (Capsule Pill Rounded 24px)
           TextFormField(
             controller: _accountNumberCtrl,
             keyboardType: TextInputType.number,
             style: const TextStyle(fontSize: 13.5),
             decoration: InputDecoration(
               labelText: 'Nomor Rekening / No. HP E-Wallet',
+              labelStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
               hintText: 'Contoh: 1234567890 atau 0851...',
+              hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
               filled: true,
               fillColor: isDark ? const Color(0xFF27272A) : const Color(0xFFF8FAFC),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(24),
+                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(24),
+                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(24),
+                borderSide: const BorderSide(color: GageTheme.primary, width: 1.5),
+              ),
             ),
             validator: (val) {
               if (val == null || val.trim().isEmpty) return 'Nomor rekening wajib diisi';
@@ -537,19 +691,31 @@ class _GageWithdrawSheetState extends State<GageWithdrawSheet> {
 
           const SizedBox(height: 10),
 
-          // Nama Pemilik Rekening
+          // Nama Pemilik Rekening (Capsule Pill Rounded 24px)
           TextFormField(
             controller: _accountHolderCtrl,
             textCapitalization: TextCapitalization.characters,
             style: const TextStyle(fontSize: 13.5),
             decoration: InputDecoration(
               labelText: 'Nama Lengkap Pemilik Rekening',
+              labelStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
               hintText: 'Sesuai buku tabungan / akun e-wallet',
+              hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
               filled: true,
               fillColor: isDark ? const Color(0xFF27272A) : const Color(0xFFF8FAFC),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(24),
+                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(24),
+                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(24),
+                borderSide: const BorderSide(color: GageTheme.primary, width: 1.5),
+              ),
             ),
             validator: (val) {
               if (val == null || val.trim().isEmpty) return 'Nama pemilik rekening wajib diisi';
@@ -568,6 +734,7 @@ class _GageWithdrawSheetState extends State<GageWithdrawSheet> {
                 child: Checkbox(
                   value: _saveAccount,
                   activeColor: GageTheme.primary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                   onChanged: (val) => setState(() => _saveAccount = val ?? true),
                 ),
               ),
@@ -581,20 +748,20 @@ class _GageWithdrawSheetState extends State<GageWithdrawSheet> {
 
           const SizedBox(height: 14),
 
-          // Rincian Biaya Box
+          // Rincian Biaya Box (Rounded 20px)
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
             ),
             child: Column(
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Nominal Dicairkan', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                    const Text('Nominal Dicairkan', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
                     Text(currencyFormatter.format(amount), style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
                   ],
                 ),
@@ -602,16 +769,16 @@ class _GageWithdrawSheetState extends State<GageWithdrawSheet> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Biaya Layanan Admin', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                    const Text('Biaya Layanan Admin', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
                     Text(currencyFormatter.format(adminFee), style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
                   ],
                 ),
                 const SizedBox(height: 6),
-                Row(
+                const Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Estimasi Masuk Rekening', style: TextStyle(fontSize: 12, color: Colors.black54)),
-                    const Text('Maks. 24 Jam (H+1)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF16A34A))),
+                    Text('Estimasi Masuk Rekening', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                    Text('Maks. 24 Jam (H+1)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF16A34A))),
                   ],
                 ),
                 const Divider(height: 16),
@@ -631,17 +798,17 @@ class _GageWithdrawSheetState extends State<GageWithdrawSheet> {
 
           const SizedBox(height: 16),
 
-          // Tombol Konfirmasi Penarikan
+          // Tombol Konfirmasi Penarikan (Full Stadium Pill 28px)
           SizedBox(
             width: double.infinity,
-            height: 48,
+            height: 50,
             child: ElevatedButton(
               onPressed: _isLoading ? null : _handleWithdraw,
               style: ElevatedButton.styleFrom(
                 backgroundColor: GageTheme.primary,
                 foregroundColor: Colors.white,
                 elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
               ),
               child: _isLoading
                   ? const SizedBox(
@@ -664,13 +831,13 @@ class _GageWithdrawSheetState extends State<GageWithdrawSheet> {
     final isSelected = _parsedAmount == amt && amt > 0;
     return InkWell(
       onTap: () => _setPresetAmount(amt),
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(20),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
           color: isSelected ? const Color(0xFFFFEBEE) : const Color(0xFFF1F5F9),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: isSelected ? GageTheme.primary : Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: isSelected ? GageTheme.primary : const Color(0xFFE2E8F0)),
         ),
         child: Text(
           label,

@@ -38,6 +38,9 @@ release_apks/
 audit_dump.json
 .DS_Store
 Thumbs.db
+full_user_snippet.html
+user_html_css_ref.txt
+evidence_gofood_merchant/
 
 # IDE
 .idea/

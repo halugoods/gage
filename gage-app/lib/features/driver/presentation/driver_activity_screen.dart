@@ -8,7 +8,8 @@ import 'package:gage_app/features/driver/presentation/widgets/driver_bottom_nav_
 import 'package:gage_app/features/driver/presentation/active_trip_screen.dart';
 
 class DriverActivityScreen extends StatefulWidget {
-  const DriverActivityScreen({super.key});
+  final bool showBottomNav;
+  const DriverActivityScreen({super.key, this.showBottomNav = false});
 
   @override
   State<DriverActivityScreen> createState() => _DriverActivityScreenState();
@@ -143,7 +144,7 @@ class _DriverActivityScreenState extends State<DriverActivityScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: const DriverBottomNavBar(currentIndex: 1),
+      bottomNavigationBar: widget.showBottomNav ? const DriverBottomNavBar(currentIndex: 1) : null,
     );
   }
 

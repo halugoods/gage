@@ -1,3 +1,5 @@
+// [PRODUCTION_CONTRACT: Merchant Portal Variant & Add-on Synchronization]
+// Terhubung ke konfigurasi varian & topping yang ditentukan merchant pada Merchant Portal
 class CartItemModel {
   final String menuId;
   final String merchantId;
@@ -9,6 +11,8 @@ class CartItemModel {
   final String category;
   final String? imageUrl;
   final String serviceType; // 'food', 'shop', 'tani'
+  final List<String> selectedVariants;
+  final int variantPrice;
 
   CartItemModel({
     required this.menuId,
@@ -21,9 +25,11 @@ class CartItemModel {
     this.category = 'Makanan',
     this.imageUrl,
     this.serviceType = 'food',
+    this.selectedVariants = const [],
+    this.variantPrice = 0,
   });
 
-  int get subtotal => price * quantity;
+  int get subtotal => (price + variantPrice) * quantity;
 
   factory CartItemModel.fromJson(Map<String, dynamic> json) {
     return CartItemModel(
@@ -37,6 +43,8 @@ class CartItemModel {
       category: json['category'] ?? 'Makanan',
       imageUrl: json['image_url'],
       serviceType: json['service_type'] ?? 'food',
+      selectedVariants: (json['selected_variants'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
+      variantPrice: (json['variant_price'] ?? 0) as int,
     );
   }
 
@@ -52,6 +60,8 @@ class CartItemModel {
       'category': category,
       'image_url': imageUrl,
       'service_type': serviceType,
+      'selected_variants': selectedVariants,
+      'variant_price': variantPrice,
     };
   }
 }

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:gage_app/core/network/gage_api_client.dart';
 
 class UserSavedAddress {
   final String id;
@@ -99,6 +100,19 @@ class UserAddressService {
 
     final encoded = json.encode(currentList.map((a) => a.toJson()).toList());
     await prefs.setString(_keyFavorites, encoded);
+
+    // Asinkron simpan ke akun cloud user (Cloudflare D1)
+    try {
+      final sessionStr = prefs.getString('gage_user_session');
+      String userId = 'usr-cust-01';
+      if (sessionStr != null) {
+        final decoded = json.decode(sessionStr);
+        if (decoded is Map && decoded['id'] != null) {
+          userId = decoded['id'].toString();
+        }
+      }
+      GageApiClient.saveUserAddress(userId, address.toJson());
+    } catch (_) {}
   }
 
   /// Menghapus alamat favorit berdasarkan ID

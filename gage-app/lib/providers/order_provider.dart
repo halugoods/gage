@@ -1,6 +1,8 @@
+import 'package:gage_app/core/services/qris_code_service.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:gage_app/core/network/gage_api_client.dart';
+import 'package:gage_app/core/services/gage_pricing_service.dart';
 import 'package:gage_app/data/models/order_model.dart';
 
 class OrderProvider extends ChangeNotifier {
@@ -32,7 +34,7 @@ class OrderProvider extends ChangeNotifier {
         driverName: 'Bambang Haryanto (Beat AD 3912 ABE)',
         driverPlate: 'AD 3912 ABE',
         driverPhone: '081234567891',
-        status: 'COOKING',
+        status: 'ON_DELIVERY',
         paymentMethod: 'GAGEPAY',
         paymentStatus: 'PAID',
         totalAmount: 43000,
@@ -86,7 +88,8 @@ class OrderProvider extends ChangeNotifier {
         status: 'COMPLETED',
         paymentMethod: 'QRIS',
         paymentStatus: 'PAID',
-        totalAmount: 10000,
+        qrisUniqueCode: 42,
+        totalAmount: 10042,
         itemsSubtotal: 9000,
         shippingFee: 0,
         shippingDiscount: 0,
@@ -164,6 +167,13 @@ class OrderProvider extends ChangeNotifier {
   OrderModel? get currentTrackedOrder => _currentTrackedOrder;
   bool get isLoading => _isLoading;
 
+  OrderModel? getOrderById(String id) {
+    return _allOrders.cast<OrderModel?>().firstWhere(
+      (o) => o?.id == id,
+      orElse: () => null,
+    );
+  }
+
   @override
   void dispose() {
     _pollingTimer?.cancel();
@@ -216,6 +226,10 @@ class OrderProvider extends ChangeNotifier {
     required String deliveryAddress,
     String? merchantName,
     int driverTip = 0,
+    String deliveryOption = 'REGULER',
+    int? customShippingFee,
+    int? customAdminFee,
+    int? customItemsSubtotal,
   }) async {
     _isLoading = true;
     notifyListeners();
@@ -252,11 +266,27 @@ class OrderProvider extends ChangeNotifier {
 
     // Fallback lokal jika offline/network timeout: pesanan tetap berhasil
     final now = DateTime.now();
-    final itemsSubtotal = items.fold<int>(0, (sum, i) => sum + ((i['price'] as int? ?? 0) * (i['quantity'] as int? ?? 1)));
-    final shippingFee = (distanceKm <= 2.0 ? 6000 : 6000 + ((distanceKm - 2.0).ceil() * 3000)).toInt();
+    final itemsSubtotal = customItemsSubtotal ??
+        items.fold<int>(0, (sum, i) => sum + ((i['price'] as int? ?? 0) * (i['quantity'] as int? ?? 1)));
+    final shippingFee = customShippingFee ??
+        GagePricingService.calculateCustomerShippingFee(
+          distanceKm: distanceKm,
+          deliveryOption: deliveryOption,
+        );
     final int shippingDiscount = promoCode != null && promoCode.contains('ONGKIR') ? shippingFee : 0;
-    const adminFee = 1000;
-    final totalAmount = itemsSubtotal + (shippingFee - shippingDiscount) + adminFee + driverTip;
+    final adminFee = customAdminFee ??
+        GagePricingService.calculateAdminFee(
+          paymentMethod: paymentMethod,
+        );
+    final foodDiscount = (promoCode == 'DISKON50')
+        ? (itemsSubtotal * 0.5).round().clamp(0, 15000)
+        : (promoCode == 'HEMATAJI' ? 8000 : (promoCode == 'KULINER10' ? 10000 : 0));
+    final int totalAmount = ((itemsSubtotal - foodDiscount).clamp(0, 99999999) +
+            (shippingFee - shippingDiscount).clamp(0, 99999999) +
+            adminFee +
+            driverTip)
+        .clamp(0, 99999999)
+        .toInt();
 
     final fallbackOrder = OrderModel(
       id: 'ord-fd-${now.millisecondsSinceEpoch}',
@@ -307,6 +337,11 @@ class OrderProvider extends ChangeNotifier {
   // Mulai memantau pesanan aktif secara berkala (Auto-refresh status)
   void startTrackingOrder(String orderId) {
     _pollingTimer?.cancel();
+    final local = getOrderById(orderId);
+    if (local != null) {
+      _currentTrackedOrder = local;
+      notifyListeners();
+    }
     _fetchSingleOrder(orderId);
 
     // Refresh setiap 4 detik untuk update status dapur & driver
@@ -341,11 +376,17 @@ class OrderProvider extends ChangeNotifier {
 
   // Update Kemajuan Tahap Pesanan
   Future<bool> updateOrderStage(String orderId, String nextStage) async {
+    if (nextStage == 'COMPLETED' || nextStage == 'CANCELLED') {
+      await QrisCodeService.instance.releaseCode(orderId);
+    }
     return simulateStage(orderId, nextStage);
   }
 
   // Simulasi Kemajuan Tahap Pesanan (Testing status tracker)
   Future<bool> simulateStage(String orderId, String nextStage) async {
+    if (nextStage == 'COMPLETED' || nextStage == 'CANCELLED') {
+      await QrisCodeService.instance.releaseCode(orderId);
+    }
     final success = await GageApiClient.simulateOrderStage(orderId, nextStage);
     if (success) {
       await _fetchSingleOrder(orderId);

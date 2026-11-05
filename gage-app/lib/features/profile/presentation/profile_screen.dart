@@ -1253,6 +1253,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       },
       child: Scaffold(
         backgroundColor: Theme.of(context).brightness == Brightness.dark ? GageTheme.darkBackground : const Color(0xFFF8F9FA),
+        extendBody: true,
         body: RefreshIndicator(
           onRefresh: _refreshProfile,
           color: GageTheme.primary,
@@ -1659,7 +1660,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
       ),
-      bottomNavigationBar: const GageBottomNavBar(currentIndex: 4),
+      bottomNavigationBar: const GageBottomNavBar(currentIndex: 5),
     ),
   );
 }

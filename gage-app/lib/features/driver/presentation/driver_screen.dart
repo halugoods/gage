@@ -28,7 +28,8 @@ import 'package:gage_app/features/driver/presentation/widgets/driver_bottom_nav_
 /// - Top bar minimalis dengan profil, switch Siaga, dan sheet modal pengaturan layanan
 /// - Bottom sheet dashboard dengan tombol Autobid tactile, metrik pendapatan, dan tombol aksi
 class DriverScreen extends StatefulWidget {
-  const DriverScreen({super.key});
+  final bool showBottomNav;
+  const DriverScreen({super.key, this.showBottomNav = false});
 
   @override
   State<DriverScreen> createState() => _DriverScreenState();
@@ -204,8 +205,10 @@ class _DriverScreenState extends State<DriverScreen> with SingleTickerProviderSt
                           width: isChecked ? 1.4 : 1.0,
                         ),
                       ),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
                         leading: Container(
                           padding: const EdgeInsets.all(9),
                           decoration: BoxDecoration(
@@ -236,8 +239,9 @@ class _DriverScreenState extends State<DriverScreen> with SingleTickerProviderSt
                           },
                         ),
                       ),
-                    );
-                  },
+                    ),
+                  );
+                },
                 ),
               ],
 
@@ -466,7 +470,7 @@ class _DriverScreenState extends State<DriverScreen> with SingleTickerProviderSt
             ),
         ],
       ),
-      bottomNavigationBar: const DriverBottomNavBar(currentIndex: 0),
+      bottomNavigationBar: widget.showBottomNav ? const DriverBottomNavBar(currentIndex: 0) : null,
     );
   }
 
@@ -866,6 +870,173 @@ class _DriverScreenState extends State<DriverScreen> with SingleTickerProviderSt
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: 12),
+
+          // ── 3B. KARTU SISTEM PLAFON COD FLEKSIBEL (PRACIMANTORO) ──
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isDark
+                    ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
+                    : [const Color(0xFFFEF3C7), const Color(0xFFFFFBEB)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.35 : 0.6),
+                width: 1.2,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.handshake_rounded, color: Color(0xFFB45309), size: 16),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Sistem Plafon COD Fleksibel',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFFB45309),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFB45309),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text(
+                        'BEBAS DEPOSIT',
+                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Sisa Kuota Terima Order Tunai:',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? Colors.white70 : Colors.brown.shade800,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          currencyFormatter.format(walletProv.availableCodCredit),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                            color: isDark ? Colors.white : const Color(0xFF92400E),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: walletProv.canAcceptCashOrder
+                            ? GageTheme.accentGreen.withValues(alpha: 0.15)
+                            : Colors.red.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        walletProv.canAcceptCashOrder ? 'Plafon Aktif' : 'Limit Penuh',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: walletProv.canAcceptCashOrder ? GageTheme.accentGreen : Colors.red,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Bisa terima order tunai sampai akumulasi komisi minus Rp 100.000 tanpa wajib setor uang muka di awal.',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    color: isDark ? Colors.white60 : Colors.brown.shade600,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // ── 3C. TOMBOL SIMULASI RADAR ORDER (DEMO KURIR PRACIMANTORO) ──
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 42,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFEA580C),
+                      side: const BorderSide(color: Color(0xFFEA580C)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      orderProv.triggerMockIncomingOrder(serviceType: 'food', isCash: true);
+                    },
+                    icon: const Icon(Icons.radar_rounded, size: 16),
+                    label: const Text(
+                      'Tes Order COD (Tunai)',
+                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: SizedBox(
+                  height: 42,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF2563EB),
+                      side: const BorderSide(color: Color(0xFF2563EB)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      orderProv.triggerMockIncomingOrder(serviceType: 'food', isCash: false);
+                    },
+                    icon: const Icon(Icons.bolt_rounded, size: 16),
+                    label: const Text(
+                      'Tes Non-Tunai',
+                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
 

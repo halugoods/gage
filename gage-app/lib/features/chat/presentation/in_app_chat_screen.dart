@@ -1,3 +1,9 @@
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:gage_app/features/chat/presentation/widgets/gage_product_catalog_sheet.dart';
+import 'package:gage_app/features/chat/presentation/widgets/gage_chat_input_bar.dart';
+import 'package:gage_app/features/chat/presentation/widgets/gage_voice_convo_modal.dart';
+import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -109,6 +115,97 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
       _textCtrl.clear();
     }
     _scrollToBottom();
+  }
+
+  void _sendMediaMessage({required String filePath, String? caption}) {
+    final chatProv = context.read<InAppChatProvider>();
+    final senderName = widget.currentRole == 'driver'
+        ? 'Syamsul Maarif (Driver)'
+        : (widget.currentRole == 'merchant' ? 'Dimsum Sewu' : 'Siti Rahmawati');
+
+    chatProv.sendMediaMessage(
+      orderId: widget.orderId,
+      senderId: 'current-user-id',
+      senderRole: widget.currentRole,
+      senderName: senderName,
+      filePath: filePath,
+      caption: caption,
+    );
+    _scrollToBottom();
+  }
+
+  void _sendProductMessage({
+    required String productName,
+    required int price,
+    required String image,
+  }) {
+    final chatProv = context.read<InAppChatProvider>();
+    final senderName = widget.currentRole == 'driver'
+        ? 'Syamsul Maarif (Driver)'
+        : (widget.currentRole == 'merchant' ? 'Dimsum Sewu' : 'Siti Rahmawati');
+
+    chatProv.sendProductMessage(
+      orderId: widget.orderId,
+      senderId: 'current-user-id',
+      senderRole: widget.currentRole,
+      senderName: senderName,
+      productName: productName,
+      productPrice: price,
+      productImage: image,
+    );
+    _scrollToBottom();
+  }
+
+  Future<void> _handleCameraPick() async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1280,
+        maxHeight: 1280,
+        imageQuality: 85,
+      );
+      if (picked != null) {
+        _sendMediaMessage(filePath: picked.path, caption: 'Foto Langsung');
+      }
+    } catch (e) {
+      if (mounted) {
+        GageToast.show(context, 'Tidak dapat membuka kamera: $e', type: GageToastType.warning);
+      }
+    }
+  }
+
+  Future<void> _handleGalleryPick() async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1280,
+        maxHeight: 1280,
+        imageQuality: 85,
+      );
+      if (picked != null) {
+        _sendMediaMessage(filePath: picked.path, caption: 'Foto Galeri');
+      }
+    } catch (e) {
+      if (mounted) {
+        GageToast.show(context, 'Tidak dapat membuka galeri: $e', type: GageToastType.warning);
+      }
+    }
+  }
+
+  void _handleFileCatalog() {
+    GageProductCatalogSheet.show(
+      context,
+      merchantName: widget.recipientName,
+      onProductSelected: (productName, price, image) {
+        _sendProductMessage(
+          productName: productName,
+          price: price,
+          image: image,
+        );
+      },
+    );
   }
 
   @override
@@ -268,6 +365,84 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
                                       ),
                                     ),
                                   ),
+                                if (msg.isImage && msg.mediaUrl != null) ...[
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: msg.mediaUrl!.startsWith('http')
+                                        ? Image.network(
+                                            msg.mediaUrl!,
+                                            width: 180,
+                                            height: 120,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (c, e, s) => const Icon(Icons.broken_image_rounded, size: 36),
+                                          )
+                                        : Image.file(
+                                            File(msg.mediaUrl!),
+                                            width: 180,
+                                            height: 120,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (c, e, s) => const Icon(Icons.image_rounded, size: 36),
+                                          ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                ],
+                                if (msg.isProduct && msg.productName != null) ...[
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    margin: const EdgeInsets.only(bottom: 6),
+                                    decoration: BoxDecoration(
+                                      color: isMe
+                                          ? Colors.white.withValues(alpha: 0.16)
+                                          : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9)),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: msg.productImage != null && msg.productImage!.isNotEmpty
+                                              ? Image.asset(
+                                                  msg.productImage!,
+                                                  width: 40,
+                                                  height: 40,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (c, e, s) => const Icon(Icons.fastfood_rounded, size: 24),
+                                                )
+                                              : const Icon(Icons.storefront_rounded, size: 24),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                msg.productName!,
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: isMe ? Colors.white : (isDark ? Colors.white : Colors.black87),
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              if (msg.productPrice != null)
+                                                Text(
+                                                  NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(msg.productPrice),
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: isMe ? Colors.white70 : GageTheme.primary,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                                 Text(
                                   msg.text,
                                   style: TextStyle(
@@ -343,60 +518,22 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
 
             const SizedBox(height: 6),
 
-            // Input Bar
-            Container(
-              padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                border: Border(
-                  top: BorderSide(
-                    color: isDark ? const Color(0xFF334155) : Colors.grey.shade200,
-                  ),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: TextField(
-                        controller: _textCtrl,
-                        textInputAction: TextInputAction.send,
-                        onSubmitted: (_) => _sendMessage(),
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
-                        ),
-                        decoration: InputDecoration(
-                          hintText: 'Ketik pesan ke ${widget.recipientName}...',
-                          hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade400),
-                          border: InputBorder.none,
-                          isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 11),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  InkWell(
-                    onTap: () => _sendMessage(),
-                    borderRadius: BorderRadius.circular(24),
-                    child: Container(
-                      width: 42,
-                      height: 42,
-                      decoration: const BoxDecoration(
-                        color: GageTheme.primary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.send_rounded, color: Colors.white, size: 19),
-                    ),
-                  ),
-                ],
-              ),
+            // Input Bar Modern (CSS .container-ia-chat style)
+            GageChatInputBar(
+              controller: _textCtrl,
+              hintText: 'Ketik pesan ke ${widget.recipientName}...',
+              onSend: (text) => _sendMessage(text),
+              onVoiceTap: () {
+                GageVoiceConvoModal.show(
+                  context,
+                  onResult: (spokenText) {
+                    _sendMessage(spokenText);
+                  },
+                );
+              },
+              onCameraTap: _handleCameraPick,
+              onGalleryTap: _handleGalleryPick,
+              onFileTap: _handleFileCatalog,
             ),
           ],
         ),

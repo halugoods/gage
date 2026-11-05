@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/food/presentation/shop_screen.dart';
 import 'package:gage_app/features/food/presentation/farm_screen.dart';
@@ -39,7 +40,7 @@ class GageServiceGrid extends StatelessWidget {
     {
       'id': 'shop',
       'name': 'GAGE Shop',
-      'icon': 'assets/icons/ic_mart.png',
+      'icon': 'assets/icons/ic_shop.png',
       'desc': 'Belanja sembako & kebutuhan harian',
     },
     {
@@ -88,6 +89,7 @@ class GageServiceGrid extends StatelessWidget {
 
           return InkWell(
             onTap: () {
+              HapticFeedback.lightImpact();
               final id = item['id'];
               if (id == 'food') {
                 onFoodTap();

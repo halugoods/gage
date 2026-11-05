@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/services/banner_manager_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/food/data/food_categories_data.dart';
 import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
-import 'package:gage_app/features/food/presentation/category_merchant_list_screen.dart';
 import 'package:gage_app/features/food/presentation/all_categories_screen.dart';
 import 'package:gage_app/features/food/presentation/favorite_resto_screen.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -13,11 +13,13 @@ import 'package:latlong2/latlong.dart';
 import 'dart:async';
 import 'package:gage_app/core/services/osm_geocoding_service.dart';
 import 'package:gage_app/core/services/location_service.dart';
-import 'package:gage_app/features/orders/presentation/orders_screen.dart';
 import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
 import 'package:gage_app/shared/widgets/seamless_floating_cart_bar.dart';
 import 'package:gage_app/shared/widgets/gage_service_header.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
+import 'package:gage_app/shared/widgets/gage_merchant_card.dart';
+import 'package:gage_app/shared/widgets/gage_cart_sheet.dart';
+import 'package:gage_app/providers/cart_provider.dart';
 
 class FoodExploreScreen extends StatefulWidget {
   const FoodExploreScreen({super.key});
@@ -31,7 +33,9 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
 
   String _selectedLocation = 'Mendeteksi lokasi...';
-  final String _selectedCategory = 'Semua';
+  String _selectedCategory = 'Semua';
+  late List<FoodCategory> _orderedCategories;
+  String _rankingSwitch = 'Rekomendasi'; // 'Rekomendasi', 'Terlaris', 'Top Rating'
   String _searchQuery = '';
   List<Map<String, dynamic>> _merchants = [];
   bool _isLoading = true;
@@ -42,7 +46,6 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
     _searchCtrl.dispose();
     super.dispose();
   }
-
 
   void _showAddressPicker() {
     LocationPickerSheet.show(
@@ -61,22 +64,13 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
     );
   }
 
-  String _activeFilter = 'Semua';
   final bool _showFavoritesOnly = false;
   final Set<String> _favoriteRestoIds = {'mch-dimsum-01'};
-
-  final List<String> _filterChips = [
-    'Semua',
-    'GAGE Plus',
-    'Di Bawah 10rb',
-    'Terlaris',
-    'Terdekat',
-    'Rating 4.5+',
-  ];
 
   @override
   void initState() {
     super.initState();
+    _orderedCategories = List.from(FoodCategoriesData.allCategories);
     _initUserGpsLocation();
     _loadMerchants();
   }
@@ -191,6 +185,7 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
     return Scaffold(
       backgroundColor: isDark ? GageTheme.darkBackground : Colors.white,
       body: Stack(
+        fit: StackFit.expand,
         children: [
           // 1. Scrollable Content
           RefreshIndicator(
@@ -225,44 +220,7 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
                           // Horizontal Filter Chips
                           _buildFilterChips(),
 
-                          const SizedBox(height: 16),
-
-                          // Section Headline & Daftar Resto Mitra Terdaftar
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                            child: _isLoading
-                                ? const Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      GageSkeletonBox(width: 240, height: 18),
-                                      SizedBox(height: 6),
-                                      GageSkeletonBox(width: 180, height: 13),
-                                    ],
-                                  )
-                                : Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Makan enak buat kamu di Pracimantoro 🍜',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: isDark ? Colors.white : GageTheme.textPrimary,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'Pilihan resto mitra resmi dengan rating terbaik',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                          ),
-
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 14),
 
                           // List Kartu Resto
                           _buildMerchantList(),
@@ -290,11 +248,10 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
                   MaterialPageRoute(builder: (ctx) => const FavoriteRestoScreen()),
                 );
               },
+              actionIcon: Icons.shopping_bag_outlined,
+              actionBadgeCount: context.watch<CartProvider>().items.length,
               onHistoryTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (ctx) => const OrdersScreen()),
-                );
+                GageCartSheet.show(context);
               },
               searchHint: 'Lagi mau mamam apa?',
               searchController: _searchCtrl,
@@ -318,8 +275,6 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
   }
 
   Widget _buildCulinaryCategoriesSection() {
-    final categories = FoodCategoriesData.allCategories;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -337,35 +292,55 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
-                      'Kuliner sesuai seleramu',
+                      'Kategori',
                       style: TextStyle(
-                        fontSize: 15,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: GageTheme.textPrimary,
                       ),
                     ),
-                    InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (c) => const AllCategoriesScreen(),
+                    if (_selectedCategory != 'Semua')
+                      InkWell(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          setState(() => _selectedCategory = 'Semua');
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          child: Text(
+                            'Reset Filter',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: GageTheme.primary,
+                            ),
                           ),
-                        );
-                      },
-                      borderRadius: BorderRadius.circular(8),
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        child: Text(
-                          'Lihat Semua',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: GageTheme.accentGreen,
+                        ),
+                      )
+                    else
+                      InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (c) => const AllCategoriesScreen(),
+                            ),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          child: Text(
+                            'Lihat Semua',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: GageTheme.accentGreen,
+                            ),
                           ),
                         ),
                       ),
-                    ),
                   ],
                 ),
         ),
@@ -374,43 +349,50 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
           const GageSkeletonCircularCategoriesRow(count: 6)
         else
           SizedBox(
-            height: 98,
-            child: ListView.separated(
+            height: 186,
+            child: GridView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               scrollDirection: Axis.horizontal,
-              itemCount: categories.length,
-              separatorBuilder: (context, index) => const SizedBox(width: 14),
+              itemCount: _orderedCategories.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 16,
+                crossAxisSpacing: 10,
+                childAspectRatio: 1.15,
+              ),
               itemBuilder: (ctx, idx) {
-                final cat = categories[idx];
+                final cat = _orderedCategories[idx];
+                final isSelected = _selectedCategory.toLowerCase() == cat.name.toLowerCase();
 
                 return InkWell(
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (c) => CategoryMerchantListScreen(
-                          categoryName: cat.name,
-                        ),
-                      ),
-                    );
+                    HapticFeedback.selectionClick();
+                    setState(() {
+                      if (_selectedCategory == cat.name) {
+                        _selectedCategory = 'Semua';
+                      } else {
+                        _selectedCategory = cat.name;
+                      }
+                    });
                   },
                   borderRadius: BorderRadius.circular(16),
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
-                        width: 58,
-                        height: 58,
+                        width: 56,
+                        height: 56,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: Colors.grey.shade200,
-                            width: 1.2,
+                            color: isSelected ? GageTheme.primary : Colors.grey.shade200,
+                            width: isSelected ? 2.5 : 1.2,
                           ),
-                          boxShadow: const [
+                          boxShadow: [
                             BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 6,
-                              offset: Offset(0, 2),
+                              color: isSelected ? GageTheme.primary.withValues(alpha: 0.35) : Colors.black12,
+                              blurRadius: isSelected ? 8 : 4,
+                              offset: const Offset(0, 2),
                             ),
                           ],
                         ),
@@ -425,14 +407,16 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 5),
                       Text(
                         cat.name,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: GageTheme.textPrimary,
+                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                          color: isSelected ? GageTheme.primary : GageTheme.textPrimary,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -444,54 +428,71 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
     );
   }
 
+  // Switch Filter 3 Opsi: [ Rekomendasi | Terlaris | Top Rating ]
   Widget _buildFilterChips() {
     if (_isLoading) {
       return const Padding(
         padding: EdgeInsets.symmetric(horizontal: 16),
-        child: GageSkeletonCategoryPillsRow(count: 6),
+        child: GageSkeletonCategoryPillsRow(count: 3),
       );
     }
-    return SizedBox(
-      height: 38,
-      child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        scrollDirection: Axis.horizontal,
-        itemCount: _filterChips.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 8),
-        itemBuilder: (ctx, idx) {
-          final label = _filterChips[idx];
-          final isSelected = _activeFilter == label;
 
-          return InkWell(
-            onTap: () {
-              setState(() {
-                _activeFilter = label;
-              });
-            },
-            borderRadius: BorderRadius.circular(20),
-            child: Container(
-              alignment: Alignment.center,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: isSelected ? GageTheme.primary : Colors.grey.shade50,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final options = ['Rekomendasi', 'Terlaris', 'Top Rating'];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        height: 40,
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+        ),
+        child: Row(
+          children: options.map((opt) {
+            final isSelected = _rankingSwitch == opt;
+            return Expanded(
+              child: InkWell(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() => _rankingSwitch = opt);
+                },
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: isSelected ? GageTheme.primary : Colors.grey.shade300,
-                  width: 1,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? GageTheme.primary
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: GageTheme.primary.withValues(alpha: 0.35),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Center(
+                    child: Text(
+                      opt,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                        color: isSelected
+                            ? Colors.white
+                            : (isDark ? Colors.white60 : const Color(0xFF64748B)),
+                      ),
+                    ),
+                  ),
                 ),
               ),
-              child: Text(
-                label,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                  color: isSelected ? Colors.white : GageTheme.textPrimary,
-                ),
-              ),
-            ),
-          );
-        },
+            );
+          }).toList(),
+        ),
       ),
     );
   }
@@ -507,7 +508,8 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
       );
     }
 
-    final filtered = _merchants.where((m) {
+    // 1. Filter dasar: Search query, category, favorite
+    List<Map<String, dynamic>> filtered = _merchants.where((m) {
       final name = (m['name'] ?? '').toString().toLowerCase();
       final cat = (m['category'] ?? '').toString().toLowerCase();
       final q = _searchQuery.toLowerCase();
@@ -522,6 +524,72 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
       return matchesSearch && matchesCat && matchesFavorite;
     }).toList();
 
+    // 2. Terapkan Ranking Switch (_rankingSwitch)
+    switch (_rankingSwitch) {
+      case 'Terlaris':
+        filtered.sort((a, b) {
+          final countA = int.tryParse((a['ratingCount'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+          final countB = int.tryParse((b['ratingCount'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+          return countB.compareTo(countA);
+        });
+        break;
+
+      case 'Top Rating':
+        filtered.sort((a, b) {
+          final ratingA = (a['rating'] is num) ? (a['rating'] as num).toDouble() : double.tryParse(a['rating']?.toString() ?? '') ?? 0.0;
+          final ratingB = (b['rating'] is num) ? (b['rating'] as num).toDouble() : double.tryParse(b['rating']?.toString() ?? '') ?? 0.0;
+          return ratingB.compareTo(ratingA);
+        });
+        break;
+
+      case 'Rekomendasi':
+      default:
+        filtered.sort((a, b) {
+          final isSponsoredA = a['isSponsored'] == true || a['tier'] == 'exclusive' ? 1 : 0;
+          final isSponsoredB = b['isSponsored'] == true || b['tier'] == 'exclusive' ? 1 : 0;
+          if (isSponsoredB != isSponsoredA) return isSponsoredB.compareTo(isSponsoredA);
+          final ratingA = (a['rating'] is num) ? (a['rating'] as num).toDouble() : double.tryParse(a['rating']?.toString() ?? '') ?? 0.0;
+          final ratingB = (b['rating'] is num) ? (b['rating'] as num).toDouble() : double.tryParse(b['rating']?.toString() ?? '') ?? 0.0;
+          return ratingB.compareTo(ratingA);
+        });
+        break;
+    }
+
+    if (filtered.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 32),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.search_off_rounded, size: 48, color: Colors.grey.shade400),
+              const SizedBox(height: 12),
+              Text(
+                _selectedCategory != 'Semua'
+                    ? 'Tidak ada resto untuk kategori "$_selectedCategory"'
+                    : 'Tidak ada resto yang cocok',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Coba pilih kategori lain atau reset pencarian',
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+              ),
+              const SizedBox(height: 14),
+              TextButton(
+                onPressed: () => setState(() {
+                  _selectedCategory = 'Semua';
+                  _searchCtrl.clear();
+                  _searchQuery = '';
+                }),
+                child: const Text('Reset ke Semua Resto', style: TextStyle(color: GageTheme.primary, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -534,10 +602,41 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
   }
 
   Widget _buildRestoCard(Map<String, dynamic> m) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return InkWell(
+    final id = (m['id'] ?? '').toString();
+    String? tier;
+    if (id.contains('rc')) {
+      tier = 'exclusive';
+    } else if (id.contains('dimsum')) {
+      tier = 'star_plus';
+    } else if (id.contains('seblak') || id.contains('bakso')) {
+      tier = 'star';
+    }
+
+    final promoBadges = <String>[];
+    if (m['diskonBadge'] != null) promoBadges.add(m['diskonBadge'].toString());
+    if (m['ongkirBadge'] != null) promoBadges.add(m['ongkirBadge'].toString());
+    if (promoBadges.isEmpty) {
+      promoBadges.addAll(['Diskon 50%', 'Diskon Ongkir']);
+    }
+
+    final rating = (m['rating'] is num)
+        ? (m['rating'] as num).toDouble()
+        : double.tryParse(m['rating']?.toString() ?? '') ?? 4.9;
+
+    return GageMerchantCard(
+      id: id,
+      name: (m['name'] ?? 'Resto Mitra').toString(),
+      category: (m['category'] ?? 'Kuliner').toString(),
+      rating: rating,
+      ratingCount: (m['ratingCount'] ?? '50+').toString(),
+      distance: (m['distance'] ?? '1.2 km').toString(),
+      eta: (m['eta'] ?? '20-30 min').toString(),
+      image: (m['image'] ?? 'assets/images/resto_dimsum_sewu.png').toString(),
+      tier: tier,
+      isSponsored: tier == 'exclusive',
+      campaignBadge: tier == 'exclusive' ? '11.11 RAME RAME' : null,
+      promoBadges: promoBadges,
       onTap: () {
-        // KLIK OUTLET RESTO -> BARU MEMBUKA MENU RESTO
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -545,118 +644,6 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
           ),
         );
       },
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 14),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade200),
-          boxShadow: const [
-            BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Foto Thumbnail Outlet Resto
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                width: 80,
-                height: 80,
-                color: Colors.grey.shade100,
-                child: Image.asset(
-                  m['image'] ?? 'assets/images/resto_dimsum_sewu.png',
-                  fit: BoxFit.cover,
-                  errorBuilder: (c, e, s) => const Icon(Icons.storefront_rounded, color: Colors.grey),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-
-            // Info Resto
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    m['name'] ?? '',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: GageTheme.textPrimary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 3),
-                  Row(
-                    children: [
-                      const Icon(Icons.star_rounded, color: Colors.amber, size: 16),
-                      const SizedBox(width: 3),
-                      Text(
-                        '${m['rating'] ?? 5.0} (${m['ratingCount'] ?? '50+'})',
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          '• ${m['category'] ?? ''}',
-                          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    '${m['eta'] ?? '20-30 min'} (${m['distance'] ?? '1.2 km'})',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                      fontWeight: FontWeight.normal,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  if (m['diskonBadge'] != null)
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFF0F0),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: const Color(0xFFFFCDD2)),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.local_offer_rounded, color: GageTheme.primary, size: 10),
-                              const SizedBox(width: 3),
-                              Text(
-                                m['diskonBadge'],
-                                style: const TextStyle(
-                                  color: GageTheme.primary,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

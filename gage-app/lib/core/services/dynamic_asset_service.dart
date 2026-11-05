@@ -122,7 +122,7 @@ class DynamicAssetService extends ChangeNotifier {
       key: 'grid_menu_shop',
       label: 'Menu: GAGE Shop',
       category: 'Menu Grid Beranda',
-      defaultPath: 'assets/icons/ic_mart.png',
+      defaultPath: 'assets/icons/ic_shop.png',
     );
     _registerSlot(
       key: 'grid_menu_send',

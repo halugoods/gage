@@ -5,7 +5,8 @@ import 'package:gage_app/features/driver/presentation/widgets/driver_bottom_nav_
 import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
 
 class DriverChatListScreen extends StatelessWidget {
-  const DriverChatListScreen({super.key});
+  final bool showBottomNav;
+  const DriverChatListScreen({super.key, this.showBottomNav = false});
 
   final List<Map<String, dynamic>> _chatRooms = const [
     {
@@ -202,7 +203,7 @@ class DriverChatListScreen extends StatelessWidget {
           },
         ),
       ),
-      bottomNavigationBar: const DriverBottomNavBar(currentIndex: 3),
+      bottomNavigationBar: showBottomNav ? const DriverBottomNavBar(currentIndex: 3) : null,
     );
   }
 }

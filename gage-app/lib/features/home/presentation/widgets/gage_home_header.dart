@@ -1,3 +1,5 @@
+import 'package:gage_app/core/services/notification_service.dart';
+import 'package:gage_app/features/notification/presentation/notification_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -5,12 +7,20 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/providers/auth_provider.dart';
 import 'package:gage_app/features/profile/presentation/edit_profile_screen.dart';
-import 'package:gage_app/features/profile/presentation/profile_screen.dart';
-import 'package:gage_app/features/orders/presentation/orders_screen.dart';
-import 'package:gage_app/features/home/presentation/promo_screen.dart';
+import 'package:gage_app/features/profile/presentation/widgets/gage_account_switcher_sheet.dart';
+import 'package:gage_app/data/mock/gage_mock_registry.dart';
 import 'package:gage_app/features/affiliate/presentation/affiliate_hub_screen.dart';
+import 'package:gage_app/features/food/presentation/food_explore_screen.dart';
+import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
+import 'package:gage_app/features/food/presentation/shop_screen.dart';
+import 'package:gage_app/features/food/presentation/shop_store_detail_screen.dart';
+import 'package:gage_app/features/food/presentation/farm_screen.dart';
+import 'package:gage_app/features/food/presentation/build_screen.dart';
+import 'package:gage_app/features/ride/presentation/ride_booking_screen.dart';
+import 'package:gage_app/features/ride/presentation/send_booking_screen.dart';
 import 'package:gage_app/core/services/banner_manager_service.dart';
 import 'package:gage_app/features/admin/presentation/widgets/in_place_banner_editor_sheet.dart';
+import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 
 /// 1. Banner Hero Beranda: 1 banner tunggal 16:9 statis tanpa slide/PageView dan tanpa dots indicator.
 /// Menyatu edge-to-edge dari puncak layar (y = 0) ke bawah status bar.
@@ -142,6 +152,80 @@ class GageHomeHeader extends StatefulWidget {
 }
 
 class _GageHomeHeaderState extends State<GageHomeHeader> {
+  bool _isSearchActive = false;
+  final TextEditingController _searchCtrl = TextEditingController();
+  final FocusNode _searchFocus = FocusNode();
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    _searchFocus.dispose();
+    super.dispose();
+  }
+
+  // Master Directory Pencarian Cerdas (8 Layanan Resmi + Menu Terlaris + Toko/Resto Mitra)
+  // Terpusat di GageMockRegistry [DUMMY_PRODUCTION_TARGET]
+  List<Map<String, dynamic>> get _searchDirectory => GageMockRegistry.getUnifiedSearchDirectory();
+
+  void _onSelectSearchResult(Map<String, dynamic> item) {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _isSearchActive = false;
+      _searchCtrl.clear();
+    });
+    _searchFocus.unfocus();
+
+    final target = item['target'] as String;
+    Widget destination;
+    switch (target) {
+      case 'ride':
+        destination = const RideBookingScreen();
+        break;
+      case 'car':
+        destination = const RideBookingScreen(initialTab: 'car');
+        break;
+      case 'food':
+        destination = const FoodExploreScreen();
+        break;
+      case 'shop':
+        destination = const ShopScreen();
+        break;
+      case 'send':
+        destination = const SendBookingScreen();
+        break;
+      case 'farm':
+        destination = const FarmScreen();
+        break;
+      case 'build':
+        destination = const BuildScreen();
+        break;
+      case 'cuan':
+        destination = const AffiliateHubScreen();
+        break;
+      case 'menu_item':
+        if (item.containsKey('merchant')) {
+          destination = RestoDetailScreen(merchant: item['merchant'] as Map<String, dynamic>);
+        } else if (item.containsKey('store')) {
+          destination = ShopStoreDetailScreen(store: item['store'] as Map<String, dynamic>);
+        } else {
+          destination = const FoodExploreScreen();
+        }
+        break;
+      case 'merchant_food':
+        destination = RestoDetailScreen(merchant: item['merchant'] as Map<String, dynamic>);
+        break;
+      case 'merchant_shop':
+      case 'merchant_farm':
+      case 'merchant_build':
+        destination = ShopStoreDetailScreen(store: item['store'] as Map<String, dynamic>);
+        break;
+      default:
+        destination = const FoodExploreScreen();
+    }
+
+    Navigator.push(context, MaterialPageRoute(builder: (_) => destination));
+  }
+
   @override
   Widget build(BuildContext context) {
     if (widget.scrollController != null) {
@@ -163,15 +247,14 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
         ? widget.scrollController!.offset
         : (widget.scrollOffset ?? 0.0);
 
-    // Fade progress dari 0.0 sampai 1.0 (dalam jarak scroll 70px)
-    final fade = (currentOffset / 70.0).clamp(0.0, 1.0);
+    final fade = _isSearchActive ? 1.0 : (currentOffset / 70.0).clamp(0.0, 1.0);
 
-    // Sesuai Web Audit: gunakan isDark ? GageTheme.darkBackground : Colors.white untuk sticky header
     final stickyBgColor = isDark ? GageTheme.darkBackground : Colors.white;
-    final headerColor = stickyBgColor.withValues(alpha: fade);
+    final headerColor = _isSearchActive
+        ? stickyBgColor
+        : stickyBgColor.withValues(alpha: fade);
 
-    // Dynamic icon brightness status bar
-    final iconBrightness = fade > 0.5
+    final iconBrightness = _isSearchActive || fade > 0.5
         ? (isDark ? Brightness.light : Brightness.dark)
         : Brightness.light;
 
@@ -179,22 +262,24 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
       value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: iconBrightness,
-        statusBarBrightness: fade > 0.5 && !isDark ? Brightness.light : Brightness.dark,
+        statusBarBrightness: (_isSearchActive || fade > 0.5) && !isDark ? Brightness.light : Brightness.dark,
       ),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
         decoration: BoxDecoration(
           color: headerColor,
           borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(16.0 * fade),
+            bottom: Radius.circular(_isSearchActive ? 20.0 : (16.0 * fade)),
           ),
-          boxShadow: fade > 0.05
+          boxShadow: _isSearchActive || fade > 0.05
               ? [
                   BoxShadow(
                     color: isDark
-                        ? Colors.black.withValues(alpha: 0.35 * fade)
-                        : Colors.black.withValues(alpha: 0.08 * fade),
-                    blurRadius: 10 * fade,
-                    offset: Offset(0, 3 * fade),
+                        ? Colors.black.withValues(alpha: 0.35)
+                        : Colors.black.withValues(alpha: _isSearchActive ? 0.12 : (0.08 * fade)),
+                    blurRadius: _isSearchActive ? 16 : (10 * fade),
+                    offset: Offset(0, _isSearchActive ? 5 : (3 * fade)),
                   ),
                 ]
               : null,
@@ -205,88 +290,508 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
           left: 14,
           right: 14,
         ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Baris Atas: Input Search & Avatar Profil
+            Row(
+              children: [
+                if (_isSearchActive) ...[
+                  IconButton(
+                    icon: Icon(
+                      Icons.arrow_back_rounded,
+                      color: isDark ? Colors.white : GageTheme.textPrimary,
+                      size: 22,
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    onPressed: () {
+                      setState(() {
+                        _isSearchActive = false;
+                        _searchCtrl.clear();
+                      });
+                      _searchFocus.unfocus();
+                    },
+                  ),
+                  const SizedBox(width: 6),
+                ],
+
+                // Search Bar Input Interaktif Langsung di Layar (Tanpa Modal Bottom Sheet)
+                Expanded(
+                  child: Container(
+                    height: 42,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? GageTheme.darkSurface
+                          : (_isSearchActive || fade > 0.6 ? Colors.grey.shade100 : Colors.white),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: _isSearchActive
+                            ? GageTheme.primary
+                            : (isDark
+                                ? Colors.white12
+                                : (fade > 0.6 ? Colors.grey.shade300 : Colors.transparent)),
+                        width: _isSearchActive ? 1.4 : 1.0,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: isDark ? Colors.black26 : Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.search_rounded,
+                          color: _isSearchActive ? GageTheme.primary : (isDark ? Colors.white70 : Colors.grey.shade700),
+                          size: 21,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _isSearchActive
+                              ? TextField(
+                                  controller: _searchCtrl,
+                                  focusNode: _searchFocus,
+                                  onChanged: (val) => setState(() {}),
+                                  decoration: const InputDecoration(
+                                    hintText: 'Cari layanan, toko, atau menu...',
+                                    hintStyle: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.normal,
+                                    ),
+                                    border: InputBorder.none,
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                  style: TextStyle(
+                                    color: isDark ? Colors.white : GageTheme.textPrimary,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                )
+                              : InkWell(
+                                  onTap: () {
+                                    HapticFeedback.lightImpact();
+                                    setState(() {
+                                      _isSearchActive = true;
+                                    });
+                                    _searchFocus.requestFocus();
+                                  },
+                                  child: Text(
+                                    'Cari layanan, toko, atau menu...',
+                                    style: TextStyle(
+                                      color: isDark ? Colors.white60 : Colors.grey.shade600,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.normal,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                        ),
+                        if (_isSearchActive && _searchCtrl.text.isNotEmpty)
+                          GestureDetector(
+                            onTap: () => setState(() => _searchCtrl.clear()),
+                            child: const Padding(
+                              padding: EdgeInsets.all(4.0),
+                              child: Icon(Icons.close_rounded, size: 18, color: Colors.grey),
+                            ),
+                          )
+                        else if (!_isSearchActive)
+                          AnimatedBuilder(
+                            animation: NotificationService.instance,
+                            builder: (context, _) {
+                              final hasUnread = NotificationService.instance.hasUnread;
+                              return InkWell(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => const NotificationScreen()),
+                                  );
+                                },
+                                borderRadius: BorderRadius.circular(16),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 2.0),
+                                  child: Stack(
+                                    clipBehavior: Clip.none,
+                                    alignment: Alignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.notifications_outlined,
+                                        size: 21,
+                                        color: isDark ? Colors.white70 : Colors.grey.shade700,
+                                      ),
+                                      if (hasUnread)
+                                        Positioned(
+                                          top: 0,
+                                          right: 0,
+                                          child: Container(
+                                            width: 7.5,
+                                            height: 7.5,
+                                            decoration: const BoxDecoration(
+                                              color: GageTheme.primary,
+                                              shape: BoxShape.circle,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                if (!_isSearchActive) ...[
+                  const SizedBox(width: 10),
+                  // Avatar Profil Pengguna
+                  GestureDetector(
+                    onTap: () => _showProfileDropdownMenu(context, auth, topPadding),
+                    child: Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isDark ? GageTheme.darkSurface : Colors.white,
+                        border: Border.all(
+                          color: isDark ? Colors.white24 : Colors.white,
+                          width: 2,
+                        ),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 1)),
+                        ],
+                      ),
+                      child: ClipOval(
+                        child: user?.avatarUrl != null && user!.avatarUrl!.isNotEmpty
+                            ? Image.network(
+                                user.avatarUrl!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (c, e, s) => Image.asset('assets/images/avatar_user.png', fit: BoxFit.cover),
+                              )
+                            : Image.asset('assets/images/avatar_user.png', fit: BoxFit.cover),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+
+            // Panel Ekspansi Dropdown Pencarian Cerdas ke Bawah
+            if (_isSearchActive) ...[
+              const SizedBox(height: 10),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.52,
+                ),
+                child: _buildSearchResultsList(context, isDark),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchResultsList(BuildContext context, bool isDark) {
+    final query = _searchCtrl.text.trim().toLowerCase();
+
+    if (query.isEmpty) {
+      // Tampilan Awal: Pintasan Cepat & Pencarian Populer (Bebas Gap Putih)
+      return MediaQuery.removePadding(
+        context: context,
+        removeTop: true,
+        removeBottom: true,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.zero,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Pencarian Populer di Pracimantoro',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  'Rocket Chicken',
+                  'Dimsum Sewu',
+                  'Beras C4',
+                  'Pupuk Urea',
+                  'Semen Tiga Roda',
+                  'Ojek Motor',
+                  'Kirim Paket',
+                ].map((keyword) {
+                  return InkWell(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() {
+                        _searchCtrl.text = keyword;
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                          width: 1,
+                        ),
+                      ),
+                      child: Text(
+                        keyword,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white70 : const Color(0xFF334155),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+
+              const SizedBox(height: 14),
+
+              Text(
+                'Layanan Utama',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Builder(
+                builder: (ctx) {
+                  final services = _searchDirectory.where((e) => e['type'] == 'service').take(4).toList();
+                  return MediaQuery.removePadding(
+                    context: ctx,
+                    removeTop: true,
+                    removeBottom: true,
+                    child: ListView.separated(
+                      padding: EdgeInsets.zero,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: services.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 2),
+                      itemBuilder: (ctx, idx) => _buildSearchItemTile(services[idx], isDark),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Tampilan Hasil Pencarian Cerdas dengan Algoritma Relevansi
+    // Menu (150) > Toko / Resto Merchant (90) > Layanan (20) + Bonus Kecocokan Awalan/Kata
+    final scoredMatches = <Map<String, dynamic>>[];
+    for (final item in _searchDirectory) {
+      final t = (item['title'] as String).toLowerCase();
+      final c = (item['category'] as String).toLowerCase();
+      final k = (item['keywords'] as String).toLowerCase();
+      final matchesQuery = t.contains(query) || c.contains(query) || k.contains(query);
+      if (!matchesQuery) continue;
+
+      int score = 0;
+      final type = item['type'] as String;
+      if (type == 'menu') {
+        score += 150;
+      } else if (type == 'merchant') {
+        score += 90;
+      } else if (type == 'service') {
+        score += 20;
+      }
+
+      if (t == query) {
+        score += 120;
+      } else if (t.startsWith(query)) {
+        score += 80;
+      } else if (t.contains(query)) {
+        score += 50;
+      }
+
+      if (c.contains(query)) score += 15;
+      if (k.contains(query)) score += 8;
+
+      scoredMatches.add({
+        ...item,
+        '_score': score,
+      });
+    }
+
+    scoredMatches.sort((a, b) => (b['_score'] as int).compareTo(a['_score'] as int));
+
+    if (scoredMatches.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.search_off_rounded, size: 36, color: Colors.grey.shade400),
+              const SizedBox(height: 8),
+              Text(
+                'Tidak ada layanan atau toko untuk "$query"',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Coba gunakan kata kunci umum seperti motor, ayam, sembako, atau pupuk',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return MediaQuery.removePadding(
+      context: context,
+      removeTop: true,
+      removeBottom: true,
+      child: ListView.separated(
+        padding: EdgeInsets.zero,
+        shrinkWrap: true,
+        itemCount: scoredMatches.length,
+        separatorBuilder: (_, _) => Divider(
+          height: 1,
+          color: isDark ? Colors.white12 : const Color(0xFFF1F5F9),
+        ),
+        itemBuilder: (ctx, idx) {
+          final item = scoredMatches[idx];
+          return _buildSearchItemTile(item, isDark);
+        },
+      ),
+    );
+  }
+
+  Widget _buildSearchItemTile(Map<String, dynamic> item, bool isDark) {
+    final type = item['type'] as String;
+    Widget leadingWidget;
+
+    if (type == 'service') {
+      final iconAsset = item['iconAsset'] as String? ?? 'assets/icons/ic_food.png';
+      leadingWidget = SizedBox(
+        width: 38,
+        height: 38,
+        child: Image.asset(iconAsset, fit: BoxFit.contain),
+      );
+    } else {
+      // Merchant atau Menu: Gambar Asli
+      final imagePath = item['image'] as String? ?? 'assets/images/hero_promo_1.png';
+      leadingWidget = ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: SizedBox(
+          width: 38,
+          height: 38,
+          child: Image.asset(
+            imagePath,
+            fit: BoxFit.cover,
+            errorBuilder: (ctx, err, stack) => Container(
+              color: Colors.grey.shade200,
+              child: const Icon(Icons.storefront_rounded, size: 20, color: Colors.grey),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Type Badge Label
+    String typeLabel;
+    Color typeColor;
+    if (type == 'menu') {
+      typeLabel = 'Menu';
+      typeColor = const Color(0xFFE52320);
+    } else if (type == 'merchant') {
+      typeLabel = 'Toko/Resto';
+      typeColor = const Color(0xFF2563EB);
+    } else {
+      typeLabel = 'Layanan';
+      typeColor = const Color(0xFF16A34A);
+    }
+
+    return InkWell(
+      onTap: () => _onSelectSearchResult(item),
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 7),
         child: Row(
           children: [
-            // Search Bar Putih Solid (Gojek / Tokopedia Style)
+            leadingWidget,
+            const SizedBox(width: 10),
             Expanded(
-              child: InkWell(
-                onTap: widget.onSearchTap,
-                borderRadius: BorderRadius.circular(24),
-                child: Container(
-                  height: 42,
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? GageTheme.darkSurface
-                        : (fade > 0.6 ? Colors.grey.shade100 : Colors.white),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: isDark
-                          ? Colors.white12
-                          : (fade > 0.6 ? Colors.grey.shade300 : Colors.transparent),
-                      width: 1,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: isDark ? Colors.black26 : Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      Icon(
-                        Icons.search_rounded,
-                        color: isDark ? Colors.white70 : Colors.grey.shade700,
-                        size: 21,
-                      ),
-                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Cari layanan, resto, atau makanan...',
+                          item['title'] as String,
                           style: TextStyle(
-                            color: isDark ? Colors.white60 : Colors.grey.shade600,
                             fontSize: 13,
-                            fontWeight: FontWeight.normal,
+                            fontWeight: FontWeight.w700,
+                            color: isDark ? Colors.white : GageTheme.textPrimary,
                           ),
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: typeColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          typeLabel,
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w700,
+                            color: typeColor,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ),
+                  const SizedBox(height: 2),
+                  Text(
+                    item['category'] as String,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
             ),
-            const SizedBox(width: 10),
-
-            // Avatar Profil Pengguna (Ukuran presisi 42x42 sama dengan tinggi search bar)
-            GestureDetector(
-              onTap: () => _showProfileDropdownMenu(context, auth, topPadding),
-              child: Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isDark ? GageTheme.darkSurface : Colors.white,
-                  border: Border.all(
-                    color: isDark ? Colors.white24 : Colors.white,
-                    width: 2,
-                  ),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 1)),
-                  ],
-                ),
-                child: ClipOval(
-                  child: user?.avatarUrl != null && user!.avatarUrl!.isNotEmpty
-                      ? Image.network(
-                          user.avatarUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (c, e, s) => Image.asset('assets/images/avatar_user.png', fit: BoxFit.cover),
-                        )
-                      : Image.asset('assets/images/avatar_user.png', fit: BoxFit.cover),
-                ),
-              ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 11,
+              color: isDark ? Colors.white24 : Colors.grey.shade400,
             ),
           ],
         ),
@@ -391,58 +896,17 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
                         ),
                         Divider(height: 1, color: isDark ? Colors.white12 : Colors.grey.shade200),
 
-                        // 2. Menu Pilihan Langsung ke Screen Terkait (Flat list, no cards, no expand)
+                        // 2. Menu Pilihan Langsung ke Screen Terkait (Ramping & Tanpa Duplikasi)
                         _buildDropdownItem(
                           dialogCtx,
-                          icon: Icons.person_outline_rounded,
-                          title: 'Profil Saya',
-                          onTap: () {
-                            Navigator.pop(dialogCtx);
-                            if (widget.onProfileTap != null) {
-                              widget.onProfileTap!();
-                            } else {
-                              Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
-                            }
-                          },
-                          isDark: isDark,
-                        ),
-                        _buildDropdownItem(
-                          dialogCtx,
-                          icon: Icons.edit_outlined,
+                          icon: Icons.edit_note_rounded,
                           title: 'Edit Data Diri',
                           onTap: () {
                             Navigator.pop(dialogCtx);
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen()));
-                          },
-                          isDark: isDark,
-                        ),
-                        _buildDropdownItem(
-                          dialogCtx,
-                          icon: Icons.receipt_long_outlined,
-                          title: 'Pesanan Saya',
-                          onTap: () {
-                            Navigator.pop(dialogCtx);
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => const OrdersScreen()));
-                          },
-                          isDark: isDark,
-                        ),
-                        _buildDropdownItem(
-                          dialogCtx,
-                          icon: Icons.discount_outlined,
-                          title: 'Promo & Voucher',
-                          onTap: () {
-                            Navigator.pop(dialogCtx);
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => const PromoScreen()));
-                          },
-                          isDark: isDark,
-                        ),
-                        _buildDropdownItem(
-                          dialogCtx,
-                          icon: Icons.monetization_on_outlined,
-                          title: 'GAGE Cuan (Affiliate)',
-                          onTap: () {
-                            Navigator.pop(dialogCtx);
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => const AffiliateHubScreen()));
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                            );
                           },
                           isDark: isDark,
                         ),
@@ -459,6 +923,16 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
                           },
                           isDark: isDark,
                         ),
+                        _buildDropdownItem(
+                          dialogCtx,
+                          icon: Icons.switch_account_rounded,
+                          title: 'Ganti Akun',
+                          onTap: () {
+                            Navigator.pop(dialogCtx);
+                            GageAccountSwitcherSheet.show(context);
+                          },
+                          isDark: isDark,
+                        ),
                         Divider(height: 1, color: isDark ? Colors.white12 : Colors.grey.shade200),
                         _buildDropdownItem(
                           dialogCtx,
@@ -468,24 +942,17 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
                           textColor: Colors.red,
                           onTap: () async {
                             Navigator.pop(dialogCtx);
-                            final confirm = await showDialog<bool>(
+                            final confirm = await GageFloatingSheet.showConfirm(
                               context: context,
-                              builder: (c) => AlertDialog(
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                title: const Text('Konfirmasi Keluar'),
-                                content: const Text('Apakah Anda yakin ingin keluar dari akun GAGE?'),
-                                actions: [
-                                  TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Batal')),
-                                  ElevatedButton(
-                                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-                                    onPressed: () => Navigator.pop(c, true),
-                                    child: const Text('Keluar'),
-                                  ),
-                                ],
-                              ),
+                              title: 'Konfirmasi Keluar',
+                              message: 'Apakah Anda yakin ingin keluar dari akun GAGE?',
+                              confirmLabel: 'Keluar',
+                              cancelLabel: 'Batal',
+                              confirmColor: Colors.red,
+                              icon: Icons.logout_rounded,
                             );
                             if (confirm == true) {
-                              auth.signOut();
+                              await auth.signOut();
                             }
                           },
                           isDark: isDark,

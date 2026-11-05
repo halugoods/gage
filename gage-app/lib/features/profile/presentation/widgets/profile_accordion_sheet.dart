@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/providers/auth_provider.dart';
 import 'package:gage_app/features/profile/presentation/edit_profile_screen.dart';
+import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 
 class ProfileAccordionSheet extends StatefulWidget {
   final VoidCallback? onOpenFullProfile;
@@ -15,11 +16,10 @@ class ProfileAccordionSheet extends StatefulWidget {
   });
 
   static Future<void> show(BuildContext context, {VoidCallback? onOpenFullProfile}) {
-    return showModalBottomSheet(
+    return GageFloatingSheet.show(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => ProfileAccordionSheet(onOpenFullProfile: onOpenFullProfile),
+      child: ProfileAccordionSheet(onOpenFullProfile: onOpenFullProfile),
     );
   }
 
@@ -513,46 +513,19 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
     );
   }
 
-  void _showLogoutDialog(BuildContext context, AuthProvider auth, bool isDark) {
-    showDialog(
+  Future<void> _showLogoutDialog(BuildContext context, AuthProvider auth, bool isDark) async {
+    final confirm = await GageFloatingSheet.showConfirm(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            const Icon(Icons.warning_amber_rounded, color: Colors.red),
-            const SizedBox(width: 8),
-            Text(
-              'Keluar Akun?',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87),
-            ),
-          ],
-        ),
-        content: Text(
-          'Apakah Anda yakin ingin keluar dari akun GAGE ini? Anda dapat masuk kembali kapan saja dengan nomor WhatsApp Anda.',
-          style: TextStyle(fontSize: 13, color: isDark ? Colors.white70 : Colors.black87),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Batal', style: TextStyle(color: isDark ? Colors.white60 : Colors.grey)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            onPressed: () {
-              Navigator.pop(ctx);
-              Navigator.pop(context);
-              auth.signOut();
-            },
-            child: const Text('Keluar'),
-          ),
-        ],
-      ),
+      title: 'Keluar Akun?',
+      message: 'Apakah Anda yakin ingin keluar dari akun GAGE ini? Anda dapat masuk kembali kapan saja dengan nomor WhatsApp Anda.',
+      confirmLabel: 'Keluar',
+      cancelLabel: 'Batal',
+      confirmColor: Colors.red,
+      icon: Icons.logout_rounded,
     );
+    if (confirm == true && context.mounted) {
+      Navigator.pop(context);
+      auth.signOut();
+    }
   }
 }

@@ -2,176 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gage_app/core/network/gage_api_client.dart';
-
-/// Model Pesanan Dapur & Picking Toko untuk Mitra GAGE Merchant
-class MerchantOrder {
-  final String id;
-  final String orderNumber;
-  final String customerName;
-  final String customerPhone;
-  final String channel; // 'food' (Resto/Dimsum Sewu) | 'shop' (Toko Kelontong/Mart)
-  final String stage; // 'NEW' | 'COOKING' | 'READY_FOR_PICKUP' | 'COMPLETED' | 'CANCELLED'
-  final DateTime createdAt;
-  final List<MerchantOrderItem> items;
-  final String? kitchenNote;
-  final int totalAmount;
-  final MerchantDriverInfo? driver;
-  final String deliveryAddress;
-  final int autoAcceptSecondsRemaining;
-
-  MerchantOrder({
-    required this.id,
-    required this.orderNumber,
-    required this.customerName,
-    required this.customerPhone,
-    required this.channel,
-    required this.stage,
-    required this.createdAt,
-    required this.items,
-    this.kitchenNote,
-    required this.totalAmount,
-    this.driver,
-    required this.deliveryAddress,
-    this.autoAcceptSecondsRemaining = 180,
-  });
-
-  MerchantOrder copyWith({
-    String? stage,
-    MerchantDriverInfo? driver,
-    List<MerchantOrderItem>? items,
-    int? autoAcceptSecondsRemaining,
-  }) {
-    return MerchantOrder(
-      id: id,
-      orderNumber: orderNumber,
-      customerName: customerName,
-      customerPhone: customerPhone,
-      channel: channel,
-      stage: stage ?? this.stage,
-      createdAt: createdAt,
-      items: items ?? this.items,
-      kitchenNote: kitchenNote,
-      totalAmount: totalAmount,
-      driver: driver ?? this.driver,
-      deliveryAddress: deliveryAddress,
-      autoAcceptSecondsRemaining: autoAcceptSecondsRemaining ?? this.autoAcceptSecondsRemaining,
-    );
-  }
-
-  factory MerchantOrder.fromMap(Map<String, dynamic> map) {
-    final rawItems = (map['items'] as List?) ?? [];
-    final itemsList = rawItems.map((it) => MerchantOrderItem.fromMap(it as Map<String, dynamic>)).toList();
-
-    MerchantDriverInfo? driverInfo;
-    if (map['driver'] != null && map['driver'] is Map) {
-      driverInfo = MerchantDriverInfo.fromMap(map['driver'] as Map<String, dynamic>);
-    } else if (map['driver_name'] != null) {
-      driverInfo = MerchantDriverInfo(
-        name: map['driver_name'].toString(),
-        phone: map['driver_phone']?.toString() ?? '081234567890',
-        plateNumber: map['driver_plate']?.toString() ?? 'AD 4120 U',
-        pin: map['pickup_pin']?.toString() ?? '1234',
-      );
-    }
-
-    final rawStage = (map['status'] ?? map['stage'] ?? 'PAID').toString().toUpperCase();
-    String normalizedStage = 'NEW';
-    if (rawStage == 'PAID' || rawStage == 'NEW' || rawStage == 'PENDING') {
-      normalizedStage = 'NEW';
-    } else if (rawStage == 'COOKING' || rawStage == 'PREPARING') {
-      normalizedStage = 'COOKING';
-    } else if (rawStage == 'READY_FOR_PICKUP' || rawStage == 'READY') {
-      normalizedStage = 'READY_FOR_PICKUP';
-    } else if (rawStage == 'COMPLETED' || rawStage == 'DELIVERED') {
-      normalizedStage = 'COMPLETED';
-    } else if (rawStage == 'CANCELLED' || rawStage == 'REJECTED') {
-      normalizedStage = 'CANCELLED';
-    }
-
-    final channel = (map['service_type'] ?? map['channel'] ?? 'food').toString().toLowerCase();
-
-    return MerchantOrder(
-      id: map['id']?.toString() ?? 'ord-${DateTime.now().millisecondsSinceEpoch}',
-      orderNumber: map['order_number']?.toString() ?? map['id']?.toString() ?? 'ORD-9021',
-      customerName: map['customer_name']?.toString() ?? 'Pelanggan GAGE',
-      customerPhone: map['customer_phone']?.toString() ?? '081987654321',
-      channel: channel.contains('shop') || channel.contains('mart') ? 'shop' : 'food',
-      stage: normalizedStage,
-      createdAt: map['created_at'] != null
-          ? DateTime.tryParse(map['created_at'].toString()) ?? DateTime.now()
-          : DateTime.now(),
-      items: itemsList,
-      kitchenNote: map['notes']?.toString() ?? map['kitchen_note']?.toString(),
-      totalAmount: (map['total_amount'] ?? map['subtotal'] ?? 0) is num
-          ? (map['total_amount'] ?? map['subtotal'] ?? 0).toInt()
-          : int.tryParse((map['total_amount'] ?? map['subtotal'] ?? 0).toString()) ?? 0,
-      driver: driverInfo,
-      deliveryAddress: map['delivery_address']?.toString() ?? 'Pracimantoro, Wonogiri',
-    );
-  }
-}
-
-class MerchantOrderItem {
-  final String name;
-  final int quantity;
-  final int price;
-  final String? variant;
-  final bool isPicked; // Untuk flow GAGE SHOP / Mart picking
-
-  MerchantOrderItem({
-    required this.name,
-    required this.quantity,
-    required this.price,
-    this.variant,
-    this.isPicked = true,
-  });
-
-  MerchantOrderItem copyWith({bool? isPicked}) {
-    return MerchantOrderItem(
-      name: name,
-      quantity: quantity,
-      price: price,
-      variant: variant,
-      isPicked: isPicked ?? this.isPicked,
-    );
-  }
-
-  factory MerchantOrderItem.fromMap(Map<String, dynamic> map) {
-    return MerchantOrderItem(
-      name: map['name']?.toString() ?? 'Item Pesanan',
-      quantity: (map['quantity'] ?? 1) is num ? (map['quantity'] ?? 1).toInt() : int.tryParse(map['quantity'].toString()) ?? 1,
-      price: (map['price'] ?? 0) is num ? (map['price'] ?? 0).toInt() : int.tryParse(map['price'].toString()) ?? 0,
-      variant: map['variant']?.toString() ?? map['options']?.toString(),
-      isPicked: map['is_picked'] == true || map['is_picked'] == 1 || map['is_picked'] == null,
-    );
-  }
-}
-
-class MerchantDriverInfo {
-  final String name;
-  final String phone;
-  final String plateNumber;
-  final String pin;
-  final String? avatarUrl;
-
-  MerchantDriverInfo({
-    required this.name,
-    required this.phone,
-    required this.plateNumber,
-    required this.pin,
-    this.avatarUrl,
-  });
-
-  factory MerchantDriverInfo.fromMap(Map<String, dynamic> map) {
-    return MerchantDriverInfo(
-      name: map['name']?.toString() ?? 'Driver GAGE',
-      phone: map['phone']?.toString() ?? '081234567890',
-      plateNumber: map['plate']?.toString() ?? map['plate_number']?.toString() ?? 'AD 4120 U',
-      pin: map['pin']?.toString() ?? '1234',
-      avatarUrl: map['avatar_url']?.toString(),
-    );
-  }
-}
+import 'package:gage_app/data/models/order_model.dart';
+export 'package:gage_app/data/models/order_model.dart';
+import 'package:gage_app/features/chat/providers/in_app_chat_provider.dart';
 
 /// Provider Utama GAGE Merchant
 /// Mengelola alur pesanan (GoBiz Aloha Style), status Buka/Tutup, SPP Thermal Printer, dan Out-of-Stock (OOS)
@@ -180,41 +13,56 @@ class MerchantOrderProvider extends ChangeNotifier {
   bool _autoAccept = true;
   bool _printerConnected = true;
   bool _isLoading = false;
-  String _selectedStageFilter = 'SEMUA'; // 'SEMUA' | 'PERLU_DISIAPKAN' | 'SIAP_DIAMBIL'
+  int _cookingTime = 15; // Estimasi waktu masak (menit)
+  double _acceptanceScore = 98.0; // Poin Performa Penerimaan Mitra (%)
+  int _dailyAcceptedCount = 42;
+  int _dailyRejectedCount = 1;
+  String _selectedStageFilter = 'SEMUA'; // 'SEMUA' | 'NEW' | 'COOKING' | 'READY_FOR_PICKUP'
 
-  List<MerchantOrder> _orders = [];
+  List<OrderModel> _orders = [];
   Timer? _countdownTimer;
 
   bool get isOpen => _isOpen;
   bool get autoAccept => _autoAccept;
   bool get printerConnected => _printerConnected;
   bool get isLoading => _isLoading;
+  int get cookingTime => _cookingTime;
+  double get acceptanceScore => _acceptanceScore;
+  int get dailyAcceptedCount => _dailyAcceptedCount;
+  int get dailyRejectedCount => _dailyRejectedCount;
   String get selectedStageFilter => _selectedStageFilter;
 
-  List<MerchantOrder> get activeOrders {
-    final ongoing = _orders.where((o) => o.stage == 'NEW' || o.stage == 'COOKING' || o.stage == 'READY_FOR_PICKUP').toList();
-    if (_selectedStageFilter == 'PERLU_DISIAPKAN') {
-      return ongoing.where((o) => o.stage == 'NEW' || o.stage == 'COOKING').toList();
+  List<OrderModel> get allOrders => List.unmodifiable(_orders);
+
+  List<OrderModel> get activeOrders {
+    final ongoing = _orders.where((o) => o.status == 'NEW' || o.status == 'COOKING' || o.status == 'READY_FOR_PICKUP').toList();
+    if (_selectedStageFilter == 'NEW') {
+      return ongoing.where((o) => o.status == 'NEW').toList();
     }
-    if (_selectedStageFilter == 'SIAP_DIAMBIL') {
-      return ongoing.where((o) => o.stage == 'READY_FOR_PICKUP').toList();
+    if (_selectedStageFilter == 'COOKING') {
+      return ongoing.where((o) => o.status == 'COOKING').toList();
+    }
+    if (_selectedStageFilter == 'READY_FOR_PICKUP') {
+      return ongoing.where((o) => o.status == 'READY_FOR_PICKUP').toList();
     }
     return ongoing;
   }
 
-  List<MerchantOrder> get completedOrders {
-    return _orders.where((o) => o.stage == 'COMPLETED').toList();
+  List<OrderModel> get completedOrders {
+    return _orders.where((o) => o.status == 'COMPLETED').toList();
   }
 
-  List<MerchantOrder> get cancelledOrders {
-    return _orders.where((o) => o.stage == 'CANCELLED').toList();
+  List<OrderModel> get cancelledOrders {
+    return _orders.where((o) => o.status == 'CANCELLED').toList();
   }
 
-  int get activeOrderCount => _orders.where((o) => o.stage == 'NEW' || o.stage == 'COOKING' || o.stage == 'READY_FOR_PICKUP').length;
-  int get newOrderCount => _orders.where((o) => o.stage == 'NEW').length;
+  int get activeOrderCount => _orders.where((o) => o.status == 'NEW' || o.status == 'COOKING' || o.status == 'READY_FOR_PICKUP').length;
+  int get newOrderCount => _orders.where((o) => o.status == 'NEW').length;
+  int get cookingOrderCount => _orders.where((o) => o.status == 'COOKING').length;
+  int get readyOrderCount => _orders.where((o) => o.status == 'READY_FOR_PICKUP').length;
 
   MerchantOrderProvider() {
-    _initDefaultMockOrders();
+    _initDefaultOrders();
     _startCountdownTicker();
   }
 
@@ -229,13 +77,15 @@ class MerchantOrderProvider extends ChangeNotifier {
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       bool changed = false;
       for (int i = 0; i < _orders.length; i++) {
-        if (_orders[i].stage == 'NEW' && _orders[i].autoAcceptSecondsRemaining > 0) {
+        if (_orders[i].status == 'NEW' && _orders[i].autoAcceptSecondsRemaining > 0) {
           final nextSec = _orders[i].autoAcceptSecondsRemaining - 1;
           _orders[i] = _orders[i].copyWith(autoAcceptSecondsRemaining: nextSec);
           changed = true;
           if (nextSec == 0 && _autoAccept) {
-            // Auto accept trigger
-            _orders[i] = _orders[i].copyWith(stage: 'COOKING');
+            // Auto accept trigger ke status COOKING
+            _orders[i] = _orders[i].copyWith(status: 'COOKING');
+            _dailyAcceptedCount++;
+            _recalculateAcceptanceScore();
           }
         }
       }
@@ -245,86 +95,188 @@ class MerchantOrderProvider extends ChangeNotifier {
     });
   }
 
-  void _initDefaultMockOrders() {
+  void _recalculateAcceptanceScore() {
+    final total = _dailyAcceptedCount + _dailyRejectedCount;
+    if (total > 0) {
+      _acceptanceScore = double.parse(((_dailyAcceptedCount / total) * 100).toStringAsFixed(1));
+    }
+  }
+
+  void _initDefaultOrders() {
+    final now = DateTime.now();
     _orders = [
-      MerchantOrder(
-        id: 'ord-8821',
-        orderNumber: '#GF-8821',
-        customerName: 'Budi Santoso',
-        customerPhone: '081987654321',
-        channel: 'food',
-        stage: 'COOKING',
-        createdAt: DateTime.now().subtract(const Duration(minutes: 12)),
-        kitchenNote: 'Sambal dipisah ya mas, jangan terlalu pedas.',
-        totalAmount: 35000,
-        deliveryAddress: 'Jl. Raya Pracimantoro No. 45',
-        driver: MerchantDriverInfo(
-          name: 'Mas Budi (Kurir GAGE)',
-          phone: '081234567890',
-          plateNumber: 'AD 4120 U',
-          pin: '8821',
-        ),
-        items: [
-          MerchantOrderItem(name: 'Siomay Dimsum Ayam Udang (4 pcs)', quantity: 2, price: 12000, variant: 'Pedas Sedang'),
-          MerchantOrderItem(name: 'Lumpia Kulit Tahu Goreng', quantity: 1, price: 11000, variant: 'Ekstra Saus Sambal'),
-        ],
-      ),
-      MerchantOrder(
+      // 1. Pesanan Baru (Perlu Dikonfirmasi)
+      OrderModel(
         id: 'ord-8822',
-        orderNumber: '#GF-8822',
+        orderNumber: 'INV/GG/20261103/FD/GALIH-8822',
+        userId: 'usr-cust-02',
+        merchantId: 'm-dimsum-sewu',
+        merchantName: 'Dimsum Sewu Pracimantoro',
+        merchantAddress: 'Jl. Raya Pracimantoro No. 14, Depan Pasar',
         customerName: 'Galih Pambudi',
         customerPhone: '081876543210',
-        channel: 'food',
-        stage: 'NEW',
-        createdAt: DateTime.now().subtract(const Duration(minutes: 1)),
-        kitchenNote: 'Tambahkan saus sambal ekstra banyak ya.',
+        status: 'NEW',
+        paymentMethod: 'GAGEPAY',
+        paymentStatus: 'PAID',
         totalAmount: 48000,
+        itemsSubtotal: 42000,
+        shippingFee: 5000,
+        shippingDiscount: 0,
+        adminFee: 1000,
         deliveryAddress: 'Dusun Gedangan, Pracimantoro',
+        distanceKm: 1.8,
+        trackingToken: 'trk-fd-8822',
+        createdAt: now.subtract(const Duration(minutes: 1)).millisecondsSinceEpoch ~/ 1000,
+        notes: 'Tambahkan saus sambal ekstra banyak ya.',
         autoAcceptSecondsRemaining: 180,
-        items: [
-          MerchantOrderItem(name: 'Fried Chicken Spicy Komplit', quantity: 2, price: 18000, variant: 'Nasi + Es Teh Manis'),
-          MerchantOrderItem(name: 'Medium French Fries', quantity: 1, price: 12000),
+        channel: 'food',
+        items: const [
+          OrderItemModel(
+            id: 'item-8822-1',
+            name: 'Fried Chicken Spicy Komplit',
+            price: 18000,
+            quantity: 2,
+            subtotal: 36000,
+            notes: 'Nasi + Es Teh Manis',
+          ),
+          OrderItemModel(
+            id: 'item-8822-2',
+            name: 'Medium French Fries',
+            price: 6000,
+            quantity: 1,
+            subtotal: 6000,
+            notes: 'Bumbu Barbeque',
+          ),
         ],
       ),
-      MerchantOrder(
+
+      // 2. Pesanan Sedang Disiapkan
+      OrderModel(
+        id: 'ord-8821',
+        orderNumber: 'INV/GG/20261103/FD/BUDI-8821',
+        userId: 'usr-cust-01',
+        merchantId: 'm-dimsum-sewu',
+        merchantName: 'Dimsum Sewu Pracimantoro',
+        merchantAddress: 'Jl. Raya Pracimantoro No. 14, Depan Pasar',
+        customerName: 'Budi Santoso',
+        customerPhone: '081987654321',
+        driverName: 'Mas Joko (Kurir GAGE)',
+        driverPlate: 'AD 4120 U',
+        driverPhone: '081234567890',
+        status: 'COOKING',
+        paymentMethod: 'GAGEPAY',
+        paymentStatus: 'PAID',
+        totalAmount: 35000,
+        itemsSubtotal: 29000,
+        shippingFee: 5000,
+        shippingDiscount: 0,
+        adminFee: 1000,
+        deliveryAddress: 'Jl. Raya Pracimantoro No. 45',
+        distanceKm: 1.2,
+        trackingToken: 'trk-fd-8821',
+        createdAt: now.subtract(const Duration(minutes: 12)).millisecondsSinceEpoch ~/ 1000,
+        notes: 'Sambal dipisah ya mas, jangan terlalu pedas.',
+        channel: 'food',
+        items: const [
+          OrderItemModel(
+            id: 'item-8821-1',
+            name: 'Siomay Dimsum Ayam Udang (4 pcs)',
+            price: 14000,
+            quantity: 2,
+            subtotal: 28000,
+            notes: 'Pedas Sedang',
+          ),
+          OrderItemModel(
+            id: 'item-8821-2',
+            name: 'Lumpia Kulit Tahu Goreng',
+            price: 1000,
+            quantity: 1,
+            subtotal: 1000,
+            notes: 'Ekstra Saus Sambal',
+          ),
+        ],
+      ),
+
+      // 3. Pesanan Siap Dijemput
+      OrderModel(
         id: 'ord-3304',
-        orderNumber: '#GS-3304',
+        orderNumber: 'INV/GG/20261103/SH/RATNA-3304',
+        userId: 'usr-cust-03',
+        merchantId: 'm-dimsum-sewu',
+        merchantName: 'Toko Berkah Mart Pracimantoro',
+        merchantAddress: 'Pasar Pracimantoro Kios No. 12',
         customerName: 'Ibu Ratna',
         customerPhone: '081765432109',
-        channel: 'shop',
-        stage: 'COOKING',
-        createdAt: DateTime.now().subtract(const Duration(minutes: 5)),
+        driverName: 'Mas Agus (Kurir GAGE)',
+        driverPlate: 'AD 5532 WZ',
+        driverPhone: '081345678901',
+        status: 'READY_FOR_PICKUP',
+        paymentMethod: 'CASH_COD',
+        paymentStatus: 'PENDING',
         totalAmount: 95000,
-        deliveryAddress: 'Pasar Pracimantoro Kios No. 12',
-        driver: MerchantDriverInfo(
-          name: 'Mas Joko (Kurir GAGE)',
-          phone: '081345678901',
-          plateNumber: 'AD 5532 WZ',
-          pin: '3304',
-        ),
-        items: [
-          MerchantOrderItem(name: 'Beras Sania Premium 5kg', quantity: 1, price: 68000, isPicked: true),
-          MerchantOrderItem(name: 'Minyak Goreng Bimoli 2L', quantity: 1, price: 27000, isPicked: false),
+        itemsSubtotal: 89000,
+        shippingFee: 5000,
+        shippingDiscount: 0,
+        adminFee: 1000,
+        deliveryAddress: 'Dusun Trukan, Pracimantoro',
+        distanceKm: 2.4,
+        trackingToken: 'trk-sh-3304',
+        createdAt: now.subtract(const Duration(minutes: 25)).millisecondsSinceEpoch ~/ 1000,
+        channel: 'shop',
+        items: const [
+          OrderItemModel(
+            id: 'item-3304-1',
+            name: 'Beras Sania Premium 5kg',
+            price: 68000,
+            quantity: 1,
+            subtotal: 68000,
+            isPicked: true,
+          ),
+          OrderItemModel(
+            id: 'item-3304-2',
+            name: 'Minyak Goreng Bimoli 2L',
+            price: 21000,
+            quantity: 1,
+            subtotal: 21000,
+            isPicked: true,
+          ),
         ],
       ),
-      MerchantOrder(
+
+      // 4. Riwayat Selesai
+      OrderModel(
         id: 'ord-8799',
-        orderNumber: '#GF-8799',
+        orderNumber: 'INV/GG/20261102/FD/SITI-8799',
+        userId: 'usr-cust-04',
+        merchantId: 'm-dimsum-sewu',
+        merchantName: 'Dimsum Sewu Pracimantoro',
+        merchantAddress: 'Jl. Raya Pracimantoro No. 14, Depan Pasar',
         customerName: 'Siti Aminah',
         customerPhone: '081654321098',
-        channel: 'food',
-        stage: 'COMPLETED',
-        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+        driverName: 'Mas Bambang',
+        driverPlate: 'AD 9911 QA',
+        driverPhone: '081223344556',
+        status: 'COMPLETED',
+        paymentMethod: 'GAGEPAY',
+        paymentStatus: 'PAID',
         totalAmount: 24000,
+        itemsSubtotal: 18000,
+        shippingFee: 5000,
+        shippingDiscount: 0,
+        adminFee: 1000,
         deliveryAddress: 'Jl. Wonogiri - Pracimantoro KM 2',
-        driver: MerchantDriverInfo(
-          name: 'Mas Agus',
-          phone: '081223344556',
-          plateNumber: 'AD 9911 QA',
-          pin: '8799',
-        ),
-        items: [
-          MerchantOrderItem(name: 'Dimsum Mozzarella Lumer (4 pcs)', quantity: 2, price: 12000),
+        distanceKm: 1.0,
+        trackingToken: 'trk-fd-8799',
+        createdAt: now.subtract(const Duration(hours: 3)).millisecondsSinceEpoch ~/ 1000,
+        channel: 'food',
+        items: const [
+          OrderItemModel(
+            id: 'item-8799-1',
+            name: 'Dimsum Mozzarella Lumer (4 pcs)',
+            price: 18000,
+            quantity: 1,
+            subtotal: 18000,
+          ),
         ],
       ),
     ];
@@ -337,8 +289,7 @@ class MerchantOrderProvider extends ChangeNotifier {
     try {
       final remote = await GageApiClient.getMerchantOrders('m-dimsum-sewu');
       if (remote.isNotEmpty) {
-        final parsed = remote.map((m) => MerchantOrder.fromMap(m)).toList();
-        // Pertahankan mock order jika remote kosong / mock blend
+        final parsed = remote.map((m) => OrderModel.fromJson(m)).toList();
         for (final p in parsed) {
           final idx = _orders.indexWhere((o) => o.id == p.id || o.orderNumber == p.orderNumber);
           if (idx >= 0) {
@@ -378,59 +329,261 @@ class MerchantOrderProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setCookingTime(int minutes) {
+    _cookingTime = minutes;
+    notifyListeners();
+  }
+
+  /// 1. TERIMA PESANAN (Ubah status ke COOKING / Sedang Disiapkan)
   Future<void> acceptOrder(String orderId) async {
     HapticFeedback.mediumImpact();
     final idx = _orders.indexWhere((o) => o.id == orderId);
     if (idx >= 0) {
-      _orders[idx] = _orders[idx].copyWith(stage: 'COOKING');
+      _orders[idx] = _orders[idx].copyWith(status: 'COOKING');
+      _dailyAcceptedCount++;
+      _recalculateAcceptanceScore();
       notifyListeners();
+
       try {
         await GageApiClient.updateMerchantOrderStage(_orders[idx].id, 'COOKING');
       } catch (_) {}
     }
   }
 
+  /// 2. TOLAK PESANAN (Dengan alasan & penalti poin penerimaan)
   Future<void> rejectOrder(String orderId, String reason) async {
-    HapticFeedback.lightImpact();
+    HapticFeedback.heavyImpact();
     final idx = _orders.indexWhere((o) => o.id == orderId);
     if (idx >= 0) {
-      _orders[idx] = _orders[idx].copyWith(stage: 'CANCELLED');
+      final ord = _orders[idx];
+      // Catat pembatalan & penalti penerimaan
+      _dailyRejectedCount++;
+      _recalculateAcceptanceScore();
+
+      _orders[idx] = ord.copyWith(
+        status: 'CANCELLED',
+        cancellationReason: reason,
+        refundAmount: ord.totalAmount, // Refund 100% jika sudah dibayar
+      );
       notifyListeners();
+
       try {
-        await GageApiClient.updateMerchantOrderStage(_orders[idx].id, 'CANCELLED');
+        await GageApiClient.updateMerchantOrderStage(ord.id, 'CANCELLED');
       } catch (_) {}
     }
   }
 
+  /// 3. PESANAN SIAP (Siap Diambil Kurir)
   Future<void> markReadyForPickup(String orderId) async {
     HapticFeedback.mediumImpact();
     final idx = _orders.indexWhere((o) => o.id == orderId);
     if (idx >= 0) {
-      _orders[idx] = _orders[idx].copyWith(stage: 'READY_FOR_PICKUP');
+      _orders[idx] = _orders[idx].copyWith(status: 'READY_FOR_PICKUP');
       notifyListeners();
+
       try {
         await GageApiClient.updateMerchantOrderStage(_orders[idx].id, 'READY_FOR_PICKUP');
       } catch (_) {}
     }
   }
 
+  /// 4. SELESAIKAN PESANAN
   Future<void> completeOrder(String orderId) async {
     HapticFeedback.mediumImpact();
     final idx = _orders.indexWhere((o) => o.id == orderId);
     if (idx >= 0) {
-      _orders[idx] = _orders[idx].copyWith(stage: 'COMPLETED');
+      _orders[idx] = _orders[idx].copyWith(status: 'COMPLETED');
       notifyListeners();
+
       try {
         await GageApiClient.updateMerchantOrderStage(_orders[idx].id, 'COMPLETED');
       } catch (_) {}
     }
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // 3 ALUR CERDAS UBAH PESANAN (STOK HABIS)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// ALUR 1: GANTI ITEM
+  /// Selisih lebih murah refund instan ke GagePay | Selisih lebih mahal otomatis jadi tagihan COD tambahan ke kurir
+  Future<void> substituteOrderItem({
+    required String orderId,
+    required int itemIndex,
+    required String newItemName,
+    required int newItemPrice,
+    InAppChatProvider? chatProvider,
+  }) async {
+    HapticFeedback.mediumImpact();
+    final orderIdx = _orders.indexWhere((o) => o.id == orderId);
+    if (orderIdx < 0) return;
+
+    final order = _orders[orderIdx];
+    final items = List<OrderItemModel>.from(order.items);
+    if (itemIndex < 0 || itemIndex >= items.length) return;
+
+    final origItem = items[itemIndex];
+    final origTotal = origItem.price * origItem.quantity;
+    final newTotal = newItemPrice * origItem.quantity;
+    final diff = newTotal - origTotal;
+
+    // Ganti item di list
+    items[itemIndex] = origItem.copyWith(
+      name: newItemName,
+      price: newItemPrice,
+      subtotal: newTotal,
+      notes: '${origItem.notes != null ? '${origItem.notes} • ' : ''}(Ganti dari ${origItem.name})',
+    );
+
+    int newSubtotal = order.itemsSubtotal + diff;
+    int newTotalAmount = order.totalAmount + diff;
+    int newRefund = order.refundAmount;
+    int newCod = order.codAdjustment;
+
+    String chatNotice = '';
+
+    if (diff < 0) {
+      // Lebih murah: Refund selisih instan ke GagePay
+      final refundValue = -diff;
+      newRefund += refundValue;
+      chatNotice = 'Halo kak, untuk "${origItem.name}" stoknya habis dan kami gantikan dengan "$newItemName". Selisih harga Rp$refundValue sudah kami refund instan ke saldo GagePay kakak.';
+    } else if (diff > 0) {
+      // Lebih mahal: Tambahan tagihan COD ke kurir
+      newCod += diff;
+      chatNotice = 'Halo kak, untuk "${origItem.name}" stoknya habis dan kami gantikan dengan "$newItemName". Terdapat selisih harga Rp$diff yang otomatis menjadi tagihan COD tambahan oleh kurir saat pengantaran ya kak.';
+    } else {
+      chatNotice = 'Halo kak, untuk "${origItem.name}" stoknya habis dan kami gantikan dengan "$newItemName" dengan harga yang sama.';
+    }
+
+    _orders[orderIdx] = order.copyWith(
+      items: items,
+      itemsSubtotal: newSubtotal,
+      totalAmount: newTotalAmount,
+      refundAmount: newRefund,
+      codAdjustment: newCod,
+    );
+
+    if (chatProvider != null && chatNotice.isNotEmpty) {
+      chatProvider.sendMessage(
+        orderId: order.id,
+        senderId: 'mch-dimsum-sewu',
+        senderRole: 'merchant',
+        senderName: 'Dimsum Sewu Pracimantoro',
+        text: chatNotice,
+      );
+    }
+
+    notifyListeners();
+  }
+
+  /// ALUR 2: KIRIM YANG READY SAJA
+  /// Nilai barang kosong refund instan ke GagePay, nota terkoreksi otomatis
+  Future<void> fulfillPartialOrder({
+    required String orderId,
+    required List<int> outOfStockItemIndices,
+    InAppChatProvider? chatProvider,
+  }) async {
+    HapticFeedback.mediumImpact();
+    final orderIdx = _orders.indexWhere((o) => o.id == orderId);
+    if (orderIdx < 0) return;
+
+    final order = _orders[orderIdx];
+    final items = List<OrderItemModel>.from(order.items);
+
+    int outOfStockSum = 0;
+    final List<String> oosNames = [];
+    final List<OrderItemModel> keptItems = [];
+
+    for (int i = 0; i < items.length; i++) {
+      if (outOfStockItemIndices.contains(i)) {
+        final oos = items[i];
+        outOfStockSum += oos.subtotal;
+        oosNames.add(oos.name);
+      } else {
+        keptItems.add(items[i]);
+      }
+    }
+
+    if (keptItems.isEmpty) {
+      // Jika semua kosong, otomatis alihkan ke batal penuh
+      await cancelOrderWithFullRefund(
+        orderId: orderId,
+        reason: 'Seluruh menu yang dipesan kebetulan sedang kosong',
+        chatProvider: chatProvider,
+      );
+      return;
+    }
+
+    final newSubtotal = order.itemsSubtotal - outOfStockSum;
+    final newTotalAmount = order.totalAmount - outOfStockSum;
+    final newRefund = order.refundAmount + outOfStockSum;
+
+    _orders[orderIdx] = order.copyWith(
+      items: keptItems,
+      itemsSubtotal: newSubtotal,
+      totalAmount: newTotalAmount,
+      refundAmount: newRefund,
+    );
+
+    if (chatProvider != null) {
+      chatProvider.sendMessage(
+        orderId: order.id,
+        senderId: 'mch-dimsum-sewu',
+        senderRole: 'merchant',
+        senderName: 'Dimsum Sewu Pracimantoro',
+        text: 'Mohon maaf kak, item [${oosNames.join(", ")}] sedang kosong. Kami proses kirim sisa item yang siap ya kak. Pengembalian dana Rp$outOfStockSum telah langsung di-refund ke GagePay kakak.',
+      );
+    }
+
+    notifyListeners();
+  }
+
+  /// ALUR 3: BATALKAN SELURUH PESANAN
+  /// Refund 100% ke GagePay
+  Future<void> cancelOrderWithFullRefund({
+    required String orderId,
+    String reason = 'Stok Seluruh Pesanan Habis',
+    InAppChatProvider? chatProvider,
+  }) async {
+    HapticFeedback.heavyImpact();
+    final orderIdx = _orders.indexWhere((o) => o.id == orderId);
+    if (orderIdx < 0) return;
+
+    final order = _orders[orderIdx];
+    final fullRefund = order.totalAmount;
+
+    _dailyRejectedCount++;
+    _recalculateAcceptanceScore();
+
+    _orders[orderIdx] = order.copyWith(
+      status: 'CANCELLED',
+      cancellationReason: reason,
+      refundAmount: fullRefund,
+    );
+
+    if (chatProvider != null) {
+      chatProvider.sendMessage(
+        orderId: order.id,
+        senderId: 'mch-dimsum-sewu',
+        senderRole: 'merchant',
+        senderName: 'Dimsum Sewu Pracimantoro',
+        text: 'Mohon maaf kak, pesanan terpaksa kami batalkan karena stok bahan baku habis: "$reason". Dana 100% sejumlah Rp$fullRefund telah kami kembalikan instan ke saldo GagePay kakak.',
+      );
+    }
+
+    notifyListeners();
+
+    try {
+      await GageApiClient.updateMerchantOrderStage(order.id, 'CANCELLED');
+    } catch (_) {}
+  }
+
+  /// Picking item toggle (untuk flow mart/shop)
   void togglePickingItem(String orderId, int itemIndex) {
     HapticFeedback.lightImpact();
     final orderIdx = _orders.indexWhere((o) => o.id == orderId);
     if (orderIdx >= 0) {
-      final items = List<MerchantOrderItem>.from(_orders[orderIdx].items);
+      final items = List<OrderItemModel>.from(_orders[orderIdx].items);
       if (itemIndex >= 0 && itemIndex < items.length) {
         items[itemIndex] = items[itemIndex].copyWith(isPicked: !items[itemIndex].isPicked);
         _orders[orderIdx] = _orders[orderIdx].copyWith(items: items);
@@ -439,26 +592,53 @@ class MerchantOrderProvider extends ChangeNotifier {
     }
   }
 
+  /// Simulasi pesanan baru masuk dari pelanggan
   void triggerMockIncomingOrder() {
     HapticFeedback.vibrate();
     final newId = 'ord-${DateTime.now().millisecondsSinceEpoch % 10000}';
-    final newOrder = MerchantOrder(
+    final newOrder = OrderModel(
       id: newId,
-      orderNumber: '#GF-${DateTime.now().millisecondsSinceEpoch % 9000 + 1000}',
+      orderNumber: 'INV/GG/20261103/FD/NEW-${DateTime.now().millisecondsSinceEpoch % 9000 + 1000}',
+      userId: 'usr-cust-99',
+      merchantId: 'm-dimsum-sewu',
+      merchantName: 'Dimsum Sewu Pracimantoro',
+      merchantAddress: 'Jl. Raya Pracimantoro No. 14, Depan Pasar',
       customerName: 'Pelanggan Baru Pracimantoro',
       customerPhone: '081234567899',
-      channel: 'food',
-      stage: 'NEW',
-      createdAt: DateTime.now(),
-      kitchenNote: 'Mohon dibungkus plastik rangkap ya mas.',
+      status: 'NEW',
+      paymentMethod: 'GAGEPAY',
+      paymentStatus: 'PAID',
       totalAmount: 28000,
+      itemsSubtotal: 22000,
+      shippingFee: 5000,
+      shippingDiscount: 0,
+      adminFee: 1000,
       deliveryAddress: 'Jl. Lintas Selatan Pracimantoro',
+      distanceKm: 1.5,
+      trackingToken: 'trk-new-$newId',
+      createdAt: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      notes: 'Mohon dibungkus plastik rangkap ya mas.',
       autoAcceptSecondsRemaining: 180,
-      items: [
-        MerchantOrderItem(name: 'Dimsum Sewu Spesial Campur (6 pcs)', quantity: 2, price: 14000, variant: 'Ekstra Pedas'),
+      channel: 'food',
+      items: const [
+        OrderItemModel(
+          id: 'item-new-1',
+          name: 'Dimsum Sewu Spesial Campur (6 pcs)',
+          price: 11000,
+          quantity: 2,
+          subtotal: 22000,
+          notes: 'Ekstra Pedas',
+        ),
       ],
     );
     _orders.insert(0, newOrder);
     notifyListeners();
+  }
+
+  /// FORMULA RESMI KALKULATOR MARKUP KOMISI 10%:
+  /// CEIL((Harga Asli / 0.90) / 500) * 500
+  static int calculateMarkupPrice(int originalPrice) {
+    if (originalPrice <= 0) return 0;
+    return ((originalPrice / 0.90) / 500).ceil() * 500;
   }
 }
