@@ -5,7 +5,7 @@ import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/core/services/location_service.dart';
 import 'package:gage_app/core/services/osm_geocoding_service.dart';
 import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
-import 'package:gage_app/features/food/presentation/shop_store_detail_screen.dart';
+import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
 import 'package:gage_app/shared/widgets/seamless_floating_cart_bar.dart';
 import 'package:gage_app/shared/widgets/gage_cart_sheet.dart';
 import 'package:gage_app/providers/cart_provider.dart';
@@ -528,7 +528,7 @@ class _BuildScreenState extends State<BuildScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (c) => ShopStoreDetailScreen(store: store),
+            builder: (c) => RestoDetailScreen(merchant: store),
           ),
         );
       },

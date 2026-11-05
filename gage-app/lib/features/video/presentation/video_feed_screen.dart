@@ -320,7 +320,7 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> {
           );
         },
       ),
-      bottomNavigationBar: const GageBottomNavBar(currentIndex: 4),
+      bottomNavigationBar: const GageBottomNavBar(currentIndex: 3),
     ),
   );
   }

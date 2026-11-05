@@ -7,7 +7,6 @@ import 'package:gage_app/providers/order_provider.dart';
 import 'package:gage_app/features/home/presentation/home_screen.dart';
 import 'package:gage_app/features/orders/presentation/orders_screen.dart';
 import 'package:gage_app/features/home/presentation/promo_screen.dart';
-import 'package:gage_app/features/chat/presentation/chat_hub_screen.dart';
 import 'package:gage_app/features/video/presentation/video_feed_screen.dart';
 import 'package:gage_app/features/profile/presentation/profile_screen.dart';
 
@@ -42,12 +41,9 @@ class GageBottomNavBar extends StatelessWidget {
         target = const PromoScreen();
         break;
       case 3:
-        target = const ChatHubScreen();
-        break;
-      case 4:
         target = const VideoFeedScreen();
         break;
-      case 5:
+      case 4:
         target = const ProfileScreen();
         break;
       default:
@@ -138,15 +134,6 @@ class GageBottomNavBar extends StatelessWidget {
                     _buildNavItem(
                       context,
                       3,
-                      '',
-                      '',
-                      'Chat',
-                      iconOverride: currentIndex == 3 ? Icons.chat_bubble_rounded : Icons.chat_bubble_outline_rounded,
-                      isDark: isDark,
-                    ),
-                    _buildNavItem(
-                      context,
-                      4,
                       'assets/images/nav_video_active.png',
                       'assets/images/nav_video_inactive.png',
                       'Video',
@@ -154,7 +141,7 @@ class GageBottomNavBar extends StatelessWidget {
                     ),
                     _buildNavItem(
                       context,
-                      5,
+                      4,
                       'assets/images/nav_profile_active.png',
                       'assets/images/nav_profile_inactive.png',
                       'Profil',

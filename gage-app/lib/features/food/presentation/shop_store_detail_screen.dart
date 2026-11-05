@@ -1,3 +1,5 @@
+import 'package:flutter/services.dart';
+import 'package:gage_app/shared/widgets/gage_digital_schedule_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -717,28 +719,14 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
   void _showJadwalinSheet(BuildContext context, CartProvider cart) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     DateTime? selectedTime = cart.scheduledDeliveryTime;
+    String scheduleMode = selectedTime == null ? 'now' : 'custom';
 
     GageFloatingSheet.show(
       context: context,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
-            final options = [
-              {'label': 'Kirim Sekarang', 'sub': 'Estimasi tiba 20-30 menit', 'time': null},
-              {
-                'label': '1 Jam Lagi',
-                'sub': DateFormat('HH:mm').format(DateTime.now().add(const Duration(hours: 1))),
-                'time': DateTime.now().add(const Duration(hours: 1)),
-              },
-              {
-                'label': 'Atur Sendiri',
-                'sub': selectedTime != null && selectedTime != cart.scheduledDeliveryTime
-                    ? DateFormat('dd MMM, HH:mm').format(selectedTime!)
-                    : 'Pilih tanggal & jam pengantaran bebas',
-                'isCustom': true,
-                'time': selectedTime,
-              },
-            ];
+            final nowPlus1Hour = DateTime.now().add(const Duration(hours: 1));
 
             return Column(
               mainAxisSize: MainAxisSize.min,
@@ -759,10 +747,11 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                       onTap: () => Navigator.pop(ctx),
                       borderRadius: BorderRadius.circular(16),
                       child: Container(
-                        padding: const EdgeInsets.all(4),
+                        width: 32,
+                        height: 32,
                         decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF27272A) : const Color(0xFFF3F4F6),
                           shape: BoxShape.circle,
-                          color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
                         ),
                         child: Icon(
                           Icons.close_rounded,
@@ -775,99 +764,72 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Pilih waktu persiapan & pengantaran dari toko mitra.',
+                  'Pilih kapan resto harus menyiapkan dan mengantar pesanan Anda.',
                   style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
                 ),
                 const SizedBox(height: 16),
-                ...options.map((opt) {
-                  final target = opt['time'] as DateTime?;
-                  final isCustom = opt['isCustom'] == true;
-                  final isSelected = isCustom
-                      ? (selectedTime != null && (selectedTime!.difference(DateTime.now()).inMinutes > 70 || selectedTime!.day != DateTime.now().day))
-                      : ((target == null && selectedTime == null) ||
-                          (target != null && selectedTime != null &&
-                              target.hour == selectedTime!.hour &&
-                              target.day == selectedTime!.day));
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? (isDark ? const Color(0xFF2C1E1E) : const Color(0xFFFFF1F0))
-                          : (isDark ? const Color(0xFF1E293B) : Colors.white),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: isSelected ? GageTheme.primary : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
-                        width: isSelected ? 1.5 : 1.0,
-                      ),
-                    ),
-                    child: ListTile(
-                      onTap: () async {
-                        if (isCustom) {
-                          final now = DateTime.now();
-                          final pickedDate = await showDatePicker(
-                            context: context,
-                            initialDate: selectedTime ?? now,
-                            firstDate: now,
-                            lastDate: now.add(const Duration(days: 7)),
-                          );
-                          if (pickedDate != null && context.mounted) {
-                            final pickedTime = await showTimePicker(
-                              context: context,
-                              initialTime: TimeOfDay.fromDateTime(selectedTime ?? now.add(const Duration(hours: 2))),
-                            );
-                            if (pickedTime != null) {
-                              final combined = DateTime(
-                                pickedDate.year,
-                                pickedDate.month,
-                                pickedDate.day,
-                                pickedTime.hour,
-                                pickedTime.minute,
-                              );
-                              setSheetState(() => selectedTime = combined);
-                            }
-                          }
-                        } else {
-                          setSheetState(() => selectedTime = target);
-                        }
-                      },
-                      leading: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? GageTheme.primary.withValues(alpha: 0.12)
-                              : (isDark ? const Color(0xFF27272A) : const Color(0xFFF3F4F6)),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          target == null
-                              ? Icons.bolt_rounded
-                              : (isCustom ? Icons.edit_calendar_rounded : Icons.schedule_rounded),
-                          color: isSelected ? GageTheme.primary : Colors.grey.shade600,
-                          size: 19,
-                        ),
-                      ),
-                      title: Text(
-                        opt['label'] as String,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13.5,
-                          color: isDark ? Colors.white : Colors.black87,
-                        ),
-                      ),
-                      subtitle: Text(
-                        opt['sub'] as String,
-                        style: TextStyle(fontSize: 11.5, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
-                      ),
-                      trailing: Icon(
-                        isSelected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
-                        color: isSelected ? GageTheme.primary : Colors.grey,
-                        size: 20,
-                      ),
-                    ),
-                  );
-                }),
-                const SizedBox(height: 16),
+
+                // 1. Kirim Sekarang (Full Rounded Pill 24px)
+                _buildSchedulePillOption(
+                  isDark: isDark,
+                  isSelected: scheduleMode == 'now',
+                  icon: Icons.bolt_rounded,
+                  title: 'Kirim Sekarang',
+                  subtitle: 'Estimasi tiba 20-30 menit',
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setSheetState(() {
+                      scheduleMode = 'now';
+                      selectedTime = null;
+                    });
+                  },
+                ),
+
+                const SizedBox(height: 10),
+
+                // 2. 1 Jam Lagi (Full Rounded Pill 24px)
+                _buildSchedulePillOption(
+                  isDark: isDark,
+                  isSelected: scheduleMode == '1hour',
+                  icon: Icons.schedule_rounded,
+                  title: '1 Jam Lagi',
+                  subtitle: '\ WIB',
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setSheetState(() {
+                      scheduleMode = '1hour';
+                      selectedTime = nowPlus1Hour;
+                    });
+                  },
+                ),
+
+                const SizedBox(height: 10),
+
+                // 3. Atur Sendiri (Langsung Buka Digital Picker, Full Rounded Pill 24px)
+                _buildSchedulePillOption(
+                  isDark: isDark,
+                  isSelected: scheduleMode == 'custom',
+                  icon: Icons.edit_calendar_rounded,
+                  title: 'Atur Sendiri',
+                  subtitle: selectedTime != null && scheduleMode == 'custom'
+                      ? '\ WIB'
+                      : 'Pilih tanggal & jam pengantaran bebas',
+                  onTap: () async {
+                    HapticFeedback.selectionClick();
+                    final picked = await GageDigitalScheduleSheet.show(
+                      context,
+                      initialTime: selectedTime ?? DateTime.now().add(const Duration(hours: 2)),
+                    );
+                    if (picked != null) {
+                      setSheetState(() {
+                        scheduleMode = 'custom';
+                        selectedTime = picked;
+                      });
+                    }
+                  },
+                ),
+
+                const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
                   height: 46,
@@ -884,7 +846,7 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                       GageToast.show(
                         context,
                         selectedTime != null
-                            ? 'Pengantaran belanja dijadwalkan: ${DateFormat('dd MMM HH:mm').format(selectedTime!)} WIB'
+                            ? 'Pengantaran dijadwalkan pukul \ WIB'
                             : 'Pengantaran diatur langsung (Kirim Sekarang)',
                         type: GageToastType.info,
                       );
@@ -897,6 +859,91 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildSchedulePillOption({
+    required bool isDark,
+    required bool isSelected,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(24),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? (isDark ? const Color(0xFF2C1E1E) : const Color(0xFFFFF1F0))
+              : (isDark ? const Color(0xFF1E293B) : Colors.white),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: isSelected ? GageTheme.primary : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+            width: isSelected ? 1.5 : 1.0,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: GageTheme.primary.withValues(alpha: 0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? GageTheme.primary.withValues(alpha: 0.14)
+                    : (isDark ? const Color(0xFF27272A) : const Color(0xFFF3F4F6)),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                color: isSelected ? GageTheme.primary : Colors.grey.shade600,
+                size: 19,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13.5,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              isSelected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
+              color: isSelected ? GageTheme.primary : Colors.grey,
+              size: 20,
+            ),
+          ],
+        ),
+      ),
     );
   }
 

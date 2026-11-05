@@ -6,10 +6,11 @@ class ChatMessage {
   final String senderName;
   final String text;
   final String? mediaUrl;
-  final String messageType; // 'text' | 'image' | 'product'
+  final String messageType; // 'text' | 'image' | 'product' | 'voice'
   final String? productName;
   final int? productPrice;
   final String? productImage;
+  final int? voiceDurationSeconds;
   final DateTime timestamp;
   final String status; // 'sending' | 'sent' | 'delivered' | 'read'
 
@@ -25,6 +26,7 @@ class ChatMessage {
     this.productName,
     this.productPrice,
     this.productImage,
+    this.voiceDurationSeconds,
     required this.timestamp,
     this.status = 'sent',
   });
@@ -35,6 +37,7 @@ class ChatMessage {
   bool get isFromAdmin => senderRole == 'admin';
   bool get isImage => messageType == 'image' || (mediaUrl != null && mediaUrl!.isNotEmpty);
   bool get isProduct => messageType == 'product' || productName != null;
+  bool get isVoice => messageType == 'voice';
 
   Map<String, dynamic> toJson() {
     return {
@@ -49,6 +52,7 @@ class ChatMessage {
       'productName': productName,
       'productPrice': productPrice,
       'productImage': productImage,
+      'voiceDurationSeconds': voiceDurationSeconds,
       'timestamp': timestamp.millisecondsSinceEpoch,
       'status': status,
     };
@@ -67,6 +71,7 @@ class ChatMessage {
       productName: json['productName'] as String?,
       productPrice: json['productPrice'] as int?,
       productImage: json['productImage'] as String?,
+      voiceDurationSeconds: json['voiceDurationSeconds'] as int?,
       timestamp: json['timestamp'] != null
           ? DateTime.fromMillisecondsSinceEpoch(json['timestamp'] as int)
           : DateTime.now(),

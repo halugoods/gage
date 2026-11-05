@@ -12,7 +12,6 @@ import 'package:gage_app/core/services/osm_geocoding_service.dart';
 import 'package:gage_app/core/services/location_service.dart';
 import 'package:gage_app/core/services/gage_pricing_service.dart';
 import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gage_app/features/ride/presentation/ride_checkout_screen.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/core/services/dynamic_asset_service.dart';
@@ -58,7 +57,6 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
     text: '',
   );
 
-  String? _savedPaymentMethod;
 
   int get _realisticTripMins {
     if (_distanceKm <= 0) return 5;
@@ -72,17 +70,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
     _selectedTab = widget.initialTab;
     _driverLocation = LatLng(_pickupLocation.latitude - 0.006, _pickupLocation.longitude - 0.004);
 
-    _loadSavedPaymentMethod();
     _initRealGpsAndRoute();
-  }
-
-  Future<void> _loadSavedPaymentMethod() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (mounted) {
-      setState(() {
-        _savedPaymentMethod = prefs.getString('last_ride_payment_method');
-      });
-    }
   }
 
   Future<void> _initRealGpsAndRoute() async {
@@ -281,6 +269,8 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
       context,
       title: isPickup ? 'Pilih Titik Jemput' : 'Pilih Titik Tujuan',
       initialLocation: (isPickup ? _pickupLocation : _dropoffLocation) ?? _pickupLocation,
+      showMiniMap: false,
+      autoFocusSearch: true,
       onSelected: (title, fullAddress, latLng) {
         setState(() {
           if (isPickup) {
@@ -863,79 +853,6 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
               ),
             ),
 
-          const SizedBox(height: 12),
-
-          // Ringkasan Status Metode Pembayaran
-          InkWell(
-            onTap: () {
-              if (_dropoffLocation != null) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (ctx) => RideCheckoutScreen(
-                      serviceType: _selectedTab,
-                      rideOption: _selectedOption,
-                      pickupLocation: _pickupLocation,
-                      dropoffLocation: _dropoffLocation!,
-                      pickupAddress: _pickupController.text,
-                      dropoffAddress: _dropoffController.text,
-                      distanceKm: _distanceKm,
-                      baseFare: fare,
-                    ),
-                  ),
-                ).then((_) => _loadSavedPaymentMethod());
-              } else {
-                _showAddressSearchSheet(false);
-              }
-            },
-            borderRadius: BorderRadius.circular(10),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    _savedPaymentMethod == 'qris'
-                        ? Icons.qr_code_2_rounded
-                        : (_savedPaymentMethod == 'gagepay'
-                            ? Icons.account_balance_wallet_rounded
-                            : (_savedPaymentMethod == 'cash'
-                                ? Icons.payments_rounded
-                                : Icons.payment_rounded)),
-                    color: _savedPaymentMethod == null ? Colors.orange.shade800 : GageTheme.primary,
-                    size: 17,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      _savedPaymentMethod == 'gagepay'
-                          ? 'GAGEPay (${currencyFormatter.format(wallet.balance)})'
-                          : (_savedPaymentMethod == 'qris'
-                              ? 'QRIS'
-                              : (_savedPaymentMethod == 'cash'
-                                  ? 'Tunai ke Driver'
-                                  : 'Metode Pembayaran: Belum Dipilih')),
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.bold,
-                        color: _savedPaymentMethod == null ? Colors.orange.shade900 : Colors.black87,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Text(
-                    'Pilih di Checkout →',
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
           const SizedBox(height: 14),
 
           // Tombol Pesan Utama -> Masuk ke Screen Checkout
@@ -964,7 +881,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                                   baseFare: fare,
                                 ),
                               ),
-                            ).then((_) => _loadSavedPaymentMethod());
+                            );
                           }),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: GageTheme.primary,

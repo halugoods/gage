@@ -1660,7 +1660,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
       ),
-      bottomNavigationBar: const GageBottomNavBar(currentIndex: 5),
+      bottomNavigationBar: const GageBottomNavBar(currentIndex: 4),
     ),
   );
 }

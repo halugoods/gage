@@ -43,6 +43,18 @@ class InAppChatProvider with ChangeNotifier {
         timestamp: DateTime.now().subtract(const Duration(minutes: 2)),
         status: 'read',
       ),
+      ChatMessage(
+        id: 'msg-04',
+        orderId: orderId,
+        senderId: 'drv-01',
+        senderRole: 'driver',
+        senderName: 'Syamsul Maarif (Driver)',
+        text: 'Pesan Suara (4s)',
+        messageType: 'voice',
+        voiceDurationSeconds: 4,
+        timestamp: DateTime.now().subtract(const Duration(minutes: 1)),
+        status: 'read',
+      ),
     ];
   }
 
@@ -68,6 +80,32 @@ class InAppChatProvider with ChangeNotifier {
       senderRole: senderRole,
       senderName: senderName,
       text: text.trim(),
+      timestamp: DateTime.now(),
+      status: 'delivered',
+    );
+
+    _messagesByOrder.putIfAbsent(orderId, () => []).add(newMsg);
+    notifyListeners();
+  }
+
+  void sendVoiceMessage({
+    required String orderId,
+    required String senderId,
+    required String senderRole,
+    required String senderName,
+    required int durationSeconds,
+  }) {
+    HapticFeedback.lightImpact();
+
+    final newMsg = ChatMessage(
+      id: 'msg-${DateTime.now().millisecondsSinceEpoch}',
+      orderId: orderId,
+      senderId: senderId,
+      senderRole: senderRole,
+      senderName: senderName,
+      text: 'Pesan Suara (${durationSeconds}s)',
+      messageType: 'voice',
+      voiceDurationSeconds: durationSeconds,
       timestamp: DateTime.now(),
       status: 'delivered',
     );

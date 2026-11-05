@@ -444,6 +444,121 @@ class GageApiClient {
       ];
     }
 
+    if (merchantId.contains('shop') || merchantId.contains('ret') || merchantId.contains('sembako')) {
+      return [
+        {
+          'id': 'prod-beras-5kg',
+          'name': 'Beras C4 Super Raja 5 Kg',
+          'category': 'Sembako',
+          'description': 'Beras pulen pilihan petani Wonogiri, putih alami tanpa pemutih',
+          'offline_price': 70000,
+          'gage_price': 72000,
+          'image': 'assets/images/prod_beras.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'prod-minyak-2l',
+          'name': 'Minyak Goreng Bimoli Klasik 2 Liter',
+          'category': 'Minyak & Bumbu',
+          'description': 'Minyak sawit murni jernih dua kali penyaringan higienis',
+          'offline_price': 36000,
+          'gage_price': 38500,
+          'image': 'assets/images/prod_minyak.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'prod-gula-1kg',
+          'name': 'Gula Pasir Gulaku Putih 1 Kg',
+          'category': 'Sembako',
+          'description': 'Gula tebu kristal premium murni manis alami',
+          'offline_price': 17000,
+          'gage_price': 18000,
+          'image': 'assets/images/prod_gula.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'prod-telur-1kg',
+          'name': 'Telur Ayam Negeri Segar 1 Kg',
+          'category': 'Sembako',
+          'description': 'Telur ayam ras segar grade A langsung dari peternak lokal',
+          'offline_price': 27000,
+          'gage_price': 28500,
+          'image': 'assets/images/prod_telur.png',
+          'is_available': 1,
+        },
+      ];
+    }
+
+    if (merchantId.contains('farm') || merchantId.contains('tani') || merchantId.contains('ternak')) {
+      return [
+        {
+          'id': 'prod-pupuk-urea',
+          'name': 'Pupuk Urea Non-Subsidi 50 Kg',
+          'category': 'Pupuk & Nutrisi',
+          'description': 'Pupuk nitrogen tinggi 46% untuk pertumbuhan vegetatif daun tanaman',
+          'offline_price': 320000,
+          'gage_price': 335000,
+          'image': 'assets/images/prod_pupuk.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'prod-pakan-ayam',
+          'name': 'Pakan Ayam Pedaging Pokphand 511 (50 Kg)',
+          'category': 'Pakan Ternak',
+          'description': 'Konsentrat crumble komplit nutrisi tinggi pembesar bibit ayam',
+          'offline_price': 420000,
+          'gage_price': 438000,
+          'image': 'assets/images/prod_pakan.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'prod-bibit-padi',
+          'name': 'Benih Padi Inpari 32 Bersertifikat 5 Kg',
+          'category': 'Benih & Bibit',
+          'description': 'Benih padi varietas unggul tahan hama wereng dan anakan lebat',
+          'offline_price': 75000,
+          'gage_price': 80000,
+          'image': 'assets/images/prod_benih.png',
+          'is_available': 1,
+        },
+      ];
+    }
+
+    if (merchantId.contains('build') || merchantId.contains('tb') || merchantId.contains('bangun')) {
+      return [
+        {
+          'id': 'prod-semen-gresik',
+          'name': 'Semen Gresik Portland PCC 40 Kg',
+          'category': 'Semen & Pasir',
+          'description': 'Semen komposit serbaguna kuat tekan tinggi dan daya rekat kokoh',
+          'offline_price': 52000,
+          'gage_price': 55000,
+          'image': 'assets/images/prod_semen.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'prod-cat-tembok',
+          'name': 'Cat Tembok Dulux Catylac Putih 5 Kg',
+          'category': 'Cat & Finishing',
+          'description': 'Cat dinding interior anti pudar dengan formula cerah tahan lama',
+          'offline_price': 135000,
+          'gage_price': 142000,
+          'image': 'assets/images/prod_cat.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'prod-besi-10',
+          'name': 'Besi Beton Ulir 10mm SNI (12 Meter)',
+          'category': 'Besi & Baja',
+          'description': 'Besi beton tulangan SNI sertifikasi kekuatan struktur bangunan',
+          'offline_price': 78000,
+          'gage_price': 82000,
+          'image': 'assets/images/prod_besi.png',
+          'is_available': 1,
+        },
+      ];
+    }
+
     if (merchantId.contains('roti')) {
       return [
         {

@@ -199,6 +199,8 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
       context,
       title: 'Pilih Titik Jemput (Pengirim)',
       initialLocation: _senderLatLng,
+      showMiniMap: false,
+      autoFocusSearch: true,
       onSelected: (title, fullAddress, latLng) {
         setState(() {
           _senderLatLng = latLng;
@@ -214,6 +216,8 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
       context,
       title: 'Pilih Titik Antar (Penerima)',
       initialLocation: _recipientLatLng ?? _senderLatLng,
+      showMiniMap: false,
+      autoFocusSearch: true,
       onSelected: (title, fullAddress, latLng) {
         setState(() {
           _recipientLatLng = latLng;
@@ -1194,162 +1198,6 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                       ),
 
                       const SizedBox(height: 14),
-
-                      // Inset Group 3: Metode Pembayaran (GAGEPay, QRIS, COD)
-                      _buildSectionHeader('METODE PEMBAYARAN', isDark),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: isDark ? Colors.white10 : Colors.grey.shade200,
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            // 1. GAGEPay Saldo
-                            InkWell(
-                              onTap: () => setState(() => _paymentMethod = 'gagepay'),
-                              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFF0284C7), size: 20),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'GAGEPay Saldo',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 13,
-                                              color: isDark ? Colors.white : Colors.black87,
-                                            ),
-                                          ),
-                                          Text(
-                                            'Biaya layanan: Rp 1.000 (Cashless)',
-                                            style: TextStyle(
-                                              fontSize: 10.5,
-                                              color: isDark ? Colors.grey.shade400 : Colors.black54,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Text(
-                                      currencyFormatter.format(wallet.balance),
-                                      style: TextStyle(
-                                        fontSize: 11.5,
-                                        fontWeight: FontWeight.w700,
-                                        color: wallet.balance >= totalFare ? const Color(0xFF16A34A) : Colors.red,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Icon(
-                                      _paymentMethod == 'gagepay'
-                                          ? Icons.check_circle_rounded
-                                          : Icons.radio_button_off_rounded,
-                                      size: 18,
-                                      color: _paymentMethod == 'gagepay' ? GageTheme.primary : Colors.grey,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            Divider(height: 1, thickness: 0.8, color: isDark ? Colors.white10 : Colors.grey.shade200),
-                            // 2. QRIS Instant
-                            InkWell(
-                              onTap: () => setState(() => _paymentMethod = 'qris'),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.qr_code_scanner_rounded, color: Color(0xFFE11D48), size: 20),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'QRIS Instant',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 13,
-                                              color: isDark ? Colors.white : Colors.black87,
-                                            ),
-                                          ),
-                                          Text(
-                                            'BCA, Mandiri, BRI, GoPay, ShopeePay (Biaya: Rp 1.000)',
-                                            style: TextStyle(
-                                              fontSize: 10.5,
-                                              color: isDark ? Colors.grey.shade400 : Colors.black54,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Icon(
-                                      _paymentMethod == 'qris'
-                                          ? Icons.check_circle_rounded
-                                          : Icons.radio_button_off_rounded,
-                                      size: 18,
-                                      color: _paymentMethod == 'qris' ? GageTheme.primary : Colors.grey,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            Divider(height: 1, thickness: 0.8, color: isDark ? Colors.white10 : Colors.grey.shade200),
-                            // 3. Tunai ke Kurir (COD)
-                            InkWell(
-                              onTap: () => setState(() => _paymentMethod = 'cash'),
-                              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.payments_rounded, color: Color(0xFF16A34A), size: 20),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Tunai ke Kurir (COD)',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 13,
-                                              color: isDark ? Colors.white : Colors.black87,
-                                            ),
-                                          ),
-                                          Text(
-                                            'Bayar saat paket dijemput/diantar (Biaya COD: Rp 3.000)',
-                                            style: TextStyle(
-                                              fontSize: 10.5,
-                                              color: isDark ? Colors.grey.shade400 : Colors.black54,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Icon(
-                                      _paymentMethod == 'cash'
-                                          ? Icons.check_circle_rounded
-                                          : Icons.radio_button_off_rounded,
-                                      size: 18,
-                                      color: _paymentMethod == 'cash' ? GageTheme.primary : Colors.grey,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
                       const SizedBox(height: 14),
 
                       // Rincian Pembayaran

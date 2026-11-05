@@ -17,12 +17,16 @@ class LocationPickerSheet extends StatefulWidget {
   final String title;
   final LatLng? initialLocation;
   final Function(String title, String fullAddress, LatLng latLng) onSelected;
+  final bool showMiniMap;
+  final bool autoFocusSearch;
 
   const LocationPickerSheet({
     super.key,
     required this.title,
     this.initialLocation,
     required this.onSelected,
+    this.showMiniMap = true,
+    this.autoFocusSearch = false,
   });
 
   static Future<void> show(
@@ -30,6 +34,8 @@ class LocationPickerSheet extends StatefulWidget {
     String title = 'Pilih Lokasi',
     LatLng? initialLocation,
     required Function(String title, String fullAddress, LatLng latLng) onSelected,
+    bool showMiniMap = true,
+    bool autoFocusSearch = false,
   }) {
     HapticFeedback.lightImpact();
     return showModalBottomSheet(
@@ -50,6 +56,8 @@ class LocationPickerSheet extends StatefulWidget {
               title: title,
               initialLocation: initialLocation,
               onSelected: onSelected,
+              showMiniMap: showMiniMap,
+              autoFocusSearch: autoFocusSearch,
             ),
           ),
         ),
@@ -921,7 +929,7 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
           const SizedBox(height: 12),
 
           // Realtime Pin Mini Preview Map Terkini (Disembunyikan saat tambah alamat baru agar lapang)
-          if (!_isAddingNewAddress) ...[
+          if (!_isAddingNewAddress && widget.showMiniMap) ...[
             _buildMiniMapWidget(
               center: _activePreviewLocation,
               onExpand: _openMapPicker,
@@ -948,6 +956,7 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                   Expanded(
                     child: TextField(
                       controller: _searchCtrl,
+                      autofocus: widget.autoFocusSearch,
                       onChanged: _onSearchChanged,
                       style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13),
                       decoration: InputDecoration(
