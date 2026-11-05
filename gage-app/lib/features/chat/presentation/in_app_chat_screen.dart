@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:gage_app/core/services/gage_audio_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/chat/domain/chat_message.dart';
 import 'package:gage_app/features/chat/presentation/widgets/gage_product_catalog_sheet.dart';
@@ -78,6 +79,7 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
     _textCtrl.dispose();
     _scrollCtrl.dispose();
     _voicePlaybackTimer?.cancel();
+    GageAudioService.instance.stopVoiceNote();
     super.dispose();
   }
 
@@ -244,6 +246,7 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
     if (_playingVoiceMsgId == msg.id) {
       // Pause
       _voicePlaybackTimer?.cancel();
+    GageAudioService.instance.stopVoiceNote();
       setState(() {
         _playingVoiceMsgId = null;
         _voiceCurrentSeconds = 0;
@@ -251,10 +254,24 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
     } else {
       // Play
       _voicePlaybackTimer?.cancel();
+      GageAudioService.instance.stopVoiceNote();
       setState(() {
         _playingVoiceMsgId = msg.id;
         _voiceCurrentSeconds = 0;
       });
+
+      GageAudioService.instance.playVoiceNote(
+        voiceNoteId: msg.id,
+        durationSeconds: totalDuration.toDouble(),
+        onComplete: () {
+          if (mounted) {
+            setState(() {
+              _playingVoiceMsgId = null;
+              _voiceCurrentSeconds = 0;
+            });
+          }
+        },
+      );
 
       _voicePlaybackTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
         if (!mounted) {

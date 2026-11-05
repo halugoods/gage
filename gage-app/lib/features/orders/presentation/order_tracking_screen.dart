@@ -14,6 +14,7 @@ import 'package:gage_app/providers/order_provider.dart';
 import 'package:gage_app/core/services/osrm_routing_service.dart';
 import 'package:gage_app/core/services/location_service.dart';
 import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
+import 'package:gage_app/features/orders/presentation/order_success_review_screen.dart';
 
 /// Layar Pelacakan Pesanan Realtime (Live Order Tracking & Delivery Lifecycle)
 /// Didesain dengan standar industri terdepan (Clean-Room Flutter Code & $0 Infra)
@@ -1854,48 +1855,20 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                         setState(() => _manualStep = 5);
                         context.read<OrderProvider>().updateOrderStage(order.id, 'COMPLETED');
 
-                        showDialog(
-                          context: context,
-                          builder: (successCtx) => AlertDialog(
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                            title: const Center(
-                              child: Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 54),
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => OrderSuccessReviewScreen(
+                              order: order,
+                              driverName: 'Syamsul Maarif',
+                              driverVehicle: 'Honda Vario • AD 4921 HG',
                             ),
-                            content: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: const [
-                                Text(
-                                  'Pesanan Dikonfirmasi!',
-                                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
-                                  textAlign: TextAlign.center,
-                                ),
-                                SizedBox(height: 8),
-                                Text(
-                                  'Bukti penerimaan (PoD) telah berhasil disimpan. Terima kasih telah mempercayai GAGE Pracimantoro!',
-                                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                            actions: [
-                              Center(
-                                child: ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: GageTheme.primary,
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  ),
-                                  onPressed: () => Navigator.pop(successCtx),
-                                  child: const Text('Tutup', style: TextStyle(fontWeight: FontWeight.bold)),
-                                ),
-                              ),
-                            ],
                           ),
                         );
                       },
                       child: const Text(
-                        'Kirim Bukti & Selesaikan Pesanan',
-                        style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+                        'Konfirmasi Penerimaan & Beri Penilaian',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                       ),
                     ),
                   ],

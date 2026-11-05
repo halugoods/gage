@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:gage_app/core/services/gage_audio_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 
 /// GageChatInputBar
@@ -77,6 +78,7 @@ class _GageChatInputBarState extends State<GageChatInputBar> with SingleTickerPr
       if (!_isRecording) {
         _isRecording = true;
         _recordDuration = 0;
+        GageAudioService.instance.playRecordStartChime();
         _waveAnimCtrl.repeat(reverse: true);
         _recordTimer = Timer.periodic(const Duration(seconds: 1), (t) {
           if (mounted) {

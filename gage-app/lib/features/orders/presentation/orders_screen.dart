@@ -11,6 +11,7 @@ import 'package:gage_app/data/models/cart_item_model.dart';
 import 'package:gage_app/features/orders/presentation/order_tracking_screen.dart';
 import 'package:gage_app/features/checkout/presentation/checkout_screen.dart';
 import 'package:gage_app/features/orders/presentation/order_detail_screen.dart';
+import 'package:gage_app/features/orders/presentation/widgets/rating_review_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_bottom_nav_bar.dart';
 import 'package:gage_app/features/home/presentation/home_screen.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
@@ -23,6 +24,8 @@ class OrdersScreen extends StatefulWidget {
 }
 
 class _OrdersScreenState extends State<OrdersScreen> {
+  final Map<String, Map<String, dynamic>> _ratedOrders = {};
+
   @override
   void initState() {
     super.initState();
@@ -473,6 +476,93 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     ),
                   ],
                 ),
+
+                // Baris Penilaian Toko & Driver untuk Pesanan Selesai (Interactive 5 Stars)
+                if (!isActive) ...[
+                  const SizedBox(height: 12),
+                  if (_ratedOrders.containsKey(order.id))
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0FDF4),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFBBF7D0)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.star_rounded, size: 16, color: Color(0xFFF59E0B)),
+                          const SizedBox(width: 5),
+                          Text(
+                            '★ ${_ratedOrders[order.id]!['merchantRating']}.0 • Penilaian Anda telah terkirim',
+                            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF15803D)),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFFEF3C7).withValues(alpha: 0.55),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFFDE68A)),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Selesaikan Penilaian',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF92400E)),
+                                ),
+                                Text(
+                                  'Ketuk bintang untuk menilai:',
+                                  style: TextStyle(fontSize: 10, color: isDark ? Colors.white60 : const Color(0xFFB45309)),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: List.generate(5, (starIdx) {
+                              final starNum = starIdx + 1;
+                              return GestureDetector(
+                                onTap: () {
+                                  HapticFeedback.lightImpact();
+                                  RatingReviewSheet.show(
+                                    context,
+                                    orderId: order.orderNumber,
+                                    merchantName: merchantTitle,
+                                    driverName: 'Syamsul Maarif',
+                                    driverVehicle: 'Honda Vario • AD 4921 HG',
+                                    initialStar: starNum,
+                                    onSubmitted: (mRating, dRating) {
+                                      setState(() {
+                                        _ratedOrders[order.id] = {
+                                          'merchantRating': mRating,
+                                          'driverRating': dRating,
+                                        };
+                                      });
+                                    },
+                                  );
+                                },
+                                child: const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 2),
+                                  child: Icon(
+                                    Icons.star_outline_rounded,
+                                    size: 23,
+                                    color: Color(0xFFF59E0B),
+                                  ),
+                                ),
+                              );
+                            }),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
               ],
             ),
           ),

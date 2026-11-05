@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/shared/widgets/gage_digital_schedule_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -158,9 +159,13 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                   icon: Icons.chat_bubble_rounded,
                   label: 'WhatsApp',
                   color: const Color(0xFF25D366),
-                  onTap: () {
+                  onTap: () async {
                     Navigator.pop(ctx);
-                    GageToast.show(context, 'Tautan dibagikan ke WhatsApp', type: GageToastType.success);
+                    final shareText = Uri.encodeComponent('Kunjungi ${widget.store["name"] ?? "Toko Mitra"} di GAGE Pracimantoro!');
+                    final waUri = Uri.parse('https://wa.me/?text=$shareText');
+                    if (await canLaunchUrl(waUri)) {
+                      await launchUrl(waUri, mode: LaunchMode.externalApplication);
+                    }
                   },
                 ),
                 _buildShareAction(
@@ -169,7 +174,8 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
                   color: const Color(0xFF3B82F6),
                   onTap: () {
                     Navigator.pop(ctx);
-                    GageToast.show(context, 'Tautan toko berhasil disalin!', type: GageToastType.success);
+                    Clipboard.setData(ClipboardData(text: 'https://gage.id/store/${widget.store["id"] ?? "shop"}'));
+                    GageToast.show(context, 'Tautan toko berhasil disalin ke clipboard!', type: GageToastType.success);
                   },
                 ),
                 _buildShareAction(

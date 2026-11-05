@@ -320,13 +320,13 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
                 // Search Bar Input Interaktif Langsung di Layar (Tanpa Modal Bottom Sheet)
                 Expanded(
                   child: Container(
-                    height: 42,
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    height: 38,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
                       color: isDark
                           ? GageTheme.darkSurface
                           : (_isSearchActive || fade > 0.6 ? Colors.grey.shade100 : Colors.white),
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(20),
                       border: Border.all(
                         color: _isSearchActive
                             ? GageTheme.primary
@@ -348,7 +348,7 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
                         Icon(
                           Icons.search_rounded,
                           color: _isSearchActive ? GageTheme.primary : (isDark ? Colors.white70 : Colors.grey.shade700),
-                          size: 21,
+                          size: 19,
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -361,7 +361,7 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
                                     hintText: 'Cari layanan, toko, atau menu...',
                                     hintStyle: TextStyle(
                                       color: Colors.grey,
-                                      fontSize: 13,
+                                      fontSize: 12.5,
                                       fontWeight: FontWeight.normal,
                                     ),
                                     border: InputBorder.none,
@@ -370,7 +370,7 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
                                   ),
                                   style: TextStyle(
                                     color: isDark ? Colors.white : GageTheme.textPrimary,
-                                    fontSize: 13,
+                                    fontSize: 12.5,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 )
@@ -386,7 +386,7 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
                                     'Cari layanan, toko, atau menu...',
                                     style: TextStyle(
                                       color: isDark ? Colors.white60 : Colors.grey.shade600,
-                                      fontSize: 13,
+                                      fontSize: 12.5,
                                       fontWeight: FontWeight.normal,
                                     ),
                                     overflow: TextOverflow.ellipsis,
@@ -400,49 +400,6 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
                               padding: EdgeInsets.all(4.0),
                               child: Icon(Icons.close_rounded, size: 18, color: Colors.grey),
                             ),
-                          )
-                        else if (!_isSearchActive)
-                          AnimatedBuilder(
-                            animation: NotificationService.instance,
-                            builder: (context, _) {
-                              final hasUnread = NotificationService.instance.hasUnread;
-                              return InkWell(
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (_) => const NotificationScreen()),
-                                  );
-                                },
-                                borderRadius: BorderRadius.circular(16),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 2.0),
-                                  child: Stack(
-                                    clipBehavior: Clip.none,
-                                    alignment: Alignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.notifications_outlined,
-                                        size: 21,
-                                        color: isDark ? Colors.white70 : Colors.grey.shade700,
-                                      ),
-                                      if (hasUnread)
-                                        Positioned(
-                                          top: 0,
-                                          right: 0,
-                                          child: Container(
-                                            width: 7.5,
-                                            height: 7.5,
-                                            decoration: const BoxDecoration(
-                                              color: GageTheme.primary,
-                                              shape: BoxShape.circle,
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
                           ),
                       ],
                     ),
@@ -450,13 +407,72 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
                 ),
 
                 if (!_isSearchActive) ...[
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
+                  // Tombol Lonceng Notifikasi Mandiri (Di luar Search Bar)
+                  AnimatedBuilder(
+                    animation: NotificationService.instance,
+                    builder: (context, _) {
+                      final hasUnread = NotificationService.instance.hasUnread;
+                      return InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const NotificationScreen()),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isDark ? GageTheme.darkSurface : Colors.white,
+                            border: Border.all(
+                              color: isDark ? Colors.white12 : Colors.grey.shade200,
+                              width: 1,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: isDark ? Colors.black26 : Colors.black.withValues(alpha: 0.08),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Icon(
+                                Icons.notifications_none_rounded,
+                                size: 20,
+                                color: isDark ? Colors.white70 : Colors.grey.shade800,
+                              ),
+                              if (hasUnread)
+                                Positioned(
+                                  top: 8,
+                                  right: 8,
+                                  child: Container(
+                                    width: 7.5,
+                                    height: 7.5,
+                                    decoration: const BoxDecoration(
+                                      color: GageTheme.primary,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 8),
                   // Avatar Profil Pengguna
                   GestureDetector(
                     onTap: () => _showProfileDropdownMenu(context, auth, topPadding),
                     child: Container(
-                      width: 42,
-                      height: 42,
+                      width: 38,
+                      height: 38,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: isDark ? GageTheme.darkSurface : Colors.white,

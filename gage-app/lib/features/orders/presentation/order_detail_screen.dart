@@ -8,7 +8,9 @@ import 'package:gage_app/data/models/cart_item_model.dart';
 import 'package:gage_app/providers/cart_provider.dart';
 import 'package:gage_app/features/orders/presentation/order_tracking_screen.dart';
 import 'package:gage_app/features/checkout/presentation/checkout_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
+import 'package:gage_app/shared/widgets/gage_toast.dart';
 
 class OrderDetailScreen extends StatefulWidget {
   final OrderModel order;
@@ -49,13 +51,15 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           IconButton(
             icon: const Icon(Icons.share_outlined),
             tooltip: 'Bagikan',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Nomor Invoice ${order.orderNumber} siap dibagikan.'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
+            onPressed: () async {
+              final text = 'Detail Pesanan GAGE #${order.orderNumber} di ${order.merchantName}.\nTotal: Rp ${order.totalAmount}';
+              await Clipboard.setData(ClipboardData(text: text));
+              final waUrl = Uri.parse('https://wa.me/?text=${Uri.encodeComponent(text)}');
+              if (await canLaunchUrl(waUrl)) {
+                await launchUrl(waUrl, mode: LaunchMode.externalApplication);
+              } else if (context.mounted) {
+                GageToast.show(context, 'Teks pesanan #${order.orderNumber} disalin ke clipboard!', type: GageToastType.success);
+              }
             },
           ),
         ],
@@ -549,13 +553,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.phone_rounded, color: GageTheme.primary),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Menghubungi driver ${order.driverName ?? ""}...'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
+            tooltip: 'Hubungi Driver',
+            onPressed: () async {
+              final uri = Uri.parse('tel:${order.driverPhone ?? "081234567890"}');
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri);
+              }
             },
           ),
         ],
