@@ -422,8 +422,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
                           style: OutlinedButton.styleFrom(
                             foregroundColor: isDark ? Colors.white70 : Colors.black87,
                             side: BorderSide(color: isDark ? GageTheme.darkBorder : Colors.grey.shade300),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            shape: const StadiumBorder(),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                             visualDensity: VisualDensity.compact,
                           ),
                           onPressed: () {
@@ -440,8 +440,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: GageTheme.primary,
                               foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              shape: const StadiumBorder(),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                               visualDensity: VisualDensity.compact,
                             ),
                             onPressed: () {
@@ -463,8 +463,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: GageTheme.primary,
                               foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              shape: const StadiumBorder(),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                               visualDensity: VisualDensity.compact,
                             ),
                             onPressed: () {

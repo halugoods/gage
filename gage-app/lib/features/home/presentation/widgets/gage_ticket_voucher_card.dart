@@ -3,13 +3,20 @@ import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:intl/intl.dart';
 
 /// GageTicketVoucherCard
-/// Desain kupon tiket berpori (scalloped ticket stub) khas ekosistem GAGE:
-/// - Stub kiri 3D khas GAGE (Food, Ongkir Xtra, Ride/Car, Mart, Send)
-/// - Notches setengah lingkaran atas & bawah pada garis pembatas
-/// - Konten kanan berjarak rapat (tight spacing):
-///   - Baris 1: Judul diskon tebal & badge kuantitas
-///   - Baris 2: Min. belanja & berlaku sampai (s.d. tanggal) + S&K
-///   - Baris 3: Badges status/audiens (terhubung ke portal admin) & tombol aksi "Pakai" FULL ROUNDED
+/// Komponen Kartu Voucher berkonsep Tiket Horizontal (Ticket-Style Card):
+/// - Sesuai pedoman visual iOS: bersih, modern, proporsional, dan compact
+/// - Background kartu putih dengan rounded corner halus (18 px) dan shadow sangat lembut
+/// - Bagian kiri (Stub):
+///   - Menyatukan background kategori (Diskon, Gratis Ongkir, GAGE Ride, GAGE Car)
+///   - Efek ticket cutout berupa setengah lingkaran di sisi kiri & takik perforasi atas/bawah
+///   - Garis perforasi vertikal (dashed divider) pemisah visual stub dan konten
+///   - HANYA berisi 2 elemen: Icon kategori & Nama kategori tersusun vertikal tepat di tengah
+/// - Bagian kanan (Content):
+///   - Baris 1: Judul voucher sebagai fokus dominan & badge kuantitas
+///   - Baris 2: Informasi minimum pembelian
+///   - Baris 3: Badge / label ketentuan voucher subtle & rapi
+///   - Baris 4: Informasi masa berlaku dengan icon jam + tautan S&K
+/// - Tombol "Pakai" compact di sisi kanan dengan bentuk rounded rectangle (8 px)
 class GageTicketVoucherCard extends StatelessWidget {
   final Map<String, dynamic> voucher;
   final VoidCallback onApply;
@@ -22,53 +29,35 @@ class GageTicketVoucherCard extends StatelessWidget {
     required this.onTermsTap,
   });
 
-  Color _getStubColor(String service, String type) {
+  List<Color> _getStubGradient(String service, String type) {
     if (type == 'delivery') {
-      return const Color(0xFF0D9488); // Teal untuk Ongkir Xtra
+      return const [Color(0xFF0D9488), Color(0xFF0F766E)]; // Hijau Teal Gratis Ongkir
     }
     switch (service) {
       case 'GAGE Food':
-        return GageTheme.primary; // Crimson Red GAGE
+        return const [Color(0xFFF52D3D), Color(0xFFE11D48)]; // Merah Diskon GAGE Food
       case 'GAGE Ride':
+        return const [Color(0xFF2563EB), Color(0xFF1D4ED8)]; // Biru GAGE Ride
       case 'GAGE Car':
-        return const Color(0xFF2563EB); // Royal Blue Transport
+        return const [Color(0xFF1E3A8A), Color(0xFF172554)]; // Biru Tua GAGE Car
       case 'GAGE Mart':
-        return const Color(0xFF16A34A); // Emerald Green Mart
+        return const [Color(0xFF16A34A), Color(0xFF15803D)]; // Emerald GAGE Mart
       case 'GAGE Send':
-        return const Color(0xFFEA580C); // Vibrant Orange Send
+        return const [Color(0xFFEA580C), Color(0xFFC2410C)]; // Oranye GAGE Send
       case 'GAGE Pay':
-        return const Color(0xFFD97706); // Amber Gold Pay
+        return const [Color(0xFFD97706), Color(0xFFB45309)]; // Amber GAGE Pay
       default:
-        return GageTheme.primary;
-    }
-  }
-
-  String _getStubAsset(String service, String type) {
-    if (type == 'delivery') {
-      return 'assets/icons/vouchers/voucher_stub_delivery.png';
-    }
-    switch (service) {
-      case 'GAGE Food':
-        return 'assets/icons/vouchers/voucher_stub_food.png';
-      case 'GAGE Ride':
-      case 'GAGE Car':
-        return 'assets/icons/vouchers/voucher_stub_ride.png';
-      case 'GAGE Mart':
-        return 'assets/icons/vouchers/voucher_stub_mart.png';
-      case 'GAGE Send':
-        return 'assets/icons/vouchers/voucher_stub_delivery.png';
-      default:
-        return 'assets/icons/vouchers/voucher_stub_food.png';
+        return const [Color(0xFFF52D3D), Color(0xFFDC2626)]; // Merah Utama Diskon
     }
   }
 
   IconData _getCategoryIcon(String service, String type) {
     if (type == 'delivery') {
-      return Icons.delivery_dining_rounded;
+      return Icons.local_shipping_rounded;
     }
     switch (service) {
       case 'GAGE Food':
-        return Icons.restaurant_rounded;
+        return Icons.percent_rounded;
       case 'GAGE Ride':
         return Icons.two_wheeler_rounded;
       case 'GAGE Car':
@@ -76,32 +65,58 @@ class GageTicketVoucherCard extends StatelessWidget {
       case 'GAGE Mart':
         return Icons.storefront_rounded;
       case 'GAGE Send':
-        return Icons.local_shipping_rounded;
+        return Icons.inventory_2_rounded;
       case 'GAGE Pay':
         return Icons.account_balance_wallet_rounded;
       default:
-        return Icons.confirmation_number_rounded;
+        return Icons.local_offer_rounded;
     }
   }
 
   String _getCategoryLabel(String service, String type) {
-    if (type == 'delivery') return 'GRATIS\nONGKIR';
+    if (type == 'delivery') return 'Gratis\nOngkir';
     switch (service) {
       case 'GAGE Food':
-        return 'GAGE\nFOOD';
+        return 'Diskon';
       case 'GAGE Ride':
-        return 'GAGE\nRIDE';
+        return 'GAGE\nRide';
       case 'GAGE Car':
-        return 'GAGE\nCAR';
+        return 'GAGE\nCar';
       case 'GAGE Mart':
-        return 'GAGE\nMART';
+        return 'GAGE\nMart';
       case 'GAGE Send':
-        return 'GAGE\nSEND';
+        return 'GAGE\nSend';
       case 'GAGE Pay':
-        return 'GAGE\nPAY';
+        return 'GAGE\nPay';
       default:
-        return 'GAGE\nPROMO';
+        return 'Diskon';
     }
+  }
+
+  Widget _buildBadge(String text, bool isDark, {required bool isPrimary}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
+          width: 0.8,
+        ),
+      ),
+      child: Text(
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 9.5,
+          fontWeight: FontWeight.w700,
+          color: isPrimary
+              ? (isDark ? const Color(0xFF38BDF8) : const Color(0xFF0369A1))
+              : (isDark ? const Color(0xFF34D399) : const Color(0xFF047857)),
+        ),
+      ),
+    );
   }
 
   @override
@@ -113,8 +128,7 @@ class GageTicketVoucherCard extends StatelessWidget {
 
     final service = voucher['service'] as String? ?? 'GAGE Food';
     final type = voucher['type'] as String? ?? 'order';
-    final stubColor = _getStubColor(service, type);
-    final stubAsset = _getStubAsset(service, type);
+    final stubGradient = _getStubGradient(service, type);
     final icon = _getCategoryIcon(service, type);
     final label = _getCategoryLabel(service, type);
 
@@ -123,71 +137,79 @@ class GageTicketVoucherCard extends StatelessWidget {
     final expiry = voucher['expiry'] as String? ?? '31 Des 2026';
     final quantity = voucher['quantity'] as int? ?? 1;
 
-    // Badges terintegrasi dengan arsitektur admin & voucher schema
+    // Badges filter admin yang rapi
     final tag = voucher['tag'] as String? ?? (service == 'GAGE Food' ? 'Diskon Terus' : 'Pengguna Baru');
     final secondaryBadge = voucher['badge'] as String? ?? (type == 'delivery' ? 'Semua Resto' : null);
 
     final currencyFmt = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0);
-    final minOrderText = minOrder > 0 ? 'Min. blj ${currencyFmt.format(minOrder)}' : 'Tanpa min. belanja';
+    final minOrderText = minOrder > 0 ? 'Min. belanja ${currencyFmt.format(minOrder)}' : 'Tanpa min. belanja';
 
-    const double stubWidth = 84.0;
+    const double stubWidth = 80.0;
+    const double cardHeight = 106.0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      height: 116,
+      height: cardHeight,
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: borderColor, width: 1),
         boxShadow: [
           BoxShadow(
             color: isDark ? Colors.black38 : Colors.black.withValues(alpha: 0.04),
-            blurRadius: 6,
+            blurRadius: 10,
             offset: const Offset(0, 2),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(17),
         child: Stack(
           children: [
             Row(
               children: [
-                // 1. Stub Kiri Khas GAGE (Gambar 3D + Label Kategori)
+                // ==========================================
+                // A. BAGIAN KIRI (VOUCHER STUB)
+                // ==========================================
                 Container(
                   width: stubWidth,
                   height: double.infinity,
-                  color: stubColor,
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: stubGradient,
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // Gambar 3D MCP Flow dengan fallback cerdas ke circular icon
-                      Image.asset(
-                        stubAsset,
-                        width: 38,
-                        height: 38,
-                        fit: BoxFit.contain,
-                        errorBuilder: (ctx, err, stack) {
-                          return Container(
-                            padding: const EdgeInsets.all(7),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.22),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(icon, color: Colors.white, size: 20),
-                          );
-                        },
+                      // 1. Icon Kategori Voucher
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(alpha: 0.22),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.35),
+                            width: 1.2,
+                          ),
+                        ),
+                        child: Icon(icon, color: Colors.white, size: 20),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 5),
+                      // 2. Nama Kategori Voucher
                       Text(
                         label,
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.5,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.4,
                           height: 1.15,
                         ),
                       ),
@@ -195,7 +217,7 @@ class GageTicketVoucherCard extends StatelessWidget {
                   ),
                 ),
 
-                // 2. Garis Putus-putus Pembatas (Dashed Divider)
+                // Garis Perforasi Vertikal (Dashed Divider)
                 SizedBox(
                   width: 1,
                   child: CustomPaint(
@@ -205,183 +227,163 @@ class GageTicketVoucherCard extends StatelessWidget {
                   ),
                 ),
 
-                // 3. Konten Kanan Tiket (Rapat & Berstruktur 3 Baris)
+                // ==========================================
+                // B. BAGIAN KANAN (VOUCHER CONTENT)
+                // ==========================================
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 8, 12, 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // BARIS 1: Judul Voucher & Badge Kuantitas
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 13.5,
-                                  color: isDark ? Colors.white : const Color(0xFF1E293B),
-                                ),
-                              ),
-                            ),
-                            if (quantity > 1) ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: GageTheme.primaryLight,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: GageTheme.primary.withValues(alpha: 0.3)),
-                                ),
-                                child: Text(
-                                  'x$quantity',
-                                  style: const TextStyle(
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.w900,
-                                    color: GageTheme.primary,
+                        // Konten 4 Baris
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              // BARIS 1: Judul Voucher Dominan + Badge Kuantitas
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 13.5,
+                                        color: isDark ? Colors.white : const Color(0xFF1E293B),
+                                        letterSpacing: -0.2,
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                  if (quantity > 1) ...[
+                                    const SizedBox(width: 4),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                      decoration: BoxDecoration(
+                                        color: GageTheme.primaryLight,
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: GageTheme.primary.withValues(alpha: 0.25)),
+                                      ),
+                                      child: Text(
+                                        'x$quantity',
+                                        style: const TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w900,
+                                          color: GageTheme.primary,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
-                            ],
-                          ],
-                        ),
 
-                        // BARIS 2: Persyaratan Min. Belanja & Berlaku Sampai + S&K (Dirapatkan)
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
+                              // BARIS 2: Informasi Minimum Pembelian
+                              Text(
                                 minOrderText,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w500,
-                                  color: isDark ? Colors.white60 : Colors.grey.shade600,
+                                  color: isDark ? Colors.white70 : Colors.grey.shade600,
                                 ),
                               ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 4),
-                              child: Text('•', style: TextStyle(fontSize: 10, color: isDark ? Colors.white38 : Colors.grey.shade400)),
-                            ),
-                            Flexible(
-                              child: Text(
-                                's.d. $expiry',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 10.5,
-                                  color: isDark ? Colors.white54 : Colors.grey.shade500,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            InkWell(
-                              onTap: onTermsTap,
-                              child: const Text(
-                                'S&K',
-                                style: TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w800,
-                                  color: GageTheme.primary,
-                                  decoration: TextDecoration.underline,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
 
-                        // BARIS 3: Badges Filter Admin di Kiri & Tombol "Pakai" Full-Rounded di Kanan
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            // Badges Group (Baris 3 Kiri)
-                            Expanded(
-                              child: Wrap(
-                                spacing: 4,
-                                runSpacing: 2,
+                              // BARIS 3: Badge Ketentuan Voucher
+                              ClipRect(
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  physics: const BouncingScrollPhysics(),
+                                  child: Row(
+                                    children: [
+                                      _buildBadge(tag, isDark, isPrimary: true),
+                                      if (secondaryBadge != null) ...[
+                                        const SizedBox(width: 4),
+                                        _buildBadge(secondaryBadge, isDark, isPrimary: false),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ),
+
+                              // BARIS 4: Masa Berlaku dengan Icon Jam + Tautan S&K
+                              Row(
                                 children: [
-                                  // Badge Utama
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: isDark ? Colors.white10 : const Color(0xFFF1F5F9),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                        color: isDark ? Colors.white24 : Colors.grey.shade300,
-                                        width: 0.8,
-                                      ),
-                                    ),
+                                  Icon(
+                                    Icons.access_time_rounded,
+                                    size: 11,
+                                    color: isDark ? Colors.white54 : Colors.grey.shade500,
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Flexible(
                                     child: Text(
-                                      tag,
+                                      'Berlaku hingga $expiry',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
                                         fontSize: 9.5,
-                                        fontWeight: FontWeight.w700,
-                                        color: isDark ? Colors.white70 : const Color(0xFF475569),
+                                        fontWeight: FontWeight.w500,
+                                        color: isDark ? Colors.white54 : Colors.grey.shade500,
                                       ),
                                     ),
                                   ),
-                                  // Secondary Badge jika ada
-                                  if (secondaryBadge != null)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: isDark ? Colors.white10 : const Color(0xFFF1F5F9),
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(
-                                          color: isDark ? Colors.white24 : Colors.grey.shade300,
-                                          width: 0.8,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        secondaryBadge,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontSize: 9.5,
-                                          fontWeight: FontWeight.w700,
-                                          color: isDark ? Colors.white70 : const Color(0xFF475569),
-                                        ),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                                    child: Text(
+                                      '•',
+                                      style: TextStyle(fontSize: 9.5, color: isDark ? Colors.white38 : Colors.grey.shade400),
+                                    ),
+                                  ),
+                                  InkWell(
+                                    onTap: onTermsTap,
+                                    child: const Text(
+                                      'S&K',
+                                      style: TextStyle(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: GageTheme.primary,
+                                        decoration: TextDecoration.underline,
                                       ),
                                     ),
+                                  ),
                                 ],
                               ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(width: 8),
+
+                        // ==========================================
+                        // C. TOMBOL AKSI ("Pakai")
+                        // ==========================================
+                        SizedBox(
+                          height: 32,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: GageTheme.primary,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8), // Rounded rectangle sesuai instruksi
+                              ),
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                              visualDensity: VisualDensity.compact,
                             ),
-
-                            const SizedBox(width: 8),
-
-                            // Tombol Pakai FULL ROUNDED (StadiumBorder)
-                            SizedBox(
-                              height: 30,
-                              child: OutlinedButton(
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: GageTheme.primary,
-                                  side: const BorderSide(color: GageTheme.primary, width: 1.4),
-                                  shape: const StadiumBorder(),
-                                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                                  visualDensity: VisualDensity.compact,
-                                ),
-                                onPressed: onApply,
-                                child: const Text(
-                                  'Pakai',
-                                  style: TextStyle(
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.3,
-                                  ),
-                                ),
+                            onPressed: onApply,
+                            child: const Text(
+                              'Pakai',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.2,
                               ),
                             ),
-                          ],
+                          ),
                         ),
                       ],
                     ),
@@ -390,13 +392,28 @@ class GageTicketVoucherCard extends StatelessWidget {
               ],
             ),
 
-            // 4. Notches Scalloped Atas & Bawah (Semi-Circle Ticket Cutouts)
+            // Takik Setengah Lingkaran (Ticket Cutout) Pada Sisi Kiri Kartu
             Positioned(
-              left: stubWidth - 6,
-              top: -6,
+              left: -8,
+              top: (cardHeight - 16) / 2,
               child: Container(
-                width: 12,
-                height: 12,
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: screenBgColor,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: borderColor, width: 1),
+                ),
+              ),
+            ),
+
+            // Takik Setengah Lingkaran Atas & Bawah Pada Garis Perforasi
+            Positioned(
+              left: stubWidth - 7,
+              top: -8,
+              child: Container(
+                width: 14,
+                height: 14,
                 decoration: BoxDecoration(
                   color: screenBgColor,
                   shape: BoxShape.circle,
@@ -405,11 +422,11 @@ class GageTicketVoucherCard extends StatelessWidget {
               ),
             ),
             Positioned(
-              left: stubWidth - 6,
-              bottom: -6,
+              left: stubWidth - 7,
+              bottom: -8,
               child: Container(
-                width: 12,
-                height: 12,
+                width: 14,
+                height: 14,
                 decoration: BoxDecoration(
                   color: screenBgColor,
                   shape: BoxShape.circle,
@@ -424,7 +441,7 @@ class GageTicketVoucherCard extends StatelessWidget {
   }
 }
 
-/// Painter garis putus-putus vertikal pembatas tiket kupon
+/// Painter garis putus-putus (perforasi vertikal tiket)
 class _DashedLinePainter extends CustomPainter {
   final Color color;
 
@@ -434,19 +451,13 @@ class _DashedLinePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     const double dashHeight = 4.0;
     const double dashSpace = 3.0;
+    double startY = 8.0;
     final paint = Paint()
       ..color = color
       ..strokeWidth = 1.0;
 
-    double startY = 8.0;
-    final double endY = size.height - 8.0;
-
-    while (startY < endY) {
-      canvas.drawLine(
-        Offset(0, startY),
-        Offset(0, (startY + dashHeight).clamp(0, endY)),
-        paint,
-      );
+    while (startY < size.height - 8.0) {
+      canvas.drawLine(Offset(0, startY), Offset(0, startY + dashHeight), paint);
       startY += dashHeight + dashSpace;
     }
   }

@@ -8,9 +8,9 @@ import 'package:gage_app/features/wallet/presentation/topup_qris_dialog.dart';
 import 'package:gage_app/features/wallet/presentation/qris_pay_screen.dart';
 import 'package:gage_app/features/wallet/presentation/withdraw_sheet.dart';
 import 'package:gage_app/features/wallet/presentation/widgets/gage_pocket_wallet.dart';
+import 'package:gage_app/features/wallet/presentation/widgets/gage_3d_flip_card_dialog.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
-import 'package:gage_app/shared/widgets/gage_tap_scale.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 
 /// Full Wallet Screen (GAGEPay)
@@ -42,7 +42,11 @@ class _GagePayScreenState extends State<GagePayScreen> {
       'holder': 'SITI RAHMAWATI',
       'accountNumber': '5524 9910 4242',
       'maskedNumber': '•••• 4242',
+      'fullNumber': '5524 9910 4242',
+      'validThru': '12 / 28',
       'color': const Color(0xFF1E3A8A),
+      'gradient': [const Color(0xFF1E3A8A), const Color(0xFF172554)],
+      'chipColor': const Color(0xFFF59E0B),
       'icon': Icons.account_balance_rounded,
     },
     {
@@ -52,7 +56,11 @@ class _GagePayScreenState extends State<GagePayScreen> {
       'holder': 'SITI RAHMAWATI',
       'accountNumber': '9012 4432 8810',
       'maskedNumber': '•••• 8810',
+      'fullNumber': '9012 4432 8810',
+      'validThru': '08 / 27',
       'color': const Color(0xFF0F172A),
+      'gradient': [const Color(0xFF0F172A), const Color(0xFF334155)],
+      'chipColor': const Color(0xFFE2E8F0),
       'icon': Icons.account_balance_rounded,
     },
     {
@@ -62,7 +70,11 @@ class _GagePayScreenState extends State<GagePayScreen> {
       'holder': 'SITI RAHMAWATI',
       'accountNumber': '0812 3456 7890',
       'maskedNumber': '•••• 7890',
+      'fullNumber': '0812 3456 7890',
+      'validThru': '05 / 29',
       'color': const Color(0xFF0D9488),
+      'gradient': [const Color(0xFF0D9488), const Color(0xFF065F46)],
+      'chipColor': const Color(0xFFF59E0B),
       'icon': Icons.account_balance_wallet_rounded,
     },
     {
@@ -72,7 +84,11 @@ class _GagePayScreenState extends State<GagePayScreen> {
       'holder': 'SITI RAHMAWATI',
       'accountNumber': '0012 9941 2914',
       'maskedNumber': '•••• 2914',
+      'fullNumber': '0012 9941 2914',
+      'validThru': '11 / 28',
       'color': const Color(0xFF00529C),
+      'gradient': [const Color(0xFF00529C), const Color(0xFF082F49)],
+      'chipColor': const Color(0xFFF59E0B),
       'icon': Icons.account_balance_rounded,
     },
   ];
@@ -160,22 +176,49 @@ class _GagePayScreenState extends State<GagePayScreen> {
               GagePocketWallet(
                 balance: wallet.balance,
                 points: wallet.points,
+                cards: _userAccounts,
                 onCardSelected: (card) {
                   setState(() => _selectedWithdrawCard = card);
                 },
-                onManageCardsTap: () => _showAccountSelectionSheet(context),
+                onCardDetailsTap: (card) {
+                  Gage3DFlipCardDialog.show(
+                    context,
+                    cardData: card,
+                    isPrimary: _userAccounts.indexOf(card) == 0,
+                    onSetAsPrimary: () {
+                      setState(() {
+                        _userAccounts.remove(card);
+                        _userAccounts.insert(0, card);
+                        _selectedWithdrawCard = card;
+                      });
+                    },
+                  );
+                },
+                onAddAccountTap: () => _showAccountSelectionSheet(context),
               ),
 
               const SizedBox(height: 14),
 
-              // 2. 4 Tombol Aksi Cepat Frameless (Icon 3D MCP Flow Transparan)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+              // 2. Baris 4 Fitur Cepat (Top Up, Bayar QRIS, Tarik Saldo, Tukar Poin)
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+                decoration: BoxDecoration(
+                  color: isDark ? GageTheme.darkCard : Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: isDark ? GageTheme.darkBorder : Colors.grey.shade200),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     _buildQuickAction(
-                      imageAsset: 'assets/icons/gagepay/action_topup_3d.png',
                       icon: Icons.add_circle_outline_rounded,
                       label: 'Top Up',
                       color: GageTheme.primary,
@@ -190,7 +233,6 @@ class _GagePayScreenState extends State<GagePayScreen> {
                       },
                     ),
                     _buildQuickAction(
-                      imageAsset: 'assets/icons/gagepay/action_qris_3d.png',
                       icon: Icons.qr_code_scanner_rounded,
                       label: 'Bayar QRIS',
                       color: const Color(0xFF0284C7),
@@ -203,7 +245,6 @@ class _GagePayScreenState extends State<GagePayScreen> {
                       },
                     ),
                     _buildQuickAction(
-                      imageAsset: 'assets/icons/gagepay/action_withdraw_3d.png',
                       icon: Icons.outbox_rounded,
                       label: 'Tarik Saldo',
                       color: const Color(0xFF16A34A),
@@ -220,7 +261,6 @@ class _GagePayScreenState extends State<GagePayScreen> {
                       },
                     ),
                     _buildQuickAction(
-                      imageAsset: 'assets/icons/gagepay/action_points_3d.png',
                       icon: Icons.stars_rounded,
                       label: 'Tukar Poin',
                       color: const Color(0xFFD97706),
@@ -231,7 +271,7 @@ class _GagePayScreenState extends State<GagePayScreen> {
                 ),
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
               // 3. Banner Promo GAGEPay Ramping
               ClipRRect(
@@ -335,13 +375,13 @@ class _GagePayScreenState extends State<GagePayScreen> {
 
               const SizedBox(height: 22),
 
-              // 4. Header Riwayat Transaksi & Filter Chips
+              // 4. Header Riwayat Transaksi (Sesuai Benchmark Gambar 4)
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
                     'Riwayat Transaksi',
-                    style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w900),
                   ),
                   Text(
                     '${filteredTxs.length} transaksi',
@@ -360,18 +400,18 @@ class _GagePayScreenState extends State<GagePayScreen> {
                     children: [
                       _buildFilterChip('SEMUA', 'Semua', isDark),
                       const SizedBox(width: 8),
-                      _buildFilterChip('TOPUP', 'Isi Saldo', isDark),
+                      _buildFilterChip('TOPUP', 'Pemasukan', isDark),
                       const SizedBox(width: 8),
                       _buildFilterChip('WITHDRAWAL', 'Penarikan', isDark),
                       const SizedBox(width: 8),
-                      _buildFilterChip('BELANJA', 'Belanja & Jasa', isDark),
+                      _buildFilterChip('BELANJA', 'Pengeluaran', isDark),
                     ],
                   ),
                 ),
 
               const SizedBox(height: 14),
 
-              // 5. Daftar Transaksi Terkelompok (Modern Grouped Transactions)
+              // 5. Daftar Transaksi Terkelompok Bulanan (Modern Grouped Transactions Card)
               if (wallet.isLoading)
                 ListView.builder(
                   shrinkWrap: true,
@@ -385,7 +425,7 @@ class _GagePayScreenState extends State<GagePayScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 16),
                   decoration: BoxDecoration(
                     color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
                   ),
                   child: Column(
@@ -399,173 +439,155 @@ class _GagePayScreenState extends State<GagePayScreen> {
                     ],
                   ),
                 )
-              else
-                ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: filteredTxs.length,
-                  separatorBuilder: (_, idx) => const SizedBox(height: 8),
-                  itemBuilder: (ctx, idx) {
-                    final t = filteredTxs[idx];
-                    final title = t['title'] as String? ?? 'Transaksi GAGEPay';
-                    final type = (t['type'] as String? ?? '').toUpperCase();
-                    final amount = t['amount'] as int? ?? 0;
-                    final status = t['status'] as String? ?? 'BERHASIL';
-                    final date = t['date'] as String? ?? '';
-                    final isPlus = type.contains('TOPUP') || type.contains('COMMISSION');
+              else ...[
+                // Kelompok Transaksi: Bulan Berjalan
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 6),
+                  child: Text(
+                    'Bulan Ini',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white60 : Colors.grey.shade600,
+                    ),
+                  ),
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: filteredTxs.length,
+                    separatorBuilder: (_, idx) => Divider(
+                      height: 1,
+                      indent: 64,
+                      color: isDark ? Colors.white10 : Colors.grey.shade100,
+                    ),
+                    itemBuilder: (ctx, idx) {
+                      final t = filteredTxs[idx];
+                      final title = t['title'] as String? ?? 'Transaksi GAGEPay';
+                      final type = (t['type'] as String? ?? '').toUpperCase();
+                      final amount = t['amount'] as int? ?? 0;
+                      final date = t['date'] as String? ?? '';
+                      final isPlus = type.contains('TOPUP') || type.contains('COMMISSION');
 
-                    IconData catIcon = Icons.payment_rounded;
-                    Color catColor = const Color(0xFF64748B);
-                    if (type.contains('TOPUP')) {
-                      catIcon = Icons.add_card_rounded;
-                      catColor = const Color(0xFF16A34A);
-                    } else if (type.contains('WITHDRAWAL')) {
-                      catIcon = Icons.outbox_rounded;
-                      catColor = const Color(0xFFEA580C);
-                    } else if (title.toLowerCase().contains('dimsum') || title.toLowerCase().contains('food')) {
-                      catIcon = Icons.restaurant_rounded;
-                      catColor = GageTheme.primary;
-                    } else if (title.toLowerCase().contains('ride') || title.toLowerCase().contains('car')) {
-                      catIcon = Icons.two_wheeler_rounded;
-                      catColor = const Color(0xFF2563EB);
-                    }
+                      IconData catIcon = Icons.payment_rounded;
+                      Color catColor = const Color(0xFF64748B);
+                      String categoryLabel = 'Belanja';
 
-                    return InkWell(
-                      onTap: () => _showTransactionDetailSheet(context, t),
-                      borderRadius: BorderRadius.circular(14),
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: catColor.withValues(alpha: 0.12),
-                                shape: BoxShape.circle,
+                      if (type.contains('TOPUP')) {
+                        catIcon = Icons.add_card_rounded;
+                        catColor = const Color(0xFF16A34A);
+                        categoryLabel = 'Top Up';
+                      } else if (type.contains('WITHDRAWAL')) {
+                        catIcon = Icons.outbox_rounded;
+                        catColor = const Color(0xFFEA580C);
+                        categoryLabel = 'Tarik Dana';
+                      } else if (title.toLowerCase().contains('dimsum') || title.toLowerCase().contains('food') || title.toLowerCase().contains('chicken')) {
+                        catIcon = Icons.restaurant_rounded;
+                        catColor = GageTheme.primary;
+                        categoryLabel = 'Kuliner';
+                      } else if (title.toLowerCase().contains('ride') || title.toLowerCase().contains('car')) {
+                        catIcon = Icons.two_wheeler_rounded;
+                        catColor = const Color(0xFF2563EB);
+                        categoryLabel = 'Transport';
+                      }
+
+                      return InkWell(
+                        onTap: () => _showTransactionDetailSheet(context, t),
+                        borderRadius: BorderRadius.circular(16),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: catColor.withValues(alpha: 0.12),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(catIcon, color: catColor, size: 20),
                               ),
-                              child: Icon(catIcon, color: catColor, size: 20),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      title,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                        color: isDark ? Colors.white : const Color(0xFF1E293B),
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      date.isNotEmpty ? date : 'Hari Ini',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: isDark ? Colors.white60 : Colors.grey.shade500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   Text(
-                                    title,
+                                    '${isPlus ? "+" : "-"} ${currencyFormatter.format(amount)}',
                                     style: TextStyle(
-                                      fontWeight: FontWeight.bold,
+                                      fontWeight: FontWeight.w900,
                                       fontSize: 13.5,
-                                      color: isDark ? Colors.white : const Color(0xFF1E293B),
+                                      color: isPlus
+                                          ? const Color(0xFF16A34A)
+                                          : (isDark ? Colors.white : const Color(0xFF0F172A)),
                                     ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                  const SizedBox(height: 3),
+                                  const SizedBox(height: 2),
                                   Text(
-                                    '$status • $date',
-                                    style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.black54),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                    categoryLabel,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark ? Colors.white38 : Colors.grey.shade400,
+                                    ),
                                   ),
                                 ],
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  '${isPlus ? "+" : "-"}${currencyFormatter.format(amount)}',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 14,
-                                    color: isPlus ? const Color(0xFF16A34A) : (isDark ? Colors.white : Colors.black87),
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                const Text(
-                                  'Rincian >',
-                                  style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold),
-                                ),
-                              ],
-                            ),
-                          ],
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.chevron_right_rounded,
+                                size: 18,
+                                color: isDark ? Colors.white24 : Colors.grey.shade400,
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
+              ],
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildQuickAction({
-    required String imageAsset,
-    required IconData icon,
-    required String label,
-    required Color color,
-    required bool isDark,
-    required VoidCallback onTap,
-  }) {
-    return GageTapScale(
-      onTap: onTap,
-      scaleDown: 0.90,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Image.asset(
-                imageAsset,
-                width: 54,
-                height: 54,
-                fit: BoxFit.cover,
-                errorBuilder: (ctx, err, stack) {
-                  return Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Icon(icon, color: color, size: 26),
-                  );
-                },
-              ),
-            ),
-          ),
-          const SizedBox(height: 7),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w800,
-              color: isDark ? Colors.white : const Color(0xFF1E293B),
-              letterSpacing: 0.2,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -582,63 +604,166 @@ class _GagePayScreenState extends State<GagePayScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Pilih rekening bank atau e-wallet utama Anda untuk penarikan saldo GAGEPay:',
+                'Daftar rekening bank dan e-wallet tersimpan. Geser untuk memilih atau menetapkan Rekening Utama:',
                 style: TextStyle(
                   fontSize: 12,
                   color: isDark ? Colors.white70 : Colors.grey.shade600,
                 ),
               ),
               const SizedBox(height: 14),
-              ..._userAccounts.map((acc) {
-                final isSelected = (_selectedWithdrawCard?['id'] == acc['id']) ||
-                    (_selectedWithdrawCard == null && acc['id'] == _userAccounts.first['id']);
 
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: isSelected ? GageTheme.primary : (isDark ? Colors.white12 : Colors.grey.shade300),
-                      width: isSelected ? 1.8 : 1.0,
-                    ),
-                  ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                    leading: Container(
-                      padding: const EdgeInsets.all(10),
+              // Stacked Scrollable Physical Cards
+              SizedBox(
+                height: 180,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: _userAccounts.length,
+                  itemBuilder: (ctx, idx) {
+                    final acc = _userAccounts[idx];
+                    final isSelected = (_selectedWithdrawCard?['id'] == acc['id']) ||
+                        (_selectedWithdrawCard == null && idx == 0);
+                    final isPrimary = idx == 0;
+                    final gradientColors = (acc['gradient'] as List?)?.cast<Color>() ??
+                        [acc['color'] as Color, Colors.black87];
+
+                    return Container(
+                      width: 270,
+                      margin: const EdgeInsets.only(right: 14, top: 4, bottom: 8),
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: (acc['color'] as Color).withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: gradientColors,
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: isSelected ? const Color(0xFFF59E0B) : Colors.white24,
+                          width: isSelected ? 2.0 : 1.0,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.35),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
-                      child: Icon(acc['icon'] as IconData, color: acc['color'] as Color, size: 22),
-                    ),
-                    title: Text(
-                      '${acc['bank']} • ${acc['maskedNumber']}',
-                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13.5),
-                    ),
-                    subtitle: Text(
-                      'a.n. ${acc['holder']} (${acc['accountNumber']})',
-                      style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.grey.shade600),
-                    ),
-                    trailing: isSelected
-                        ? const Icon(Icons.check_circle_rounded, color: GageTheme.primary, size: 22)
-                        : Icon(Icons.radio_button_off_rounded, color: Colors.grey.shade400, size: 22),
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      setState(() => _selectedWithdrawCard = acc);
-                      setSheetState(() {});
-                      Navigator.pop(ctx);
-                      GageToast.show(
-                        context,
-                        'Rekening aktif: ${acc['bank']} (${acc['maskedNumber']})',
-                        type: GageToastType.info,
-                      );
-                    },
-                  ),
-                );
-              }),
-              const SizedBox(height: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(acc['icon'] as IconData, color: Colors.white, size: 18),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    (acc['bank'] as String).toUpperCase(),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 13,
+                                      letterSpacing: 1.0,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (isPrimary)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF59E0B),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Text(
+                                    'UTAMA',
+                                    style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 8.5),
+                                  ),
+                                )
+                              else
+                                InkWell(
+                                  onTap: () {
+                                    setSheetState(() {
+                                      setState(() {
+                                        _userAccounts.remove(acc);
+                                        _userAccounts.insert(0, acc);
+                                        _selectedWithdrawCard = acc;
+                                      });
+                                    });
+                                    GageToast.show(
+                                      context,
+                                      '${acc['bank']} ditetapkan sebagai Rekening Utama!',
+                                      type: GageToastType.success,
+                                    );
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Text(
+                                      'Set Utama',
+                                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 8.5),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          Text(
+                            acc['maskedNumber'] as String,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              letterSpacing: 2.2,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                (acc['holder'] as String).toUpperCase(),
+                                style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w600),
+                              ),
+                              InkWell(
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  setState(() => _selectedWithdrawCard = acc);
+                                  Navigator.pop(ctx);
+                                  GageToast.show(
+                                    context,
+                                    'Rekening aktif: ${acc['bank']} (${acc['maskedNumber']})',
+                                    type: GageToastType.info,
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? GageTheme.primary : Colors.white24,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    isSelected ? 'Terpilih' : 'Pilih',
+                                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 height: 44,
@@ -649,7 +774,7 @@ class _GagePayScreenState extends State<GagePayScreen> {
                     shape: const StadiumBorder(),
                   ),
                   icon: const Icon(Icons.add_rounded, size: 20),
-                  label: const Text('+ Tambah Rekening Baru', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                  label: const Text('Tambah Rekening Baru', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
                   onPressed: () {
                     Navigator.pop(ctx);
                     _showAddAccountSheet(context);
@@ -1092,6 +1217,48 @@ class _GagePayScreenState extends State<GagePayScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildQuickAction({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white70 : Colors.black87,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

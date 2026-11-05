@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/data/models/order_model.dart';
 import 'package:gage_app/data/models/cart_item_model.dart';
 import 'package:gage_app/providers/cart_provider.dart';
 import 'package:gage_app/features/orders/presentation/order_tracking_screen.dart';
+import 'package:gage_app/features/orders/presentation/widgets/rating_review_sheet.dart';
 import 'package:gage_app/features/checkout/presentation/checkout_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
-import 'package:gage_app/shared/widgets/gage_toast.dart';
 
 class OrderDetailScreen extends StatefulWidget {
   final OrderModel order;
@@ -23,6 +24,8 @@ class OrderDetailScreen extends StatefulWidget {
 
 class _OrderDetailScreenState extends State<OrderDetailScreen> {
   bool _isLoading = false;
+  int _selectedStar = 0;
+  bool _isReviewed = false;
 
   OrderModel get order => widget.order;
 
@@ -53,13 +56,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             tooltip: 'Bagikan',
             onPressed: () async {
               final text = 'Detail Pesanan GAGE #${order.orderNumber} di ${order.merchantName}.\nTotal: Rp ${order.totalAmount}';
-              await Clipboard.setData(ClipboardData(text: text));
-              final waUrl = Uri.parse('https://wa.me/?text=${Uri.encodeComponent(text)}');
-              if (await canLaunchUrl(waUrl)) {
-                await launchUrl(waUrl, mode: LaunchMode.externalApplication);
-              } else if (context.mounted) {
-                GageToast.show(context, 'Teks pesanan #${order.orderNumber} disalin ke clipboard!', type: GageToastType.success);
-              }
+              await SharePlus.instance.share(
+                ShareParams(
+                  text: text,
+                  subject: 'Struk Pesanan GAGE #${order.orderNumber}',
+                ),
+              );
             },
           ),
         ],
@@ -98,6 +100,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     // Card 6: Info Pengemudi / Driver (jika ada)
                     if (order.driverName != null && order.driverName!.isNotEmpty) ...[
                       _buildDriverSection(context),
+                      const SizedBox(height: 14),
+                    ],
+
+                    // Card 6.5: Penilaian Toko & Driver (Pesanan Selesai)
+                    if (!order.isActive) ...[
+                      _buildRatingReviewSection(context),
                       const SizedBox(height: 14),
                     ],
 
@@ -179,12 +187,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     ),
                   );
                 },
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(20),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: Colors.grey.shade300),
                   ),
                   child: const Row(
@@ -668,13 +676,92 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     }
   }
 
+  Widget _buildRatingReviewSection(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFEF08A)),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 1))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 20),
+              const SizedBox(width: 6),
+              Text(
+                _isReviewed ? 'Penilaian Telah Dikirim' : 'Beri Penilaian Pesanan',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _isReviewed
+                ? 'Terima kasih telah membantu mitra merchant & driver GAGE!'
+                : 'Ketuk bintang untuk menilai kualitas menu dan pelayanan driver',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(5, (index) {
+              final starIndex = index + 1;
+              final isFilled = starIndex <= (_selectedStar > 0 ? _selectedStar : 0);
+              return InkWell(
+                onTap: _isReviewed
+                    ? null
+                    : () async {
+                        final res = await RatingReviewSheet.show(
+                          context,
+                          orderId: order.id,
+                          merchantName: order.merchantName,
+                          merchantAvatar: order.merchantAvatar,
+                          driverName: order.driverName ?? 'Driver GAGE',
+                          driverAvatar: order.driverAvatar,
+                          driverVehicle: order.driverPlate,
+                          initialStar: starIndex,
+                          onSubmitted: (mRating, dRating) {
+                            setState(() {
+                              _selectedStar = starIndex;
+                              _isReviewed = true;
+                            });
+                          },
+                        );
+                        if (res == true && mounted) {
+                          setState(() {
+                            _selectedStar = starIndex;
+                            _isReviewed = true;
+                          });
+                        }
+                      },
+                borderRadius: BorderRadius.circular(20),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  child: Icon(
+                    isFilled ? Icons.star_rounded : Icons.star_outline_rounded,
+                    size: 34,
+                    color: isFilled ? const Color(0xFFF59E0B) : Colors.amber.shade300,
+                  ),
+                ),
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildBottomBar(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, -2))],
-      ),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      color: Colors.transparent,
       child: order.isActive
           ? SizedBox(
               height: 48,
@@ -682,7 +769,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: GageTheme.primary,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: const StadiumBorder(),
+                  elevation: 2,
                 ),
                 icon: const Icon(Icons.navigation_rounded, size: 18),
                 label: const Text('Lacak Posisi Pesanan Real-time', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
@@ -704,24 +792,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 Expanded(
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
+                      backgroundColor: Colors.white,
                       foregroundColor: GageTheme.primary,
-                      side: const BorderSide(color: GageTheme.primary),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    onPressed: () {
-                      _reorder(context, order);
-                    },
-                    child: const Text('Pesan Lagi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: GageTheme.primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      side: const BorderSide(color: GageTheme.primary, width: 1.5),
+                      shape: const StadiumBorder(),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                     onPressed: () {
@@ -733,6 +807,22 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       );
                     },
                     child: const Text('Bantuan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: GageTheme.primary,
+                      foregroundColor: Colors.white,
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      elevation: 2,
+                    ),
+                    onPressed: () {
+                      _reorder(context, order);
+                    },
+                    child: const Text('Pesan Lagi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
                   ),
                 ),
               ],

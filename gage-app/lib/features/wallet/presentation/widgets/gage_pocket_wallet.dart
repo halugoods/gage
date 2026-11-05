@@ -1,26 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// 3D Leather Pocket Wallet Widget
-/// Diadaptasi dari referensi visual saku dompet kulit & HTML/CSS fanning cards:
-/// - Saku dompet kulit dengan bibir melengkung (curved mouth) & jahitan putus-putus (dashed stitching)
-/// - Tumpukan kartu rekening bank/e-wallet tersimpan (BCA, Mandiri, GoPay) yang meluncur keluar (fan-out) saat disentuh
+/// GagePocketWallet
+/// Widget Saku Dompet Kulit 3D (3D Leather Pocket Wallet):
+/// - Saku dompet kulit fisik dengan bibir melengkung (curved mouth) & jahitan putus-putus (dashed stitching)
+/// - Tumpukan 3 kartu rekening bank/e-wallet tersimpan (BCA, Mandiri, GoPay) yang meluncur keluar (fan-out) saat disentuh
 /// - Toggle mata saldo tersembunyi/tampil pada saku depan
-/// - Memilih kartu rekening aktif sebagai target penarikan saldo
+/// - Tombol '+' di pojok kanan atas saku untuk menambah rekening baru
+/// - Indikator '${points} Poin' dengan label bersih dan posisi proporsional
+/// - Tap pada kartu yang sedang keluar (fanned-out) memicu popup dialog 3D interactive flip card
 class GagePocketWallet extends StatefulWidget {
   final int balance;
   final int points;
+  final List<Map<String, dynamic>>? cards;
   final void Function(Map<String, dynamic> selectedCard)? onCardSelected;
+  final void Function(Map<String, dynamic> card)? onCardDetailsTap;
   final VoidCallback? onEyeToggle;
-  final VoidCallback? onManageCardsTap;
+  final VoidCallback? onAddAccountTap;
 
   const GagePocketWallet({
     super.key,
     required this.balance,
     this.points = 100,
+    this.cards,
     this.onCardSelected,
+    this.onCardDetailsTap,
     this.onEyeToggle,
-    this.onManageCardsTap,
+    this.onAddAccountTap,
   });
 
   @override
@@ -35,7 +41,7 @@ class _GagePocketWalletState extends State<GagePocketWallet>
   bool _isBalanceVisible = true;
   int _selectedCardIndex = 0;
 
-  final List<Map<String, dynamic>> _savedCards = [
+  final List<Map<String, dynamic>> _defaultCards = [
     {
       'id': 'card-bca',
       'bank': 'BCA',
@@ -43,6 +49,7 @@ class _GagePocketWalletState extends State<GagePocketWallet>
       'holder': 'SITI RAHMAWATI',
       'maskedNumber': '•••• 4242',
       'fullNumber': '5524 9910 4242',
+      'validThru': '12 / 28',
       'gradient': [const Color(0xFF1E3A8A), const Color(0xFF172554)],
       'chipColor': const Color(0xFFF59E0B),
       'icon': Icons.account_balance_rounded,
@@ -54,6 +61,7 @@ class _GagePocketWalletState extends State<GagePocketWallet>
       'holder': 'SITI RAHMAWATI',
       'maskedNumber': '•••• 8810',
       'fullNumber': '9012 4432 8810',
+      'validThru': '08 / 27',
       'gradient': [const Color(0xFF0F172A), const Color(0xFF334155)],
       'chipColor': const Color(0xFFE2E8F0),
       'icon': Icons.account_balance_rounded,
@@ -65,11 +73,15 @@ class _GagePocketWalletState extends State<GagePocketWallet>
       'holder': 'SITI RAHMAWATI',
       'maskedNumber': '•••• 7890',
       'fullNumber': '0812 3456 7890',
+      'validThru': '05 / 29',
       'gradient': [const Color(0xFF0D9488), const Color(0xFF065F46)],
       'chipColor': const Color(0xFFF59E0B),
       'icon': Icons.account_balance_wallet_rounded,
     },
   ];
+
+  List<Map<String, dynamic>> get _cards =>
+      (widget.cards != null && widget.cards!.isNotEmpty) ? widget.cards! : _defaultCards;
 
   @override
   void initState() {
@@ -81,6 +93,7 @@ class _GagePocketWalletState extends State<GagePocketWallet>
     _fanAnimation = CurvedAnimation(
       parent: _animCtrl,
       curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
     );
   }
 
@@ -108,13 +121,16 @@ class _GagePocketWalletState extends State<GagePocketWallet>
       _selectedCardIndex = index;
     });
     if (widget.onCardSelected != null) {
-      widget.onCardSelected!(_savedCards[index]);
+      widget.onCardSelected!(_cards[index]);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final selectedCard = _savedCards[_selectedCardIndex];
+    final activeCards = _cards;
+    final selectedCard = _selectedCardIndex < activeCards.length
+        ? activeCards[_selectedCardIndex]
+        : activeCards.first;
 
     return AnimatedBuilder(
       animation: _fanAnimation,
@@ -128,7 +144,7 @@ class _GagePocketWalletState extends State<GagePocketWallet>
               onTap: _toggleFan,
               behavior: HitTestBehavior.opaque,
               child: SizedBox(
-                height: 235 + (animValue * 45), // mengembang saat kartu meluncur naik
+                height: 235 + (animValue * 48), // mengembang saat kartu meluncur naik
                 width: double.infinity,
                 child: Stack(
                   clipBehavior: Clip.none,
@@ -156,38 +172,41 @@ class _GagePocketWalletState extends State<GagePocketWallet>
                       ),
                     ),
 
-                    // Layer 1: Kartu 1 (BCA) - Paling Belakang
-                    _buildAnimatedCard(
-                      card: _savedCards[0],
-                      index: 0,
-                      animValue: animValue,
-                      normalOffsetY: -32.0,
-                      fannedOffsetY: -90.0,
-                      fannedRotation: -0.065, // ~-3.7 derajat
-                      scale: 0.92,
-                    ),
+                    // Layer 1: Kartu 1 (Paling Belakang)
+                    if (activeCards.isNotEmpty)
+                      _buildAnimatedCard(
+                        card: activeCards[0],
+                        index: 0,
+                        animValue: animValue,
+                        normalOffsetY: -32.0,
+                        fannedOffsetY: -92.0,
+                        fannedRotation: -0.065, // ~-3.7 derajat
+                        scale: 0.92,
+                      ),
 
-                    // Layer 2: Kartu 2 (Mandiri) - Tengah
-                    _buildAnimatedCard(
-                      card: _savedCards[1],
-                      index: 1,
-                      animValue: animValue,
-                      normalOffsetY: -18.0,
-                      fannedOffsetY: -58.0,
-                      fannedRotation: 0.045, // ~+2.5 derajat
-                      scale: 0.96,
-                    ),
+                    // Layer 2: Kartu 2 (Tengah)
+                    if (activeCards.length > 1)
+                      _buildAnimatedCard(
+                        card: activeCards[1],
+                        index: 1,
+                        animValue: animValue,
+                        normalOffsetY: -18.0,
+                        fannedOffsetY: -60.0,
+                        fannedRotation: 0.045, // ~+2.5 derajat
+                        scale: 0.96,
+                      ),
 
-                    // Layer 3: Kartu 3 (GoPay) - Terdepan di dalam saku
-                    _buildAnimatedCard(
-                      card: _savedCards[2],
-                      index: 2,
-                      animValue: animValue,
-                      normalOffsetY: -4.0,
-                      fannedOffsetY: -22.0,
-                      fannedRotation: 0.0,
-                      scale: 1.0,
-                    ),
+                    // Layer 3: Kartu 3 (Terdepan di dalam saku)
+                    if (activeCards.length > 2)
+                      _buildAnimatedCard(
+                        card: activeCards[2],
+                        index: 2,
+                        animValue: animValue,
+                        normalOffsetY: -4.0,
+                        fannedOffsetY: -24.0,
+                        fannedRotation: 0.0,
+                        scale: 1.0,
+                      ),
 
                     // Layer 4: Saku Kulit Depan (Wallet Front Pocket)
                     Positioned(
@@ -220,6 +239,9 @@ class _GagePocketWalletState extends State<GagePocketWallet>
     final currentRotation = fannedRotation * animValue;
     final currentScale = isSelected && _isFannedOut ? (scale + 0.04) : scale;
 
+    final gradientColors = (card['gradient'] as List?)?.cast<Color>() ??
+        const [Color(0xFF1E3A8A), Color(0xFF172554)];
+
     return Positioned(
       bottom: 0,
       left: 12,
@@ -237,8 +259,8 @@ class _GagePocketWalletState extends State<GagePocketWallet>
                   _toggleFan();
                 } else {
                   HapticFeedback.lightImpact();
-                  if (widget.onManageCardsTap != null) {
-                    widget.onManageCardsTap!();
+                  if (widget.onCardDetailsTap != null) {
+                    widget.onCardDetailsTap!(card);
                   } else {
                     _selectCard(index);
                   }
@@ -249,7 +271,7 @@ class _GagePocketWalletState extends State<GagePocketWallet>
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: card['gradient'] as List<Color>,
+                    colors: gradientColors,
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -276,10 +298,10 @@ class _GagePocketWalletState extends State<GagePocketWallet>
                       children: [
                         Row(
                           children: [
-                            Icon(card['icon'] as IconData, color: Colors.white, size: 18),
+                            Icon(card['icon'] as IconData? ?? Icons.account_balance_rounded, color: Colors.white, size: 18),
                             const SizedBox(width: 6),
                             Text(
-                              card['bank'] as String,
+                              card['bank'] as String? ?? 'GAGE Card',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w900,
@@ -289,16 +311,40 @@ class _GagePocketWalletState extends State<GagePocketWallet>
                             ),
                           ],
                         ),
-                        // EMV Gold/Silver Chip
-                        Container(
-                          width: 28,
-                          height: 20,
-                          decoration: BoxDecoration(
-                            color: card['chipColor'] as Color,
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: Colors.black26, width: 0.8),
-                          ),
-                          child: CustomPaint(painter: _ChipPatternPainter()),
+                        Row(
+                          children: [
+                            if (_isFannedOut)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                margin: const EdgeInsets.only(right: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.flip_rounded, color: Colors.white, size: 10),
+                                    SizedBox(width: 3),
+                                    Text(
+                                      '3D Flip',
+                                      style: TextStyle(color: Colors.white, fontSize: 8.5, fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            // EMV Gold/Silver Chip
+                            Container(
+                              width: 28,
+                              height: 20,
+                              decoration: BoxDecoration(
+                                color: card['chipColor'] as Color? ?? const Color(0xFFF59E0B),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: Colors.black26, width: 0.8),
+                              ),
+                              child: CustomPaint(painter: _ChipPatternPainter()),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -321,7 +367,7 @@ class _GagePocketWalletState extends State<GagePocketWallet>
                               ),
                             ),
                             Text(
-                              card['holder'] as String,
+                              card['holder'] as String? ?? 'PENGGUNA GAGE',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 11,
@@ -352,7 +398,9 @@ class _GagePocketWalletState extends State<GagePocketWallet>
                                 ),
                               ),
                             Text(
-                              _isFannedOut ? (card['fullNumber'] as String) : (card['maskedNumber'] as String),
+                              _isFannedOut
+                                  ? (card['fullNumber'] as String? ?? '•••• •••• ••••')
+                                  : (card['maskedNumber'] as String? ?? '•••• ••••'),
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 12,
@@ -412,12 +460,12 @@ class _GagePocketWalletState extends State<GagePocketWallet>
 
           // Konten di Permukaan Saku Depan
           Padding(
-            padding: const EdgeInsets.fromLTRB(18, 22, 18, 12),
+            padding: const EdgeInsets.fromLTRB(18, 20, 18, 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Baris 1: Label Saldo & Toggle Mata
+                // Baris 1: Label Saldo, Toggle Mata & Tombol Tambah Rekening (+)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -436,28 +484,59 @@ class _GagePocketWalletState extends State<GagePocketWallet>
                         ),
                       ],
                     ),
-                    InkWell(
-                      onTap: () {
-                        HapticFeedback.lightImpact();
-                        setState(() => _isBalanceVisible = !_isBalanceVisible);
-                        if (widget.onEyeToggle != null) widget.onEyeToggle!();
-                      },
-                      borderRadius: BorderRadius.circular(16),
-                      child: Padding(
-                        padding: const EdgeInsets.all(4),
-                        child: Icon(
-                          _isBalanceVisible ? Icons.visibility_rounded : Icons.visibility_off_rounded,
-                          color: const Color(0xFFD4B996),
-                          size: 18,
+                    Row(
+                      children: [
+                        // Toggle Mata Saldo
+                        InkWell(
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            setState(() => _isBalanceVisible = !_isBalanceVisible);
+                            if (widget.onEyeToggle != null) widget.onEyeToggle!();
+                          },
+                          borderRadius: BorderRadius.circular(16),
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: Icon(
+                              _isBalanceVisible ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+                              color: const Color(0xFFD4B996),
+                              size: 18,
+                            ),
+                          ),
                         ),
-                      ),
+                        // Tombol Tambah Rekening (+)
+                        if (widget.onAddAccountTap != null) ...[
+                          const SizedBox(width: 4),
+                          InkWell(
+                            onTap: () {
+                              HapticFeedback.lightImpact();
+                              widget.onAddAccountTap!();
+                            },
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.15),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white24, width: 0.8),
+                              ),
+                              child: const Icon(
+                                Icons.add_rounded,
+                                color: Color(0xFFD4B996),
+                                size: 16,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),
 
                 // Baris 2: Nominal Saldo Besar
                 Text(
-                  _isBalanceVisible ? 'Rp ${widget.balance.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}' : 'Rp ••••••',
+                  _isBalanceVisible
+                      ? 'Rp ${widget.balance.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}'
+                      : 'Rp ••••••',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 23,
@@ -466,14 +545,14 @@ class _GagePocketWalletState extends State<GagePocketWallet>
                   ),
                 ),
 
-                // Baris 3: Poin Cuan & Kartu Penarikan Terpilih
+                // Baris 3: Poin & Kartu Penarikan Terpilih
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.12),
+                        color: Colors.white.withValues(alpha: 0.14),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: Colors.white24, width: 0.8),
                       ),
@@ -483,7 +562,7 @@ class _GagePocketWalletState extends State<GagePocketWallet>
                           const Icon(Icons.stars_rounded, color: Color(0xFFF59E0B), size: 13),
                           const SizedBox(width: 4),
                           Text(
-                            '${widget.points} Poin Cuan',
+                            '${widget.points} Poin',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 10.5,
@@ -496,7 +575,9 @@ class _GagePocketWalletState extends State<GagePocketWallet>
                     Row(
                       children: [
                         Text(
-                          animValue > 0.5 ? 'Pilih Rekening' : '${selectedCard['bank']} (${selectedCard['maskedNumber']})',
+                          animValue > 0.5
+                              ? 'Pilih Rekening'
+                              : '${selectedCard['bank']} (${selectedCard['maskedNumber']})',
                           style: const TextStyle(
                             color: Color(0xFFD4B996),
                             fontSize: 10.5,

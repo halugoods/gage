@@ -35,9 +35,10 @@ class ChatMessage {
   bool get isFromCustomer => senderRole == 'customer';
   bool get isFromMerchant => senderRole == 'merchant';
   bool get isFromAdmin => senderRole == 'admin';
-  bool get isImage => messageType == 'image' || (mediaUrl != null && mediaUrl!.isNotEmpty);
+  bool get isImage => messageType == 'image';
   bool get isProduct => messageType == 'product' || productName != null;
   bool get isVoice => messageType == 'voice';
+  String? get audioUrl => isVoice ? mediaUrl : null;
 
   Map<String, dynamic> toJson() {
     return {

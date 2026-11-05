@@ -26,7 +26,7 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
   final TextEditingController _codeCtrl = TextEditingController();
   int _selectedTabIndex = 0;
 
-  final List<String> _tabs = ['Semua', 'Makanan', 'Gratis Ongkir', 'Transport'];
+  final List<String> _tabs = ['Semua', 'Diskon', 'Gratis Ongkir'];
 
   // Master Database Voucher Kupon GAGE
   final List<Map<String, dynamic>> _allVouchers = [
@@ -178,12 +178,10 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
 
   List<Map<String, dynamic>> _getVouchersForTab(int tabIndex) {
     switch (tabIndex) {
-      case 1: // Makanan
-        return _allVouchers.where((v) => v['service'] == 'GAGE Food' && v['type'] == 'order').toList();
-      case 2: // Gratis Ongkir
+      case 1: // Diskon (Merangkap Food, Mart, Ride/Car, BaBe)
+        return _allVouchers.where((v) => v['type'] != 'delivery').toList();
+      case 2: // Gratis Ongkir (Merangkap semua layanan)
         return _allVouchers.where((v) => v['type'] == 'delivery').toList();
-      case 3: // Transport
-        return _allVouchers.where((v) => v['service'] == 'GAGE Ride' || v['service'] == 'GAGE Car').toList();
       default: // Semua
         return _allVouchers;
     }
@@ -312,7 +310,7 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
               style: ElevatedButton.styleFrom(
                 backgroundColor: GageTheme.primary,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: const StadiumBorder(),
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
               onPressed: () {
