@@ -75,7 +75,7 @@ class _BabeSellFormScreenState extends State<BabeSellFormScreen> {
     super.initState();
     final auth = context.read<AuthProvider>();
     final user = auth.currentUser;
-    _phoneCtrl.text = user?.phone ?? '081234567890';
+    _phoneCtrl.text = user?.phone ?? '081226001000';
   }
 
   @override

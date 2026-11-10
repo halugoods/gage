@@ -5,7 +5,6 @@ import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
 import 'package:gage_app/features/food/presentation/food_explore_screen.dart';
 import 'package:gage_app/features/food/presentation/shop_screen.dart';
-import 'package:gage_app/features/food/presentation/shop_store_detail_screen.dart';
 import 'package:gage_app/features/food/presentation/farm_screen.dart';
 import 'package:gage_app/features/food/presentation/build_screen.dart';
 
@@ -121,7 +120,7 @@ class HomeMerchantShowcaseSection extends StatelessWidget {
       'ratingCount': '125+',
       'distance': '1.0 km',
       'eta': '20-30 min',
-      'image': 'assets/icons/ic_build.png',
+      'image': 'assets/images/babe_hero_banner.png',
       'tier': 'exclusive',
       'isSponsored': true,
       'campaignBadge': 'PROMO PROYEK',
@@ -135,7 +134,7 @@ class HomeMerchantShowcaseSection extends StatelessWidget {
       'ratingCount': '88+',
       'distance': '0.6 km',
       'eta': '10-15 min',
-      'image': 'assets/icons/ic_build.png',
+      'image': 'assets/images/babe_hero_banner.png',
       'tier': 'star',
       'promoBadges': ['Diskon 20%', 'Diskon Ongkir'],
     },
@@ -147,7 +146,7 @@ class HomeMerchantShowcaseSection extends StatelessWidget {
       'ratingCount': '64+',
       'distance': '1.8 km',
       'eta': '20-30 min',
-      'image': 'assets/icons/ic_build.png',
+      'image': 'assets/images/babe_hero_banner.png',
       'tier': null, // Basic tanpa badge
       'promoBadges': ['Diskon 10%', 'Diskon Ongkir'],
     },
@@ -400,7 +399,7 @@ class HomeMerchantShowcaseSection extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (c) => ShopStoreDetailScreen(store: s),
+                  builder: (c) => RestoDetailScreen(merchant: s),
                 ),
               );
             },
@@ -438,7 +437,7 @@ class HomeMerchantShowcaseSection extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (c) => ShopStoreDetailScreen(store: s),
+                  builder: (c) => RestoDetailScreen(merchant: s),
                 ),
               );
             },
@@ -477,7 +476,7 @@ class HomeMerchantShowcaseSection extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (c) => ShopStoreDetailScreen(store: s),
+                  builder: (c) => RestoDetailScreen(merchant: s),
                 ),
               );
             },

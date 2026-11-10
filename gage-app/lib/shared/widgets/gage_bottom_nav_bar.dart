@@ -9,8 +9,10 @@ import 'package:gage_app/features/orders/presentation/orders_screen.dart';
 import 'package:gage_app/features/home/presentation/promo_screen.dart';
 import 'package:gage_app/features/video/presentation/video_feed_screen.dart';
 import 'package:gage_app/features/profile/presentation/profile_screen.dart';
+import 'package:gage_app/providers/language_provider.dart';
+import 'package:gage_app/core/services/notification_service.dart';
 
-/// Standalone Floating Bottom Navigation Bar untuk GAGE SuperApp (Telegram Floating Capsule Style)
+/// Standalone Floating Bottom Navigation Bar untuk GAGE App (Telegram Floating Capsule Style)
 /// - Meniru estetika floating capsule modern Telegram: rounded pill 32px melayang di atas gesture bar
 /// - Frosted glass / backdrop blur semi-transparan dengan hairline border halus
 /// - Micro-interaction: Active pill highlight di belakang icon + Haptic tactile feedback
@@ -63,6 +65,13 @@ class GageBottomNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isVideoTab = currentIndex == 3;
+    final effectiveDark = isDark || isVideoTab;
+
+    LanguageProvider? lang;
+    try {
+      lang = Provider.of<LanguageProvider?>(context);
+    } catch (_) {}
 
     int activeOrdersCount = 0;
     try {
@@ -80,19 +89,21 @@ class GageBottomNavBar extends StatelessWidget {
           child: Container(
             height: 60,
             decoration: BoxDecoration(
-              color: isDark
-                  ? const Color(0xFF1E293B).withValues(alpha: 0.94)
+              color: effectiveDark
+                  ? (isVideoTab
+                      ? const Color(0xFF0F172A).withValues(alpha: 0.88)
+                      : const Color(0xFF1E293B).withValues(alpha: 0.94))
                   : Colors.white.withValues(alpha: 0.96),
               borderRadius: BorderRadius.circular(32),
               border: Border.all(
-                color: isDark
+                color: effectiveDark
                     ? Colors.white.withValues(alpha: 0.12)
                     : const Color(0xFFE2E8F0),
                 width: 1,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
+                  color: Colors.black.withValues(alpha: effectiveDark ? 0.45 : 0.08),
                   blurRadius: 20,
                   offset: const Offset(0, 6),
                   spreadRadius: 0,
@@ -110,42 +121,44 @@ class GageBottomNavBar extends StatelessWidget {
                       0,
                       'assets/images/nav_home_active.png',
                       'assets/images/nav_home_inactive.png',
-                      'Beranda',
-                      isDark: isDark,
+                      lang?.tr('nav_home') ?? 'Beranda',
+                      isDark: effectiveDark,
                     ),
                     _buildNavItem(
                       context,
                       1,
                       'assets/images/nav_orders_active.png',
                       'assets/images/nav_orders_inactive.png',
-                      'Pesanan',
+                      lang?.tr('nav_orders') ?? 'Pesanan',
                       badgeText: activeOrdersCount > 0 ? '$activeOrdersCount' : null,
-                      isDark: isDark,
+                      isDark: effectiveDark,
                     ),
                     _buildNavItem(
                       context,
                       2,
                       'assets/images/nav_promo_active.png',
                       'assets/images/nav_promo_inactive.png',
-                      'Promo',
-                      hasDotBadge: true,
-                      isDark: isDark,
+                      lang?.tr('nav_promo') ?? 'Promo',
+                      badgeText: NotificationService.instance.unreadPromoCount > 0
+                          ? '${NotificationService.instance.unreadPromoCount}'
+                          : null,
+                      isDark: effectiveDark,
                     ),
                     _buildNavItem(
                       context,
                       3,
                       'assets/images/nav_video_active.png',
                       'assets/images/nav_video_inactive.png',
-                      'Video',
-                      isDark: isDark,
+                      lang?.tr('nav_video') ?? 'Video',
+                      isDark: effectiveDark,
                     ),
                     _buildNavItem(
                       context,
                       4,
                       'assets/images/nav_profile_active.png',
                       'assets/images/nav_profile_inactive.png',
-                      'Profil',
-                      isDark: isDark,
+                      lang?.tr('nav_profile') ?? 'Profil',
+                      isDark: effectiveDark,
                     ),
                   ],
                 ),

@@ -7,7 +7,6 @@ import 'package:gage_app/providers/cart_provider.dart';
 import 'package:gage_app/data/models/cart_item_model.dart';
 import 'package:gage_app/features/checkout/presentation/checkout_screen.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
-import 'package:gage_app/core/services/merchant_discount_tier_service.dart';
 
 /// Reusable Floating Cart Sheet untuk GAGE SuperApp
 /// Standarisasi floating sheet untuk melihat dan mengelola isi keranjang belanja
@@ -155,51 +154,6 @@ class GageCartSheet extends StatelessWidget {
         const SizedBox(height: 12),
         Divider(height: 1, color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
         const SizedBox(height: 12),
-
-        // Multi-Tier Discount Progress Banner
-        Builder(
-          builder: (context) {
-            final progress = MerchantDiscountTierService.calculateProgress(
-              subtotal: cart.subtotal,
-              merchantId: cart.merchantId,
-              serviceType: cart.primaryServiceType,
-            );
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: progress.hasDiscount
-                    ? (isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5))
-                    : (isDark ? const Color(0xFF451A03) : const Color(0xFFFFFBEB)),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: progress.hasDiscount ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
-                  width: 0.8,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    progress.isMaxTier ? Icons.celebration_rounded : Icons.local_offer_rounded,
-                    size: 16,
-                    color: progress.hasDiscount ? const Color(0xFF059669) : const Color(0xFFD97706),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      progress.hintText,
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.bold,
-                        color: progress.hasDiscount ? const Color(0xFF065F46) : const Color(0xFF92400E),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
 
         // 2. Daftar Item dalam Keranjang
         ConstrainedBox(
@@ -387,12 +341,12 @@ class GageCartSheet extends StatelessWidget {
             ),
             SizedBox(
               height: 46,
-              child: ElevatedButton.icon(
+              child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: GageTheme.primary,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
                   elevation: 0,
                 ),
                 onPressed: () {
@@ -404,8 +358,7 @@ class GageCartSheet extends StatelessWidget {
                     ),
                   );
                 },
-                icon: const Icon(Icons.shopping_cart_checkout_rounded, size: 18),
-                label: const Text('Checkout', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                child: const Text('Checkout', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
               ),
             ),
           ],

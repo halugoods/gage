@@ -1,30 +1,30 @@
-// ignore_for_file: deprecated_member_use
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/providers/auth_provider.dart';
-import 'package:gage_app/providers/wallet_provider.dart';
-import 'package:gage_app/features/orders/presentation/orders_screen.dart';
-import 'package:gage_app/features/home/presentation/promo_screen.dart';
-import 'package:gage_app/features/membership/presentation/membership_screen.dart';
-import 'package:gage_app/features/affiliate/presentation/affiliate_hub_screen.dart';
+import 'package:gage_app/providers/theme_provider.dart';
+import 'package:gage_app/providers/language_provider.dart';
+import 'package:gage_app/core/localization/gage_localization.dart';
+import 'package:gage_app/core/services/gage_security_service.dart';
 import 'package:gage_app/features/auth/presentation/terms_and_privacy_screen.dart';
 import 'package:gage_app/features/profile/presentation/edit_profile_screen.dart';
-import 'package:gage_app/features/admin/presentation/admin_screen.dart';
-import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
+import 'package:gage_app/features/affiliate/presentation/affiliate_hub_screen.dart';
+import 'package:gage_app/features/membership/presentation/membership_screen.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/gage_bottom_nav_bar.dart';
 import 'package:gage_app/features/home/presentation/home_screen.dart';
-import 'package:gage_app/features/wallet/presentation/withdraw_sheet.dart';
-import 'package:gage_app/features/driver/presentation/driver_screen.dart';
-import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
+/// ProfileScreen - Authentic Account, Security & Preferences Center
+/// Produk: GAGE Pracimantoro
+/// Lini Usaha: GAGE by Halu Goods Indonesia
+/// Holding Company: Halu Goods Indonesia
+/// Zero duplicated shortcuts (no Pesanan/Riwayat/Voucher/Bank/Affiliate duplicates).
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -33,1743 +33,1543 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  String _selectedLanguage = 'Bahasa Indonesia';
-  String _selectedAppIcon = 'GAGE Merah Klasik';
-  bool _notifPromo = true;
   bool _notifOrders = true;
-  bool _notifChat = true;
-  bool _highContrast = false;
+  bool _notifPromo = true;
   bool _hapticEnabled = true;
-  bool _isLoading = false;
-
-  Future<void> _refreshProfile() async {
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 300));
-    if (!mounted) return;
-    setState(() => _isLoading = false);
-  }
-
-  static const String _keyNotifOrders = 'pref_notif_orders';
-  static const String _keyNotifPromo = 'pref_notif_promo';
-  static const String _keyNotifChat = 'pref_notif_chat';
-  static const String _keyHighContrast = 'pref_high_contrast';
-  static const String _keyHapticEnabled = 'pref_haptic_enabled';
+  bool _biometricEnabled = false;
 
   @override
   void initState() {
     super.initState();
-    _loadSettings();
+    _loadPreferences();
   }
 
-  Future<void> _loadSettings() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      if (mounted) {
-        setState(() {
-          _notifOrders = prefs.getBool(_keyNotifOrders) ?? true;
-          _notifPromo = prefs.getBool(_keyNotifPromo) ?? true;
-          _notifChat = prefs.getBool(_keyNotifChat) ?? true;
-          _highContrast = prefs.getBool(_keyHighContrast) ?? false;
-          _hapticEnabled = prefs.getBool(_keyHapticEnabled) ?? true;
-        });
-      }
-    } catch (_) {}
-  }
-
-  Future<void> _updateSetting(String key, bool value) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(key, value);
-    } catch (_) {}
-  }
-
-  Future<void> _launchWaCs() async {
-    final uri = Uri.parse('https://wa.me/6281234567890?text=Halo%20Admin%20GAGE%2C%20saya%20butuh%20bantuan');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+  Future<void> _loadPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    final bioOn = await GageSecurityService.instance.isBiometricsEnabled();
+    if (mounted) {
+      setState(() {
+        _notifOrders = prefs.getBool('pref_notif_orders') ?? true;
+        _notifPromo = prefs.getBool('pref_notif_promo') ?? true;
+        _hapticEnabled = prefs.getBool('pref_haptic') ?? true;
+        _biometricEnabled = bioOn;
+      });
     }
   }
 
-  void _openEditProfile() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (ctx) => const EditProfileScreen()),
-    );
-  }
-
-
-  // 1. Keamanan Akun Modal
-  void _showSecurityModal() {
-    GageFloatingSheet.show(
-      context: context,
-      builder: (ctx) => _buildSimpleSheet(
-        ctx,
-        title: 'Keamanan Akun',
-        icon: Icons.shield_outlined,
-        children: [
-          _buildModalTile(
-            title: 'PIN Transaksi GAGE',
-            subtitle: 'PIN 6-digit aktif untuk verifikasi transaksi',
-            trailing: const Text('Ubah', style: TextStyle(color: GageTheme.primary, fontWeight: FontWeight.bold)),
-            onTap: () {
-              Navigator.pop(ctx);
-              GageToast.show(
-                context,
-                'Tautan ubah PIN telah dikirimkan ke email terdaftar Anda.',
-                type: GageToastType.info,
-              );
-            },
-          ),
-          const Divider(),
-          _buildModalTile(
-            title: 'Autentikasi Biometrik',
-            subtitle: 'Gunakan sidik jari atau Face ID saat membuka aplikasi',
-            trailing: Switch(
-              value: true,
-              activeColor: GageTheme.primary,
-              onChanged: (val) {},
-            ),
-          ),
-          const Divider(),
-          _buildModalTile(
-            title: 'Perangkat Tertaut',
-            subtitle: '1 perangkat terverifikasi aktif saat ini (Android)',
-            trailing: const Icon(Icons.devices_rounded, color: Colors.black54),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // 2. Metode Pembayaran Modal
-  void _showPaymentModal() {
-    final wallet = context.read<WalletProvider>();
-    final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
-    GageFloatingSheet.show(
-      context: context,
-      builder: (ctx) => _buildSimpleSheet(
-        ctx,
-        title: 'Metode Pembayaran',
-        icon: Icons.account_balance_wallet_outlined,
-        children: [
-          _buildModalTile(
-            title: 'GAGE Pay',
-            subtitle: 'Saldo utama: ${currencyFormatter.format(wallet.balance)}',
-            leadingIcon: Icons.account_balance_wallet_rounded,
-            iconColor: GageTheme.primary,
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(12)),
-              child: const Text('Aktif', style: TextStyle(color: Color(0xFF16A34A), fontWeight: FontWeight.bold, fontSize: 11)),
-            ),
-          ),
-          const Divider(),
-          _buildModalTile(
-            title: 'QRIS Realtime',
-            subtitle: 'ShopeePay, GoPay, OVO, Dana, BCA Mobile',
-            leadingIcon: Icons.qr_code_2_rounded,
-            iconColor: const Color(0xFF0284C7),
-            trailing: const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 18),
-          ),
-          const Divider(),
-          _buildModalTile(
-            title: 'Tunai (COD)',
-            subtitle: 'Bayar langsung ke driver saat pesanan tiba',
-            leadingIcon: Icons.payments_outlined,
-            iconColor: const Color(0xFF16A34A),
-            trailing: const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 18),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // 3. Alamat Tersimpan Modal (Persistent dengan SharedPreferences & LocationPickerSheet)
-  Future<void> _showSavedAddressesModal() async {
+  Future<void> _savePreference(String key, bool value) async {
     final prefs = await SharedPreferences.getInstance();
-    List<String> list = prefs.getStringList('saved_user_addresses') ?? [
-      'Rumah (Tubokarto)||Dusun Tubokarto RT 02/RW 01, Tubokarto, Pracimantoro, Kab. Wonogiri',
-      'Rumah Etan||WRFV+WCJ, Jl. Perumahan Kota Baru, Sumberjo, Sambiroto, Kec. Pracimantoro',
-      'Kantor / Tempat Usaha||Jalan Raya Pracimantoro - Wonogiri KM 1, Pracimantoro',
-    ];
+    await prefs.setBool(key, value);
+  }
 
-    if (!mounted) return;
+  Future<void> _openWhatsAppSupport() async {
+    HapticFeedback.lightImpact();
+    const phone = '6281226001000';
+    const message = 'Halo CS Resmi GAGE Pracimantoro (GAGE by Halu Goods Indonesia), saya butuh bantuan terkait akun dan transaksi saya.';
+    final url = Uri.parse('https://wa.me/$phone?text=${Uri.encodeComponent(message)}');
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          GageToast.show(
+            context,
+            'Hubungi WhatsApp CS GAGE Pracimantoro: +$phone',
+            type: GageToastType.info,
+          );
+        }
+      }
+    } catch (_) {
+      if (mounted) {
+        GageToast.show(
+          context,
+          'Hubungi WhatsApp CS GAGE Pracimantoro: +$phone',
+          type: GageToastType.info,
+        );
+      }
+    }
+  }
+
+  void _showChangePinSheet(bool isDark) {
+    HapticFeedback.lightImpact();
+    final pinController = TextEditingController();
+    final confirmController = TextEditingController();
 
     GageFloatingSheet.show(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (c, setModalState) {
-          return _buildSimpleSheet(
-            ctx,
-            title: 'Alamat Tersimpan',
-            icon: Icons.bookmark_border_rounded,
-            children: [
-              ...list.asMap().entries.map((entry) {
-                final idx = entry.key;
-                final parts = entry.value.split('||');
-                final title = parts.isNotEmpty ? parts[0] : 'Alamat';
-                final addr = parts.length > 1 ? parts[1] : '';
-
-                return Column(
-                  children: [
-                    _buildModalTile(
-                      title: title,
-                      subtitle: addr,
-                      leadingIcon: title.toLowerCase().contains('rumah')
-                          ? Icons.home_rounded
-                          : (title.toLowerCase().contains('kantor') ? Icons.business_rounded : Icons.location_on_rounded),
-                      iconColor: GageTheme.primary,
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline_rounded, size: 20, color: Colors.grey),
-                        onPressed: () async {
-                          list.removeAt(idx);
-                          await prefs.setStringList('saved_user_addresses', list);
-                          setModalState(() {});
-                          if (mounted) {
-                            GageToast.show(
-                              context,
-                              'Alamat "$title" telah dihapus',
-                              type: GageToastType.info,
-                            );
-                          }
-                        },
-                      ),
-                    ),
-                    if (idx < list.length - 1) const Divider(),
-                  ],
-                );
-              }),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                height: 44,
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    LocationPickerSheet.show(
-                      context,
-                      title: 'Pilih Alamat Baru',
-                      onSelected: (title, fullAddress, latLng) async {
-                        list.add('$title||$fullAddress');
-                        await prefs.setStringList('saved_user_addresses', list);
-                        if (mounted) {
-                          GageToast.show(
-                            context,
-                            'Alamat "$title" berhasil disimpan!',
-                            type: GageToastType.success,
-                          );
-                        }
-                      },
-                    );
-                  },
-                  icon: const Icon(Icons.add_location_alt_rounded, size: 18, color: GageTheme.primary),
-                  label: const Text('Tambah Alamat Baru', style: TextStyle(color: GageTheme.primary, fontWeight: FontWeight.bold)),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: GageTheme.primary),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      title: 'Ubah PIN GAGEPay 6 Digit',
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'PIN 6 digit digunakan untuk otorisasi transaksi saldo GAGEPay, pembayaran QRIS, & penarikan tunai.',
+                  style: TextStyle(fontSize: 12.5, color: isDark ? Colors.white70 : Colors.grey.shade700, height: 1.35),
+                ),
+                const SizedBox(height: 18),
+                TextField(
+                  controller: pinController,
+                  keyboardType: TextInputType.number,
+                  maxLength: 6,
+                  obscureText: true,
+                  style: TextStyle(fontSize: 18, letterSpacing: 8, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87),
+                  decoration: InputDecoration(
+                    labelText: 'PIN Baru (6 Angka)',
+                    labelStyle: TextStyle(fontSize: 13, letterSpacing: 0, color: isDark ? Colors.white70 : Colors.grey.shade700),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                    counterText: '',
+                    prefixIcon: const Icon(Icons.pin_rounded, size: 20, color: GageTheme.primary),
                   ),
                 ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  // 3b. Rekening & E-Wallet Penarikan Modal
-  Future<void> _showSavedBankAccountsModal() async {
-    final prefs = await SharedPreferences.getInstance();
-    List<String> list = prefs.getStringList('saved_bank_accounts') ?? [
-      'BCA||8210394812||SYAMS DJUHAIR HIBATULLAH',
-      'GoPay||085156955735||SYAMS DJUHAIR H',
-    ];
-
-    if (!mounted) return;
-
-    GageFloatingSheet.show(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (c, setModalState) {
-          return _buildSimpleSheet(
-            ctx,
-            title: 'Rekening & E-Wallet Penarikan',
-            icon: Icons.account_balance_rounded,
-            children: [
-              if (list.isEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 24),
-                  alignment: Alignment.center,
-                  child: Column(
-                    children: [
-                      Icon(Icons.account_balance_wallet_outlined, size: 40, color: Colors.grey.shade400),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Belum ada rekening/e-wallet tersimpan',
-                        style: TextStyle(color: Colors.black54, fontSize: 13),
-                      ),
-                    ],
+                const SizedBox(height: 14),
+                TextField(
+                  controller: confirmController,
+                  keyboardType: TextInputType.number,
+                  maxLength: 6,
+                  obscureText: true,
+                  style: TextStyle(fontSize: 18, letterSpacing: 8, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87),
+                  decoration: InputDecoration(
+                    labelText: 'Konfirmasi PIN Baru',
+                    labelStyle: TextStyle(fontSize: 13, letterSpacing: 0, color: isDark ? Colors.white70 : Colors.grey.shade700),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                    counterText: '',
+                    prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20, color: GageTheme.primary),
                   ),
-                )
-              else
-                ...list.asMap().entries.map((entry) {
-                  final idx = entry.key;
-                  final parts = entry.value.split('||');
-                  final bankName = parts.isNotEmpty ? parts[0] : 'Bank';
-                  final accNum = parts.length > 1 ? parts[1] : '';
-                  final accHolder = parts.length > 2 ? parts[2] : '';
-
-                  final isEwallet = ['DANA', 'GoPay', 'ShopeePay', 'OVO'].contains(bankName);
-                  Color badgeColor = const Color(0xFF005BAC);
-                  if (bankName == 'BRI') badgeColor = const Color(0xFF00529C);
-                  if (bankName == 'Mandiri') badgeColor = const Color(0xFF003D79);
-                  if (bankName == 'BNI') badgeColor = const Color(0xFFE55300);
-                  if (bankName == 'SeaBank') badgeColor = const Color(0xFFFF5722);
-                  if (bankName == 'DANA') badgeColor = const Color(0xFF118EEA);
-                  if (bankName == 'GoPay') badgeColor = const Color(0xFF00AED6);
-                  if (bankName == 'ShopeePay') badgeColor = const Color(0xFFEE4D2D);
-                  if (bankName == 'OVO') badgeColor = const Color(0xFF4C3494);
-
-                  return Column(
-                    children: [
-                      _buildModalTile(
-                        title: '$bankName • $accNum',
-                        subtitle: 'a.n. $accHolder',
-                        leadingIcon: isEwallet ? Icons.phone_android_rounded : Icons.account_balance_rounded,
-                        iconColor: badgeColor,
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline_rounded, size: 20, color: Colors.grey),
-                              onPressed: () async {
-                                list.removeAt(idx);
-                                await prefs.setStringList('saved_bank_accounts', list);
-                                setModalState(() {});
-                                if (mounted) {
-                                  GageToast.show(
-                                    context,
-                                    'Rekening $bankName telah dihapus',
-                                    type: GageToastType.info,
-                                  );
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (idx < list.length - 1) const Divider(),
-                    ],
-                  );
-                }),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _showAddBankAccountDialog();
-                      },
-                      icon: const Icon(Icons.add_rounded, size: 18, color: GageTheme.primary),
-                      label: const Text('Tambah Baru', style: TextStyle(color: GageTheme.primary, fontWeight: FontWeight.bold, fontSize: 13)),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: GageTheme.primary),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        GageWithdrawSheet.show(context);
-                      },
-                      icon: const Icon(Icons.payments_rounded, size: 18, color: Colors.white),
-                      label: const Text('Tarik Saldo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: GageTheme.primary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Future<void> _showAddBankAccountDialog() async {
-    final banks = ['BCA', 'BRI', 'Mandiri', 'BNI', 'SeaBank', 'DANA', 'GoPay', 'ShopeePay', 'OVO'];
-    String selectedBank = 'BCA';
-    final numCtrl = TextEditingController();
-    final holderCtrl = TextEditingController(text: 'SYAMS DJUHAIR H');
-
-    await GageFloatingSheet.show(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (c, setDialogState) {
-          return _buildSimpleSheet(
-            ctx,
-            title: 'Tambah Rekening / E-Wallet',
-            icon: Icons.account_balance_wallet_rounded,
-            children: [
-              const Text('Pilih Bank atau E-Wallet Tujuan:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54)),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.grey.shade300),
                 ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: selectedBank,
-                    isExpanded: true,
-                    items: banks.map((b) => DropdownMenuItem(value: b, child: Text(b, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)))).toList(),
-                    onChanged: (v) {
-                      if (v != null) setDialogState(() => selectedBank = v);
+                const SizedBox(height: 22),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: GageTheme.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      elevation: 0,
+                    ),
+                    onPressed: () {
+                      final pin = pinController.text.trim();
+                      final confirm = confirmController.text.trim();
+                      if (pin.length != 6 || int.tryParse(pin) == null) {
+                        GageToast.show(context, 'PIN harus terdiri dari 6 angka.', type: GageToastType.error);
+                        return;
+                      }
+                      if (pin != confirm) {
+                        GageToast.show(context, 'Konfirmasi PIN tidak cocok.', type: GageToastType.error);
+                        return;
+                      }
+                      GageSecurityService.instance.setTransactionPin(pin);
+                      Navigator.pop(sheetCtx);
+                      GageToast.show(context, '✓ PIN transaksi GAGEPay berhasil disimpan.', type: GageToastType.success);
                     },
+                    child: const Text('Simpan PIN Baru', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              const Text('Nomor Rekening / HP Akun:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54)),
-              const SizedBox(height: 6),
-              TextField(
-                controller: numCtrl,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  hintText: 'Contoh: 8210394812 atau 085156955735',
-                  hintStyle: const TextStyle(fontSize: 12, color: Colors.black38),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Text('Nama Pemilik Akun:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54)),
-              const SizedBox(height: 6),
-              TextField(
-                controller: holderCtrl,
-                textCapitalization: TextCapitalization.characters,
-                decoration: InputDecoration(
-                  hintText: 'Nama lengkap sesuai buku tabungan / e-wallet',
-                  hintStyle: const TextStyle(fontSize: 12, color: Colors.black38),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-              const SizedBox(height: 18),
-              SizedBox(
-                width: double.infinity,
-                height: 44,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: GageTheme.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  onPressed: () async {
-                    final num = numCtrl.text.trim();
-                    final name = holderCtrl.text.trim();
-                    if (num.isEmpty || name.isEmpty) {
-                      GageToast.show(context, 'Lengkapi nomor rekening dan nama pemilik', type: GageToastType.warning);
-                      return;
-                    }
-                    final prefs = await SharedPreferences.getInstance();
-                    List<String> list = prefs.getStringList('saved_bank_accounts') ?? [
-                      'BCA||8210394812||SYAMS DJUHAIR HIBATULLAH',
-                      'GoPay||085156955735||SYAMS DJUHAIR H',
-                    ];
-                    final raw = '$selectedBank||$num||$name';
-                    if (!list.contains(raw)) {
-                      list.add(raw);
-                      await prefs.setStringList('saved_bank_accounts', list);
-                    }
-                    if (!mounted || !ctx.mounted) return;
-                    Navigator.pop(ctx);
-                    GageToast.show(context, 'Rekening $selectedBank berhasil disimpan!', type: GageToastType.success);
-                  },
-                  child: const Text('Simpan Rekening', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ),
-            ],
+                const SizedBox(height: 8),
+              ],
+            ),
           );
         },
       ),
     );
   }
 
-  // 5. Pusat Akun Terverifikasi Modal
-  void _showKycModal() {
-    GageFloatingSheet.show(
-      context: context,
-      builder: (ctx) => _buildSimpleSheet(
-        ctx,
-        title: 'Pusat Akun Terverifikasi',
-        icon: Icons.verified_user_outlined,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(12)),
-            child: const Row(
-              children: [
-                Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 28),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Akun Anda 100% Terverifikasi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF16A34A))),
-                      SizedBox(height: 2),
-                      Text('Semua fitur belanja, dompet, dan pesanan aktif penuh.', style: TextStyle(fontSize: 11.5, color: Colors.black54)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          _buildModalTile(
-            title: 'Nomor WhatsApp',
-            subtitle: '+6285156955735 (Terverifikasi OTP)',
-            leadingIcon: Icons.phone_android_rounded,
-            trailing: const Icon(Icons.check_rounded, color: GageTheme.primary),
-          ),
-          const Divider(),
-          _buildModalTile(
-            title: 'Alamat Email',
-            subtitle: 'halugoods.indonesia@gmail.com (Terverifikasi)',
-            leadingIcon: Icons.email_outlined,
-            trailing: const Icon(Icons.check_rounded, color: GageTheme.primary),
-          ),
-          const Divider(),
-          _buildModalTile(
-            title: 'Identitas Diri (KTP)',
-            subtitle: 'Data kependudukan terdaftar sah',
-            leadingIcon: Icons.badge_outlined,
-            trailing: const Icon(Icons.check_rounded, color: GageTheme.primary),
-          ),
-        ],
-      ),
-    );
-  }
+  Future<void> _pickProfileAvatar(BuildContext context, AuthProvider auth, bool isDark) async {
+    HapticFeedback.lightImpact();
+    final picker = ImagePicker();
 
-  // 6. Ikon Aplikasi Modal
-  void _showAppIconModal() {
-    final icons = ['GAGE Merah Klasik', 'GAGE Hitam Emas', 'GAGE Hijau Eco'];
     GageFloatingSheet.show(
       context: context,
-      builder: (dlgCtx) => StatefulBuilder(
-        builder: (c, setDlgState) => Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: GageTheme.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.phone_android_rounded, color: GageTheme.primary, size: 20),
-                ),
-                const SizedBox(width: 10),
-                const Expanded(
-                  child: Text('Pilih Ikon Aplikasi', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded, size: 20),
-                  onPressed: () => Navigator.pop(dlgCtx),
-                ),
-              ],
-            ),
-            const Divider(height: 18),
-            ...icons.map((ic) {
-              return RadioListTile<String>(
-                contentPadding: EdgeInsets.zero,
-                title: Text(ic, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500)),
-                value: ic,
-                groupValue: _selectedAppIcon,
-                activeColor: GageTheme.primary,
-                onChanged: (val) {
-                  if (val != null) {
-                    setState(() => _selectedAppIcon = val);
-                    setDlgState(() {});
-                    Navigator.pop(dlgCtx);
-                    GageToast.show(
-                      context,
-                      'Ikon aplikasi diatur ke: $val',
-                      type: GageToastType.success,
-                    );
-                  }
-                },
-              );
-            }),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // 7. Bahasa Modal
-  void _showLanguageModal() {
-    final languages = ['Bahasa Indonesia', 'English (US)', 'Basa Jawa'];
-    GageFloatingSheet.show(
-      context: context,
-      builder: (dlgCtx) => Column(
+      title: 'Pilih Foto Profil',
+      builder: (sheetCtx) => Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: GageTheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.language_rounded, color: GageTheme.primary, size: 20),
-              ),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Text('Pilih Bahasa', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close_rounded, size: 20),
-                onPressed: () => Navigator.pop(dlgCtx),
-              ),
-            ],
-          ),
-          const Divider(height: 18),
-          ...languages.map((lang) {
-            return RadioListTile<String>(
-              contentPadding: EdgeInsets.zero,
-              title: Text(lang, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500)),
-              value: lang,
-              groupValue: _selectedLanguage,
-              activeColor: GageTheme.primary,
-              onChanged: (val) {
-                if (val != null) {
-                  setState(() => _selectedLanguage = val);
-                  Navigator.pop(dlgCtx);
-                  GageToast.show(
-                    context,
-                    'Bahasa aplikasi diubah ke: $val',
-                    type: GageToastType.success,
-                  );
-                }
-              },
-            );
-          }),
-        ],
-      ),
-    );
-  }
-
-  // 8. Notifikasi Modal
-  void _showNotificationModal() {
-    GageFloatingSheet.show(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (c, setSheetState) => _buildSimpleSheet(
-          ctx,
-          title: 'Pengaturan Notifikasi',
-          icon: Icons.notifications_none_rounded,
-          children: [
-            _buildModalTile(
-              title: 'Status Pesanan & Pengantaran',
-              subtitle: 'Update saat resto menyiapkan dan driver berjalan',
-              trailing: Switch(
-                value: _notifOrders,
-                activeColor: GageTheme.primary,
-                onChanged: (v) {
-                  setState(() => _notifOrders = v);
-                  _updateSetting(_keyNotifOrders, v);
-                  setSheetState(() {});
-                },
-              ),
+          ListTile(
+            leading: const CircleAvatar(
+              backgroundColor: Color(0xFFFEE2E2),
+              child: Icon(Icons.camera_alt_rounded, color: GageTheme.primary),
             ),
-            const Divider(),
-            _buildModalTile(
-              title: 'Promo, Voucher & Diskon',
-              subtitle: 'Pemberitahuan voucher hemat harian',
-              trailing: Switch(
-                value: _notifPromo,
-                activeColor: GageTheme.primary,
-                onChanged: (v) {
-                  setState(() => _notifPromo = v);
-                  _updateSetting(_keyNotifPromo, v);
-                  setSheetState(() {});
-                },
-              ),
+            title: Text(
+              'Ambil Foto dari Kamera',
+              style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87),
             ),
-            const Divider(),
-            _buildModalTile(
-              title: 'Chat Driver & Merchant',
-              subtitle: 'Pesan langsung mengenai detail pesanan',
-              trailing: Switch(
-                value: _notifChat,
-                activeColor: GageTheme.primary,
-                onChanged: (v) {
-                  setState(() => _notifChat = v);
-                  _updateSetting(_keyNotifChat, v);
-                  setSheetState(() {});
-                },
-              ),
+            subtitle: Text(
+              'Gunakan kamera HP langsung',
+              style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : Colors.grey.shade600),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // 9. Aksesibilitas Modal
-  void _showAccessibilityModal() {
-    GageFloatingSheet.show(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (c, setSheetState) => _buildSimpleSheet(
-          ctx,
-          title: 'Aksesibilitas',
-          icon: Icons.accessibility_new_rounded,
-          children: [
-            _buildModalTile(
-              title: 'Mode Kontras Tinggi',
-              subtitle: 'Pertegas garis dan kontras warna elemen teks',
-              trailing: Switch(
-                value: _highContrast,
-                activeColor: GageTheme.primary,
-                onChanged: (v) {
-                  setState(() => _highContrast = v);
-                  _updateSetting(_keyHighContrast, v);
-                  setSheetState(() {});
-                },
-              ),
-            ),
-            const Divider(),
-            _buildModalTile(
-              title: 'Getaran / Haptic Feedback',
-              subtitle: 'Getaran halus saat menekan tombol & memilih menu',
-              trailing: Switch(
-                value: _hapticEnabled,
-                activeColor: GageTheme.primary,
-                onChanged: (v) {
-                  setState(() => _hapticEnabled = v);
-                  _updateSetting(_keyHapticEnabled, v);
-                  setSheetState(() {});
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-
-
-  // 11. Gabung Mitra Driver Modal
-  void _showDriverModal() {
-    GageFloatingSheet.show(
-      context: context,
-      builder: (ctx) => _buildSimpleSheet(
-        ctx,
-        title: 'Pendaftaran Mitra Driver',
-        icon: Icons.electric_moped_rounded,
-        children: [
-          const Text(
-            'Bergabunglah bersama ribuan mitra driver GAGE Delivery di wilayah Pracimantoro & Wonogiri. Penghasilan harian fleksibel dan bonus mingguan!',
-            style: TextStyle(fontSize: 12.5, color: Colors.black54, height: 1.3),
-          ),
-          const SizedBox(height: 14),
-          _buildModalTile(title: 'Syarat: KTP, SIM C/A Aktif, STNK Motor/Mobil', subtitle: 'Proses verifikasi kilat 1x24 jam', leadingIcon: Icons.verified_outlined),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            height: 44,
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                _launchWaCs();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: GageTheme.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              child: const Text('Daftar via WhatsApp Admin Driver', style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // 12. Ajak Teman Modal
-  void _showReferralModal() {
-    const code = 'GAGEAJI2026';
-    GageFloatingSheet.show(
-      context: context,
-      builder: (dlgCtx) => Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: GageTheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.card_giftcard_rounded, color: GageTheme.primary, size: 20),
-              ),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Text('Ajak Teman, Dapat Voucher', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close_rounded, size: 20),
-                onPressed: () => Navigator.pop(dlgCtx),
-              ),
-            ],
-          ),
-          const Divider(height: 18),
-          const Text(
-            'Bagikan kode referral Anda ke teman. Saat mereka mendaftar dan memesan, Anda berdua mendapatkan voucher potongan Rp 15.000!',
-            style: TextStyle(fontSize: 12.5, color: Colors.black54, height: 1.3),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF3F4F6),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  code,
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 1.5, color: GageTheme.primary),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.copy_rounded, color: Colors.black87),
-                  tooltip: 'Salin Kode',
-                  onPressed: () {
-                    Clipboard.setData(const ClipboardData(text: code));
-                    GageToast.show(
-                      context,
-                      'Kode referral disalin ke clipboard!',
-                      type: GageToastType.success,
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            height: 44,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: GageTheme.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              onPressed: () => Navigator.pop(dlgCtx),
-              child: const Text('Tutup', style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // 13. Rating Modal
-  void _showRatingModal() {
-    int rating = 5;
-    GageFloatingSheet.show(
-      context: context,
-      builder: (dlgCtx) => StatefulBuilder(
-        builder: (c, setDlgState) => Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.star_rounded, color: Color(0xFFFFB300), size: 20),
-                ),
-                const SizedBox(width: 10),
-                const Expanded(
-                  child: Text('Beri Rating Aplikasi GAGE', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded, size: 20),
-                  onPressed: () => Navigator.pop(dlgCtx),
-                ),
-              ],
-            ),
-            const Divider(height: 18),
-            const Center(
-              child: Text(
-                'Bagikan pengalaman Anda menggunakan GAGE Delivery',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12.5, color: Colors.black54),
-              ),
-            ),
-            const SizedBox(height: 14),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(5, (idx) {
-                return IconButton(
-                  icon: Icon(
-                    idx < rating ? Icons.star_rounded : Icons.star_border_rounded,
-                    color: const Color(0xFFFFB300),
-                    size: 34,
-                  ),
-                  onPressed: () => setDlgState(() => rating = idx + 1),
-                );
-              }),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: 44,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: GageTheme.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                onPressed: () {
-                  Navigator.pop(dlgCtx);
-                  GageToast.show(
-                    context,
-                    'Terima kasih atas bintang $rating dari Anda!',
-                    type: GageToastType.success,
-                  );
-                },
-                child: const Text('Kirim Rating', style: TextStyle(fontWeight: FontWeight.bold)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // 14. Atur Akun / Logout Modal
-  void _showAccountSettingsModal(AuthProvider auth) {
-    GageFloatingSheet.show(
-      context: context,
-      builder: (ctx) => _buildSimpleSheet(
-        ctx,
-        title: 'Atur Akun',
-        icon: Icons.manage_accounts_outlined,
-        children: [
-          _buildModalTile(
-            title: 'Keluar dari Akun',
-            subtitle: 'Keluar dari sesi saat ini di perangkat ini',
-            leadingIcon: Icons.logout_rounded,
-            iconColor: Colors.red,
             onTap: () async {
-              Navigator.pop(ctx);
-              final confirm = await GageFloatingSheet.show<bool>(
-                context: context,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.logout_rounded, color: Colors.red, size: 22),
-                        SizedBox(width: 8),
-                        Text('Konfirmasi Keluar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    const Text('Apakah Anda yakin ingin keluar dari akun GAGE ini?', style: TextStyle(fontSize: 13, color: Colors.black87)),
-                    const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            style: OutlinedButton.styleFrom(
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                            onPressed: () => Navigator.pop(context, false),
-                            child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                            onPressed: () => Navigator.pop(context, true),
-                            child: const Text('Keluar', style: TextStyle(fontWeight: FontWeight.bold)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              );
-              if (confirm == true) {
-                await auth.signOut();
+              Navigator.pop(sheetCtx);
+              try {
+                final XFile? image = await picker.pickImage(source: ImageSource.camera, maxWidth: 800, maxHeight: 800, imageQuality: 85);
+                if (image != null) {
+                  await auth.updateProfile(avatarUrl: image.path);
+                  if (mounted) {
+                    GageToast.show(context, '✓ Foto profil berhasil diperbarui', type: GageToastType.success);
+                  }
+                }
+              } catch (e) {
+                if (mounted) {
+                  GageToast.show(context, 'Gagal mengambil foto: $e', type: GageToastType.error);
+                }
               }
             },
           ),
-          const Divider(),
-          _buildModalTile(
-            title: 'Hapus / Nonaktifkan Akun',
-            subtitle: 'Hapus data profil, riwayat, dan akun secara permanen',
-            leadingIcon: Icons.delete_forever_rounded,
-            iconColor: Colors.red.shade800,
-            onTap: () {
-              Navigator.pop(ctx);
-              GageToast.show(
-                context,
-                'Permintaan penghapusan akun memerlukan konfirmasi email.',
-                type: GageToastType.warning,
-              );
+          const SizedBox(height: 4),
+          ListTile(
+            leading: const CircleAvatar(
+              backgroundColor: Color(0xFFEFF6FF),
+              child: Icon(Icons.photo_library_rounded, color: Color(0xFF2563EB)),
+            ),
+            title: Text(
+              'Pilih dari Galeri',
+              style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87),
+            ),
+            subtitle: Text(
+              'Pilih foto dari penyimpanan perangkat',
+              style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : Colors.grey.shade600),
+            ),
+            onTap: () async {
+              Navigator.pop(sheetCtx);
+              try {
+                final XFile? image = await picker.pickImage(source: ImageSource.gallery, maxWidth: 800, maxHeight: 800, imageQuality: 85);
+                if (image != null) {
+                  await auth.updateProfile(avatarUrl: image.path);
+                  if (mounted) {
+                    GageToast.show(context, '✓ Foto profil berhasil diperbarui', type: GageToastType.success);
+                  }
+                }
+              } catch (e) {
+                if (mounted) {
+                  GageToast.show(context, 'Gagal memilih foto: $e', type: GageToastType.error);
+                }
+              }
             },
           ),
+          const SizedBox(height: 8),
         ],
       ),
     );
   }
 
-  // 15. Tentang Aplikasi & Lisensi Data Modal
-  void _showAboutAndDataLicensesModal() {
-    GageFloatingSheet.show(
-      context: context,
-      builder: (ctx) => _buildSimpleSheet(
-        ctx,
-        title: 'Tentang Aplikasi & Lisensi Data',
-        icon: Icons.verified_outlined,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFE8F5E9),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.location_on_rounded, color: GageTheme.primary, size: 26),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'GAGE Pracimantoro v1.0.2+4',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: GageTheme.primary),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        'Platform Digital Hyper-Lokal UMKM & Transportasi',
-                        style: TextStyle(fontSize: 11.5, color: Colors.black54),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          _buildModalTile(
-            title: 'Data Peta & Geolokasi: OpenStreetMap (ODbL)',
-            subtitle:
-                'Peta dan geolokasi rute menggunakan basis data terbuka OpenStreetMap, © Kontributor OpenStreetMap dengan lisensi Open Database License (ODbL).',
-            leadingIcon: Icons.map_rounded,
-            iconColor: GageTheme.primary,
-          ),
-          const Divider(),
-          _buildModalTile(
-            title: 'Basis Data Fasilitas Pendidikan: Kemendikbudristek RI',
-            subtitle:
-                'Titik lokasi dan penamaan fasilitas sekolah (SD, SMP, SMA, SMK, MI) diverifikasi berdasarkan basis data pokok pendidikan resmi Kemendikbudristek RI.',
-            leadingIcon: Icons.school_rounded,
-            iconColor: const Color(0xFF1976D2),
-          ),
-          const Divider(),
-          _buildModalTile(
-            title: 'Hak Cipta & Ekosistem Digital Lokal',
-            subtitle:
-                'Dikembangkan secara mandiri untuk memberdayakan UMKM pedagang, warung makan, petani, dan mitra pengemudi di Pracimantoro, Kab. Wonogiri.',
-            leadingIcon: Icons.storefront_rounded,
-            iconColor: const Color(0xFFE65100),
-          ),
-        ],
-      ),
-    );
-  }
+  Future<void> _handleBiometricToggle(bool val) async {
+    HapticFeedback.lightImpact();
+    if (val) {
+      final isSupported = await GageSecurityService.instance.isDeviceSupported();
+      if (!isSupported) {
+        if (!mounted) return;
+        GageToast.show(
+          context,
+          'Perangkat Anda belum mendukung sensor sidik jari/biometrik.',
+          type: GageToastType.warning,
+        );
+        setState(() => _biometricEnabled = false);
+        return;
+      }
 
-  Widget _buildProfileAvatar(String? avatarUrl) {
-    if (avatarUrl != null && avatarUrl.isNotEmpty) {
-      if (avatarUrl.startsWith('assets/')) {
-        return Image.asset(avatarUrl, fit: BoxFit.cover);
+      final hasEnrolled = await GageSecurityService.instance.hasEnrolledBiometrics();
+      if (!hasEnrolled) {
+        if (!mounted) return;
+        GageToast.show(
+          context,
+          'Belum ada sidik jari terdaftar di pengaturan sistem HP Anda.',
+          type: GageToastType.warning,
+        );
+        setState(() => _biometricEnabled = false);
+        return;
       }
-      if (avatarUrl.startsWith('/') || avatarUrl.contains('\\')) {
-        final f = File(avatarUrl);
-        if (f.existsSync()) {
-          return Image.file(f, fit: BoxFit.cover);
-        }
+
+      final authSuccess = await GageSecurityService.instance.authenticateWithBiometrics(
+        localizedReason: 'Pindai sidik jari Anda untuk mengaktifkan proteksi transaksi GAGEPay',
+      );
+
+      if (authSuccess) {
+        await GageSecurityService.instance.setBiometricsEnabled(true);
+        if (!mounted) return;
+        setState(() => _biometricEnabled = true);
+        GageToast.show(
+          context,
+          '✓ Sidik jari berhasil diaktifkan untuk transaksi & top up!',
+          type: GageToastType.success,
+        );
+      } else {
+        if (!mounted) return;
+        setState(() => _biometricEnabled = false);
+        GageToast.show(
+          context,
+          'Verifikasi sidik jari dibatalkan.',
+          type: GageToastType.info,
+        );
       }
-      return Image.network(
-        avatarUrl,
-        fit: BoxFit.cover,
-        errorBuilder: (c, e, s) => Image.asset('assets/images/avatar_user.png', fit: BoxFit.cover),
+    } else {
+      await GageSecurityService.instance.setBiometricsEnabled(false);
+      setState(() => _biometricEnabled = false);
+      GageToast.show(
+        context,
+        'Autentikasi sidik jari dinonaktifkan.',
+        type: GageToastType.info,
       );
     }
-    return Image.asset('assets/images/avatar_user.png', fit: BoxFit.cover);
   }
 
-  // Helper Sheet Container
-  Widget _buildSimpleSheet(
-    BuildContext ctx, {
-    required String title,
-    required IconData icon,
-    required List<Widget> children,
-  }) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
+  void _showLanguagePickerSheet(bool isDark) {
+    HapticFeedback.lightImpact();
+    final langProvider = Provider.of<LanguageProvider>(context, listen: false);
+    final currentLang = langProvider.language;
+
+    GageFloatingSheet.show(
+      context: context,
+      title: 'Pilih Bahasa Aplikasi',
+      builder: (sheetCtx) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: GageAppLanguage.values.map((lang) {
+            final isSelected = lang == currentLang;
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
               decoration: BoxDecoration(
-                color: GageTheme.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
+                color: isSelected
+                    ? GageTheme.primary.withValues(alpha: isDark ? 0.2 : 0.08)
+                    : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isSelected ? GageTheme.primary : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                  width: isSelected ? 1.5 : 1.0,
+                ),
               ),
-              child: Icon(icon, color: GageTheme.primary, size: 20),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              child: ListTile(
+                leading: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white10 : Colors.grey.shade200,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(lang.flag, style: const TextStyle(fontSize: 18)),
+                  ),
+                ),
+                title: Text(
+                  lang.label,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+                subtitle: Text(
+                  lang.description,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                  ),
+                ),
+                trailing: isSelected
+                    ? const Icon(Icons.check_circle_rounded, color: GageTheme.primary, size: 22)
+                    : null,
+                onTap: () {
+                  HapticFeedback.mediumImpact();
+                  langProvider.setLanguage(lang);
+                  Navigator.pop(sheetCtx);
+                  GageToast.show(
+                    context,
+                    '✓ Bahasa diubah ke ${lang.label}',
+                    type: GageToastType.success,
+                  );
+                },
               ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.close_rounded, size: 20),
-              onPressed: () => Navigator.pop(ctx),
-            ),
-          ],
-        ),
-        const Divider(height: 18),
-        ...children,
-      ],
+            );
+          }).toList(),
+        );
+      },
     );
   }
 
-  Widget _buildModalTile({
-    required String title,
-    String? subtitle,
-    IconData? leadingIcon,
-    Color? iconColor,
-    Widget? trailing,
-    VoidCallback? onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
+  void _showNotificationSettingsSheet(bool isDark) {
+    HapticFeedback.lightImpact();
+    GageFloatingSheet.show(
+      context: context,
+      title: 'Pengaturan Notifikasi',
+      builder: (sheetCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildSwitchTile(
+                  title: 'Notifikasi Pesanan & Driver',
+                  subtitle: 'Update status pesanan makanan, antar barang & ojek',
+                  value: _notifOrders,
+                  isDark: isDark,
+                  onChanged: (val) {
+                    setState(() => _notifOrders = val);
+                    setSheetState(() {});
+                    _savePreference('pref_notif_orders', val);
+                  },
+                ),
+                const SizedBox(height: 10),
+                _buildSwitchTile(
+                  title: 'Promo & Diskon Kilat',
+                  subtitle: 'Info voucher gratis ongkir dan diskon merchant mitra',
+                  value: _notifPromo,
+                  isDark: isDark,
+                  onChanged: (val) {
+                    setState(() => _notifPromo = val);
+                    setSheetState(() {});
+                    _savePreference('pref_notif_promo', val);
+                  },
+                ),
+                const SizedBox(height: 10),
+                _buildSwitchTile(
+                  title: 'Getaran Respon Haptik',
+                  subtitle: 'Sentuhan getar lembut saat menekan tombol & kartu',
+                  value: _hapticEnabled,
+                  isDark: isDark,
+                  onChanged: (val) {
+                    setState(() => _hapticEnabled = val);
+                    setSheetState(() {});
+                    _savePreference('pref_haptic', val);
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showThemePickerSheet(bool isDark) {
+    HapticFeedback.lightImpact();
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final currentMode = themeProvider.themeMode;
+
+    GageFloatingSheet.show(
+      context: context,
+      title: 'Pilih Tema Tampilan',
+      builder: (sheetCtx) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            if (leadingIcon != null) ...[
-              Icon(leadingIcon, color: iconColor ?? Colors.black87, size: 20),
-              const SizedBox(width: 12),
-            ],
-            Expanded(
+            _buildThemeOptionTile(
+              title: 'Mode Terang (Light)',
+              subtitle: 'Tampilan bersih bernuansa putih cerah',
+              icon: Icons.light_mode_rounded,
+              iconColor: const Color(0xFFEA580C),
+              isSelected: currentMode == ThemeMode.light,
+              isDark: isDark,
+              onTap: () {
+                themeProvider.setThemeMode(ThemeMode.light);
+                Navigator.pop(sheetCtx);
+              },
+            ),
+            const SizedBox(height: 10),
+            _buildThemeOptionTile(
+              title: 'Mode Gelap (Dark)',
+              subtitle: 'Nyaman untuk mata di malam hari & hemat baterai',
+              icon: Icons.dark_mode_rounded,
+              iconColor: const Color(0xFF6366F1),
+              isSelected: currentMode == ThemeMode.dark,
+              isDark: isDark,
+              onTap: () {
+                themeProvider.setThemeMode(ThemeMode.dark);
+                Navigator.pop(sheetCtx);
+              },
+            ),
+            const SizedBox(height: 10),
+            _buildThemeOptionTile(
+              title: 'Ikuti Pengaturan Sistem',
+              subtitle: 'Otomatis menyesuaikan dengan mode ponsel Anda',
+              icon: Icons.settings_brightness_rounded,
+              iconColor: const Color(0xFF10B981),
+              isSelected: currentMode == ThemeMode.system,
+              isDark: isDark,
+              onTap: () {
+                themeProvider.setThemeMode(ThemeMode.system);
+                Navigator.pop(sheetCtx);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showFaqSheet(bool isDark) {
+    HapticFeedback.lightImpact();
+    GageFloatingSheet.show(
+      context: context,
+      title: 'Pusat Bantuan & FAQ',
+      builder: (ctx) {
+        final faqs = [
+          {
+            'q': 'Bagaimana cara memesan makanan di GAGE Food?',
+            'a': 'Buka menu Food di halaman utama, pilih resto mitra terdekat di Pracimantoro, tambahkan menu ke keranjang, lalu lanjutkan ke pembayaran.',
+          },
+          {
+            'q': 'Bagaimana cara mengisi saldo GAGEPay?',
+            'a': 'Pilih GAGEPay di kartu dompet atas atau di halaman pembayaran, masukkan nominal isi saldo melalui Horizontal Ruler, lalu bayar via QRIS resmi.',
+          },
+          {
+            'q': 'Berapa radius pengantaran GAGE Send & Food?',
+            'a': 'Layanan GAGE melayani seluruh kecamatan Pracimantoro dan perbatasan sekitarnya dengan tarif transparan mulai Rp 9.000.',
+          },
+          {
+            'q': 'Bagaimana jika pesanan saya bermasalah?',
+            'a': 'Hubungi Admin Layanan Pelanggan kami secara langsung melalui WhatsApp dengan menekan tombol Chat CS di menu Bantuan.',
+          },
+        ];
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: faqs.map((faq) {
+            return Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Colors.black87)),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 2),
-                    Text(subtitle, style: const TextStyle(fontSize: 11.5, color: Colors.black54)),
-                  ],
+                  Text(
+                    faq['q']!,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12.5,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    faq['a']!,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: isDark ? Colors.white70 : const Color(0xFF475569),
+                      height: 1.35,
+                    ),
+                  ),
                 ],
               ),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  void _showAboutSheet(bool isDark) {
+    HapticFeedback.lightImpact();
+    GageFloatingSheet.show(
+      context: context,
+      title: 'Tentang GAGE Pracimantoro',
+      builder: (ctx) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: GageTheme.primary.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Text(
+                    'G',
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w900,
+                      color: GageTheme.primary,
+                    ),
+                  ),
+                ),
+              ),
             ),
-            ?trailing,
+            const SizedBox(height: 12),
+            Center(
+              child: Text(
+                'GAGE Pracimantoro',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+              ),
+            ),
+            Center(
+              child: Text(
+                'Produk Lini Usaha GAGE by Halu Goods Indonesia',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white70 : const Color(0xFF475569),
+                ),
+              ),
+            ),
+            Center(
+              child: Text(
+                'Holding Company: Halu Goods Indonesia',
+                style: TextStyle(
+                  fontSize: 10.5,
+                  color: isDark ? Colors.white38 : Colors.grey.shade500,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+              ),
+              child: Text(
+                'GAGE Pracimantoro adalah aplikasi layanan lokal terintegrasi yang menghadirkan kemudahan pesan antar makanan (GAGE Food), belanja toko mitra (GAGE Shop), ekspedisi kilat (GAGE Send), hasil tani (GAGE Farm), material bangunan (GAGE Build), serta transportasi motor dan mobil (GAGE Ride & Car) untuk memajukan perekonomian daerah Pracimantoro dan sekitarnya.',
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.5,
+                  color: isDark ? Colors.white70 : const Color(0xFF334155),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Center(
+              child: Text(
+                'Versi 1.0.4+22 • Wilayah Operasional Pracimantoro',
+                style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white38 : Colors.grey.shade500),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _confirmLogout(BuildContext context, AuthProvider auth) {
+    HapticFeedback.mediumImpact();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: Row(
+          children: const [
+            Icon(Icons.logout_rounded, color: Color(0xFFDC2626), size: 22),
+            SizedBox(width: 8),
+            Text('Keluar Akun?', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ],
         ),
+        content: Text(
+          'Apakah Anda yakin ingin keluar dari akun GAGE Pracimantoro di perangkat ini?',
+          style: TextStyle(fontSize: 13, color: isDark ? Colors.white70 : Colors.black87),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Batal', style: TextStyle(color: isDark ? Colors.white70 : Colors.grey.shade700)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              elevation: 0,
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await auth.signOut();
+              if (context.mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                  (route) => false,
+                );
+                GageToast.show(context, 'Berhasil keluar dari akun', type: GageToastType.info);
+              }
+            },
+            child: const Text('Keluar', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteAccount(BuildContext context) {
+    HapticFeedback.heavyImpact();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: Row(
+          children: const [
+            Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 22),
+            SizedBox(width: 8),
+            Text('Hapus Akun Permanen?', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFFDC2626))),
+          ],
+        ),
+        content: Text(
+          'Tindakan ini tidak dapat dibatalkan. Seluruh riwayat transaksi, data profil, dan saldo GAGEPay Anda akan dihapus secara permanen sesuai regulasi perlindungan data pribadi.',
+          style: TextStyle(fontSize: 12.5, color: isDark ? Colors.white70 : Colors.black87, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Batal', style: TextStyle(color: isDark ? Colors.white70 : Colors.grey.shade700)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              elevation: 0,
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              GageToast.show(context, 'Permintaan penghapusan akun telah dicatat. Tim kami akan memproses dalam 1x24 jam.', type: GageToastType.info);
+            },
+            child: const Text('Hapus Akun', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final auth = Provider.of<AuthProvider>(context);
     final user = auth.currentUser;
-    final String userName = (user?.name != null && user!.name.isNotEmpty) ? user.name : 'Syams Djuhair Hibatullah';
-    final String userEmail = (user?.email != null && user!.email!.isNotEmpty) ? user.email! : 'halugoods.indonesia@gmail.com';
-    final String userPhone = (user?.phone != null && user!.phone.isNotEmpty) ? user.phone : '+6285156955735';
 
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
-        Navigator.pushReplacement(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const HomeScreen(),
-            transitionDuration: Duration.zero,
-            reverseTransitionDuration: Duration.zero,
+    final userName = (user?.name != null && user!.name.isNotEmpty) ? user.name : 'Siti Rahmawati';
+    final userPhone = (user?.phone != null && user!.phone.isNotEmpty) ? user.phone : '+62 812-3456-7890';
+    final userEmail = (user?.email != null && user!.email!.isNotEmpty) ? user.email! : 'siti.rahmawati@gmail.com';
+
+    return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        title: const Text('Akun & Pengaturan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+        elevation: 0,
+        backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+        surfaceTintColor: Colors.transparent,
+        centerTitle: false,
+        actions: [
+          IconButton(
+            icon: Icon(
+              isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+              color: isDark ? const Color(0xFFF59E0B) : const Color(0xFF475569),
+              size: 21,
+            ),
+            tooltip: 'Ganti Tema',
+            onPressed: () => _showThemePickerSheet(isDark),
           ),
-        );
-      },
-      child: Scaffold(
-        backgroundColor: Theme.of(context).brightness == Brightness.dark ? GageTheme.darkBackground : const Color(0xFFF8F9FA),
-        extendBody: true,
-        body: RefreshIndicator(
-          onRefresh: _refreshProfile,
-          color: GageTheme.primary,
-          child: _isLoading
-              ? const GageSkeletonProfile()
-              : SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-            // 1. Top Header Gojek-Style Nature Illustration Background + "Profilku" AppBar
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                // Nature Green Illustration Background
-                Container(
-                  height: 190,
-                  width: double.infinity,
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [GageTheme.primary, Color(0xFFC62828), Color(0xFFB71C1C)],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                  ),
-                  child: Stack(
-                    children: [
-                      // Decorative Nature Hill Graphic
-                      Positioned(
-                        right: -30,
-                        top: 20,
-                        child: Opacity(
-                          opacity: 0.25,
-                          child: Icon(Icons.phone_android_rounded, size: 140, color: Colors.white),
-                        ),
-                      ),
-                      Positioned(
-                        right: 80,
-                        top: 40,
-                        child: Opacity(
-                          opacity: 0.35,
-                          child: Icon(Icons.security_rounded, size: 48, color: Colors.white),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Top Bar: Back button & Title "Profilku"
-                SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    child: Row(
-                      children: [
-                        InkWell(
-                          onTap: () => Navigator.maybePop(context),
-                          borderRadius: BorderRadius.circular(20),
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            child: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Profilku',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
+          const SizedBox(width: 6),
+        ],
+      ),
+      body: Stack(
+        children: [
+          RefreshIndicator(
+            onRefresh: () async {
+              await Future.delayed(const Duration(milliseconds: 300));
+              if (mounted) setState(() {});
+            },
+            color: GageTheme.primary,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // ==========================================
+                  // 1. KARTU IDENTITAS PENGGUNA (CUSTOMER CARD)
+                  // ==========================================
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      borderRadius: BorderRadius.circular(22),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
                         ),
                       ],
                     ),
-                  ),
-                ),
-
-                // 2. Floating User Info Card + Membership Bar (Persis Gojek Layout)
-                Container(
-                  margin: const EdgeInsets.fromLTRB(16, 95, 16, 0),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).brightness == Brightness.dark ? GageTheme.darkSurface : Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: const [
-                      BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4)),
-                    ],
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: Column(
-                    children: [
-                      // User Info Row
-                      Padding(
-                        padding: const EdgeInsets.all(14.0),
-                        child: Row(
-                          children: [
-                            // Avatar
-                            ClipOval(
-                              child: Container(
-                                width: 56,
-                                height: 56,
-                                color: Colors.grey.shade200,
-                                child: _buildProfileAvatar(user?.avatarUrl),
-                              ),
-                            ),
-                            const SizedBox(width: 14),
-
-                            // Name & Contact
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    userName,
-                                    style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.bold, color: Colors.black87),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 3),
-                                  Text(
-                                    userEmail,
-                                    style: const TextStyle(fontSize: 11.5, color: Colors.black54),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    userPhone,
-                                    style: const TextStyle(fontSize: 11.5, color: Colors.black54),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            // Pencil Edit Button
-                            IconButton(
-                              icon: const Icon(Icons.edit_outlined, size: 20, color: Colors.black87),
-                              tooltip: 'Ubah Profil',
-                              onPressed: _openEditProfile,
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Yellow Gold Membership Bar ("Join GoStar / GAGE Star - Ada reward eksklusif ->")
-                      InkWell(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (ctx) => const MembershipScreen()),
-                          );
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFFFD54F), // Gold yellow GoStar
-                          ),
-                          child: const Row(
+                    child: Row(
+                      children: [
+                        // Avatar dengan Foto Real / Inisial + Tap Ganti Foto
+                        GestureDetector(
+                          onTap: () => _pickProfileAvatar(context, auth, isDark),
+                          child: Stack(
                             children: [
-                              Icon(Icons.star_rounded, color: Color(0xFF5D4037), size: 18),
-                              SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  'Join GAGE Plus',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12.5,
-                                    color: Color(0xFF3E2723),
+                              Container(
+                                width: 58,
+                                height: 58,
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFFDC2626), Color(0xFF991B1B)],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
                                   ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 2),
+                                  boxShadow: const [
+                                    BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2)),
+                                  ],
+                                ),
+                                child: ClipOval(
+                                  child: _buildResolvedProfileAvatar(user?.avatarUrl, userName),
                                 ),
                               ),
-                              SizedBox(width: 8),
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    'Ada reward eksklusif',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 11,
-                                      color: Color(0xFF4E342E),
-                                    ),
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Container(
+                                  width: 20,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    color: GageTheme.primary,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: isDark ? const Color(0xFF1E293B) : Colors.white, width: 2),
                                   ),
-                                  SizedBox(width: 4),
-                                  Icon(Icons.arrow_forward_rounded, size: 14, color: Color(0xFF4E342E)),
-                                ],
+                                  child: const Center(
+                                    child: Icon(Icons.camera_alt_rounded, size: 10, color: Colors.white),
+                                  ),
+                                ),
                               ),
                             ],
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 14),
+
+                        // Nama, Nomor Telepon, Status Terverifikasi
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                userName,
+                                style: TextStyle(
+                                  fontSize: 16.5,
+                                  fontWeight: FontWeight.w900,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 2,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Text(
+                                    userPhone,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF16A34A).withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 10),
+                                        SizedBox(width: 3),
+                                        Text(
+                                          'WA Terverifikasi',
+                                          style: TextStyle(
+                                            color: Color(0xFF16A34A),
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                userEmail,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isDark ? Colors.white38 : Colors.grey.shade500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Tombol Ubah Data Diri
+                        IconButton(
+                          icon: Container(
+                            padding: const EdgeInsets.all(7),
+                            decoration: BoxDecoration(
+                              color: GageTheme.primary.withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.edit_rounded, color: GageTheme.primary, size: 16),
+                          ),
+                          tooltip: 'Edit Profil',
+                          onPressed: () {
+                            HapticFeedback.lightImpact();
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+
+                  const SizedBox(height: 18),
+
+                  // ==========================================
+                  // 2. LAYANAN & PROGRAM GAGE
+                  // ==========================================
+                  _buildSectionHeader('Layanan & Program GAGE', isDark),
+                  const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        _buildSeamlessMenuTile(
+                          icon: Icons.video_library_rounded,
+                          iconColor: const Color(0xFFEA580C),
+                          title: 'GAGE Cuan (Portal Affiliator)',
+                          subtitle: 'Feed TikTok KW, lolos Kerkun & komisi 10%',
+                          isDark: isDark,
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const AffiliateHubScreen()),
+                            );
+                          },
+                        ),
+                        _buildSoftCardDivider(isDark),
+                        _buildSeamlessMenuTile(
+                          icon: Icons.card_membership_rounded,
+                          iconColor: const Color(0xFF16A34A),
+                          title: 'Langganan GAGE (GAGE Plus & Max)',
+                          subtitle: 'Hemat pasti 900 voucher & prioritas',
+                          isDark: isDark,
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const MembershipScreen()),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  // ==========================================
+                  // 3. KEAMANAN & TRANSAKSI
+                  // ==========================================
+                  _buildSectionHeader('Keamanan & Transaksi', isDark),
+                  const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        _buildSeamlessMenuTile(
+                          icon: Icons.lock_outline_rounded,
+                          iconColor: const Color(0xFFDC2626),
+                          title: 'Ubah PIN GAGEPay 6 Digit',
+                          subtitle: 'PIN otorisasi pembayaran dompet & QRIS',
+                          isDark: isDark,
+                          onTap: () => _showChangePinSheet(isDark),
+                        ),
+                        _buildSoftCardDivider(isDark),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0284C7).withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(Icons.fingerprint_rounded, color: Color(0xFF0284C7), size: 20),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Login Biometrik / Sidik Jari',
+                                      style: TextStyle(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Masuk cepat aman tanpa ketik sandi',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Switch(
+                                value: _biometricEnabled,
+                                activeThumbColor: GageTheme.primary,
+                                onChanged: (val) => _handleBiometricToggle(val),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  // ==========================================
+                  // 3. PREFERENSI APLIKASI
+                  // ==========================================
+                  _buildSectionHeader('Preferensi Aplikasi', isDark),
+                  const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        _buildSeamlessMenuTile(
+                          icon: Icons.palette_outlined,
+                          iconColor: const Color(0xFF8B5CF6),
+                          title: 'Tema Tampilan',
+                          subtitle: isDark ? 'Mode Gelap Aktif' : 'Mode Terang Aktif',
+                          isDark: isDark,
+                          onTap: () => _showThemePickerSheet(isDark),
+                        ),
+                        _buildSoftCardDivider(isDark),
+                        _buildSeamlessMenuTile(
+                          icon: Icons.notifications_none_rounded,
+                          iconColor: const Color(0xFFF59E0B),
+                          title: 'Pengaturan Notifikasi',
+                          subtitle: 'Status pesanan, diskon & respon haptik',
+                          isDark: isDark,
+                          onTap: () => _showNotificationSettingsSheet(isDark),
+                        ),
+                        _buildSoftCardDivider(isDark),
+                        Builder(
+                          builder: (tileCtx) {
+                            final langProv = Provider.of<LanguageProvider?>(tileCtx);
+                            final currentLabel = langProv?.language.label ?? 'Bahasa Indonesia';
+                            final currentDesc = langProv?.language.description ?? 'Standar';
+                            return _buildSeamlessMenuTile(
+                              icon: Icons.language_rounded,
+                              iconColor: const Color(0xFF0D9488),
+                              title: 'Bahasa Aplikasi',
+                              subtitle: '$currentLabel ($currentDesc)',
+                              isDark: isDark,
+                              onTap: () => _showLanguagePickerSheet(isDark),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  // ==========================================
+                  // 4. PUSAT BANTUAN & CS
+                  // ==========================================
+                  _buildSectionHeader('Pusat Bantuan & Layanan', isDark),
+                  const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        _buildSeamlessMenuTile(
+                          icon: Icons.support_agent_rounded,
+                          iconColor: const Color(0xFF16A34A),
+                          title: 'Chat CS WhatsApp Resmi',
+                          subtitle: 'Bantuan instan admin GAGE Pracimantoro',
+                          isDark: isDark,
+                          badge: 'ONLINE',
+                          badgeColor: const Color(0xFF16A34A),
+                          onTap: _openWhatsAppSupport,
+                        ),
+                        _buildSoftCardDivider(isDark),
+                        _buildSeamlessMenuTile(
+                          icon: Icons.help_outline_rounded,
+                          iconColor: const Color(0xFF0284C7),
+                          title: 'Pertanyaan Umum (FAQ)',
+                          subtitle: 'Panduan pemesanan, pengisian saldo & layanan',
+                          isDark: isDark,
+                          onTap: () => _showFaqSheet(isDark),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  // ==========================================
+                  // 5. TENTANG GAGE PRACIMANTORO
+                  // ==========================================
+                  _buildSectionHeader('Tentang & Legalitas', isDark),
+                  const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        _buildSeamlessMenuTile(
+                          icon: Icons.info_outline_rounded,
+                          iconColor: const Color(0xFF0284C7),
+                          title: 'Tentang GAGE Pracimantoro',
+                          subtitle: 'GAGE by Halu Goods Indonesia',
+                          isDark: isDark,
+                          onTap: () => _showAboutSheet(isDark),
+                        ),
+                        _buildSoftCardDivider(isDark),
+                        _buildSeamlessMenuTile(
+                          icon: Icons.verified_user_outlined,
+                          iconColor: const Color(0xFF475569),
+                          title: 'Syarat & Kebijakan Privasi',
+                          subtitle: 'Standar perlindungan data pribadi pengguna',
+                          isDark: isDark,
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => const TermsAndPrivacyScreen()));
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // ==========================================
+                  // 6. ZONA KELUAR & HAPUS AKUN
+                  // ==========================================
+                  InkWell(
+                    onTap: () => _confirmLogout(context, auth),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDC2626).withValues(alpha: isDark ? 0.15 : 0.08),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: const Color(0xFFDC2626).withValues(alpha: 0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.logout_rounded, color: Color(0xFFDC2626), size: 18),
+                          SizedBox(width: 8),
+                          Text(
+                            'Keluar dari Akun',
+                            style: TextStyle(
+                              color: Color(0xFFDC2626),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  Center(
+                    child: TextButton(
+                      onPressed: () => _confirmDeleteAccount(context),
+                      child: Text(
+                        'Hapus Akun Permanen',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: Colors.red.shade400,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 14),
+                  Center(
+                    child: Text(
+                      'GAGE Pracimantoro • Halu Goods Indonesia',
+                      style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white38 : Colors.grey.shade400),
+                    ),
+                  ),
+                ],
+              ),
             ),
+          ),
 
-            const SizedBox(height: 20),
-
-            // SECTION 1: PREFERENSI (Grouped Card)
-            _buildSectionHeader('Preferensi'),
-            _buildGroupedCard([
-              _buildListRow(
-                icon: Icons.shield_outlined,
-                title: 'Keamanan akun',
-                onTap: _showSecurityModal,
-              ),
-              _buildListRow(
-                icon: Icons.event_repeat_rounded,
-                title: 'Langganan',
-                badgeText: 'Promo terbatas 🔥',
-                badgeColor: GageTheme.primary,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (ctx) => const MembershipScreen()),
-                  );
-                },
-              ),
-              _buildListRow(
-                icon: Icons.credit_card_rounded,
-                title: 'Metode Pembayaran',
-                onTap: _showPaymentModal,
-              ),
-              _buildListRow(
-                icon: Icons.account_balance_rounded,
-                title: 'Rekening & E-Wallet Penarikan',
-                badgeText: 'Tarik Saldo',
-                badgeColor: const Color(0xFF0284C7),
-                onTap: _showSavedBankAccountsModal,
-              ),
-              _buildListRow(
-                icon: Icons.bookmark_border_rounded,
-                title: 'Alamat tersimpan',
-                onTap: _showSavedAddressesModal,
-              ),
-              _buildListRow(
-                icon: Icons.verified_user_outlined,
-                title: 'Pusat Akun Terverifikasi',
-                badgeText: 'Baru',
-                badgeColor: GageTheme.primary,
-                isLast: true,
-                onTap: _showKycModal,
-              ),
-            ]),
-
-            const SizedBox(height: 16),
-
-            // SECTION 2: AKTIVITAS DI GAGE (Grouped Card)
-            _buildSectionHeader('Aktivitas di GAGE'),
-            _buildGroupedCard([
-              _buildListRow(
-                icon: Icons.receipt_long_outlined,
-                title: 'Aktivitas',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (ctx) => const OrdersScreen()),
-                  );
-                },
-              ),
-              _buildListRow(
-                icon: Icons.local_offer_outlined,
-                title: 'Promo & voucher',
-                isLast: true,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (ctx) => const PromoScreen()),
-                  );
-                },
-              ),
-            ]),
-
-            const SizedBox(height: 16),
-
-            // SECTION 3: PENGATURAN APLIKASI (Grouped Card)
-            _buildSectionHeader('Pengaturan aplikasi'),
-            _buildGroupedCard([
-              _buildListRow(
-                icon: Icons.phone_android_rounded,
-                title: 'Ikon aplikasi',
-                onTap: _showAppIconModal,
-              ),
-              _buildListRow(
-                icon: Icons.language_rounded,
-                title: 'Bahasa',
-                trailingText: _selectedLanguage,
-                onTap: _showLanguageModal,
-              ),
-              _buildListRow(
-                icon: Icons.notifications_none_rounded,
-                title: 'Notifikasi',
-                onTap: _showNotificationModal,
-              ),
-              _buildListRow(
-                icon: Icons.accessibility_new_rounded,
-                title: 'Aksesibilitas',
-                isLast: true,
-                onTap: _showAccessibilityModal,
-              ),
-            ]),
-
-            const SizedBox(height: 16),
-
-            // SECTION 4: LEBIH BANYAK DARI GAGE (Grouped Card)
-            _buildSectionHeader('Lebih banyak dari GAGE'),
-            _buildGroupedCard([
-              _buildListRow(
-                icon: Icons.two_wheeler_rounded,
-                title: 'Mode Pengemudi (GAGE Driver)',
-                badgeText: 'Driver Mode',
-                badgeColor: GageTheme.accentGreen,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (ctx) => const DriverScreen()),
-                  );
-                },
-              ),
-              _buildListRow(
-                icon: Icons.electric_moped_rounded,
-                title: 'Gabung jadi Mitra Driver',
-                onTap: _showDriverModal,
-              ),
-              _buildListRow(
-                icon: Icons.card_giftcard_rounded,
-                title: 'GAGE Cuan (Affiliate & Referral)',
-                badgeText: 'Komisi 10% 🔥',
-                badgeColor: const Color(0xFFE11D48),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (ctx) => const AffiliateHubScreen()),
-                  );
-                },
-              ),
-              _buildListRow(
-                icon: Icons.group_add_outlined,
-                title: 'Ajak teman, dapat voucher',
-                isLast: true,
-                onTap: _showReferralModal,
-              ),
-            ]),
-
-            const SizedBox(height: 16),
-
-            // SECTION 5: LAINNYA (Grouped Card)
-            _buildSectionHeader('Lainnya'),
-            _buildGroupedCard([
-              _buildListRow(
-                icon: Icons.help_outline_rounded,
-                title: 'Bantuan & laporan',
-                onTap: _launchWaCs,
-              ),
-              _buildListRow(
-                icon: Icons.verified_user_outlined,
-                title: 'Syarat & Ketentuan Layanan',
-                badgeText: 'Resmi',
-                badgeColor: GageTheme.primary,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (c) => const TermsAndPrivacyScreen(initialTabIndex: 0),
-                    ),
-                  );
-                },
-              ),
-              _buildListRow(
-                icon: Icons.info_outline_rounded,
-                title: 'Tentang Aplikasi & Lisensi Data',
-                onTap: _showAboutAndDataLicensesModal,
-              ),
-              _buildListRow(
-                icon: Icons.star_outline_rounded,
-                title: 'Beri rating',
-                onTap: _showRatingModal,
-              ),
-              _buildListRow(
-                icon: Icons.admin_panel_settings_outlined,
-                title: 'Portal Admin & Pengaturan Biaya',
-                badgeText: 'Admin',
-                badgeColor: const Color(0xFFE52320),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (c) => const AdminScreen(),
-                    ),
-                  );
-                },
-              ),
-              _buildListRow(
-                icon: Icons.delete_outline_rounded,
-                title: 'Atur akun',
-                isLast: true,
-                onTap: () => _showAccountSettingsModal(auth),
-              ),
-            ]),
-
-            const SizedBox(height: 36),
-          ],
-        ),
+          // Floating Bottom Navigation Bar
+          const Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: GageBottomNavBar(currentIndex: 4),
+          ),
+        ],
       ),
-      ),
-      bottomNavigationBar: const GageBottomNavBar(currentIndex: 4),
-    ),
-  );
-}
+    );
+  }
 
-  // Section Header Label
-  Widget _buildSectionHeader(String title) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  Widget _buildSectionHeader(String title, bool isDark) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      padding: const EdgeInsets.only(left: 4),
       child: Text(
         title,
         style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.bold,
-          color: isDark ? Colors.white70 : const Color(0xFF4B5563),
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.6,
+          color: isDark ? Colors.white60 : const Color(0xFF64748B),
         ),
       ),
     );
   }
 
-  // White Grouped Card Container
-  Widget _buildGroupedCard(List<Widget> children) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: isDark ? GageTheme.darkSurface : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? GageTheme.darkBorder : Colors.grey.shade200),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 1)),
-        ],
-      ),
-      child: Column(
-        children: children,
-      ),
-    );
-  }
-
-  // Standard Row Item in Gojek Style
-  Widget _buildListRow({
+  Widget _buildSeamlessMenuTile({
     required IconData icon,
+    required Color iconColor,
     required String title,
-    String? badgeText,
+    required String subtitle,
+    required bool isDark,
+    String? badge,
     Color? badgeColor,
-    String? trailingText,
-    bool isLast = false,
     required VoidCallback onTap,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Column(
-      children: [
-        InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-            child: Row(
-              children: [
-                Icon(icon, size: 21, color: isDark ? Colors.white70 : Colors.black87),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Row(
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: iconColor, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
                       Flexible(
                         child: Text(
                           title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 13.5,
-                            fontWeight: FontWeight.w600,
-                            color: isDark ? Colors.white : Colors.black87,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (badgeText != null) ...[
-                        const SizedBox(width: 8),
+                      if (badge != null) ...[
+                        const SizedBox(width: 6),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                           decoration: BoxDecoration(
                             color: badgeColor ?? GageTheme.primary,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            badgeText,
-                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                            badge,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.4,
+                            ),
                           ),
                         ),
                       ],
                     ],
                   ),
-                ),
-                if (trailingText != null) ...[
-                  Text(trailingText, style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : Colors.black54)),
-                  const SizedBox(width: 4),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
-                Icon(Icons.chevron_right_rounded, size: 20, color: isDark ? Colors.white38 : Colors.black45),
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, size: 20, color: isDark ? Colors.white30 : Colors.black26),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSoftCardDivider(bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 48, right: 14),
+      child: Container(
+        height: 0.8,
+        color: isDark ? Colors.white10 : const Color(0xFFF1F5F9),
+      ),
+    );
+  }
+
+  Widget _buildSwitchTile({
+    required String title,
+    required String subtitle,
+    required bool value,
+    required bool isDark,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                ),
               ],
             ),
           ),
-        ),
-        if (!isLast)
-          Padding(
-            padding: const EdgeInsets.only(left: 50, right: 16),
-            child: Divider(height: 1, color: isDark ? GageTheme.darkBorder : Colors.grey.shade100),
+          Switch(
+            value: value,
+            activeThumbColor: GageTheme.primary,
+            onChanged: (val) {
+              HapticFeedback.lightImpact();
+              onChanged(val);
+            },
           ),
-      ],
+        ],
+      ),
     );
+  }
+
+  Widget _buildThemeOptionTile({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color iconColor,
+    required bool isSelected,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? GageTheme.primary.withValues(alpha: 0.08)
+              : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? GageTheme.primary : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+            width: isSelected ? 1.5 : 1.0,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: iconColor, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                  ),
+                ],
+              ),
+            ),
+            if (isSelected)
+              const Icon(Icons.check_circle_rounded, color: GageTheme.primary, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResolvedProfileAvatar(String? avatarUrl, String userName) {
+    final initials = userName.length >= 2 ? userName.substring(0, 2).toUpperCase() : 'SR';
+    final initialWidget = Center(
+      child: Text(
+        initials,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 20,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+
+    if (avatarUrl == null || avatarUrl.trim().isEmpty) {
+      return initialWidget;
+    }
+
+    final trimmed = avatarUrl.trim();
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return Image.network(
+        trimmed,
+        width: 58,
+        height: 58,
+        fit: BoxFit.cover,
+        errorBuilder: (ctx, err, stack) => initialWidget,
+      );
+    }
+
+    if (trimmed.startsWith('assets/')) {
+      return Image.asset(
+        trimmed,
+        width: 58,
+        height: 58,
+        fit: BoxFit.cover,
+        errorBuilder: (ctx, err, stack) => initialWidget,
+      );
+    }
+
+    final localFile = File(trimmed);
+    if (localFile.existsSync()) {
+      return Image.file(
+        localFile,
+        width: 58,
+        height: 58,
+        fit: BoxFit.cover,
+        errorBuilder: (ctx, err, stack) => initialWidget,
+      );
+    }
+
+    return initialWidget;
   }
 }

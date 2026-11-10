@@ -85,6 +85,7 @@ class GageServiceGrid extends StatelessWidget {
           childAspectRatio: 0.90,
         ),
         itemBuilder: (context, index) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
           final item = services[index];
 
           return InkWell(
@@ -155,10 +156,10 @@ class GageServiceGrid extends StatelessWidget {
                     fit: BoxFit.scaleDown,
                     child: Text(
                       item['name'],
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w700,
-                        color: GageTheme.textPrimary,
+                        color: isDark ? Colors.white : GageTheme.textPrimary,
                       ),
                       textAlign: TextAlign.center,
                       maxLines: 1,

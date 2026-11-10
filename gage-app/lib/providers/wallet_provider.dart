@@ -21,8 +21,8 @@ class WalletProvider extends ChangeNotifier {
       if (res != null) {
         final walletData = res['wallet'];
         if (walletData != null) {
-          _balance = (walletData['balance'] ?? 0) as int;
-          _points = (walletData['points'] ?? 0) as int;
+          _balance = int.tryParse(walletData['balance']?.toString().replaceAll(RegExp(r'[^0-9\-]'), '') ?? '') ?? 0;
+          _points = int.tryParse(walletData['points']?.toString().replaceAll(RegExp(r'[^0-9\-]'), '') ?? '') ?? 0;
         }
         final txs = res['transactions'];
         if (txs is List) {
@@ -43,6 +43,11 @@ class WalletProvider extends ChangeNotifier {
       _balance -= amount;
       notifyListeners();
     }
+  }
+
+  void topUp(int amount) {
+    _balance += amount;
+    notifyListeners();
   }
 
   // Tambah poin loyalti (hadiah login harian & cashback)

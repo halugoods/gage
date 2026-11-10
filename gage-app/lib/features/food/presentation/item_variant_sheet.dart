@@ -96,8 +96,19 @@ class _ItemVariantSheetState extends State<ItemVariantSheet> {
     super.dispose();
   }
 
+  int _parseInt(dynamic val, [int fallback = 0]) {
+    if (val == null) return fallback;
+    if (val is int) return val;
+    if (val is num) return val.toInt();
+    if (val is String) {
+      final cleaned = val.replaceAll(RegExp(r'[^0-9\-]'), '');
+      return int.tryParse(cleaned) ?? fallback;
+    }
+    return fallback;
+  }
+
   int get _extraPricePerItem {
-    int extra = _spiceLevels[_selectedSpiceIndex]['price'] as int;
+    int extra = _parseInt(_spiceLevels[_selectedSpiceIndex]['price'], 0);
     for (final top in _selectedToppings) {
       extra += _availableToppings[top] ?? 0;
     }
@@ -136,7 +147,7 @@ class _ItemVariantSheetState extends State<ItemVariantSheet> {
     final merchantName = widget.merchant?['name'] ?? 'Dimsum Sewu';
     final menuId = widget.menuItem?['id'] ?? '';
     final name = widget.menuItem?['name'] ?? '';
-    final basePrice = (widget.menuItem?['gage_price'] ?? widget.menuItem?['offline_price'] ?? 0) as int;
+    final basePrice = _parseInt(widget.menuItem?['gage_price'] ?? widget.menuItem?['price'] ?? widget.menuItem?['offline_price'], 0);
     final category = widget.menuItem?['category'] ?? 'Makanan';
     final imageUrl = widget.menuItem?['image'] ?? widget.menuItem?['image_url'];
 
@@ -201,8 +212,8 @@ class _ItemVariantSheetState extends State<ItemVariantSheet> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final name = widget.cartItem?.name ?? widget.menuItem?['name'] ?? '';
     final description = widget.menuItem?['description'] as String?;
-    final basePrice = widget.cartItem?.price ?? ((widget.menuItem?['gage_price'] ?? widget.menuItem?['offline_price'] ?? 0) as int);
-    final offlinePrice = widget.menuItem?['offline_price'] as int?;
+    final basePrice = widget.cartItem?.price ?? _parseInt(widget.menuItem?['gage_price'] ?? widget.menuItem?['price'] ?? widget.menuItem?['offline_price'], 0);
+    final offlinePrice = widget.menuItem?['offline_price'] != null ? _parseInt(widget.menuItem?['offline_price']) : null;
 
     final unitPrice = basePrice + _extraPricePerItem;
     final totalPrice = unitPrice * _quantity;
@@ -278,7 +289,7 @@ class _ItemVariantSheetState extends State<ItemVariantSheet> {
             children: List.generate(_spiceLevels.length, (idx) {
               final sp = _spiceLevels[idx];
               final isSelected = _selectedSpiceIndex == idx;
-              final extraCost = sp['price'] as int;
+              final extraCost = _parseInt(sp['price'], 0);
 
               return InkWell(
                 onTap: () {

@@ -54,8 +54,6 @@ class GagePricingService {
     required double distanceKm,
     required bool isReguler,
   }) {
-    if (distanceKm <= 0) return 0.0;
-
     final double baseFare = isReguler ? rideRegulerBase.toDouble() : rideHematBase.toDouble();
     final double baseKm = isReguler ? rideRegulerBaseKm : rideHematBaseKm;
 
@@ -96,19 +94,31 @@ class GagePricingService {
 
   /// Hitung tarif GAGE Ride / Car untuk CUSTOMER (Dibulatkan per 500 perak)
   static int calculateCustomerRideFare({
-    required String serviceType, // 'hemat', 'reguler', 'car'
+    required String serviceType, // 'hemat', 'reguler', 'standard', 'car', 'car_reguler', 'car_hemat'
     required double distanceKm,
   }) {
-    if (distanceKm <= 0) return 0;
-    if (serviceType.toLowerCase() == 'car') {
-      if (distanceKm <= carBaseKm) {
-        return roundUpTo500(carBase);
+    final lower = serviceType.toLowerCase();
+    if (lower == 'car' || lower == 'car_reguler') {
+      if (distanceKm <= 3.0) {
+        return 16000;
       } else {
-        final raw = carBase + ((distanceKm - carBaseKm) * carPerKm);
+        final raw = 16000 + ((distanceKm - 3.0) * 5000);
+        return roundUpTo500(raw.round());
+      }
+    } else if (lower == 'car_hemat') {
+      if (distanceKm <= 3.0) {
+        return 14000;
+      } else {
+        final raw = 14000 + ((distanceKm - 3.0) * 4500);
         return roundUpTo500(raw.round());
       }
     }
-    final isReguler = serviceType.toLowerCase() != 'hemat';
+
+    if (distanceKm <= 0) {
+      return lower == 'hemat' ? rideHematBase : rideRegulerBase;
+    }
+
+    final isReguler = lower != 'hemat';
     return calculateTieredFare(distanceKm: distanceKm, isReguler: isReguler);
   }
 
@@ -119,14 +129,21 @@ class GagePricingService {
   }) {
     if (distanceKm <= 0) return 0;
     double rawFare;
-    if (serviceType.toLowerCase() == 'car') {
-      if (distanceKm <= carBaseKm) {
-        rawFare = carBase.toDouble();
+    final lower = serviceType.toLowerCase();
+    if (lower == 'car' || lower == 'car_reguler') {
+      if (distanceKm <= 3.0) {
+        rawFare = 16000.0;
       } else {
-        rawFare = carBase + ((distanceKm - carBaseKm) * carPerKm);
+        rawFare = 16000.0 + ((distanceKm - 3.0) * 5000);
+      }
+    } else if (lower == 'car_hemat') {
+      if (distanceKm <= 3.0) {
+        rawFare = 14000.0;
+      } else {
+        rawFare = 14000.0 + ((distanceKm - 3.0) * 4500);
       }
     } else {
-      final isReguler = serviceType.toLowerCase() != 'hemat';
+      final isReguler = lower != 'hemat';
       rawFare = calculateRawTieredFare(distanceKm: distanceKm, isReguler: isReguler);
     }
     return (rawFare * driverCommissionRatio).round();
@@ -139,9 +156,36 @@ class GagePricingService {
     String deliveryOption = 'REGULER',
     int merchantCount = 1,
   }) {
-    if (distanceKm <= 0) return 0;
-    final isReguler = deliveryOption.toUpperCase() != 'HEMAT';
-    return calculateTieredFare(distanceKm: distanceKm, isReguler: isReguler);
+    final lower = deliveryOption.toLowerCase();
+    final isHemat = lower.contains('hemat');
+    final isPrioritas = lower.contains('prioritas');
+    final isCar = lower.contains('car');
+
+    if (isCar) {
+      if (isHemat) {
+        if (distanceKm <= 3.0) return 14000;
+        final raw = 14000 + ((distanceKm - 3.0) * 4500);
+        return roundUpTo500(raw.round());
+      } else if (isPrioritas) {
+        if (distanceKm <= 3.0) return 20000;
+        final raw = 20000 + ((distanceKm - 3.0) * 5500);
+        return roundUpTo500(raw.round());
+      } else {
+        if (distanceKm <= 3.0) return 16000;
+        final raw = 16000 + ((distanceKm - 3.0) * 5000);
+        return roundUpTo500(raw.round());
+      }
+    }
+
+    if (distanceKm <= 0) {
+      if (isPrioritas) return rideRegulerBase + 4000;
+      return isHemat ? rideHematBase : rideRegulerBase;
+    }
+    final baseFare = calculateTieredFare(distanceKm: distanceKm, isReguler: !isHemat);
+    if (isPrioritas) {
+      return baseFare + 4000;
+    }
+    return baseFare;
   }
 
   /// Hitung komisi driver untuk pengantaran belanja berbasis jarak rute riil (80% bagi hasil)

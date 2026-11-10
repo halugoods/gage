@@ -210,7 +210,7 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                         _voucherDiscount = 0;
                       } else {
                         _appliedVoucherCode = v['code'];
-                        _voucherDiscount = v['discount'] as int;
+                        _voucherDiscount = int.tryParse(v['discount']?.toString().replaceAll(RegExp(r'[^0-9\-]'), '') ?? '') ?? 0;
                       }
                     });
                     Navigator.pop(context);
@@ -381,7 +381,7 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
       'merchant_address': widget.pickupAddress,
       'driver_name': widget.serviceType == 'car' ? 'Budi Santoso (Avanza AD 1892 TG)' : 'Slamet Widodo (Vario AD 4521 WN)',
       'driver_plate': widget.serviceType == 'car' ? 'AD 1892 TG' : 'AD 4521 WN',
-      'driver_phone': '081234567890',
+      'driver_phone': '081226001000',
       'status': 'ON_DELIVERY',
       'payment_method': _selectedPaymentMethod?.toUpperCase() ?? 'GAGEPAY',
       'payment_status': 'PAID',

@@ -21,12 +21,20 @@ class GageTicketVoucherCard extends StatelessWidget {
   final Map<String, dynamic> voucher;
   final VoidCallback onApply;
   final VoidCallback onTermsTap;
+  final bool isApplied;
+  final bool isEligible;
+  final String? ineligibilityReason;
+  final bool compact;
 
   const GageTicketVoucherCard({
     super.key,
     required this.voucher,
     required this.onApply,
     required this.onTermsTap,
+    this.isApplied = false,
+    this.isEligible = true,
+    this.ineligibilityReason,
+    this.compact = false,
   });
 
   List<Color> _getStubGradient(String service, String type) {
@@ -119,6 +127,17 @@ class GageTicketVoucherCard extends StatelessWidget {
     );
   }
 
+  int _parseInt(dynamic val, [int fallback = 0]) {
+    if (val == null) return fallback;
+    if (val is int) return val;
+    if (val is num) return val.toInt();
+    if (val is String) {
+      final cleaned = val.replaceAll(RegExp(r'[^0-9\-]'), '');
+      return int.tryParse(cleaned) ?? fallback;
+    }
+    return fallback;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -133,9 +152,10 @@ class GageTicketVoucherCard extends StatelessWidget {
     final label = _getCategoryLabel(service, type);
 
     final title = voucher['discountText'] as String? ?? voucher['title'] as String? ?? 'Diskon Spesial';
-    final minOrder = voucher['minOrder'] as int? ?? 0;
+    final code = voucher['code'] as String? ?? '';
+    final minOrder = _parseInt(voucher['minOrder'] ?? voucher['minSpend'], 0);
     final expiry = voucher['expiry'] as String? ?? '31 Des 2026';
-    final quantity = voucher['quantity'] as int? ?? 1;
+    final quantity = _parseInt(voucher['quantity'], 1);
 
     // Badges filter admin yang rapi
     final tag = voucher['tag'] as String? ?? (service == 'GAGE Food' ? 'Diskon Terus' : 'Pengguna Baru');
@@ -144,29 +164,34 @@ class GageTicketVoucherCard extends StatelessWidget {
     final currencyFmt = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0);
     final minOrderText = minOrder > 0 ? 'Min. belanja ${currencyFmt.format(minOrder)}' : 'Tanpa min. belanja';
 
-    const double stubWidth = 80.0;
-    const double cardHeight = 106.0;
+    final double stubWidth = compact ? 62.0 : 78.0;
+    final double cardHeight = compact ? 82.0 : 102.0;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      height: cardHeight,
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: borderColor, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: isDark ? Colors.black38 : Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+    return Opacity(
+      opacity: isEligible ? 1.0 : 0.62,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        height: cardHeight,
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isApplied ? stubGradient[0] : borderColor,
+            width: isApplied ? 1.8 : 1.0,
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(17),
-        child: Stack(
-          children: [
-            Row(
+          boxShadow: [
+            BoxShadow(
+              color: isDark ? Colors.black38 : Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(15),
+          child: Stack(
+            children: [
+              Row(
               children: [
                 // ==========================================
                 // A. BAGIAN KIRI (VOUCHER STUB)
@@ -181,15 +206,15 @@ class GageTicketVoucherCard extends StatelessWidget {
                       end: Alignment.bottomRight,
                     ),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       // 1. Icon Kategori Voucher
                       Container(
-                        width: 36,
-                        height: 36,
+                        width: 34,
+                        height: 34,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: Colors.white.withValues(alpha: 0.22),
@@ -198,18 +223,18 @@ class GageTicketVoucherCard extends StatelessWidget {
                             width: 1.2,
                           ),
                         ),
-                        child: Icon(icon, color: Colors.white, size: 20),
+                        child: Icon(icon, color: Colors.white, size: 19),
                       ),
-                      const SizedBox(height: 5),
+                      const SizedBox(height: 4),
                       // 2. Nama Kategori Voucher
                       Text(
                         label,
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 10,
+                          fontSize: 9.5,
                           fontWeight: FontWeight.w800,
-                          letterSpacing: 0.4,
+                          letterSpacing: 0.3,
                           height: 1.15,
                         ),
                       ),
@@ -232,157 +257,103 @@ class GageTicketVoucherCard extends StatelessWidget {
                 // ==========================================
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                    padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // Konten 4 Baris
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              // BARIS 1: Judul Voucher Dominan + Badge Kuantitas
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      title,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 13.5,
-                                        color: isDark ? Colors.white : const Color(0xFF1E293B),
-                                        letterSpacing: -0.2,
-                                      ),
-                                    ),
-                                  ),
-                                  if (quantity > 1) ...[
-                                    const SizedBox(width: 4),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                                      decoration: BoxDecoration(
-                                        color: GageTheme.primaryLight,
-                                        borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(color: GageTheme.primary.withValues(alpha: 0.25)),
-                                      ),
-                                      child: Text(
-                                        'x$quantity',
-                                        style: const TextStyle(
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.w900,
-                                          color: GageTheme.primary,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-
-                              // BARIS 2: Informasi Minimum Pembelian
-                              Text(
-                                minOrderText,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                  color: isDark ? Colors.white70 : Colors.grey.shade600,
-                                ),
-                              ),
-
-                              // BARIS 3: Badge Ketentuan Voucher
-                              ClipRect(
-                                child: SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
-                                  physics: const BouncingScrollPhysics(),
-                                  child: Row(
-                                    children: [
-                                      _buildBadge(tag, isDark, isPrimary: true),
-                                      if (secondaryBadge != null) ...[
-                                        const SizedBox(width: 4),
-                                        _buildBadge(secondaryBadge, isDark, isPrimary: false),
-                                      ],
-                                    ],
-                                  ),
-                                ),
-                              ),
-
-                              // BARIS 4: Masa Berlaku dengan Icon Jam + Tautan S&K
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.access_time_rounded,
-                                    size: 11,
-                                    color: isDark ? Colors.white54 : Colors.grey.shade500,
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Flexible(
-                                    child: Text(
-                                      'Berlaku hingga $expiry',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 9.5,
-                                        fontWeight: FontWeight.w500,
-                                        color: isDark ? Colors.white54 : Colors.grey.shade500,
-                                      ),
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                                    child: Text(
-                                      '•',
-                                      style: TextStyle(fontSize: 9.5, color: isDark ? Colors.white38 : Colors.grey.shade400),
-                                    ),
-                                  ),
-                                  InkWell(
-                                    onTap: onTermsTap,
-                                    child: const Text(
-                                      'S&K',
-                                      style: TextStyle(
-                                        fontSize: 9.5,
-                                        fontWeight: FontWeight.w700,
-                                        color: GageTheme.primary,
-                                        decoration: TextDecoration.underline,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                        // BARIS 1: Judul Voucher Dominan Lebih Tebal (Beri ruang untuk badge di kanan atas)
+                        Padding(
+                          padding: EdgeInsets.only(right: quantity > 1 ? 34.0 : 0.0),
+                          child: Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 13.5,
+                              color: isDark ? Colors.white : const Color(0xFF1E293B),
+                              letterSpacing: -0.2,
+                            ),
                           ),
                         ),
 
-                        const SizedBox(width: 8),
+                        // BARIS 2: Informasi Minimum Pembelian
+                        Text(
+                          minOrderText,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w500,
+                            color: isDark ? Colors.white70 : Colors.grey.shade600,
+                          ),
+                        ),
 
-                        // ==========================================
-                        // C. TOMBOL AKSI ("Pakai")
-                        // ==========================================
-                        SizedBox(
-                          height: 32,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: GageTheme.primary,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8), // Rounded rectangle sesuai instruksi
-                              ),
-                              elevation: 0,
-                              padding: const EdgeInsets.symmetric(horizontal: 14),
-                              visualDensity: VisualDensity.compact,
+                        // BARIS 3: Badge Ketentuan Voucher
+                        ClipRect(
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            physics: const BouncingScrollPhysics(),
+                            child: Row(
+                              children: [
+                                if (code.isNotEmpty) ...[
+                                  _buildBadge(code, isDark, isPrimary: true),
+                                  const SizedBox(width: 4),
+                                ],
+                                _buildBadge(tag, isDark, isPrimary: code.isEmpty),
+                                if (secondaryBadge != null) ...[
+                                  const SizedBox(width: 4),
+                                  _buildBadge(secondaryBadge, isDark, isPrimary: false),
+                                ],
+                              ],
                             ),
-                            onPressed: onApply,
-                            child: const Text(
-                              'Pakai',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.2,
+                          ),
+                        ),
+
+                        // BARIS 4: Masa Berlaku dengan Icon Jam + Tautan S&K (Beri ruang tombol 'Pakai' di kanan bawah)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 68.0),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.access_time_rounded,
+                                size: 10.5,
+                                color: isDark ? Colors.white54 : Colors.grey.shade500,
                               ),
-                            ),
+                              const SizedBox(width: 3),
+                              Flexible(
+                                child: Text(
+                                  'Berlaku hingga $expiry',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 9.0,
+                                    fontWeight: FontWeight.w500,
+                                    color: isDark ? Colors.white54 : Colors.grey.shade500,
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 3),
+                                child: Text(
+                                  '•',
+                                  style: TextStyle(fontSize: 9.0, color: isDark ? Colors.white38 : Colors.grey.shade400),
+                                ),
+                              ),
+                              InkWell(
+                                onTap: onTermsTap,
+                                child: const Text(
+                                  'S&K',
+                                  style: TextStyle(
+                                    fontSize: 9.0,
+                                    fontWeight: FontWeight.w700,
+                                    color: GageTheme.primary,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -390,6 +361,92 @@ class GageTicketVoucherCard extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+
+            // ==========================================
+            // C. BADGE KUANTITAS DI POJOK KANAN ATAS
+            // ==========================================
+            if (quantity > 1)
+              Positioned(
+                top: 8,
+                right: 10,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                  decoration: BoxDecoration(
+                    color: GageTheme.primaryLight,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: GageTheme.primary.withValues(alpha: 0.25)),
+                  ),
+                  child: Text(
+                    'x$quantity',
+                    style: const TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                      color: GageTheme.primary,
+                    ),
+                  ),
+                ),
+              ),
+
+            // ==========================================
+            // D. TOMBOL AKSI ("Pakai") DI POJOK KANAN BAWAH
+            // ==========================================
+            Positioned(
+              bottom: 8,
+              right: 10,
+              child: SizedBox(
+                height: 28,
+                child: isApplied
+                    ? ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF16A34A),
+                          foregroundColor: Colors.white,
+                          shape: const StadiumBorder(),
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        onPressed: onApply,
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.check_rounded, size: 13, color: Colors.white),
+                            SizedBox(width: 3),
+                            Text(
+                              'Terpasang',
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: isEligible
+                              ? GageTheme.primary
+                              : (isDark ? Colors.white12 : Colors.grey.shade300),
+                          foregroundColor: isEligible
+                              ? Colors.white
+                              : (isDark ? Colors.white38 : Colors.grey.shade600),
+                          shape: const StadiumBorder(),
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        onPressed: isEligible ? onApply : null,
+                        child: const Text(
+                          'Pakai',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ),
+              ),
             ),
 
             // Takik Setengah Lingkaran (Ticket Cutout) Pada Sisi Kiri Kartu
@@ -437,6 +494,7 @@ class GageTicketVoucherCard extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 }

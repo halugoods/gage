@@ -1,10 +1,13 @@
 // ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/providers/cart_provider.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
+import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
+import 'package:gage_app/features/home/presentation/widgets/gage_ticket_voucher_card.dart';
 
 class VoucherModel {
   final String code;
@@ -144,9 +147,9 @@ class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with Si
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: 2,
+      length: 3,
       vsync: this,
-      initialIndex: widget.initialTabIndex.clamp(0, 1),
+      initialIndex: widget.initialTabIndex.clamp(0, 2),
     );
     _loadVouchers();
   }
@@ -256,6 +259,56 @@ class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with Si
     Navigator.pop(context);
   }
 
+  void _showTermsBottomSheet(VoucherModel v) {
+    HapticFeedback.lightImpact();
+    GageFloatingSheet.show(
+      context: context,
+      title: 'Syarat & Ketentuan Voucher',
+      builder: (sheetCtx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: GageTheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: GageTheme.primary.withValues(alpha: 0.3)),
+                ),
+                child: Text(
+                  v.code,
+                  style: const TextStyle(fontWeight: FontWeight.w900, color: GageTheme.primary, fontSize: 13),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  v.title,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(v.subtitle, style: const TextStyle(fontSize: 12, height: 1.4)),
+          const SizedBox(height: 12),
+          const Text('Ketentuan:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          const SizedBox(height: 6),
+          Text('• Berlaku sampai dengan ${v.validUntil}', style: const TextStyle(fontSize: 11.5, color: Colors.grey)),
+          if (v.minSpend > 0)
+            Text('• Minimal transaksi Rp ${NumberFormat.currency(locale: "id_ID", symbol: "", decimalDigits: 0).format(v.minSpend)}', style: const TextStyle(fontSize: 11.5, color: Colors.grey)),
+          if (v.requiredPaymentMethod != null)
+            Text('• Khusus pembayaran menggunakan saldo ${v.requiredPaymentMethod}', style: const TextStyle(fontSize: 11.5, color: Colors.grey)),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cart = context.watch<CartProvider>();
@@ -269,29 +322,37 @@ class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with Si
         elevation: 0.5,
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           labelColor: GageTheme.primary,
           unselectedLabelColor: GageTheme.textSecondary,
           indicatorColor: GageTheme.primary,
           indicatorWeight: 3,
           labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
           tabs: [
+            const Tab(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4),
+                child: Text('Semua Promo'),
+              ),
+            ),
             Tab(
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(Icons.motorcycle_rounded, size: 16),
                   const SizedBox(width: 6),
-                  Text('Diskon Ongkir ${cart.deliveryPromoCode != null ? "(1)" : ""}'),
+                  Text('Diskon Ongkir${cart.deliveryPromoCode != null ? " (1)" : ""}'),
                 ],
               ),
             ),
             Tab(
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(Icons.local_offer_rounded, size: 16),
                   const SizedBox(width: 6),
-                  Text('Diskon Menu ${cart.foodPromoCode != null ? "(1)" : ""}'),
+                  Text('Diskon Menu${cart.foodPromoCode != null ? " (1)" : ""}'),
                 ],
               ),
             ),
@@ -343,9 +404,11 @@ class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with Si
             child: TabBarView(
               controller: _tabController,
               children: [
-                // List Voucher Ongkir
+                // Tab Semua (Section 1: Ongkir, Section 2: Diskon Menu)
+                _buildCombinedAllTab(cart),
+                // Tab Voucher Ongkir
                 _buildVoucherList(_deliveryVouchers, cart, isDeliveryTab: true),
-                // List Voucher Makanan
+                // Tab Voucher Makanan
                 _buildVoucherList(_foodVouchers, cart, isDeliveryTab: false),
               ],
             ),
@@ -355,9 +418,155 @@ class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with Si
     );
   }
 
-  Widget _buildVoucherList(List<VoucherModel> vouchers, CartProvider cart, {required bool isDeliveryTab}) {
-    final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+  Widget _buildCombinedAllTab(CartProvider cart) {
+    return RefreshIndicator(
+      onRefresh: _loadVouchers,
+      color: GageTheme.primary,
+      child: _isLoading
+          ? ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              itemCount: 4,
+              itemBuilder: (context, index) => const GageSkeletonVoucherCard(),
+            )
+          : ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              children: [
+                // Section 1: Diskon Ongkir
+                _buildSectionHeader(
+                  title: 'Voucher Gratis & Diskon Ongkir',
+                  subtitle: 'Gunakan untuk hemat biaya antar kurir',
+                  icon: Icons.local_shipping_rounded,
+                  count: _deliveryVouchers.length,
+                ),
+                const SizedBox(height: 10),
+                ..._deliveryVouchers.map((v) => _buildVoucherCard(v, cart, isDeliveryTab: true)),
 
+                const SizedBox(height: 20),
+
+                // Section 2: Diskon Menu
+                _buildSectionHeader(
+                  title: 'Voucher Diskon Menu Makanan',
+                  subtitle: 'Potongan langsung menu pilihan',
+                  icon: Icons.local_offer_rounded,
+                  count: _foodVouchers.length,
+                ),
+                const SizedBox(height: 10),
+                ..._foodVouchers.map((v) => _buildVoucherCard(v, cart, isDeliveryTab: false)),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildSectionHeader({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required int count,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: GageTheme.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 18, color: GageTheme.primary),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '',
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVoucherCard(VoucherModel v, CartProvider cart, {required bool isDeliveryTab}) {
+    final eligibility = _checkEligibility(v, cart);
+    final isApplied = isDeliveryTab
+        ? (cart.deliveryPromoCode == v.code)
+        : (cart.foodPromoCode == v.code);
+
+    final voucherMap = {
+      'id': v.code,
+      'code': v.code,
+      'service': 'GAGE Food',
+      'type': v.isDeliveryPromo ? 'delivery' : 'order',
+      'title': v.title,
+      'discountText': v.subtitle,
+      'minOrder': v.minSpend,
+      'quantity': 1,
+      'tag': v.badgeText,
+      'expiry': v.validUntil,
+      'terms': [
+        v.subtitle,
+        'Berlaku hingga ',
+        if (v.minSpend > 0) 'Minimal transaksi Rp ',
+        if (v.requiredPaymentMethod != null) 'Khusus pembayaran dengan ',
+      ],
+    };
+
+    return GageTicketVoucherCard(
+      voucher: voucherMap,
+      isApplied: isApplied,
+      isEligible: eligibility.isEligible,
+      ineligibilityReason: eligibility.reason,
+      onApply: () {
+        if (isApplied) {
+          if (isDeliveryTab) {
+            cart.removeDeliveryPromo();
+          } else {
+            cart.removeFoodPromo();
+          }
+          setState(() {});
+        } else if (eligibility.isEligible) {
+          _applyVoucher(v, cart);
+        }
+      },
+      onTermsTap: () => _showTermsBottomSheet(v),
+    );
+  }
+
+  Widget _buildVoucherList(List<VoucherModel> vouchers, CartProvider cart, {required bool isDeliveryTab}) {
     return RefreshIndicator(
       onRefresh: _loadVouchers,
       color: GageTheme.primary,
@@ -373,206 +582,52 @@ class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with Si
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               itemCount: vouchers.length,
               itemBuilder: (context, index) {
-        final v = vouchers[index];
-        final eligibility = _checkEligibility(v, cart);
-        final isApplied = isDeliveryTab ? (cart.deliveryPromoCode == v.code) : (cart.foodPromoCode == v.code);
-        final themeColor = isDeliveryTab ? GageTheme.accentGreen : GageTheme.primary;
+                final v = vouchers[index];
+                final eligibility = _checkEligibility(v, cart);
+                final isApplied = isDeliveryTab
+                    ? (cart.deliveryPromoCode == v.code)
+                    : (cart.foodPromoCode == v.code);
 
-        return Opacity(
-          opacity: eligibility.isEligible ? 1.0 : 0.65,
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(
-              color: eligibility.isEligible ? Colors.white : const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: isApplied
-                    ? themeColor
-                    : (eligibility.isEligible ? themeColor.withOpacity(0.35) : Colors.grey.shade300),
-                width: isApplied ? 1.8 : 1.0,
-              ),
-              boxShadow: eligibility.isEligible
-                  ? [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))]
-                  : [],
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(14.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Badge Ikon Tiket
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: eligibility.isEligible ? themeColor.withOpacity(0.12) : Colors.grey.shade200,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(
-                          isDeliveryTab ? Icons.motorcycle_rounded : Icons.local_offer_rounded,
-                          color: eligibility.isEligible ? themeColor : Colors.grey.shade500,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-
-                      // Info Judul & Kode
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    v.title,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13.5,
-                                      color: eligibility.isEligible ? const Color(0xFF1E293B) : Colors.grey.shade600,
-                                    ),
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: eligibility.isEligible ? themeColor.withOpacity(0.1) : Colors.grey.shade200,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    v.badgeText,
-                                    style: TextStyle(
-                                      fontSize: 9.5,
-                                      fontWeight: FontWeight.w800,
-                                      color: eligibility.isEligible ? themeColor : Colors.grey.shade600,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              v.subtitle,
-                              style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 10),
-                  const Divider(height: 1),
-                  const SizedBox(height: 8),
-
-                  // Keterangan Syarat & Status
-                  Row(
-                    children: [
-                      Icon(Icons.schedule_rounded, size: 12, color: Colors.grey.shade500),
-                      const SizedBox(width: 4),
-                      Text('Berlaku s.d. ${v.validUntil}', style: TextStyle(fontSize: 10.5, color: Colors.grey.shade600)),
-                      const Spacer(),
-                      Text(
-                        v.minSpend > 0 ? 'Min. belanja ${currencyFormatter.format(v.minSpend)}' : 'Tanpa min. belanja',
-                        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
-                      ),
-                    ],
-                  ),
-
-                  // Jika tidak eligible, tampilkan bar warning informatif
-                  if (!eligibility.isEligible) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.shade50,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Colors.amber.shade200),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.info_outline_rounded, size: 14, color: Colors.amber.shade900),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              eligibility.reason,
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.amber.shade900),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                final voucherMap = {
+                  'id': v.code,
+                  'code': v.code,
+                  'service': 'GAGE Food',
+                  'type': v.isDeliveryPromo ? 'delivery' : 'order',
+                  'title': v.title,
+                  'discountText': v.subtitle,
+                  'minOrder': v.minSpend,
+                  'quantity': 1,
+                  'tag': v.badgeText,
+                  'expiry': v.validUntil,
+                  'terms': [
+                    v.subtitle,
+                    'Berlaku hingga ${v.validUntil}',
+                    if (v.minSpend > 0) 'Minimal transaksi Rp ${v.minSpend}',
+                    if (v.requiredPaymentMethod != null) 'Khusus pembayaran dengan ${v.requiredPaymentMethod}',
                   ],
+                };
 
-                  const SizedBox(height: 10),
-
-                  // Tombol Aksi
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      if (isApplied) ...[
-                        OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.red.shade700,
-                            side: BorderSide(color: Colors.red.shade300),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            visualDensity: VisualDensity.compact,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                          ),
-                          onPressed: () {
-                            if (isDeliveryTab) {
-                              cart.removeDeliveryPromo();
-                            } else {
-                              cart.removeFoodPromo();
-                            }
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Voucher ${v.code} dilepas.')),
-                            );
-                          },
-                          child: const Text('Lepas Voucher', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: themeColor,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Row(
-                            children: [
-                              Icon(Icons.check_circle_rounded, color: Colors.white, size: 14),
-                              SizedBox(width: 4),
-                              Text('Dipakai', style: TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                        ),
-                      ] else ...[
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: eligibility.isEligible ? themeColor : Colors.grey.shade400,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            visualDensity: VisualDensity.compact,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                          ),
-                          onPressed: eligibility.isEligible ? () => _applyVoucher(v, cart) : null,
-                          child: Text(
-                            eligibility.isEligible ? 'Gunakan Voucher' : 'Belum Memenuhi Syarat',
-                            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ],
-              ),
+                return GageTicketVoucherCard(
+                  voucher: voucherMap,
+                  isApplied: isApplied,
+                  isEligible: eligibility.isEligible,
+                  ineligibilityReason: eligibility.reason,
+                  onApply: () {
+                    if (isApplied) {
+                      if (isDeliveryTab) {
+                        cart.removeDeliveryPromo();
+                      } else {
+                        cart.removeFoodPromo();
+                      }
+                      setState(() {});
+                    } else if (eligibility.isEligible) {
+                      _applyVoucher(v, cart);
+                    }
+                  },
+                  onTermsTap: () => _showTermsBottomSheet(v),
+                );
+              },
             ),
-          ),
-        );
-      },
-    ),
     );
   }
 }

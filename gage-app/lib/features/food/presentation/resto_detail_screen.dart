@@ -280,6 +280,17 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
     });
   }
 
+  int _parseInt(dynamic val, [int fallback = 0]) {
+    if (val == null) return fallback;
+    if (val is int) return val;
+    if (val is num) return val.toInt();
+    if (val is String) {
+      final cleaned = val.replaceAll(RegExp(r'[^0-9\-]'), '');
+      return int.tryParse(cleaned) ?? fallback;
+    }
+    return fallback;
+  }
+
   List<Map<String, dynamic>> get _filteredMenus {
     var list = _menuItems;
     if (_searchQuery.trim().isNotEmpty) {
@@ -788,13 +799,59 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
     );
   }
 
+  IconData _getFallbackIcon(dynamic categoryVal) {
+    final cat = (categoryVal ?? '').toString().toLowerCase();
+    final mCat = (widget.merchant['category'] ?? '').toString().toLowerCase();
+    final mId = (widget.merchant['id'] ?? '').toString().toLowerCase();
+    if (cat.contains('bangun') || cat.contains('semen') || cat.contains('cat') || cat.contains('besi') ||
+        mCat.contains('bangun') || mId.contains('build') || mId.contains('tb-')) {
+      return Icons.construction_rounded;
+    }
+    if (cat.contains('tani') || cat.contains('pupuk') || cat.contains('benih') || cat.contains('pakan') ||
+        mCat.contains('tani') || mCat.contains('ternak') || mId.contains('farm')) {
+      return Icons.agriculture_rounded;
+    }
+    if (cat.contains('sembako') || cat.contains('beras') || cat.contains('kelontong') ||
+        mCat.contains('sembako') || mId.contains('shop')) {
+      return Icons.storefront_rounded;
+    }
+    return Icons.restaurant_rounded;
+  }
+
   String _getMenuItemImage(Map<String, dynamic> item) {
     if (item['image'] != null && item['image'].toString().isNotEmpty) {
       return item['image'].toString();
     }
     final name = (item['name'] ?? '').toString().toLowerCase();
     final cat = (item['category'] ?? '').toString().toLowerCase();
+    final mCat = (widget.merchant['category'] ?? '').toString().toLowerCase();
+    final mId = (widget.merchant['id'] ?? '').toString().toLowerCase();
 
+    // 1. Bahan Bangunan
+    if (name.contains('semen')) return 'assets/images/prod_semen.png';
+    if (name.contains('cat')) return 'assets/images/prod_cat.png';
+    if (name.contains('besi') || name.contains('baja')) return 'assets/images/prod_besi.png';
+    if (name.contains('pipa') || name.contains('kuas') || name.contains('pertukangan')) {
+      return 'assets/images/prod_traktor.png';
+    }
+
+    // 2. Pertanian & Peternakan
+    if (name.contains('pupuk') || name.contains('urea') || name.contains('npk')) return 'assets/images/prod_pupuk.png';
+    if (name.contains('benih') || name.contains('bibit')) return 'assets/images/prod_benih.png';
+    if (name.contains('pakan') || name.contains('konsentrat')) return 'assets/images/prod_pakan.png';
+    if (name.contains('sprayer') || name.contains('insektisida')) return 'assets/images/prod_traktor.png';
+
+    // 3. Sembako & Belanja
+    if (name.contains('beras')) return 'assets/images/prod_beras.png';
+    if (name.contains('minyak')) return 'assets/images/prod_minyak.png';
+    if (name.contains('gula')) return 'assets/images/prod_gula.png';
+    if (name.contains('telur')) return 'assets/images/prod_telur.png';
+    if (name.contains('indomie') || name.contains('mie instan') || name.contains('terigu')) return 'assets/images/prod_indomie.png';
+    if (name.contains('cabai') || name.contains('cabe') || name.contains('sayur') || name.contains('bayam')) {
+      return 'assets/images/prod_cabai.png';
+    }
+
+    // 4. Makanan & Minuman
     if (name.contains('mentai')) return 'assets/images/dish_dimsum_mentai.png';
     if (name.contains('burger')) return 'assets/images/dish_chicken_burger.png';
     if (name.contains('kentang') || name.contains('fries')) return 'assets/images/dish_french_fries.png';
@@ -812,7 +869,152 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
     if (name.contains('teh') || name.contains('es') || name.contains('jeruk') || name.contains('minum') || cat.contains('minum')) {
       return 'assets/images/dish_es_teh.png';
     }
+
+    // 5. Merchant Category Fallback (Tanpa Fallback Dimsum di Luar Resto Food)
+    if (mId.contains('build') || mCat.contains('bangun')) return 'assets/images/prod_semen.png';
+    if (mId.contains('farm') || mCat.contains('tani') || mCat.contains('ternak')) return 'assets/images/prod_pupuk.png';
+    if (mId.contains('shop') || mCat.contains('sembako')) return 'assets/images/prod_beras.png';
+
     return 'assets/images/dish_dimsum_original.png';
+  }
+
+  List<Widget> _buildServiceVouchers(BuildContext context, CartProvider cart, bool isDark) {
+    final mCat = (widget.merchant['category'] ?? '').toString().toLowerCase();
+    final mId = (widget.merchant['id'] ?? '').toString().toLowerCase();
+
+    if (mId.contains('build') || mCat.contains('bangun')) {
+      return [
+        _buildInteractiveVoucherCard(
+          context: context,
+          cart: cart,
+          code: 'PROYEKHEMAT',
+          title: 'Diskon material Rp 15.000',
+          sub: 'Min. pembelian Rp 50.000',
+          discount: 15000,
+          isFood: true,
+          isDark: isDark,
+        ),
+        _buildInteractiveVoucherCard(
+          context: context,
+          cart: cart,
+          code: 'BANGUNRUMAH',
+          title: 'Diskon material Rp 25.000',
+          sub: 'Min. pembelian Rp 100.000',
+          discount: 25000,
+          isFood: true,
+          isDark: isDark,
+        ),
+        _buildInteractiveVoucherCard(
+          context: context,
+          cart: cart,
+          code: 'ONGKIRFREE',
+          title: 'Gratis ongkir s/d 10rb',
+          sub: 'Min. pembelian Rp 50.000',
+          discount: 10000,
+          isFood: false,
+          isDark: isDark,
+        ),
+      ];
+    } else if (mId.contains('farm') || mCat.contains('tani') || mCat.contains('ternak')) {
+      return [
+        _buildInteractiveVoucherCard(
+          context: context,
+          cart: cart,
+          code: 'SUBSIDITANI',
+          title: 'Diskon tani Rp 10.000',
+          sub: 'Min. pembelian Rp 30.000',
+          discount: 10000,
+          isFood: true,
+          isDark: isDark,
+        ),
+        _buildInteractiveVoucherCard(
+          context: context,
+          cart: cart,
+          code: 'PETANISUKSES',
+          title: 'Diskon tani Rp 15.000',
+          sub: 'Min. pembelian Rp 50.000',
+          discount: 15000,
+          isFood: true,
+          isDark: isDark,
+        ),
+        _buildInteractiveVoucherCard(
+          context: context,
+          cart: cart,
+          code: 'ONGKIRFREE',
+          title: 'Gratis ongkir s/d 7rb',
+          sub: 'Min. pembelian Rp 25.000',
+          discount: 7000,
+          isFood: false,
+          isDark: isDark,
+        ),
+      ];
+    } else if (mId.contains('shop') || mCat.contains('sembako') || mCat.contains('kelontong')) {
+      return [
+        _buildInteractiveVoucherCard(
+          context: context,
+          cart: cart,
+          code: 'BELANJAHEMAT',
+          title: 'Diskon belanja Rp 8.000',
+          sub: 'Min. pembelian Rp 25.000',
+          discount: 8000,
+          isFood: true,
+          isDark: isDark,
+        ),
+        _buildInteractiveVoucherCard(
+          context: context,
+          cart: cart,
+          code: 'SEMBAKOMURAH',
+          title: 'Diskon sembako Rp 10.000',
+          sub: 'Min. pembelian Rp 40.000',
+          discount: 10000,
+          isFood: true,
+          isDark: isDark,
+        ),
+        _buildInteractiveVoucherCard(
+          context: context,
+          cart: cart,
+          code: 'ONGKIRFREE',
+          title: 'Gratis ongkir s/d 7rb',
+          sub: 'Min. pembelian Rp 20.000',
+          discount: 7000,
+          isFood: false,
+          isDark: isDark,
+        ),
+      ];
+    } else {
+      return [
+        _buildInteractiveVoucherCard(
+          context: context,
+          cart: cart,
+          code: 'GAGEHEMAT',
+          title: 'Diskon makanan Rp 8.000',
+          sub: 'Min. pembelian Rp 15.000',
+          discount: 8000,
+          isFood: true,
+          isDark: isDark,
+        ),
+        _buildInteractiveVoucherCard(
+          context: context,
+          cart: cart,
+          code: 'KULINER10',
+          title: 'Diskon makanan Rp 10.000',
+          sub: 'Min. pembelian Rp 30.000',
+          discount: 10000,
+          isFood: true,
+          isDark: isDark,
+        ),
+        _buildInteractiveVoucherCard(
+          context: context,
+          cart: cart,
+          code: 'ONGKIRFREE',
+          title: 'Gratis ongkir s/d 7rb',
+          sub: 'Min. pembelian Rp 20.000',
+          discount: 7000,
+          isFood: false,
+          isDark: isDark,
+        ),
+      ];
+    }
   }
 
   @override
@@ -1329,38 +1531,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Row(
-                        children: [
-                          _buildInteractiveVoucherCard(
-                            context: context,
-                            cart: cart,
-                            code: 'GAGEHEMAT',
-                            title: 'Diskon makanan Rp 8.000',
-                            sub: 'Min. pembelian Rp 15.000',
-                            discount: 8000,
-                            isFood: true,
-                            isDark: isDark,
-                          ),
-                          _buildInteractiveVoucherCard(
-                            context: context,
-                            cart: cart,
-                            code: 'KULINER10',
-                            title: 'Diskon makanan Rp 10.000',
-                            sub: 'Min. pembelian Rp 30.000',
-                            discount: 10000,
-                            isFood: true,
-                            isDark: isDark,
-                          ),
-                          _buildInteractiveVoucherCard(
-                            context: context,
-                            cart: cart,
-                            code: 'ONGKIRGRATIS',
-                            title: 'Diskon Ongkir Rp 7.000',
-                            sub: 'Khusus pengantaran Delivery',
-                            discount: 7000,
-                            isFood: false,
-                            isDark: isDark,
-                          ),
-                        ],
+                        children: _buildServiceVouchers(context, cart, isDark),
                       ),
                     ),
                   ),
@@ -1393,7 +1564,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                     delegate: SliverChildBuilderDelegate(
                       (context, index) {
                         final item = _filteredMenus[index];
-                        final price = (item['gage_price'] ?? item['offline_price'] ?? 0) as int;
+                        final price = _parseInt(item['gage_price'] ?? item['price'] ?? item['offline_price'], 0);
                         final menuId = (item['id'] ?? 'item-$index').toString();
                         final cartItem = cart.items.where((i) => i.menuId == menuId).firstOrNull;
                         final inCartQty = cartItem?.quantity ?? 0;
@@ -1467,7 +1638,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                                             fit: BoxFit.cover,
                                             errorBuilder: (context, error, stackTrace) => Container(
                                               color: GageTheme.primaryLight,
-                                              child: const Icon(Icons.fastfood, color: GageTheme.primary),
+                                              child: Icon(_getFallbackIcon(item['category']), color: GageTheme.primary),
                                             ),
                                           ),
                                         ),
@@ -1604,7 +1775,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                                               merchant: widget.merchant,
                                             );
                                           } else {
-                                            final price = (item['price'] ?? item['gage_price'] ?? 0) as int;
+                                            final price = _parseInt(item['price'] ?? item['gage_price'] ?? item['offline_price'], 0);
                                             final model = CartItemModel(
                                               menuId: menuId,
                                               merchantId: widget.merchant['id'] ?? 'm-dimsum-sewu',
@@ -1671,7 +1842,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
   void _showProductDetailModal(BuildContext context, Map<String, dynamic> item, CartProvider cart) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
-    final price = (item['price'] as num?)?.toInt() ?? 10000;
+    final price = _parseInt(item['gage_price'] ?? item['price'] ?? item['offline_price'], 10000);
     final menuId = item['id'] ?? 'item-generic';
     final menuImage = _getMenuItemImage(item);
 
@@ -1722,7 +1893,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) => Container(
                               color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-                              child: const Icon(Icons.fastfood, size: 48, color: GageTheme.primary),
+                              child: Icon(_getFallbackIcon(item['category']), size: 48, color: GageTheme.primary),
                             ),
                           ),
                         ),
@@ -1803,7 +1974,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                         decoration: BoxDecoration(
                           color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: const Color(0xFF16A34A), width: 1.5),
+                          border: Border.all(color: GageTheme.primary, width: 1.5),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -1818,7 +1989,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                               borderRadius: const BorderRadius.horizontal(left: Radius.circular(18)),
                               child: const Padding(
                                 padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                child: Icon(Icons.remove, size: 16, color: Color(0xFF16A34A)),
+                                child: Icon(Icons.remove, size: 16, color: GageTheme.primary),
                               ),
                             ),
                             Padding(
@@ -1850,7 +2021,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                               borderRadius: const BorderRadius.horizontal(right: Radius.circular(18)),
                               child: const Padding(
                                 padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                child: Icon(Icons.add, size: 16, color: Color(0xFF16A34A)),
+                                child: Icon(Icons.add, size: 16, color: GageTheme.primary),
                               ),
                             ),
                           ],
@@ -1878,6 +2049,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
     );
   }
 
+
   Widget _buildInteractiveVoucherCard({
     required BuildContext context,
     required CartProvider cart,
@@ -1894,85 +2066,109 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
         ? (isDark ? const Color(0xFF2A170A) : const Color(0xFFFFF7ED))
         : (isDark ? const Color(0xFF032726) : const Color(0xFFF0FDFA));
     final badgeTag = isFood ? '-${discount ~/ 1000}RB' : 'ONGKIR';
+    final isApplied = isFood ? cart.foodPromoCode == code : cart.deliveryPromoCode == code;
 
-    return Container(
-      width: 240,
-      margin: const EdgeInsets.only(right: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: activeColor.withValues(alpha: 0.35),
-          width: 1.0,
+    return GestureDetector(
+      onTap: () {
+        if (isApplied) {
+          if (isFood) {
+            cart.removeFoodPromo();
+          } else {
+            cart.removeDeliveryPromo();
+          }
+          GageToast.show(context, 'Voucher $code dilepas', type: GageToastType.info);
+        } else {
+          if (isFood) {
+            cart.setFoodPromo(code, discount);
+          } else {
+            cart.setDeliveryPromo(code, discount);
+          }
+          GageToast.show(context, 'Voucher $code berhasil dipasang!', type: GageToastType.success);
+        }
+      },
+      child: Container(
+        width: 240,
+        margin: const EdgeInsets.only(right: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isApplied ? activeColor : activeColor.withValues(alpha: 0.35),
+            width: isApplied ? 1.5 : 1.0,
+          ),
         ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(
-              color: activeColor.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: activeColor.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                isFood ? Icons.local_offer_rounded : Icons.delivery_dining_rounded,
+                color: activeColor,
+                size: 16,
+              ),
             ),
-            child: Icon(
-              isFood ? Icons.local_offer_rounded : Icons.delivery_dining_rounded,
-              color: activeColor,
-              size: 16,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                      decoration: BoxDecoration(
-                        color: activeColor,
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                      child: Text(
-                        badgeTag,
-                        style: const TextStyle(
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: activeColor,
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Text(
+                          badgeTag,
+                          style: const TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : Colors.black87,
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  sub,
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    color: isDark ? Colors.grey.shade400 : Colors.black54,
+                    ],
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+                  const SizedBox(height: 2),
+                  Text(
+                    sub,
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      color: isDark ? Colors.grey.shade400 : Colors.black54,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+            if (isApplied) ...[
+              const SizedBox(width: 6),
+              Icon(Icons.check_circle_rounded, color: activeColor, size: 16),
+            ],
+          ],
+        ),
       ),
     );
   }

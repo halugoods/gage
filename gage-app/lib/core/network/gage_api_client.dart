@@ -210,7 +210,7 @@ class GageApiClient {
         'name': 'Rocket Chicken Sambiroto, Pracimantoro',
         'category': 'Cepat saji, Ayam & Aneka nasi',
         'address': 'Sambiroto, Kec. Pracimantoro',
-        'phone_wa': '081234567891',
+        'phone_wa': '081226001002',
         'rating': 5.0,
         'ratingCount': '120+',
         'distance': '1.2 km',
@@ -225,7 +225,7 @@ class GageApiClient {
         'name': 'Dimsum Sewu, Alfamidi Pracimantoro',
         'category': 'Jajanan & Dimsum hangat',
         'address': 'Depan Alfamidi Pracimantoro',
-        'phone_wa': '081234567890',
+        'phone_wa': '081226001001',
         'rating': 4.9,
         'ratingCount': '85',
         'distance': '1.8 km',
@@ -240,7 +240,7 @@ class GageApiClient {
         'name': 'Mie Ayam Pak Kumis, Pracimantoro',
         'category': 'Mie & Bakso Urat Komplit',
         'address': 'Pasar Pracimantoro Kios No. 4',
-        'phone_wa': '081234567892',
+        'phone_wa': '081226001003',
         'rating': 4.8,
         'ratingCount': '64',
         'distance': '2.1 km',
@@ -255,7 +255,7 @@ class GageApiClient {
         'name': 'Seblak Prasmanan Nyentrik Pracimantoro',
         'category': 'Seblak & Pedas Prasmanan',
         'address': 'Jl. Raya Pracimantoro - Giritontro',
-        'phone_wa': '081234567894',
+        'phone_wa': '081226001004',
         'rating': 4.9,
         'ratingCount': '95',
         'distance': '1.5 km',
@@ -270,7 +270,7 @@ class GageApiClient {
         'name': 'Roti Gembong Gedhe, Pracimantoro',
         'category': 'Roti & Bakery, Jajanan Manis',
         'address': 'Kompleks Ruko Barat Pasar Pracimantoro',
-        'phone_wa': '081234567895',
+        'phone_wa': '081226001005',
         'rating': 4.9,
         'ratingCount': '42',
         'distance': '2.5 km',
@@ -299,17 +299,275 @@ class GageApiClient {
 
   // Mengambil katalog menu merchant
   static Future<List<Map<String, dynamic>>> getMerchantMenu(String merchantId) async {
-    try {
-      final res = await http.get(Uri.parse('$baseUrl/api/merchants/$merchantId/menu')).timeout(const Duration(seconds: 4));
-      if (res.statusCode == 200) {
-        final json = jsonDecode(res.body);
-        if (json['success'] == true && json['data'] is List) {
-          return List<Map<String, dynamic>>.from(json['data']);
-        }
-      }
-    } catch (_) {}
+    final lowerId = merchantId.toLowerCase();
 
-    if (merchantId.contains('rc')) {
+    // 1. Build / Bangunan & Material (Prioritas tertinggi agar tidak tertimpa keyword mandiri/jaya)
+    if (lowerId.startsWith('build') || lowerId.contains('build') || lowerId.contains('tb-') ||
+        lowerId.contains('tb ') || lowerId.contains('bangun') || lowerId.contains('cat-') ||
+        lowerId.contains('besi-') || lowerId.contains('baja') || lowerId.contains('material')) {
+      return [
+        {
+          'id': 'prod-semen-gresik',
+          'name': 'Semen Gresik Portland PCC 40 Kg',
+          'category': 'Semen & Pasir',
+          'description': 'Semen komposit serbaguna kuat tekan tinggi dan daya rekat kokoh',
+          'offline_price': 52000,
+          'gage_price': 55000,
+          'image': 'assets/images/prod_semen.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'prod-semen-tigaroda',
+          'name': 'Semen Tiga Roda Serbaguna 40 Kg',
+          'category': 'Semen & Pasir',
+          'description': 'Semen Portland Komposit kokoh presisi tahan retak dan cuaca ekstrem',
+          'offline_price': 53000,
+          'gage_price': 56000,
+          'image': 'assets/images/prod_semen.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'prod-cat-tembok',
+          'name': 'Cat Tembok Dulux Catylac Putih 5 Kg',
+          'category': 'Cat & Finishing',
+          'description': 'Cat dinding interior anti pudar dengan formula cerah tahan lama',
+          'offline_price': 135000,
+          'gage_price': 142000,
+          'image': 'assets/images/prod_cat.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'prod-cat-avian',
+          'name': 'Cat Kayu & Besi Avian Hitam/Putih 1 Kg',
+          'category': 'Cat & Finishing',
+          'description': 'Cat enamel kilap maksimal cepat kering anti karat dan anti rayap',
+          'offline_price': 68000,
+          'gage_price': 72000,
+          'image': 'assets/images/prod_cat.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'prod-besi-10',
+          'name': 'Besi Beton Ulir 10mm SNI (12 Meter)',
+          'category': 'Besi & Baja',
+          'description': 'Besi beton tulangan SNI sertifikasi kekuatan struktur bangunan',
+          'offline_price': 78000,
+          'gage_price': 82000,
+          'image': 'assets/images/prod_besi.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'prod-besi-8',
+          'name': 'Besi Beton Polos 8mm SNI (12 Meter)',
+          'category': 'Besi & Baja',
+          'description': 'Besi begel tulangan SNI presisi daya lentur dan tarik standar konstruksi',
+          'offline_price': 52000,
+          'gage_price': 55000,
+          'image': 'assets/images/prod_besi.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'prod-pipa-pvc',
+          'name': 'Pipa PVC Rucika D 3/4 Inch (4 Meter)',
+          'category': 'Pipa & Sanitasi',
+          'description': 'Pipa air uPVC tebal tanpa timbal kuat tekanan debit air tinggi',
+          'offline_price': 34000,
+          'gage_price': 36500,
+          'image': 'assets/images/prod_traktor.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'prod-kuas-eterna',
+          'name': 'Kuas Cat Eterna 3 Inch Bulu Tebal',
+          'category': 'Alat Pertukangan',
+          'description': 'Bulu kuas halus rapat tidak mudah rontok menghasilkan sapuan cat rata sempurna',
+          'offline_price': 12000,
+          'gage_price': 13000,
+          'image': 'assets/images/prod_traktor.png',
+          'is_available': 1,
+        },
+      ];
+    }
+
+    // 2. Farm / Pertanian & Peternakan
+    if (lowerId.startsWith('farm') || lowerId.contains('farm') || lowerId.contains('tani') ||
+        lowerId.contains('ternak') || lowerId.contains('pupuk') || lowerId.contains('pakan') ||
+        lowerId.contains('kios-subur') || lowerId.contains('sentra-mandiri') || lowerId.contains('poultry')) {
+      return [
+        {
+          'id': 'prod-pupuk-npk',
+          'name': 'Pupuk NPK Mutiara 16-16-16 Kemasan 1 Kg',
+          'category': 'Pupuk & Nutrisi',
+          'description': 'Pupuk majemuk lengkap nutrisi nitrogen, fosfat dan kalium seimbang untuk kesuburan',
+          'offline_price': 18000,
+          'gage_price': 19500,
+          'image': 'assets/images/prod_pupuk.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'prod-pupuk-urea',
+          'name': 'Pupuk Urea Petrokimia Putih Prill 5 Kg',
+          'category': 'Pupuk & Nutrisi',
+          'description': 'Pupuk nitrogen tunggal penyubur daun dan percepat vegetatif tanaman',
+          'offline_price': 42000,
+          'gage_price': 45000,
+          'image': 'assets/images/prod_pupuk.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'prod-benih-padi',
+          'name': 'Benih Padi Unggul Inpari 32 Bersertifikat 5 Kg',
+          'category': 'Benih & Bibit',
+          'description': 'Benih padi bersertifikat tahan wereng batang coklat dan hawar daun',
+          'offline_price': 75000,
+          'gage_price': 80000,
+          'image': 'assets/images/prod_benih.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'prod-benih-cabai',
+          'name': 'Benih Cabai Rawit Ori 212 Kemasan 10 Gram',
+          'category': 'Benih & Bibit',
+          'description': 'Benih cabai rawit super lebat tahan patek buah padat berbobot',
+          'offline_price': 38000,
+          'gage_price': 41000,
+          'image': 'assets/images/prod_cabai.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'prod-pakan-ayam',
+          'name': 'Pakan Ayam Broiler BR-1 Starter 5 Kg',
+          'category': 'Pakan Ternak',
+          'description': 'Pakan crumble protein tinggi pertumbuhan ayam pedaging maksimal',
+          'offline_price': 52000,
+          'gage_price': 55000,
+          'image': 'assets/images/prod_pakan.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'prod-konsentrat-sapi',
+          'name': 'Pakan Konsentrat Penggemuk Sapi Potong 50 Kg',
+          'category': 'Pakan Ternak',
+          'description': 'Konsentrat formulasi ahli nutrisi ternak nafsu makan tinggi bobot melonjak',
+          'offline_price': 240000,
+          'gage_price': 255000,
+          'image': 'assets/images/prod_pakan.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'prod-obat-hama',
+          'name': 'Insektisida Regent 50 SC Merah 100ml',
+          'category': 'Pestisida & Obat',
+          'description': 'Insektisida sistemik racun kontak dan lambung pembasmi hama sundep penggerek',
+          'offline_price': 39000,
+          'gage_price': 42000,
+          'image': 'assets/images/prod_pupuk.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'prod-sprayer-16l',
+          'name': 'Tangki Sprayer Elektrik CBA 16 Liter 2in1',
+          'category': 'Alat Pertanian',
+          'description': 'Sprayer semprot baterai lithium awet semburan kabut halus merata',
+          'offline_price': 380000,
+          'gage_price': 395000,
+          'image': 'assets/images/prod_traktor.png',
+          'is_available': 1,
+        },
+      ];
+    }
+
+    // 3. Shop / Sembako, Sayur & Toko Kelontong
+    if (lowerId.startsWith('shop') || lowerId.contains('shop') || lowerId.contains('ret') ||
+        lowerId.contains('sembako') || lowerId.contains('lapak') || lowerId.contains('telur') ||
+        lowerId.contains('sayur') || lowerId.contains('grosir') || lowerId.contains('kelontong') ||
+        lowerId.contains('minimarket') || lowerId.contains('lancar')) {
+      return [
+        {
+          'id': 'prod-beras-5kg',
+          'name': 'Beras C4 Super Raja 5 Kg',
+          'category': 'Sembako & Beras',
+          'description': 'Beras pulen pilihan petani Wonogiri, putih alami tanpa pemutih',
+          'offline_price': 70000,
+          'gage_price': 72000,
+          'image': 'assets/images/prod_beras.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'prod-minyak-2l',
+          'name': 'Minyak Goreng Bimoli Klasik 2 Liter',
+          'category': 'Minyak & Bumbu',
+          'description': 'Minyak sawit murni jernih dua kali penyaringan higienis',
+          'offline_price': 36000,
+          'gage_price': 38500,
+          'image': 'assets/images/prod_minyak.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'prod-gula-1kg',
+          'name': 'Gula Pasir Gulaku Putih 1 Kg',
+          'category': 'Sembako & Beras',
+          'description': 'Gula tebu kristal premium murni manis alami',
+          'offline_price': 17000,
+          'gage_price': 18000,
+          'image': 'assets/images/prod_gula.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'prod-telur-1kg',
+          'name': 'Telur Ayam Ras Segar Kandang 1 Kg',
+          'category': 'Sembako & Beras',
+          'description': 'Telur ayam negeri segar baru dipanen pagi hari tanpa cangkang retak',
+          'offline_price': 26000,
+          'gage_price': 28000,
+          'image': 'assets/images/prod_telur.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'prod-indomie-dus',
+          'name': 'Indomie Goreng Spesial 1 Dus (40 Pcs)',
+          'category': 'Makanan Instan',
+          'description': 'Mie instan terlaris bumbu gurih lengkap bawang goreng kriuk',
+          'offline_price': 118000,
+          'gage_price': 122000,
+          'image': 'assets/images/prod_indomie.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'prod-terigu-1kg',
+          'name': 'Tepung Terigu Segitiga Biru 1 Kg',
+          'category': 'Sembako & Beras',
+          'description': 'Tepung terigu serbaguna protein sedang lembut kalis',
+          'offline_price': 12500,
+          'gage_price': 13500,
+          'image': 'assets/images/prod_beras.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'prod-sayur-bayam',
+          'name': 'Sayur Bayam Hijau & Kangkung Segar (2 Ikat)',
+          'category': 'Sayuran Segar',
+          'description': 'Sayuran daun segar petik subuh bebas ulat dan higienis',
+          'offline_price': 5000,
+          'gage_price': 6000,
+          'image': 'assets/images/prod_cabai.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'prod-cabai-rawit',
+          'name': 'Cabai Rawit Merah Setan Segar 250g',
+          'category': 'Bumbu Dapur',
+          'description': 'Cabai rawit merah pedas mantap segar tangkai hijau',
+          'offline_price': 12000,
+          'gage_price': 14000,
+          'image': 'assets/images/prod_cabai.png',
+          'is_available': 1,
+        },
+      ];
+    }
+
+    // 4. Food / Kuliner Pilihan
+    if (lowerId.contains('rc') || lowerId.contains('rocket') || lowerId.contains('chicken')) {
       return [
         {
           'id': 'menu-rc-01',
@@ -333,9 +591,9 @@ class GageApiClient {
         },
         {
           'id': 'menu-rc-03',
-          'name': 'French Fries Golden Crispy',
+          'name': 'French Fries Crispy Shake',
           'category': 'Burger & Snack',
-          'description': 'Kentang goreng renyah bumbu tabur gurih spesial',
+          'description': 'Kentang goreng renyah bumbu tabur gurih asin',
           'offline_price': 8000,
           'gage_price': 9000,
           'image': 'assets/images/dish_french_fries.png',
@@ -343,19 +601,54 @@ class GageApiClient {
         },
         {
           'id': 'menu-rc-04',
-          'name': 'Ayam Geprek Sambal Bawang Hot',
-          'category': 'Makanan Utama',
-          'description': 'Ayam krispi digeprek dengan sambal bawang segar pedas mantap',
-          'offline_price': 13000,
-          'gage_price': 14000,
+          'name': 'Ayam Geprek Sambal Korek + Nasi',
+          'category': 'Menu Geprek',
+          'description': 'Ayam krispi digeprek pedas gurih dengan sambal bawang segar',
+          'offline_price': 16000,
+          'gage_price': 17500,
           'image': 'assets/images/dish_ayam_geprek.png',
           'is_available': 1,
         },
+      ];
+    }
+
+    if (lowerId.contains('mie') || lowerId.contains('bakso')) {
+      return [
         {
-          'id': 'menu-rc-05',
-          'name': 'Es Teh Manis Jumbo 22oz',
-          'category': 'Minuman',
-          'description': 'Es teh manis segar daun melati asli cup jumbo',
+          'id': 'menu-mie-01',
+          'name': 'Mie Ayam Spesial Pangsit Jumbo',
+          'category': 'Mie Ayam',
+          'description': 'Mie kenyal gurih topping ayam kecap cincang melimpah + pangsit basah & krispi',
+          'offline_price': 12000,
+          'gage_price': 13500,
+          'image': 'assets/images/dish_mie_ayam.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'menu-mie-02',
+          'name': 'Mie Ayam Bakso Urat Mantap',
+          'category': 'Mie Ayam',
+          'description': 'Mie ayam khas Solo dengan topping bakso urat sapi asli kenyal berdaging',
+          'offline_price': 15000,
+          'gage_price': 17000,
+          'image': 'assets/images/dish_bakso_urat.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'menu-mie-03',
+          'name': 'Bakso Urat Kuah Kaldu Sapi',
+          'category': 'Bakso',
+          'description': 'Semangkuk bakso urat & bakso halus dengan kuah kaldu sapi sumsum gurih panas',
+          'offline_price': 14000,
+          'gage_price': 15500,
+          'image': 'assets/images/dish_bakso_urat.png',
+          'is_available': 1,
+        },
+        {
+          'id': 'menu-mie-04',
+          'name': 'Es Teh Manis Melati Jumbo',
+          'category': 'Minuman Segar',
+          'description': 'Es teh manis wangi melati pelepas dahaga porsi jumbo 22oz',
           'offline_price': 2500,
           'gage_price': 3000,
           'image': 'assets/images/dish_es_teh.png',
@@ -364,70 +657,25 @@ class GageApiClient {
       ];
     }
 
-    if (merchantId.contains('mie')) {
-      return [
-        {
-          'id': 'menu-mie-01',
-          'name': 'Mie Ayam Bakso Urat Komplit',
-          'category': 'Makanan Utama',
-          'description': 'Mie kenyal gurih topping ayam cincang + 2 bakso urat sapi + pangsit',
-          'offline_price': 13000,
-          'gage_price': 14000,
-          'image': 'assets/images/dish_mie_ayam.png',
-          'is_available': 1,
-        },
-        {
-          'id': 'menu-mie-02',
-          'name': 'Bakso Urat Jumbo Kuah Tetelan Sapi',
-          'category': 'Makanan Utama',
-          'description': 'Bakso urat sapi jumbo dengan kuah kaldu sapi gurih dan tetelan',
-          'offline_price': 14000,
-          'gage_price': 15000,
-          'image': 'assets/images/dish_bakso_urat.png',
-          'is_available': 1,
-        },
-        {
-          'id': 'menu-mie-03',
-          'name': 'Mie Ayam Ceker Pedas Manis',
-          'category': 'Makanan Utama',
-          'description': 'Mie ayam dengan topping ceker empuk bumbu kecap pedas gurih',
-          'offline_price': 11000,
-          'gage_price': 12000,
-          'image': 'assets/images/dish_mie_ayam.png',
-          'is_available': 1,
-        },
-        {
-          'id': 'menu-mie-04',
-          'name': 'Es Jeruk Peras Segar Asli',
-          'category': 'Minuman',
-          'description': 'Jeruk peras manis dingin kaya vitamin C',
-          'offline_price': 3500,
-          'gage_price': 4000,
-          'image': 'assets/images/dish_es_teh.png',
-          'is_available': 1,
-        },
-      ];
-    }
-
-    if (merchantId.contains('seblak')) {
+    if (lowerId.contains('seblak') || lowerId.contains('cimol')) {
       return [
         {
           'id': 'menu-seb-01',
-          'name': 'Seblak Komplit Ceker Sosis Dumpling',
-          'category': 'Seblak Kuah',
-          'description': 'Kerupuk seblak pedas kencur gurih + ceker empuk + sosis + dumpling keju',
-          'offline_price': 12000,
-          'gage_price': 13000,
+          'name': 'Seblak Prasmanan Komplit Ceker Sosis',
+          'category': 'Seblak Juara',
+          'description': 'Seblak kuah kencur pedas berlevel dengan topping ceker empuk, sosis & kerupuk aci',
+          'offline_price': 13000,
+          'gage_price': 15000,
           'image': 'assets/images/dish_seblak_komplit.png',
           'is_available': 1,
         },
         {
           'id': 'menu-seb-02',
-          'name': 'Cimol Bojot Bumbu Bawang Pedas Nampol',
-          'category': 'Cemilan',
-          'description': 'Cimol kenyal tabur cabai kering kasar & minyak bawang wangi',
-          'offline_price': 7000,
-          'gage_price': 8000,
+          'name': 'Cimol Bojot Garut Bumbu Basah',
+          'category': 'Camilan Pedas',
+          'description': 'Cimol kenyal kopong khas Garut dengan bumbu minyak bawang gurih cabe rawit melimpah',
+          'offline_price': 8000,
+          'gage_price': 9000,
           'image': 'assets/images/dish_cimol_bojot.png',
           'is_available': 1,
         },
@@ -444,122 +692,7 @@ class GageApiClient {
       ];
     }
 
-    if (merchantId.contains('shop') || merchantId.contains('ret') || merchantId.contains('sembako')) {
-      return [
-        {
-          'id': 'prod-beras-5kg',
-          'name': 'Beras C4 Super Raja 5 Kg',
-          'category': 'Sembako',
-          'description': 'Beras pulen pilihan petani Wonogiri, putih alami tanpa pemutih',
-          'offline_price': 70000,
-          'gage_price': 72000,
-          'image': 'assets/images/prod_beras.png',
-          'is_available': 1,
-        },
-        {
-          'id': 'prod-minyak-2l',
-          'name': 'Minyak Goreng Bimoli Klasik 2 Liter',
-          'category': 'Minyak & Bumbu',
-          'description': 'Minyak sawit murni jernih dua kali penyaringan higienis',
-          'offline_price': 36000,
-          'gage_price': 38500,
-          'image': 'assets/images/prod_minyak.png',
-          'is_available': 1,
-        },
-        {
-          'id': 'prod-gula-1kg',
-          'name': 'Gula Pasir Gulaku Putih 1 Kg',
-          'category': 'Sembako',
-          'description': 'Gula tebu kristal premium murni manis alami',
-          'offline_price': 17000,
-          'gage_price': 18000,
-          'image': 'assets/images/prod_gula.png',
-          'is_available': 1,
-        },
-        {
-          'id': 'prod-telur-1kg',
-          'name': 'Telur Ayam Negeri Segar 1 Kg',
-          'category': 'Sembako',
-          'description': 'Telur ayam ras segar grade A langsung dari peternak lokal',
-          'offline_price': 27000,
-          'gage_price': 28500,
-          'image': 'assets/images/prod_telur.png',
-          'is_available': 1,
-        },
-      ];
-    }
-
-    if (merchantId.contains('farm') || merchantId.contains('tani') || merchantId.contains('ternak')) {
-      return [
-        {
-          'id': 'prod-pupuk-urea',
-          'name': 'Pupuk Urea Non-Subsidi 50 Kg',
-          'category': 'Pupuk & Nutrisi',
-          'description': 'Pupuk nitrogen tinggi 46% untuk pertumbuhan vegetatif daun tanaman',
-          'offline_price': 320000,
-          'gage_price': 335000,
-          'image': 'assets/images/prod_pupuk.png',
-          'is_available': 1,
-        },
-        {
-          'id': 'prod-pakan-ayam',
-          'name': 'Pakan Ayam Pedaging Pokphand 511 (50 Kg)',
-          'category': 'Pakan Ternak',
-          'description': 'Konsentrat crumble komplit nutrisi tinggi pembesar bibit ayam',
-          'offline_price': 420000,
-          'gage_price': 438000,
-          'image': 'assets/images/prod_pakan.png',
-          'is_available': 1,
-        },
-        {
-          'id': 'prod-bibit-padi',
-          'name': 'Benih Padi Inpari 32 Bersertifikat 5 Kg',
-          'category': 'Benih & Bibit',
-          'description': 'Benih padi varietas unggul tahan hama wereng dan anakan lebat',
-          'offline_price': 75000,
-          'gage_price': 80000,
-          'image': 'assets/images/prod_benih.png',
-          'is_available': 1,
-        },
-      ];
-    }
-
-    if (merchantId.contains('build') || merchantId.contains('tb') || merchantId.contains('bangun')) {
-      return [
-        {
-          'id': 'prod-semen-gresik',
-          'name': 'Semen Gresik Portland PCC 40 Kg',
-          'category': 'Semen & Pasir',
-          'description': 'Semen komposit serbaguna kuat tekan tinggi dan daya rekat kokoh',
-          'offline_price': 52000,
-          'gage_price': 55000,
-          'image': 'assets/images/prod_semen.png',
-          'is_available': 1,
-        },
-        {
-          'id': 'prod-cat-tembok',
-          'name': 'Cat Tembok Dulux Catylac Putih 5 Kg',
-          'category': 'Cat & Finishing',
-          'description': 'Cat dinding interior anti pudar dengan formula cerah tahan lama',
-          'offline_price': 135000,
-          'gage_price': 142000,
-          'image': 'assets/images/prod_cat.png',
-          'is_available': 1,
-        },
-        {
-          'id': 'prod-besi-10',
-          'name': 'Besi Beton Ulir 10mm SNI (12 Meter)',
-          'category': 'Besi & Baja',
-          'description': 'Besi beton tulangan SNI sertifikasi kekuatan struktur bangunan',
-          'offline_price': 78000,
-          'gage_price': 82000,
-          'image': 'assets/images/prod_besi.png',
-          'is_available': 1,
-        },
-      ];
-    }
-
-    if (merchantId.contains('roti')) {
+    if (lowerId.contains('roti')) {
       return [
         {
           'id': 'menu-roti-01',
@@ -594,7 +727,7 @@ class GageApiClient {
       ];
     }
 
-    // Default Dimsum Sewu
+    // Default Dimsum Sewu Pracimantoro
     return [
       {
         'id': 'menu-ds-01',
@@ -647,9 +780,7 @@ class GageApiClient {
         'is_available': 1,
       },
     ];
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
+  }  // ─────────────────────────────────────────────────────────────────────────
   // 4. ORDER CREATION & CALCULATIONS
   // ─────────────────────────────────────────────────────────────────────────
 

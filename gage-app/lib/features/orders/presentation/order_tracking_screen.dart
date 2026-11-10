@@ -333,7 +333,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
       merchantId: 'mch-dimsum-01',
       merchantName: 'Dimsum Sewu by Halu Goods',
       merchantAddress: 'Kompleks Ruko Pasar Pracimantoro No. 8',
-      merchantPhone: '081234567890',
+      merchantPhone: '081226001000',
       driverName: 'Mas Agus Pratama • Driver GAGE',
       driverPlate: 'AD 3142 WN • Honda Vario 125',
       driverPhone: '081234567892',
@@ -425,7 +425,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                           orderId: order.id,
                           recipientName: order.driverName ?? 'Kurir GAGE',
                           recipientRole: 'driver',
-                          recipientPhone: order.driverPhone ?? '081234567890',
+                          recipientPhone: order.driverPhone ?? '081226001000',
                           currentRole: 'customer',
                         ),
                       ),
@@ -525,7 +525,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
         IconButton(
           icon: const Icon(Icons.help_outline_rounded, color: Colors.black87),
           tooltip: 'Bantuan CS',
-          onPressed: () => _launchWhatsApp('081234567890', 'CS GAGE Pracimantoro', order.orderNumber),
+          onPressed: () => _launchWhatsApp('081226001000', 'Help Center GAGE Pracimantoro', order.orderNumber),
         ),
       ],
     );
@@ -1402,7 +1402,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                             orderId: order.id,
                             recipientName: order.merchantName,
                             recipientRole: 'merchant',
-                            recipientPhone: order.merchantPhone ?? '081234567890',
+                            recipientPhone: order.merchantPhone ?? '081226001000',
                             currentRole: 'customer',
                           ),
                         ),
@@ -1415,7 +1415,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                     onPressed: () {
                       HapticFeedback.lightImpact();
                       _launchWhatsApp(
-                        order.merchantPhone ?? '081234567890',
+                        order.merchantPhone ?? '081226001000',
                         order.merchantName,
                         order.orderNumber,
                       );

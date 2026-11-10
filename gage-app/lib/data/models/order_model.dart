@@ -102,7 +102,7 @@ class OrderModel {
   MerchantDriverInfo? get driver => (driverName != null && driverName!.isNotEmpty)
       ? MerchantDriverInfo(
           name: driverName!,
-          phone: driverPhone ?? '081234567890',
+          phone: driverPhone ?? '081226001000',
           plateNumber: driverPlate ?? 'AD 4120 U',
           pin: orderNumber.replaceAll(RegExp(r'[^0-9]'), '').padLeft(4, '0').substring(0, 4),
         )
@@ -233,9 +233,9 @@ class OrderModel {
 
     String ordNum = (json['order_number'] as String?) ?? '';
     if (ordNum.isEmpty || ordNum.startsWith('GAGE-') || ordNum.startsWith('#GAGE')) {
-      final ts = (json['created_at'] != null && (json['created_at'] as int) > 0)
-          ? DateTime.fromMillisecondsSinceEpoch((json['created_at'] as int) * 1000)
-          : DateTime.now();
+      final createdAtRaw = json['created_at'];
+      final createdAtSec = createdAtRaw is num ? createdAtRaw.toInt() : (createdAtRaw is String ? int.tryParse(createdAtRaw) ?? 0 : 0);
+      final ts = createdAtSec > 0 ? DateTime.fromMillisecondsSinceEpoch(createdAtSec * 1000) : DateTime.now();
       final digits = ordNum.replaceAll(RegExp(r'[^0-9]'), '');
       final hashSuffix = digits.isNotEmpty ? digits.padLeft(4, '0') : '8821';
       final uId = (json['user_id'] as String?) ?? 'CUST';
@@ -272,7 +272,7 @@ class OrderModel {
       merchantAddress: json['merchant_address']?.toString() ?? 'Pracimantoro, Wonogiri',
       merchantPhone: json['merchant_phone']?.toString(),
       customerName: json['customer_name']?.toString() ?? 'Pelanggan GAGE',
-      customerPhone: json['customer_phone']?.toString() ?? '081234567890',
+      customerPhone: json['customer_phone']?.toString() ?? '081226001000',
       driverName: json['driver_name']?.toString(),
       driverPlate: json['driver_plate']?.toString(),
       driverPhone: json['driver_phone']?.toString(),

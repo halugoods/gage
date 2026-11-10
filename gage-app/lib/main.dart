@@ -14,6 +14,8 @@ import 'package:gage_app/core/services/multi_merchant_cart_service.dart';
 import 'package:gage_app/core/services/banner_manager_service.dart';
 import 'package:gage_app/features/chat/providers/in_app_chat_provider.dart';
 import 'package:gage_app/providers/merchant_order_provider.dart';
+import 'package:gage_app/providers/theme_provider.dart';
+import 'package:gage_app/providers/language_provider.dart';
 
 
 void main() async {
@@ -52,6 +54,8 @@ class GageApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => LanguageProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => WalletProvider()),
         ChangeNotifierProvider(create: (_) => CartProvider()),
@@ -61,13 +65,17 @@ class GageApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MerchantOrderProvider()),
         ChangeNotifierProvider.value(value: BannerManagerService.instance),
       ],
-      child: MaterialApp(
-        title: 'Gage Pracimantoro',
-        debugShowCheckedModeBanner: false,
-        theme: GageTheme.lightTheme,
-        darkTheme: GageTheme.darkTheme,
-        themeMode: ThemeMode.system,
-        home: const AuthGate(),
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, _) {
+          return MaterialApp(
+            title: 'Gage Pracimantoro',
+            debugShowCheckedModeBanner: false,
+            theme: GageTheme.lightTheme,
+            darkTheme: GageTheme.darkTheme,
+            themeMode: themeProvider.themeMode,
+            home: const AuthGate(),
+          );
+        },
       ),
     );
   }

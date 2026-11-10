@@ -9,7 +9,6 @@ import 'package:gage_app/providers/wallet_provider.dart';
 import 'package:gage_app/providers/order_provider.dart';
 import 'package:gage_app/providers/auth_provider.dart';
 import 'package:gage_app/core/services/location_service.dart';
-import 'package:gage_app/core/services/osm_geocoding_service.dart';
 import 'package:gage_app/core/services/osrm_routing_service.dart';
 import 'package:gage_app/core/services/gage_pricing_service.dart';
 import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
@@ -37,23 +36,24 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
     text: 'Mendeteksi titik GPS Anda...',
   );
   final TextEditingController _recipientNameCtrl = TextEditingController(
-    text: 'Pak Joko (Toko Berkah)',
+    text: 'Penerima Paket',
   );
   final TextEditingController _recipientPhoneCtrl = TextEditingController(
-    text: '081398765432',
+    text: '081226001000',
   );
   final TextEditingController _recipientAddressCtrl = TextEditingController(
-    text: 'Komplek Ruko Pasar Baru Pracimantoro No. 12',
+    text: '',
   );
   final TextEditingController _packageDescCtrl = TextEditingController(
-    text: 'Dokumen berkas & pesanan dagangan',
+    text: '',
   );
 
   LatLng _senderLatLng = const LatLng(-8.0895, 110.8492);
   LatLng? _recipientLatLng;
   List<LatLng> _routePoints = [];
-  double _distanceKm = 2.4;
+  double _distanceKm = 0.0;
   bool _isLoadingRoute = false;
+  bool _isDetailsExpanded = false;
 
   String _selectedPackageType = 'Barang Dagangan';
   String _selectedWeight = '1 - 5 kg';
@@ -96,11 +96,10 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
   Future<void> _initSenderGps() async {
     try {
       final gps = await LocationService.getCurrentLocation();
-      final addr = await OsmGeocodingService.reverseGeocode(gps);
       if (mounted) {
         setState(() {
           _senderLatLng = gps;
-          _senderAddressCtrl.text = addr;
+          // Alamat pengirim dibiarkan kosong di awal sesuai instruksi user
         });
         if (_recipientLatLng != null) {
           _updateRoute();
@@ -307,21 +306,6 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
     });
   }
 
-  Widget _buildSectionHeader(String title, bool isDark) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontSize: 10.5,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 0.8,
-          color: isDark ? Colors.white60 : const Color(0xFF64748B),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -367,38 +351,60 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                   ),
                 MarkerLayer(
                   markers: [
-                    // Marker Jemput (Green)
+                    // Marker Jemput (Teardrop Pin Hijau Standar)
                     Marker(
                       point: _senderLatLng,
-                      width: 44,
+                      width: 40,
                       height: 44,
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF16A34A),
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
-                          ],
-                        ),
-                        child: const Icon(Icons.outbox_rounded, color: Colors.white, size: 22),
+                      alignment: Alignment.topCenter,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          const Icon(Icons.location_on_rounded, color: Color(0xFF16A34A), size: 40),
+                          Positioned(
+                            top: 8,
+                            child: Container(
+                              width: 14,
+                              height: 14,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Center(
+                                child: Icon(Icons.inventory_2_rounded, color: Color(0xFF16A34A), size: 9),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
 
-                    // Marker Antar (Red)
+                    // Marker Antar (Teardrop Pin Merah Standar)
                     if (_recipientLatLng != null)
                       Marker(
                         point: _recipientLatLng!,
-                        width: 44,
+                        width: 40,
                         height: 44,
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFE52320),
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
-                            ],
-                          ),
-                          child: const Icon(Icons.move_to_inbox_rounded, color: Colors.white, size: 22),
+                        alignment: Alignment.topCenter,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            const Icon(Icons.location_on_rounded, color: Color(0xFFE52320), size: 40),
+                            Positioned(
+                              top: 8,
+                              child: Container(
+                                width: 14,
+                                height: 14,
+                                decoration: const BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Center(
+                                  child: Icon(Icons.home_rounded, color: Color(0xFFE52320), size: 9),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                   ],
@@ -588,447 +594,475 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
               ),
             ),
 
-            // 3. Floating Recenter FAB
+            // 3. Floating Map Controls (Fit Route & Recenter - Always Above Bottom Panel)
             Positioned(
               right: 16,
-              bottom: 240,
-              child: InkWell(
-                onTap: () {
-                  if (_recipientLatLng != null) {
-                    _fitRoute();
-                  } else {
-                    _initSenderGps();
-                  }
-                },
-                borderRadius: BorderRadius.circular(22),
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: const [
-                      BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
-                    ],
-                    border: Border.all(
-                      color: isDark ? Colors.white12 : Colors.grey.shade200,
+              bottom: _recipientLatLng == null ? 248 : 310,
+              child: Column(
+                children: [
+                  if (_recipientLatLng != null) ...[
+                    FloatingActionButton.small(
+                      heroTag: 'btnFitSend',
+                      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      foregroundColor: isDark ? Colors.white : Colors.black87,
+                      elevation: 3,
+                      onPressed: _fitRoute,
+                      child: const Icon(Icons.zoom_out_map_rounded, size: 20),
                     ),
+                    const SizedBox(height: 8),
+                  ],
+                  FloatingActionButton.small(
+                    heroTag: 'btnRecenterSend',
+                    backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    foregroundColor: isDark ? Colors.white : GageTheme.primary,
+                    elevation: 3,
+                    onPressed: _initSenderGps,
+                    child: const Icon(Icons.my_location_rounded, size: 22),
                   ),
-                  child: Icon(
-                    Icons.my_location_rounded,
-                    color: isDark ? Colors.white : GageTheme.primary,
-                    size: 22,
-                  ),
-                ),
+                ],
               ),
             ),
 
-            // 4. Floating Bottom Panel (Kiblat Ride/Car Draggable Sheet)
-            DraggableScrollableSheet(
-              initialChildSize: 0.38,
-              minChildSize: 0.22,
-              maxChildSize: 0.85,
-              builder: (context, scrollController) {
-                return Container(
-                  margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF0F172A) : Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: const [
-                      BoxShadow(color: Colors.black26, blurRadius: 16, offset: Offset(0, -2)),
-                    ],
-                    border: Border.all(
-                      color: isDark ? Colors.white12 : Colors.grey.shade200,
-                    ),
-                  ),
-                  child: ListView(
-                    controller: scrollController,
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-                    children: [
-                      // Grabber Pill
-                      Center(
-                        child: Container(
-                          width: 40,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: isDark ? Colors.white24 : Colors.grey.shade300,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Inset Group 1: Pilihan Layanan (Instant vs Sameday)
-                      _buildSectionHeader('PILIHAN LAYANAN GAGE SEND', isDark),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: InkWell(
-                              onTap: () => setState(() => _serviceType = 'instant'),
-                              borderRadius: BorderRadius.circular(14),
-                              child: Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: _serviceType == 'instant'
-                                      ? GageTheme.primary.withValues(alpha: 0.08)
-                                      : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
-                                    color: _serviceType == 'instant'
-                                        ? GageTheme.primary
-                                        : (isDark ? Colors.white10 : Colors.grey.shade200),
-                                    width: _serviceType == 'instant' ? 1.5 : 1.0,
-                                  ),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        const Icon(Icons.flash_on_rounded, size: 16, color: Colors.orange),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          'Instant',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 13,
-                                            color: isDark ? Colors.white : Colors.black87,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    const Text('Langsung antar (1-2 jam)', style: TextStyle(fontSize: 10.5, color: Colors.grey)),
-                                    const SizedBox(height: 6),
-                                    if (_isLoadingRoute)
-                                      const GageSkeletonBox(width: 60, height: 16)
-                                    else
-                                      Text(
-                                        currencyFormatter.format(_calculateShippingFee('instant')),
-                                        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13.5, color: GageTheme.primary),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: InkWell(
-                              onTap: () => setState(() => _serviceType = 'sameday'),
-                              borderRadius: BorderRadius.circular(14),
-                              child: Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: _serviceType == 'sameday'
-                                      ? GageTheme.primary.withValues(alpha: 0.08)
-                                      : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
-                                    color: _serviceType == 'sameday'
-                                        ? GageTheme.primary
-                                        : (isDark ? Colors.white10 : Colors.grey.shade200),
-                                    width: _serviceType == 'sameday' ? 1.5 : 1.0,
-                                  ),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        const Icon(Icons.schedule_rounded, size: 16, color: Colors.blue),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          'Sameday',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 13,
-                                            color: isDark ? Colors.white : Colors.black87,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    const Text('Tiba hari ini (4-6 jam)', style: TextStyle(fontSize: 10.5, color: Colors.grey)),
-                                    const SizedBox(height: 6),
-                                    if (_isLoadingRoute)
-                                      const GageSkeletonBox(width: 60, height: 16)
-                                    else
-                                      Text(
-                                        currencyFormatter.format(_calculateShippingFee('sameday')),
-                                        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13.5, color: Color(0xFF16A34A)),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 14),
-
-                      // Inset Group 2: Detail Penerima & Paket Modern
-                      _buildSectionHeader('INFORMASI PENERIMA & BARANG', isDark),
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: isDark ? Colors.white10 : Colors.grey.shade200,
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: isDark ? const Color(0xFF0F172A) : Colors.white,
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade300),
-                                    ),
-                                    child: TextField(
-                                      controller: _recipientNameCtrl,
-                                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87),
-                                      decoration: const InputDecoration(
-                                        icon: Icon(Icons.person_outline_rounded, size: 18, color: Colors.grey),
-                                        hintText: 'Nama Penerima',
-                                        hintStyle: TextStyle(fontSize: 11.5, color: Colors.grey),
-                                        border: InputBorder.none,
-                                        isDense: true,
-                                        contentPadding: EdgeInsets.symmetric(vertical: 8),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: isDark ? const Color(0xFF0F172A) : Colors.white,
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade300),
-                                    ),
-                                    child: TextField(
-                                      controller: _recipientPhoneCtrl,
-                                      keyboardType: TextInputType.phone,
-                                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87),
-                                      decoration: const InputDecoration(
-                                        icon: Icon(Icons.phone_outlined, size: 18, color: Colors.grey),
-                                        hintText: 'No. WhatsApp',
-                                        hintStyle: TextStyle(fontSize: 11.5, color: Colors.grey),
-                                        border: InputBorder.none,
-                                        isDense: true,
-                                        contentPadding: EdgeInsets.symmetric(vertical: 8),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            const Text('Kategori Paket', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
-                            const SizedBox(height: 6),
-                            SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: _packageTypes.map((type) {
-                                  final isSelected = _selectedPackageType == type;
-                                  return Padding(
-                                    padding: const EdgeInsets.only(right: 6),
-                                    child: ChoiceChip(
-                                      label: Text(type),
-                                      selected: isSelected,
-                                      onSelected: (_) => setState(() => _selectedPackageType = type),
-                                      backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
-                                      selectedColor: GageTheme.primary.withValues(alpha: 0.15),
-                                      labelStyle: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                        color: isSelected ? GageTheme.primary : (isDark ? Colors.white70 : Colors.black87),
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                        side: BorderSide(
-                                          color: isSelected ? GageTheme.primary : (isDark ? Colors.white12 : Colors.grey.shade300),
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            const Text('Estimasi Berat', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
-                            const SizedBox(height: 6),
-                            Row(
-                              children: _weightOptions.map((w) {
-                                final isSelected = _selectedWeight == w;
-                                return Expanded(
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 3),
-                                    child: InkWell(
-                                      onTap: () => setState(() => _selectedWeight = w),
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(vertical: 7),
-                                        decoration: BoxDecoration(
-                                          color: isSelected
-                                              ? GageTheme.primary.withValues(alpha: 0.12)
-                                              : (isDark ? const Color(0xFF0F172A) : Colors.white),
-                                          borderRadius: BorderRadius.circular(8),
-                                          border: Border.all(
-                                            color: isSelected ? GageTheme.primary : (isDark ? Colors.white12 : Colors.grey.shade300),
-                                          ),
-                                        ),
-                                        child: Center(
-                                          child: Text(
-                                            w,
-                                            style: TextStyle(
-                                              fontSize: 10.5,
-                                              fontWeight: FontWeight.bold,
-                                              color: isSelected ? GageTheme.primary : (isDark ? Colors.white70 : Colors.black87),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                            ),
-                            const SizedBox(height: 12),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF0F172A) : Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade300),
-                              ),
-                              child: TextField(
-                                controller: _packageDescCtrl,
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: isDark ? Colors.white : Colors.black87),
-                                decoration: const InputDecoration(
-                                  icon: Icon(Icons.notes_rounded, size: 18, color: Colors.grey),
-                                  hintText: 'Deskripsi barang / instruksi kurir...',
-                                  hintStyle: TextStyle(fontSize: 11.5, color: Colors.grey),
-                                  border: InputBorder.none,
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(vertical: 8),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 14),
-
-                      // Inset Group 3: Rincian Tarif Ringkas
-                      if (_recipientLatLng != null) ...[
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: Column(
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Ongkir (${_serviceType == "instant" ? "Instant" : "Sameday"} ${_distanceKm.toStringAsFixed(1)} km)',
-                                    style: TextStyle(fontSize: 11.5, color: isDark ? Colors.grey.shade400 : Colors.grey.shade700),
-                                  ),
-                                  Text(
-                                    currencyFormatter.format(shippingFee),
-                                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Biaya Layanan',
-                                    style: TextStyle(fontSize: 11.5, color: isDark ? Colors.grey.shade400 : Colors.grey.shade700),
-                                  ),
-                                  Text(
-                                    currencyFormatter.format(adminFee),
-                                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87),
-                                  ),
-                                ],
-                              ),
-                              Divider(height: 12, thickness: 0.8, color: isDark ? Colors.white10 : Colors.grey.shade300),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text('Total Biaya', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
-                                  Text(currencyFormatter.format(totalFare), style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w900, color: GageTheme.primary)),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                      ],
-
-                      // Tombol Aksi Utama (10px Rounded Ala GAGE Ride/Car)
-                      SizedBox(
-                        width: double.infinity,
-                        height: 48,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: GageTheme.primary,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                          onPressed: _isSearchingCourier
-                              ? null
-                              : (_recipientLatLng == null ? _pickRecipientAddress : _bookCourier),
-                          child: _isSearchingCourier
-                              ? const SizedBox(
-                                  width: 22,
-                                  height: 22,
-                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
-                                )
-                              : Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Image.asset(
-                                      'assets/images/gage_send_3d.png',
-                                      width: 22,
-                                      height: 22,
-                                      fit: BoxFit.contain,
-                                      errorBuilder: (c, e, s) => const Icon(Icons.inventory_2_rounded, size: 20),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      _recipientLatLng == null
-                                          ? 'Pilih Titik Tujuan Pengantaran'
-                                          : 'Panggil Kurir GAGE • ${currencyFormatter.format(totalFare)}',
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
-                                    ),
-                                  ],
-                                ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
+            // 4. Fixed Bottom Panel 1:1 Ride/Car
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: _buildSendBottomPanel(isDark, currencyFormatter, shippingFee, adminFee, totalFare),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSendBottomPanel(
+    bool isDark,
+    NumberFormat currencyFormatter,
+    int shippingFee,
+    int adminFee,
+    int totalFare,
+  ) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 16, offset: Offset(0, -4)),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Grabber handle
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white24 : Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Pilihan Layanan GAGE Send (Instant vs Sameday)
+            Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () => setState(() => _serviceType = 'instant'),
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: _serviceType == 'instant'
+                            ? GageTheme.primary.withValues(alpha: 0.08)
+                            : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: _serviceType == 'instant'
+                              ? GageTheme.primary
+                              : (isDark ? Colors.white10 : Colors.grey.shade200),
+                          width: _serviceType == 'instant' ? 1.5 : 1.0,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Image.asset(
+                                'assets/images/gage_send_3d.png',
+                                width: 22,
+                                height: 22,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) => const Icon(Icons.flash_on_rounded, size: 18, color: Colors.orange),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Send Instant',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12.5,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          const Text('1-2 jam tiba', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                          const SizedBox(height: 4),
+                          if (_isLoadingRoute)
+                            const GageSkeletonBox(width: 50, height: 14)
+                          else
+                            Text(
+                              currencyFormatter.format(_calculateShippingFee('instant')),
+                              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: GageTheme.primary),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: InkWell(
+                    onTap: () => setState(() => _serviceType = 'sameday'),
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: _serviceType == 'sameday'
+                            ? GageTheme.primary.withValues(alpha: 0.08)
+                            : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: _serviceType == 'sameday'
+                              ? GageTheme.primary
+                              : (isDark ? Colors.white10 : Colors.grey.shade200),
+                          width: _serviceType == 'sameday' ? 1.5 : 1.0,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Image.asset(
+                                'assets/images/gage_send_3d.png',
+                                width: 22,
+                                height: 22,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) => const Icon(Icons.schedule_rounded, size: 18, color: Colors.blue),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Send Hemat',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12.5,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          const Text('Pilihan Hemat • 2-4 jam', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                          const SizedBox(height: 4),
+                          if (_isLoadingRoute)
+                            const GageSkeletonBox(width: 50, height: 14)
+                          else
+                            Text(
+                              currencyFormatter.format(_calculateShippingFee('sameday')),
+                              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: Color(0xFF16A34A)),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // If destination is chosen: show expandable/scrollable details
+            if (_recipientLatLng != null) ...[
+              // Accordion Header
+              InkWell(
+                onTap: () => setState(() => _isDetailsExpanded = !_isDetailsExpanded),
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.inventory_2_outlined,
+                        size: 16,
+                        color: isDark ? Colors.white70 : Colors.black87,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Detail: $_selectedPackageType ($_selectedWeight)',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Icon(
+                        _isDetailsExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                        color: Colors.grey,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              if (_isDetailsExpanded) ...[
+                const SizedBox(height: 10),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.32,
+                  ),
+                  child: SingleChildScrollView(
+                    child: _buildPackageDetailsForm(isDark),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 12),
+            ],
+
+            // Action Button CTA
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: GageTheme.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: _isSearchingCourier
+                    ? null
+                    : (_recipientLatLng == null ? _pickRecipientAddress : _bookCourier),
+                child: _isSearchingCourier
+                    ? const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          ),
+                          SizedBox(width: 10),
+                          Text('Mencari kurir terdekat...', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ],
+                      )
+                    : (_recipientLatLng == null
+                        ? const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.search_rounded, size: 20, color: Colors.white),
+                              SizedBox(width: 8),
+                              Text(
+                                'Pilih Titik Antar',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
+                              ),
+                            ],
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Pesan GAGE Send',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
+                              Text(
+                                '${currencyFormatter.format(totalFare)} →',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
+                            ],
+                          )),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPackageDetailsForm(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? Colors.white10 : Colors.grey.shade200,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade300),
+                  ),
+                  child: TextField(
+                    controller: _recipientNameCtrl,
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87),
+                    decoration: const InputDecoration(
+                      icon: Icon(Icons.person_outline_rounded, size: 16, color: Colors.grey),
+                      hintText: 'Nama Penerima',
+                      hintStyle: TextStyle(fontSize: 11, color: Colors.grey),
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(vertical: 8),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade300),
+                  ),
+                  child: TextField(
+                    controller: _recipientPhoneCtrl,
+                    keyboardType: TextInputType.phone,
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87),
+                    decoration: const InputDecoration(
+                      icon: Icon(Icons.phone_outlined, size: 16, color: Colors.grey),
+                      hintText: 'No. WhatsApp',
+                      hintStyle: TextStyle(fontSize: 11, color: Colors.grey),
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(vertical: 8),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          const Text('Kategori Paket', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Colors.grey)),
+          const SizedBox(height: 6),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: _packageTypes.map((type) {
+                final isSelected = _selectedPackageType == type;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: ChoiceChip(
+                    label: Text(type),
+                    selected: isSelected,
+                    onSelected: (_) => setState(() => _selectedPackageType = type),
+                    backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                    selectedColor: GageTheme.primary.withValues(alpha: 0.15),
+                    labelStyle: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.bold,
+                      color: isSelected ? GageTheme.primary : (isDark ? Colors.white70 : Colors.black87),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: BorderSide(
+                        color: isSelected ? GageTheme.primary : (isDark ? Colors.white12 : Colors.grey.shade300),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text('Estimasi Berat', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Colors.grey)),
+          const SizedBox(height: 6),
+          Row(
+            children: _weightOptions.map((w) {
+              final isSelected = _selectedWeight == w;
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: InkWell(
+                    onTap: () => setState(() => _selectedWeight = w),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? GageTheme.primary.withValues(alpha: 0.12)
+                            : (isDark ? const Color(0xFF0F172A) : Colors.white),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isSelected ? GageTheme.primary : (isDark ? Colors.white12 : Colors.grey.shade300),
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          w,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: isSelected ? GageTheme.primary : (isDark ? Colors.white70 : Colors.black87),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade300),
+            ),
+            child: TextField(
+              controller: _packageDescCtrl,
+              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500, color: isDark ? Colors.white : Colors.black87),
+              decoration: const InputDecoration(
+                icon: Icon(Icons.notes_rounded, size: 16, color: Colors.grey),
+                hintText: 'Deskripsi barang / instruksi kurir...',
+                hintStyle: TextStyle(fontSize: 11, color: Colors.grey),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(vertical: 8),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

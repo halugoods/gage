@@ -28,7 +28,7 @@ class _AdminCurationScreenState extends State<AdminCurationScreen> {
       'name': 'iPad Gen 9 64GB Space Grey WiFi Mulus',
       'category': 'Gadget & Elektronik',
       'sellerName': 'Pak Joko Purnomo',
-      'sellerPhone': '6281234567890',
+      'sellerPhone': '6281226001000',
       'netPrice': 3200000,
       'appPrice': 3550000,
       'status': 'Menunggu',

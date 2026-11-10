@@ -31,20 +31,31 @@ class CartItemModel {
 
   int get subtotal => (price + variantPrice) * quantity;
 
+  static int _parseInt(dynamic val, [int fallback = 0]) {
+    if (val == null) return fallback;
+    if (val is int) return val;
+    if (val is num) return val.toInt();
+    if (val is String) {
+      final cleaned = val.replaceAll(RegExp(r'[^0-9\-]'), '');
+      return int.tryParse(cleaned) ?? fallback;
+    }
+    return fallback;
+  }
+
   factory CartItemModel.fromJson(Map<String, dynamic> json) {
     return CartItemModel(
-      menuId: json['menu_id'] ?? json['id'] ?? '',
-      merchantId: json['merchant_id'] ?? '',
-      merchantName: json['merchant_name'] ?? '',
-      name: json['name'] ?? '',
-      price: (json['price'] ?? json['gage_price'] ?? 0) as int,
-      quantity: (json['quantity'] ?? 1) as int,
-      notes: json['notes'],
-      category: json['category'] ?? 'Makanan',
-      imageUrl: json['image_url'],
-      serviceType: json['service_type'] ?? 'food',
+      menuId: (json['menu_id'] ?? json['id'] ?? '').toString(),
+      merchantId: (json['merchant_id'] ?? '').toString(),
+      merchantName: (json['merchant_name'] ?? '').toString(),
+      name: (json['name'] ?? '').toString(),
+      price: _parseInt(json['price'] ?? json['gage_price'], 0),
+      quantity: _parseInt(json['quantity'], 1),
+      notes: json['notes']?.toString(),
+      category: (json['category'] ?? 'Makanan').toString(),
+      imageUrl: json['image_url']?.toString(),
+      serviceType: (json['service_type'] ?? 'food').toString(),
       selectedVariants: (json['selected_variants'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
-      variantPrice: (json['variant_price'] ?? 0) as int,
+      variantPrice: _parseInt(json['variant_price'], 0),
     );
   }
 

@@ -50,12 +50,8 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
   Animation<double>? _driverAnimation;
   List<LatLng> _driverPath = [];
 
-  final TextEditingController _pickupController = TextEditingController(
-    text: 'Mendeteksi titik GPS Anda...',
-  );
-  final TextEditingController _dropoffController = TextEditingController(
-    text: '',
-  );
+  final TextEditingController _pickupController = TextEditingController();
+  final TextEditingController _dropoffController = TextEditingController();
 
 
   int get _realisticTripMins {
@@ -80,11 +76,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
         _pickupLocation = realGps;
         _driverLocation = LatLng(realGps.latitude - 0.004, realGps.longitude - 0.003);
       });
-      OsmGeocodingService.reverseGeocode(realGps).then((addr) {
-        if (mounted) {
-          setState(() => _pickupController.text = addr);
-        }
-      });
+      // Titik jemput sengaja dibiarkan kosong saat awal buka sesuai instruksi user
     }
     _initRoute();
   }
@@ -175,9 +167,11 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
   }
 
   int _calculateFare() {
-    if (_dropoffLocation == null || _distanceKm <= 0) return 0;
+    final service = _selectedTab == 'car'
+        ? (_selectedOption == 'hemat' ? 'car_hemat' : 'car_reguler')
+        : (_selectedOption == 'hemat' ? 'hemat' : 'reguler');
     return GagePricingService.calculateCustomerRideFare(
-      serviceType: _selectedTab == 'car' ? 'car' : _selectedOption,
+      serviceType: service,
       distanceKm: _distanceKm,
     );
   }
@@ -288,12 +282,13 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final wallet = context.watch<WalletProvider>();
     final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
     final fare = _calculateFare();
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: isDark ? GageTheme.darkBackground : const Color(0xFFF8FAFC),
       body: SizedBox.expand(
         child: Stack(
           fit: StackFit.expand,
@@ -312,15 +307,15 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                   Row(
                     children: [
                       Container(
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
+                        decoration: BoxDecoration(
+                          color: isDark ? GageTheme.darkSurface : Colors.white,
                           shape: BoxShape.circle,
-                          boxShadow: [
+                          boxShadow: const [
                             BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2)),
                           ],
                         ),
                         child: IconButton(
-                          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+                          icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : Colors.black87),
                           onPressed: () => Navigator.pop(context),
                         ),
                       ),
@@ -329,7 +324,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: isDark ? GageTheme.darkSurface : Colors.white,
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: const [
                               BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2)),
@@ -383,7 +378,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: isDark ? GageTheme.darkSurface : Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: const [
                         BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3)),
@@ -401,12 +396,12 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                               Expanded(
                                 child: Text(
                                   _pickupController.text,
-                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? Colors.white : GageTheme.textPrimary),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              const Icon(Icons.edit_location_alt_rounded, size: 16, color: Colors.black38),
+                              Icon(Icons.edit_location_alt_rounded, size: 16, color: isDark ? Colors.white38 : Colors.black38),
                             ],
                           ),
                         ),
@@ -414,7 +409,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                           padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8),
                           child: Row(
                             children: [
-                              Container(width: 2, height: 16, color: Colors.grey.shade300),
+                              Container(width: 2, height: 16, color: isDark ? Colors.white12 : Colors.grey.shade300),
                             ],
                           ),
                         ),
@@ -431,13 +426,13 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: _dropoffLocation == null ? FontWeight.normal : FontWeight.w600,
-                                    color: _dropoffLocation == null ? Colors.black45 : Colors.black87,
+                                    color: _dropoffLocation == null ? (isDark ? Colors.white38 : Colors.black45) : (isDark ? Colors.white : Colors.black87),
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              const Icon(Icons.edit_location_alt_rounded, size: 16, color: Colors.black38),
+                              Icon(Icons.edit_location_alt_rounded, size: 16, color: isDark ? Colors.white38 : Colors.black38),
                             ],
                           ),
                         ),
@@ -456,8 +451,8 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                 children: [
                   FloatingActionButton.small(
                     heroTag: 'btnFit',
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black87,
+                    backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
+                    foregroundColor: isDark ? Colors.white : Colors.black87,
                     elevation: 3,
                     onPressed: _fitRouteInCamera,
                     child: const Icon(Icons.zoom_out_map_rounded, size: 20),
@@ -465,7 +460,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                   const SizedBox(height: 8),
                   FloatingActionButton.small(
                     heroTag: 'btnRecenter',
-                    backgroundColor: Colors.white,
+                    backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
                     foregroundColor: GageTheme.primary,
                     elevation: 3,
                     onPressed: _recenterToCurrentGps,
@@ -621,14 +616,17 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
   }
 
   Widget _buildBookingOptionsPanel(WalletProvider wallet, NumberFormat currencyFormatter, int fare) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        boxShadow: [
-          BoxShadow(color: Colors.black12, blurRadius: 16, offset: Offset(0, -4)),
-        ],
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        boxShadow: isDark
+            ? []
+            : const [
+                BoxShadow(color: Colors.black12, blurRadius: 16, offset: Offset(0, -4)),
+              ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -637,7 +635,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
           Container(
             padding: const EdgeInsets.all(3),
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
+              color: isDark ? const Color(0xFF0F172A) : Colors.grey.shade100,
               borderRadius: BorderRadius.circular(30),
             ),
             child: Row(
@@ -651,7 +649,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 9),
                       decoration: BoxDecoration(
-                        color: _selectedTab == 'ride' ? Colors.white : Colors.transparent,
+                        color: _selectedTab == 'ride' ? (isDark ? const Color(0xFF1E293B) : Colors.white) : Colors.transparent,
                         borderRadius: BorderRadius.circular(26),
                         boxShadow: _selectedTab == 'ride'
                             ? const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 1))]
@@ -679,7 +677,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 9),
                       decoration: BoxDecoration(
-                        color: _selectedTab == 'car' ? Colors.white : Colors.transparent,
+                        color: _selectedTab == 'car' ? (isDark ? const Color(0xFF1E293B) : Colors.white) : Colors.transparent,
                         borderRadius: BorderRadius.circular(26),
                         boxShadow: _selectedTab == 'car'
                             ? const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 1))]
@@ -715,10 +713,10 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                     child: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: _selectedOption == 'standard' ? const Color(0xFFFFF1F0) : Colors.white,
+                        color: _selectedOption == 'standard' ? (isDark ? const Color(0xFF2C1E1E) : const Color(0xFFFFF1F0)) : (isDark ? const Color(0xFF1E293B) : Colors.white),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: _selectedOption == 'standard' ? GageTheme.primary : Colors.grey.shade300,
+                          color: _selectedOption == 'standard' ? GageTheme.primary : (isDark ? Colors.white12 : Colors.grey.shade300),
                           width: _selectedOption == 'standard' ? 1.5 : 1,
                         ),
                       ),
@@ -736,7 +734,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Ride Reguler', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                Text('Ride Reguler', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: isDark ? Colors.white : Colors.black87)),
                                 const SizedBox(height: 2),
                                 if (_isLoadingRoute) ...[
                                   const SizedBox(height: 4),
@@ -748,7 +746,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                                     currencyFormatter.format(GagePricingService.calculateCustomerRideFare(serviceType: 'reguler', distanceKm: _distanceKm)),
                                     style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: GageTheme.primary),
                                   ),
-                                  Text('${_distanceKm.toStringAsFixed(1)} km • ~${_realisticTripMins}m', style: const TextStyle(fontSize: 9.5, color: Colors.black54)),
+                                  Text('${_distanceKm.toStringAsFixed(1)} km • ~${_realisticTripMins}m', style: TextStyle(fontSize: 9.5, color: isDark ? Colors.white60 : Colors.black54)),
                                 ],
                               ],
                             ),
@@ -766,10 +764,10 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                     child: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: _selectedOption == 'hemat' ? const Color(0xFFFFF7ED) : Colors.white,
+                        color: _selectedOption == 'hemat' ? (isDark ? const Color(0xFF2C231E) : const Color(0xFFFFF7ED)) : (isDark ? const Color(0xFF1E293B) : Colors.white),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: _selectedOption == 'hemat' ? const Color(0xFFEA580C) : Colors.grey.shade300,
+                          color: _selectedOption == 'hemat' ? const Color(0xFFEA580C) : (isDark ? Colors.white12 : Colors.grey.shade300),
                           width: _selectedOption == 'hemat' ? 1.5 : 1,
                         ),
                       ),
@@ -787,7 +785,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Ride Hemat', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                Text('Ride Hemat', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: isDark ? Colors.white : Colors.black87)),
                                 const SizedBox(height: 2),
                                 if (_isLoadingRoute) ...[
                                   const SizedBox(height: 4),
@@ -799,7 +797,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                                     currencyFormatter.format(GagePricingService.calculateCustomerRideFare(serviceType: 'hemat', distanceKm: _distanceKm)),
                                     style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: Color(0xFFEA580C)),
                                   ),
-                                  Text('${_distanceKm.toStringAsFixed(1)} km • ~${_realisticTripMins + 2}m', style: const TextStyle(fontSize: 9.5, color: Colors.black54)),
+                                  Text('${_distanceKm.toStringAsFixed(1)} km • ~${_realisticTripMins + 2}m', style: TextStyle(fontSize: 9.5, color: isDark ? Colors.white60 : Colors.black54)),
                                 ],
                               ],
                             ),
@@ -812,45 +810,110 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
               ],
             )
           else
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE3F2FD),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF1E88E5)),
-              ),
-              child: Row(
-                children: [
-                  const DynamicAssetIcon(
-                    slotKey: 'vehicle_car',
-                    defaultAsset: 'assets/images/gage_car_3d.png',
-                    width: 44,
-                    height: 44,
-                    fit: BoxFit.contain,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('GAGE Car (1-4 Penumpang)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                        if (_isLoadingRoute) ...[
-                          const SizedBox(height: 4),
-                          const GageSkeletonBox(width: 120, height: 11),
-                        ] else
-                          Text('Kabin AC • ${_distanceKm.toStringAsFixed(1)} km • Tiba ~${_realisticTripMins}m', style: const TextStyle(fontSize: 11, color: Colors.black54)),
-                      ],
+            Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () => setState(() => _selectedOption = 'standard'),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: _selectedOption == 'standard' ? (isDark ? const Color(0xFF1E2638) : const Color(0xFFF0F9FF)) : (isDark ? const Color(0xFF1E293B) : Colors.white),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _selectedOption == 'standard' ? const Color(0xFF0284C7) : (isDark ? Colors.white12 : Colors.grey.shade300),
+                          width: _selectedOption == 'standard' ? 1.5 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const DynamicAssetIcon(
+                            slotKey: 'vehicle_car',
+                            defaultAsset: 'assets/images/gage_car_3d.png',
+                            width: 38,
+                            height: 38,
+                            fit: BoxFit.contain,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Car Reguler', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: isDark ? Colors.white : Colors.black87)),
+                                const SizedBox(height: 2),
+                                if (_isLoadingRoute) ...[
+                                  const SizedBox(height: 4),
+                                  const GageSkeletonBox(width: 65, height: 14),
+                                  const SizedBox(height: 4),
+                                  const GageSkeletonBox(width: 50, height: 10),
+                                ] else ...[
+                                  Text(
+                                    currencyFormatter.format(GagePricingService.calculateCustomerRideFare(serviceType: 'car_reguler', distanceKm: _distanceKm)),
+                                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: Color(0xFF0284C7)),
+                                  ),
+                                  Text(_distanceKm > 0 ? '${_distanceKm.toStringAsFixed(1)} km • ~${_realisticTripMins}m' : '0-3 km • AC 1-4 Org', style: TextStyle(fontSize: 9.5, color: isDark ? Colors.white60 : Colors.black54)),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  if (_isLoadingRoute)
-                    const GageSkeletonBox(width: 75, height: 18)
-                  else
-                    Text(
-                      currencyFormatter.format(fare),
-                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: Color(0xFF1E88E5)),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: InkWell(
+                    onTap: () => setState(() => _selectedOption = 'hemat'),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: _selectedOption == 'hemat' ? (isDark ? const Color(0xFF162E2B) : const Color(0xFFF0FDFA)) : (isDark ? const Color(0xFF1E293B) : Colors.white),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _selectedOption == 'hemat' ? const Color(0xFF0D9488) : (isDark ? Colors.white12 : Colors.grey.shade300),
+                          width: _selectedOption == 'hemat' ? 1.5 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const DynamicAssetIcon(
+                            slotKey: 'vehicle_car',
+                            defaultAsset: 'assets/images/gage_car_3d.png',
+                            width: 38,
+                            height: 38,
+                            fit: BoxFit.contain,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Car Hemat', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: isDark ? Colors.white : Colors.black87)),
+                                const SizedBox(height: 2),
+                                if (_isLoadingRoute) ...[
+                                  const SizedBox(height: 4),
+                                  const GageSkeletonBox(width: 65, height: 14),
+                                  const SizedBox(height: 4),
+                                  const GageSkeletonBox(width: 50, height: 10),
+                                ] else ...[
+                                  Text(
+                                    currencyFormatter.format(GagePricingService.calculateCustomerRideFare(serviceType: 'car_hemat', distanceKm: _distanceKm)),
+                                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: Color(0xFF0D9488)),
+                                  ),
+                                  Text(_distanceKm > 0 ? '${_distanceKm.toStringAsFixed(1)} km • ~${_realisticTripMins + 2}m' : '0-3 km • Ekonomis', style: TextStyle(fontSize: 9.5, color: isDark ? Colors.white60 : Colors.black54)),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                ],
-              ),
+                  ),
+                ),
+              ],
             ),
 
           const SizedBox(height: 14),
@@ -1124,6 +1187,7 @@ class _AddressSearchModalState extends State<_AddressSearchModal> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: EdgeInsets.only(
         top: 16,
@@ -1157,7 +1221,7 @@ class _AddressSearchModalState extends State<_AddressSearchModal> {
             autofocus: true,
             decoration: InputDecoration(
               hintText: 'Ketik nama jalan, toko, gedung, atau tujuan...',
-              hintStyle: const TextStyle(fontSize: 13, color: Colors.black38),
+              hintStyle: TextStyle(fontSize: 13, color: isDark ? Colors.white38 : Colors.black38),
               prefixIcon: const Icon(Icons.search_rounded, color: GageTheme.primary),
               suffixIcon: _isSearching
                   ? const Padding(

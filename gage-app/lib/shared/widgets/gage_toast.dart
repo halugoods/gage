@@ -32,12 +32,23 @@ class GageToast {
     show(context, message, type: GageToastType.warning, duration: duration);
   }
 
+  static DateTime _lastToastTime = DateTime.fromMillisecondsSinceEpoch(0);
+  static String? _lastToastMessage;
+
   static void show(
     BuildContext context,
     String message, {
     GageToastType type = GageToastType.success,
-    Duration duration = const Duration(milliseconds: 2200),
+    Duration duration = const Duration(milliseconds: 2000),
   }) {
+    final now = DateTime.now();
+    // Anti-spam throttling: skip duplicate messages within 1.2s
+    if (_lastToastMessage == message && now.difference(_lastToastTime).inMilliseconds < 1200) {
+      return;
+    }
+    _lastToastTime = now;
+    _lastToastMessage = message;
+
     // Batalkan toast sebelumnya jika masih aktif
     _dismissTimer?.cancel();
     _currentEntry?.remove();
@@ -160,26 +171,31 @@ class _GageToastWidgetState extends State<_GageToastWidget> with SingleTickerPro
               color: Colors.transparent,
               child: GestureDetector(
                 onTap: widget.onDismiss,
+                onVerticalDragEnd: (details) {
+                  if (details.primaryVelocity != null && details.primaryVelocity! < 0) {
+                    widget.onDismiss();
+                  }
+                },
                 child: Container(
                   constraints: const BoxConstraints(maxWidth: 420),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.98),
+                    color: const Color(0xFF0F172A), // Dark Obsidian Dynamic Island
                     borderRadius: BorderRadius.circular(100),
                     border: Border.all(
-                      color: Colors.black.withValues(alpha: 0.06),
+                      color: Colors.white.withValues(alpha: 0.16),
                       width: 1.0,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.12),
-                        blurRadius: 24,
+                        color: Colors.black.withValues(alpha: 0.40),
+                        blurRadius: 22,
                         spreadRadius: 1,
                         offset: const Offset(0, 8),
                       ),
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 6,
+                        color: _iconColor.withValues(alpha: 0.15),
+                        blurRadius: 10,
                         offset: const Offset(0, 2),
                       ),
                     ],
@@ -188,9 +204,9 @@ class _GageToastWidgetState extends State<_GageToastWidget> with SingleTickerPro
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(4),
+                        padding: const EdgeInsets.all(4.5),
                         decoration: BoxDecoration(
-                          color: _iconColor.withValues(alpha: 0.14),
+                          color: _iconColor.withValues(alpha: 0.20),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(_icon, color: _iconColor, size: 16),
@@ -200,7 +216,7 @@ class _GageToastWidgetState extends State<_GageToastWidget> with SingleTickerPro
                         child: Text(
                           widget.message,
                           style: const TextStyle(
-                            color: Color(0xFF0F172A),
+                            color: Colors.white,
                             fontSize: 13.0,
                             fontWeight: FontWeight.w700,
                             letterSpacing: -0.2,

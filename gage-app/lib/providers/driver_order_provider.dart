@@ -148,7 +148,7 @@ class DriverOrderProvider extends ChangeNotifier {
           serviceName: 'GAGE Food',
           storeName: storeName,
           customerName: raw['customer_name'] ?? 'Pelanggan GAGE',
-          customerPhone: raw['customer_phone'] ?? '081234567890',
+          customerPhone: raw['customer_phone'] ?? '081226001000',
           pickupAddress: pickupAddr,
           pickupLocation: LatLng(pickupLat, pickupLng),
           dropoffAddress: raw['delivery_address'] ?? 'Pracimantoro',
@@ -335,7 +335,7 @@ class DriverOrderProvider extends ChangeNotifier {
                   ? 'Toko Sembako Berkah Pracimantoro'
                   : 'Kios Pupuk Sumber Rejeki',
       customerName: 'Budi Santoso',
-      customerPhone: '081234567890',
+      customerPhone: '081226001000',
       pickupAddress: 'Jl. Raya Pracimantoro-Wonogiri KM 1, Pracimantoro',
       pickupLocation: const LatLng(-8.0975, 110.8415),
       dropoffAddress: 'Dusun Sambiroto RT 02/03, Pracimantoro',

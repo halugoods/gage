@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/core/services/banner_manager_service.dart';
 import 'package:gage_app/features/food/presentation/food_explore_screen.dart';
@@ -9,6 +10,7 @@ import 'package:gage_app/features/food/presentation/shop_screen.dart';
 import 'package:gage_app/features/ride/presentation/ride_booking_screen.dart';
 import 'package:gage_app/features/ride/presentation/send_booking_screen.dart';
 import 'package:gage_app/features/membership/presentation/membership_screen.dart';
+import 'package:gage_app/features/home/presentation/promo_screen.dart';
 import 'package:gage_app/providers/wallet_provider.dart';
 import 'package:gage_app/features/wallet/presentation/gagepay_screen.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
@@ -92,11 +94,12 @@ class _PromoCarouselState extends State<PromoCarousel> {
     );
   }
 
-  void _onBannerTap(int index, bool isEditMode) {
+  void _onBannerTap(int index, bool isEditMode) async {
+    final bannerManager = BannerManagerService.instance;
+    final targetKey = 'customer_promo_carousel_slide_${index + 1}';
+    final liveBanner = bannerManager.getBanner(targetKey);
+
     if (isEditMode) {
-      final bannerManager = BannerManagerService.instance;
-      final targetKey = 'customer_promo_carousel_slide_${index + 1}';
-      final liveBanner = bannerManager.getBanner(targetKey);
       final initialImg = liveBanner.imagePath.isNotEmpty ? liveBanner.imagePath : _promoBanners[index]['image']!;
       final initialTitle = liveBanner.title.isNotEmpty ? liveBanner.title : _promoBanners[index]['title']!;
       final initialDesc = liveBanner.subtitle.isNotEmpty ? liveBanner.subtitle : _promoBanners[index]['desc']!;
@@ -108,8 +111,8 @@ class _PromoCarouselState extends State<PromoCarousel> {
         subtitle: initialDesc,
         badge: 'PROMO SLIDE ${index + 1}',
         imageUrl: initialImg,
-        actionUrl: index == 1 ? 'send' : (index == 2 ? 'ride' : (index == 3 ? 'shop' : 'food')),
-        aspectRatio: 16 / 9,
+        actionUrl: liveBanner.ctaText.isNotEmpty ? liveBanner.ctaText : (index == 1 ? 'send' : (index == 2 ? 'ride' : (index == 3 ? 'shop' : 'food'))),
+        aspectRatio: 16 / 4.5, // Half 16:9
         onSaved: () {
           setState(() {});
         },
@@ -117,41 +120,81 @@ class _PromoCarouselState extends State<PromoCarousel> {
       return;
     }
 
-    if (index == 1) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (ctx) => const SendBookingScreen()),
-      );
-    } else if (index == 2) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (ctx) => const RideBookingScreen(initialTab: 'ride')),
-      );
-    } else if (index == 3) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (ctx) => const ShopScreen()),
-      );
-    } else {
+    final route = liveBanner.ctaText.trim();
+    if (route.isEmpty || route.toLowerCase() == 'none') {
+      // Tautan opsional kosong: banner murni grafis informasi
+      return;
+    }
+
+    final lowerRoute = route.toLowerCase();
+    if (lowerRoute.startsWith('http://') || lowerRoute.startsWith('https://')) {
+      final uri = Uri.tryParse(route);
+      if (uri != null && await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+      return;
+    }
+
+    if (lowerRoute.startsWith('service:') || lowerRoute == 'send' || lowerRoute == 'ride' || lowerRoute == 'car' || lowerRoute == 'food' || lowerRoute == 'shop') {
+      final serviceType = lowerRoute.replaceAll('service:', '').trim();
+      if (serviceType == 'send') {
+        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const SendBookingScreen()));
+      } else if (serviceType == 'ride') {
+        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const RideBookingScreen(initialTab: 'ride')));
+      } else if (serviceType == 'car') {
+        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const RideBookingScreen(initialTab: 'car')));
+      } else if (serviceType == 'shop') {
+        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const ShopScreen()));
+      } else {
+        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const FoodExploreScreen()));
+      }
+      return;
+    }
+
+    if (lowerRoute.startsWith('merchant:')) {
+      // Navigasi ke resto / merchant spesifik
       Navigator.push(
         context,
         MaterialPageRoute(builder: (ctx) => const FoodExploreScreen()),
       );
+      return;
+    }
+
+    if (lowerRoute.contains('promo') || lowerRoute.contains('voucher')) {
+      Navigator.push(context, MaterialPageRoute(builder: (ctx) => const PromoScreen()));
+      return;
+    }
+
+    if (lowerRoute.contains('wallet') || lowerRoute.contains('gagepay')) {
+      Navigator.push(context, MaterialPageRoute(builder: (ctx) => const GagePayScreen()));
+      return;
+    }
+
+    // Default Fallback
+    if (index == 1) {
+      Navigator.push(context, MaterialPageRoute(builder: (ctx) => const SendBookingScreen()));
+    } else if (index == 2) {
+      Navigator.push(context, MaterialPageRoute(builder: (ctx) => const RideBookingScreen(initialTab: 'ride')));
+    } else if (index == 3) {
+      Navigator.push(context, MaterialPageRoute(builder: (ctx) => const ShopScreen()));
+    } else {
+      Navigator.push(context, MaterialPageRoute(builder: (ctx) => const FoodExploreScreen()));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final bannerHeight = (screenWidth - 32) * 9 / 16; // Rasio baku 16:9
+    // Rasio half 16:9 (16:4.5) -> rasio 3.55:1
+    final bannerHeight = (screenWidth - 32) * 4.5 / 16;
     final bannerManager = context.watch<BannerManagerService>();
     final isEditMode = LiveAppEditScope.isEditModeActive(context);
 
     return Column(
       children: [
-        // Promo Swipe Carousel (3 Banner 16:9)
+        // Promo Swipe Carousel (Half 16:9 = 16:4.5)
         SizedBox(
-          height: bannerHeight.clamp(145.0, 180.0),
+          height: bannerHeight.clamp(85.0, 115.0),
           child: PageView.builder(
             controller: _controller,
             itemCount: _promoBanners.length,
@@ -397,17 +440,24 @@ class _DailyCheckInCardState extends State<DailyCheckInCard> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.amber.shade200, width: 1.2),
+          border: Border.all(
+            color: isDark ? const Color(0xFF334155) : Colors.amber.shade200,
+            width: 1.2,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.amber.withValues(alpha: 0.12),
+              color: isDark
+                  ? Colors.black.withValues(alpha: 0.3)
+                  : Colors.amber.withValues(alpha: 0.12),
               blurRadius: 10,
               offset: const Offset(0, 3),
             ),
@@ -431,24 +481,34 @@ class _DailyCheckInCardState extends State<DailyCheckInCard> {
                   Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: Colors.amber.shade50,
+                      color: isDark ? const Color(0xFF334155) : Colors.amber.shade50,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.amber.shade300, width: 1),
+                      border: Border.all(
+                        color: isDark ? const Color(0xFF475569) : Colors.amber.shade300,
+                        width: 1,
+                      ),
                     ),
                     child: const Icon(Icons.card_giftcard_rounded, color: Colors.amber, size: 20),
                   ),
                   const SizedBox(width: 10),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'Hadiah Login Harian',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: GageTheme.textPrimary),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13.5,
+                            color: isDark ? Colors.white : GageTheme.textPrimary,
+                          ),
                         ),
                         Text(
                           'Check-in tiap hari, kumpulkan Koin GAGE Cuan!',
-                          style: TextStyle(fontSize: 11, color: Colors.grey),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? const Color(0xFF94A3B8) : Colors.grey,
+                          ),
                         ),
                       ],
                     ),
@@ -456,17 +516,28 @@ class _DailyCheckInCardState extends State<DailyCheckInCard> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
+                      color: isDark ? const Color(0xFF334155) : Colors.orange.shade50,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.orange.shade300, width: 0.8),
+                      border: Border.all(
+                        color: isDark ? const Color(0xFF475569) : Colors.orange.shade300,
+                        width: 0.8,
+                      ),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.local_fire_department_rounded, color: Colors.deepOrange, size: 14),
+                        Icon(
+                          Icons.local_fire_department_rounded,
+                          color: isDark ? const Color(0xFFFB923C) : Colors.deepOrange,
+                          size: 14,
+                        ),
                         const SizedBox(width: 2),
                         Text(
                           'Streak: $_currentStreak Hari',
-                          style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Colors.deepOrange),
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? const Color(0xFFFB923C) : Colors.deepOrange,
+                          ),
                         ),
                       ],
                     ),
@@ -485,21 +556,39 @@ class _DailyCheckInCardState extends State<DailyCheckInCard> {
                 final isToday = d['today'] == true && !_claimedToday;
                 final isSpecial = d['special'] == true;
 
+                final boxBg = isClaimed
+                    ? (isDark ? const Color(0xFF0F172A) : Colors.grey.shade100)
+                    : (isToday
+                        ? (isDark ? const Color(0xFF78350F).withValues(alpha: 0.45) : Colors.amber.shade50)
+                        : (isSpecial
+                            ? (isDark ? const Color(0xFF7C2D12).withValues(alpha: 0.45) : Colors.orange.shade50)
+                            : (isDark ? const Color(0xFF0F172A).withValues(alpha: 0.5) : Colors.grey.shade50)));
+
+                final boxBorder = isClaimed
+                    ? (isDark ? const Color(0xFF334155) : Colors.grey.shade300)
+                    : (isToday
+                        ? (isDark ? const Color(0xFFF59E0B) : Colors.amber.shade700)
+                        : (isSpecial
+                            ? (isDark ? const Color(0xFFFB923C) : Colors.orange.shade300)
+                            : (isDark ? const Color(0xFF334155) : Colors.grey.shade200)));
+
+                final dayTextColor = isToday
+                    ? (isDark ? const Color(0xFFFDE68A) : Colors.amber.shade900)
+                    : (isDark ? const Color(0xFF94A3B8) : Colors.grey.shade600);
+
+                final pointsTextColor = isClaimed
+                    ? (isDark ? const Color(0xFF64748B) : Colors.grey)
+                    : (isDark ? Colors.white : GageTheme.textPrimary);
+
                 return Expanded(
                   child: Container(
                     margin: const EdgeInsets.symmetric(horizontal: 2),
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     decoration: BoxDecoration(
-                      color: isClaimed
-                          ? Colors.grey.shade100
-                          : (isToday ? Colors.amber.shade50 : (isSpecial ? Colors.orange.shade50 : Colors.grey.shade50)),
+                      color: boxBg,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: isClaimed
-                            ? Colors.grey.shade300
-                            : (isToday
-                                ? Colors.amber.shade700
-                                : (isSpecial ? Colors.orange.shade300 : Colors.grey.shade200)),
+                        color: boxBorder,
                         width: isToday ? 1.5 : 1,
                       ),
                     ),
@@ -511,7 +600,7 @@ class _DailyCheckInCardState extends State<DailyCheckInCard> {
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
-                            color: isToday ? Colors.amber.shade900 : Colors.grey.shade600,
+                            color: dayTextColor,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -527,7 +616,7 @@ class _DailyCheckInCardState extends State<DailyCheckInCard> {
                           style: TextStyle(
                             fontSize: 9.5,
                             fontWeight: FontWeight.bold,
-                            color: isClaimed ? Colors.grey : GageTheme.textPrimary,
+                            color: pointsTextColor,
                           ),
                         ),
                       ],
@@ -546,8 +635,12 @@ class _DailyCheckInCardState extends State<DailyCheckInCard> {
               child: ElevatedButton(
                 onPressed: _claimedToday ? null : () => _claimReward(context),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _claimedToday ? Colors.grey.shade200 : const Color(0xFFF59E0B),
-                  foregroundColor: _claimedToday ? Colors.grey.shade600 : Colors.white,
+                  backgroundColor: _claimedToday
+                      ? (isDark ? const Color(0xFF334155) : Colors.grey.shade200)
+                      : const Color(0xFFF59E0B),
+                  foregroundColor: _claimedToday
+                      ? (isDark ? const Color(0xFF94A3B8) : Colors.grey.shade600)
+                      : Colors.white,
                   elevation: _claimedToday ? 0 : 2,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   padding: EdgeInsets.zero,
@@ -558,7 +651,9 @@ class _DailyCheckInCardState extends State<DailyCheckInCard> {
                     Icon(
                       _claimedToday ? Icons.check_rounded : Icons.touch_app_rounded,
                       size: 16,
-                      color: _claimedToday ? Colors.grey.shade600 : Colors.white,
+                      color: _claimedToday
+                          ? (isDark ? const Color(0xFF94A3B8) : Colors.grey.shade600)
+                          : Colors.white,
                     ),
                     const SizedBox(width: 6),
                     Flexible(

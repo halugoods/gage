@@ -28,8 +28,9 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
 
   final List<String> _tabs = ['Semua', 'Diskon', 'Gratis Ongkir'];
 
-  // Master Database Voucher Kupon GAGE
+  // Master Database Voucher Kupon GAGE (Urutan Terstruktur: Food -> Mart -> Transport -> Logistik)
   final List<Map<String, dynamic>> _allVouchers = [
+    // 1. KULINER (GAGE Food) - Diskon Utama & Ongkir
     {
       'id': 'v-food-50',
       'code': 'DISKON50',
@@ -50,25 +51,6 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
       'howToUse': 'Klik "Pakai", lalu potongan harga langsung otomatis memotong total belanja Anda di keranjang checkout.',
     },
     {
-      'id': 'v-ongkir-01',
-      'code': 'ONGKIRGRATIS',
-      'service': 'GAGE Food',
-      'type': 'delivery',
-      'title': 'Gratis Ongkir Xtra s/d Rp7.000',
-      'discountText': 'Gratis Ongkir s/d Rp7.000',
-      'minOrder': 25000,
-      'quantity': 5,
-      'tag': 'Semua Resto',
-      'expiry': '31 Des 2026',
-      'terms': [
-        'Potongan ongkir gratis hingga maksimal Rp 7.000.',
-        'Berlaku untuk pengantaran kurir motor GAGE Food.',
-        'Minimal transaksi pemesanan Rp 25.000.',
-        'Dapat digunakan bersamaan dengan voucher diskon makanan.',
-      ],
-      'howToUse': 'Pilih voucher ini, dan biaya kurir antar otomatis terpotong di keranjang.',
-    },
-    {
       'id': 'v-food-20',
       'code': 'KULINER20',
       'service': 'GAGE Food',
@@ -87,23 +69,45 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
       'howToUse': 'Otomatis terpasang di keranjang GAGE Food.',
     },
     {
-      'id': 'v-ride-01',
-      'code': 'RIDEHEMAT',
-      'service': 'GAGE Ride',
-      'type': 'order',
-      'title': 'Diskon Rp4.000 Motor GAGE Ride',
-      'discountText': 'Potongan Langsung Rp4.000',
-      'minOrder': 10000,
-      'quantity': 1,
-      'tag': 'GAGE Ride',
+      'id': 'v-ongkir-01',
+      'code': 'ONGKIRGRATIS',
+      'service': 'GAGE Food',
+      'type': 'delivery',
+      'title': 'Gratis Ongkir Xtra s/d Rp7.000',
+      'discountText': 'Gratis Ongkir s/d Rp7.000',
+      'minOrder': 25000,
+      'quantity': 5,
+      'tag': 'Semua Resto',
       'expiry': '31 Des 2026',
       'terms': [
-        'Potongan Rp 4.000 untuk perjalanan ojek motor GAGE Ride.',
-        'Minimal transaksi Rp 10.000.',
-        'Berlaku 1x sehari untuk setiap akun pengguna.',
+        'Potongan ongkir gratis hingga maksimal Rp 7.000.',
+        'Berlaku untuk pengantaran kurir motor GAGE Food.',
+        'Minimal transaksi pemesanan Rp 25.000.',
+        'Dapat digunakan bersamaan dengan voucher diskon makanan.',
       ],
-      'howToUse': 'Pilih saat memesan GAGE Ride sebelum klik konfirmasi driver.',
+      'howToUse': 'Pilih voucher ini, dan biaya kurir antar otomatis terpotong di keranjang.',
     },
+
+    // 2. BELANJA & SEMBAKO (GAGE Mart)
+    {
+      'id': 'v-mart-01',
+      'code': 'BELANJAMART',
+      'service': 'GAGE Mart',
+      'type': 'order',
+      'title': 'Diskon Belanja Sembako & Harian',
+      'discountText': 'Potongan Belanja Rp10.000',
+      'minOrder': 35000,
+      'quantity': 1,
+      'tag': 'Mitra Toko',
+      'expiry': '31 Des 2026',
+      'terms': [
+        'Potongan langsung Rp 10.000 di toko mitra resmi GAGE Mart.',
+        'Minimal total belanja sembako Rp 35.000.',
+      ],
+      'howToUse': 'Pilih voucher saat checkout belanjaan toko.',
+    },
+
+    // 3. TRANSPORTASI (GAGE Car & GAGE Ride)
     {
       'id': 'v-car-01',
       'code': 'GAGECAR15',
@@ -123,6 +127,26 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
       'howToUse': 'Gunakan saat memesan armada GAGE Car.',
     },
     {
+      'id': 'v-ride-01',
+      'code': 'RIDEHEMAT',
+      'service': 'GAGE Ride',
+      'type': 'order',
+      'title': 'Diskon Rp4.000 Motor GAGE Ride',
+      'discountText': 'Potongan Langsung Rp4.000',
+      'minOrder': 10000,
+      'quantity': 1,
+      'tag': 'GAGE Ride',
+      'expiry': '31 Des 2026',
+      'terms': [
+        'Potongan Rp 4.000 untuk perjalanan ojek motor GAGE Ride.',
+        'Minimal transaksi Rp 10.000.',
+        'Berlaku 1x sehari untuk setiap akun pengguna.',
+      ],
+      'howToUse': 'Pilih saat memesan GAGE Ride sebelum klik konfirmasi driver.',
+    },
+
+    // 4. PENGIRIMAN & LOGISTIK (GAGE Send)
+    {
       'id': 'v-send-01',
       'code': 'KIRIMKILAT',
       'service': 'GAGE Send',
@@ -138,23 +162,6 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
         'Tarif hemat khusus wilayah Pracimantoro dan sekitarnya.',
       ],
       'howToUse': 'Gunakan di halaman pemesanan kurir kirim barang GAGE Send.',
-    },
-    {
-      'id': 'v-mart-01',
-      'code': 'BELANJAMART',
-      'service': 'GAGE Mart',
-      'type': 'order',
-      'title': 'Diskon Belanja Sembako & Harian',
-      'discountText': 'Potongan Belanja Rp10.000',
-      'minOrder': 35000,
-      'quantity': 1,
-      'tag': 'Mitra Toko',
-      'expiry': '31 Des 2026',
-      'terms': [
-        'Potongan langsung Rp 10.000 di toko mitra resmi GAGE Mart.',
-        'Minimal total belanja sembako Rp 35.000.',
-      ],
-      'howToUse': 'Pilih voucher saat checkout belanjaan toko.',
     },
   ];
 

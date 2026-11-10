@@ -56,7 +56,7 @@ class _AdminCurationBannerTabState extends State<AdminCurationBannerTab> {
       'type': 'BABE',
       'name': 'iPad Gen 9 64GB Space Grey Mulus',
       'owner': 'Pak Joko Purnomo',
-      'phone': '6281234567890',
+      'phone': '6281226001000',
       'category': 'Barang Bekas (BaBe) • Gadget',
       'address': 'Dusun Gedong RT 02/01 Pracimantoro',
       'status': 'Menunggu',

@@ -130,9 +130,12 @@ class _VoucherHistoryScreenState extends State<VoucherHistoryScreen> {
                       final item = filteredList[index];
                       final isUsed = item['status'] == 'USED';
 
+                      final stubGradient = isUsed
+                          ? const [Color(0xFF475569), Color(0xFF334155)]
+                          : const [Color(0xFF94A3B8), Color(0xFF64748B)];
+
                       return Container(
                         margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
                           color: isDark ? const Color(0xFF1E293B) : Colors.white,
                           borderRadius: BorderRadius.circular(16),
@@ -145,99 +148,170 @@ class _VoucherHistoryScreenState extends State<VoucherHistoryScreen> {
                             ),
                           ],
                         ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Icon Status
-                            Container(
-                              width: 38,
-                              height: 38,
-                              decoration: BoxDecoration(
-                                color: isUsed
-                                    ? const Color(0xFFDCFCE7)
-                                    : (isDark ? Colors.white10 : Colors.grey.shade200),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                isUsed ? Icons.check_circle_rounded : Icons.timer_off_rounded,
-                                color: isUsed ? const Color(0xFF16A34A) : Colors.grey.shade500,
-                                size: 22,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            // Info Detail
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(15),
+                          child: Stack(
+                            children: [
+                              Row(
                                 children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        item['code'] as String,
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w900,
-                                          fontSize: 14,
-                                          color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                        ),
+                                  // Stub Kiri
+                                  Container(
+                                    width: 78,
+                                    constraints: const BoxConstraints(minHeight: 104),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: stubGradient,
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
                                       ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: isUsed
-                                              ? const Color(0xFFDCFCE7)
-                                              : (isDark ? Colors.white10 : Colors.grey.shade100),
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                        child: Text(
-                                          isUsed ? 'Terpakai' : 'Kedaluwarsa',
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w800,
-                                            color: isUsed ? const Color(0xFF16A34A) : Colors.grey.shade600,
+                                    ),
+                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Container(
+                                          width: 32,
+                                          height: 32,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: Colors.white.withValues(alpha: 0.2),
+                                          ),
+                                          child: Icon(
+                                            isUsed ? Icons.check_circle_rounded : Icons.timer_off_rounded,
+                                            color: Colors.white,
+                                            size: 18,
                                           ),
                                         ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          isUsed ? 'Voucher\nTerpakai' : 'Voucher\nKedaluwarsa',
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.w800,
+                                            height: 1.15,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                  // Garis Perforasi
+                                  Container(
+                                    width: 1,
+                                    constraints: const BoxConstraints(minHeight: 104),
+                                    color: isDark ? Colors.white10 : Colors.grey.shade200,
+                                  ),
+
+                                  // Konten Kanan
+                                  Expanded(
+                                    child: Padding(
+                                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                item['code'] as String,
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w900,
+                                                  fontSize: 13.5,
+                                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                                ),
+                                              ),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: isUsed
+                                                      ? const Color(0xFFDCFCE7)
+                                                      : (isDark ? Colors.white10 : Colors.grey.shade200),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                ),
+                                                child: Text(
+                                                  isUsed ? 'TERPAKAI' : 'KEDALUWARSA',
+                                                  style: TextStyle(
+                                                    fontSize: 9,
+                                                    fontWeight: FontWeight.w900,
+                                                    color: isUsed ? const Color(0xFF16A34A) : Colors.grey.shade600,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            item['title'] as String,
+                                            style: TextStyle(
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.w600,
+                                              color: isDark ? Colors.white70 : const Color(0xFF334155),
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Hemat ${currencyFmt.format(item['discountAmount'])}',
+                                            style: TextStyle(
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.w900,
+                                              color: isUsed ? const Color(0xFF16A34A) : Colors.grey.shade500,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          if (item['orderNumber'] != null)
+                                            Text(
+                                              '#${item['orderNumber']} • ${item['merchantName']}',
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: isDark ? Colors.white54 : Colors.grey.shade500,
+                                              ),
+                                            ),
+                                          Text(
+                                            item['usedAt'] as String,
+                                            style: TextStyle(
+                                              fontSize: 9.5,
+                                              color: isDark ? Colors.white38 : Colors.grey.shade400,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 3),
-                                  Text(
-                                    item['title'] as String,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: isDark ? Colors.white70 : Colors.grey.shade700,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    'Hemat ${currencyFmt.format(item['discountAmount'])}',
-                                    style: const TextStyle(
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w900,
-                                      color: GageTheme.primary,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  if (item['orderNumber'] != null)
-                                    Text(
-                                      'Pesanan: #${item['orderNumber']} • ${item['merchantName']}',
-                                      style: TextStyle(
-                                        fontSize: 10.5,
-                                        color: isDark ? Colors.white54 : Colors.grey.shade500,
-                                      ),
-                                    ),
-                                  Text(
-                                    item['usedAt'] as String,
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: isDark ? Colors.white38 : Colors.grey.shade400,
                                     ),
                                   ),
                                 ],
                               ),
-                            ),
-                          ],
+
+                              // Takik Setengah Lingkaran
+                              Positioned(
+                                left: 71,
+                                top: -7,
+                                child: Container(
+                                  width: 14,
+                                  height: 14,
+                                  decoration: BoxDecoration(
+                                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                left: 71,
+                                bottom: -7,
+                                child: Container(
+                                  width: 14,
+                                  height: 14,
+                                  decoration: BoxDecoration(
+                                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     },

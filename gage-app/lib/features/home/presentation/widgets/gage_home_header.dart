@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:gage_app/core/services/notification_service.dart';
 import 'package:gage_app/features/notification/presentation/notification_screen.dart';
+import 'package:gage_app/features/chat/presentation/chat_hub_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -408,55 +410,127 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
 
                 if (!_isSearchActive) ...[
                   const SizedBox(width: 8),
-                  // Tombol Lonceng Notifikasi Mandiri (Di luar Search Bar)
+
+                  // 1. Tombol Chat/Pesan Mandiri (Di sebelah kiri Lonceng Notifikasi)
+                  // Badge Angka Unread Chat
+                  InkWell(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ChatHubScreen()),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: SizedBox(
+                      width: 36,
+                      height: 38,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Icon(
+                            Icons.chat_rounded,
+                            size: 22,
+                            color: isDark
+                                ? Colors.white
+                                : (fade > 0.4 ? GageTheme.textPrimary : Colors.white),
+                            shadows: fade <= 0.4
+                                ? [
+                                    Shadow(
+                                      color: Colors.black.withValues(alpha: 0.55),
+                                      blurRadius: 5,
+                                      offset: const Offset(0, 1.5),
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          if (NotificationService.instance.unreadChatCount > 0)
+                            Positioned(
+                              top: 4,
+                              right: 1,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF16A34A),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.white, width: 1.2),
+                                ),
+                                constraints: const BoxConstraints(minWidth: 15, minHeight: 14),
+                                child: Text(
+                                  '${NotificationService.instance.unreadChatCount.clamp(1, 99)}',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 8.5,
+                                    fontWeight: FontWeight.w900,
+                                    height: 1.05,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(width: 4),
+
+                  // 2. Tombol Lonceng Notifikasi Polosan (Badge Angka Unread Notifikasi)
                   AnimatedBuilder(
                     animation: NotificationService.instance,
                     builder: (context, _) {
-                      final hasUnread = NotificationService.instance.hasUnread;
                       return InkWell(
                         onTap: () {
+                          HapticFeedback.lightImpact();
                           Navigator.push(
                             context,
                             MaterialPageRoute(builder: (_) => const NotificationScreen()),
                           );
                         },
                         borderRadius: BorderRadius.circular(20),
-                        child: Container(
-                          width: 38,
+                        child: SizedBox(
+                          width: 36,
                           height: 38,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isDark ? GageTheme.darkSurface : Colors.white,
-                            border: Border.all(
-                              color: isDark ? Colors.white12 : Colors.grey.shade200,
-                              width: 1,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: isDark ? Colors.black26 : Colors.black.withValues(alpha: 0.08),
-                                blurRadius: 4,
-                                offset: const Offset(0, 1),
-                              ),
-                            ],
-                          ),
                           child: Stack(
                             alignment: Alignment.center,
                             children: [
                               Icon(
-                                Icons.notifications_none_rounded,
-                                size: 20,
-                                color: isDark ? Colors.white70 : Colors.grey.shade800,
+                                Icons.notifications_rounded,
+                                size: 24,
+                                color: isDark
+                                    ? Colors.white
+                                    : (fade > 0.4 ? GageTheme.textPrimary : Colors.white),
+                                shadows: fade <= 0.4
+                                    ? [
+                                        Shadow(
+                                          color: Colors.black.withValues(alpha: 0.55),
+                                          blurRadius: 5,
+                                          offset: const Offset(0, 1.5),
+                                        ),
+                                      ]
+                                    : null,
                               ),
-                              if (hasUnread)
+                              if (NotificationService.instance.unreadCount > 0)
                                 Positioned(
-                                  top: 8,
-                                  right: 8,
+                                  top: 3,
+                                  right: 0,
                                   child: Container(
-                                    width: 7.5,
-                                    height: 7.5,
-                                    decoration: const BoxDecoration(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                    decoration: BoxDecoration(
                                       color: GageTheme.primary,
-                                      shape: BoxShape.circle,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: Colors.white, width: 1.2),
+                                    ),
+                                    constraints: const BoxConstraints(minWidth: 15, minHeight: 14),
+                                    child: Text(
+                                      '${NotificationService.instance.unreadCount.clamp(1, 99)}',
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 8.5,
+                                        fontWeight: FontWeight.w900,
+                                        height: 1.05,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -466,7 +540,7 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
                       );
                     },
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   // Avatar Profil Pengguna
                   GestureDetector(
                     onTap: () => _showProfileDropdownMenu(context, auth, topPadding),
@@ -486,11 +560,17 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
                       ),
                       child: ClipOval(
                         child: user?.avatarUrl != null && user!.avatarUrl!.isNotEmpty
-                            ? Image.network(
-                                user.avatarUrl!,
-                                fit: BoxFit.cover,
-                                errorBuilder: (c, e, s) => Image.asset('assets/images/avatar_user.png', fit: BoxFit.cover),
-                              )
+                            ? (user.avatarUrl!.startsWith('http')
+                                ? Image.network(
+                                    user.avatarUrl!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (c, e, s) => Image.asset('assets/images/avatar_user.png', fit: BoxFit.cover),
+                                  )
+                                : Image.file(
+                                    File(user.avatarUrl!),
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (c, e, s) => Image.asset('assets/images/avatar_user.png', fit: BoxFit.cover),
+                                  ))
                             : Image.asset('assets/images/avatar_user.png', fit: BoxFit.cover),
                       ),
                     ),
@@ -871,11 +951,17 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
                                   width: 36,
                                   height: 36,
                                   child: user?.avatarUrl != null && user!.avatarUrl!.isNotEmpty
-                                      ? Image.network(
-                                          user.avatarUrl!,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (c, e, s) => Image.asset('assets/images/avatar_user.png', fit: BoxFit.cover),
-                                        )
+                                      ? (user.avatarUrl!.startsWith('http')
+                                          ? Image.network(
+                                              user.avatarUrl!,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (c, e, s) => Image.asset('assets/images/avatar_user.png', fit: BoxFit.cover),
+                                            )
+                                          : Image.file(
+                                              File(user.avatarUrl!),
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (c, e, s) => Image.asset('assets/images/avatar_user.png', fit: BoxFit.cover),
+                                            ))
                                       : Image.asset('assets/images/avatar_user.png', fit: BoxFit.cover),
                                 ),
                               ),
@@ -932,7 +1018,7 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
                           title: 'Pusat Bantuan CS WA',
                           onTap: () async {
                             Navigator.pop(dialogCtx);
-                            final uri = Uri.parse('https://wa.me/6281234567890?text=Halo%20Admin%20GAGE%2C%20saya%20butuh%20bantuan');
+                            final uri = Uri.parse('https://wa.me/6281226001000?text=Halo%20Admin%20GAGE%2C%20saya%20butuh%20bantuan');
                             if (await canLaunchUrl(uri)) {
                               await launchUrl(uri, mode: LaunchMode.externalApplication);
                             }

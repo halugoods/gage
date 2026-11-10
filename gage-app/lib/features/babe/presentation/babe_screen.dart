@@ -517,7 +517,7 @@ class _BabeScreenState extends State<BabeScreen> {
                                       'Saya ingin menanyakan update status untuk transaksi BaBe:\n'
                                       '📦 *${title.toString()}*\n'
                                       '🏷️ Status Saat Ini: *${status.toString()}*';
-                                  final uri = Uri.parse('https://wa.me/6281234567890?text=${Uri.encodeComponent(msg)}');
+                                  final uri = Uri.parse('https://wa.me/6281226001000?text=${Uri.encodeComponent(msg)}');
                                   launchUrl(uri, mode: LaunchMode.externalApplication);
                                 },
                                 child: Padding(

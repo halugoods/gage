@@ -419,10 +419,21 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
     );
   }
 
+  int _parsePrice(dynamic val) {
+    if (val == null) return 0;
+    if (val is int) return val;
+    if (val is num) return val.toInt();
+    if (val is String) {
+      final cleaned = val.replaceAll(RegExp(r'[^0-9\-]'), '');
+      return int.tryParse(cleaned) ?? 0;
+    }
+    return 0;
+  }
+
   Widget _buildMenuItemCard(Map<String, dynamic> item, bool isDark) {
     final isAvailable = (item['is_available'] == 1 || item['is_available'] == true);
-    final offlinePrice = (item['offline_price'] ?? item['price'] ?? 0) as int;
-    final onlinePrice = (item['gage_price'] ?? item['price'] ?? 0) as int;
+    final offlinePrice = _parsePrice(item['offline_price'] ?? item['price']);
+    final onlinePrice = _parsePrice(item['gage_price'] ?? item['price']);
     final desc = (item['description'] ?? '').toString();
 
     return Container(

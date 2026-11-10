@@ -84,7 +84,7 @@ class OrderProvider extends ChangeNotifier {
         merchantAddress: 'Terminal Bus Pracimantoro',
         driverName: 'Slamet Widodo (Vario AD 4521 WN)',
         driverPlate: 'AD 4521 WN',
-        driverPhone: '081234567890',
+        driverPhone: '081226001000',
         status: 'COMPLETED',
         paymentMethod: 'QRIS',
         paymentStatus: 'PAID',
@@ -267,7 +267,7 @@ class OrderProvider extends ChangeNotifier {
     // Fallback lokal jika offline/network timeout: pesanan tetap berhasil
     final now = DateTime.now();
     final itemsSubtotal = customItemsSubtotal ??
-        items.fold<int>(0, (sum, i) => sum + ((i['price'] as int? ?? 0) * (i['quantity'] as int? ?? 1)));
+        items.fold<int>(0, (sum, i) => sum + ((int.tryParse(i['price']?.toString().replaceAll(RegExp(r'[^0-9\-]'), '') ?? '') ?? 0) * (int.tryParse(i['quantity']?.toString().replaceAll(RegExp(r'[^0-9\-]'), '') ?? '') ?? 1)));
     final shippingFee = customShippingFee ??
         GagePricingService.calculateCustomerShippingFee(
           distanceKm: distanceKm,
@@ -301,7 +301,7 @@ class OrderProvider extends ChangeNotifier {
       merchantAddress: 'Pracimantoro, Wonogiri',
       driverName: 'Joko Susanto (Vario AD 3291 WA)',
       driverPlate: 'AD 3291 WA',
-      driverPhone: '081234567890',
+      driverPhone: '081226001000',
       status: 'COOKING',
       paymentMethod: paymentMethod,
       paymentStatus: 'PAID',

@@ -192,6 +192,9 @@ class _InPlaceBannerEditorSheetState extends State<InPlaceBannerEditorSheet> {
     {'label': 'GAGE Ternak Hewan', 'path': 'assets/images/ternak_hero_banner.png'},
   ];
 
+  String _selectedRouteType = 'none'; // 'none', 'food', 'ride', 'car', 'send', 'shop', 'merchant', 'promo', 'wallet', 'external'
+  late TextEditingController _customTargetCtrl;
+
   @override
   void initState() {
     super.initState();
@@ -201,10 +204,41 @@ class _InPlaceBannerEditorSheetState extends State<InPlaceBannerEditorSheet> {
     _imageCtrl = TextEditingController(text: widget.initialImageUrl);
     _actionCtrl = TextEditingController(text: widget.initialActionUrl);
 
+    final rawAction = widget.initialActionUrl.trim();
+    if (rawAction.isEmpty || rawAction.toLowerCase() == 'none') {
+      _selectedRouteType = 'none';
+      _customTargetCtrl = TextEditingController();
+    } else if (rawAction.toLowerCase().startsWith('merchant:')) {
+      _selectedRouteType = 'merchant';
+      _customTargetCtrl = TextEditingController(text: rawAction.substring(9).trim());
+    } else if (rawAction.toLowerCase().startsWith('http://') || rawAction.toLowerCase().startsWith('https://')) {
+      _selectedRouteType = 'external';
+      _customTargetCtrl = TextEditingController(text: rawAction);
+    } else if (['food', 'ride', 'car', 'send', 'shop', 'promo', 'wallet'].contains(rawAction.toLowerCase())) {
+      _selectedRouteType = rawAction.toLowerCase();
+      _customTargetCtrl = TextEditingController();
+    } else {
+      _selectedRouteType = 'external';
+      _customTargetCtrl = TextEditingController(text: rawAction);
+    }
+
     _titleCtrl.addListener(_onFieldChanged);
     _subtitleCtrl.addListener(_onFieldChanged);
     _badgeCtrl.addListener(_onFieldChanged);
     _imageCtrl.addListener(_onFieldChanged);
+    _customTargetCtrl.addListener(_syncActionUrl);
+  }
+
+  void _syncActionUrl() {
+    if (_selectedRouteType == 'none') {
+      _actionCtrl.text = '';
+    } else if (_selectedRouteType == 'merchant') {
+      _actionCtrl.text = 'merchant:${_customTargetCtrl.text.trim()}';
+    } else if (_selectedRouteType == 'external') {
+      _actionCtrl.text = _customTargetCtrl.text.trim();
+    } else {
+      _actionCtrl.text = _selectedRouteType;
+    }
   }
 
   void _onFieldChanged() {
@@ -217,12 +251,14 @@ class _InPlaceBannerEditorSheetState extends State<InPlaceBannerEditorSheet> {
     _subtitleCtrl.removeListener(_onFieldChanged);
     _badgeCtrl.removeListener(_onFieldChanged);
     _imageCtrl.removeListener(_onFieldChanged);
+    _customTargetCtrl.removeListener(_syncActionUrl);
 
     _titleCtrl.dispose();
     _subtitleCtrl.dispose();
     _badgeCtrl.dispose();
     _imageCtrl.dispose();
     _actionCtrl.dispose();
+    _customTargetCtrl.dispose();
     super.dispose();
   }
 
@@ -237,16 +273,133 @@ class _InPlaceBannerEditorSheetState extends State<InPlaceBannerEditorSheet> {
         imageQuality: 88,
       );
       if (picked != null) {
-        setState(() {
-          _imageCtrl.text = picked.path;
-        });
-        HapticFeedback.mediumImpact();
+        if (!mounted) return;
+        _showNativeCropperDialog(picked.path);
       }
     } catch (e) {
       if (mounted) {
         GageToast.show(context, 'Gagal memilih gambar dari galeri: $e', type: GageToastType.error);
       }
     }
+  }
+
+  void _showNativeCropperDialog(String imagePath) {
+    final ratioLabel = widget.aspectRatio > 2.5 ? '16:4.5 (Promo Carousel)' : '16:9 (Hero Header)';
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.black.withValues(alpha: 0.95),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (cropCtx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.crop_rounded, color: GageTheme.primary, size: 22),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Potong & Sesuaikan ($ratioLabel)',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Colors.white70),
+                      onPressed: () => Navigator.pop(cropCtx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Geser dan cubit (pinch) foto untuk menyesuaikan framing banner yang pas:',
+                  style: TextStyle(color: Colors.white70, fontSize: 11),
+                ),
+                const SizedBox(height: 14),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: GageTheme.primary, width: 2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: AspectRatio(
+                      aspectRatio: widget.aspectRatio,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          InteractiveViewer(
+                            minScale: 1.0,
+                            maxScale: 3.5,
+                            child: Image.file(
+                              File(imagePath),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          // Rule of Thirds Guide Grid
+                          IgnorePointer(
+                            child: Column(
+                              children: [
+                                Expanded(child: Container(decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.25), width: 0.8))))),
+                                Expanded(child: Container(decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.25), width: 0.8))))),
+                                const Expanded(child: SizedBox()),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white70,
+                          side: const BorderSide(color: Colors.white24),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () => Navigator.pop(cropCtx),
+                        child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: GageTheme.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _imageCtrl.text = imagePath;
+                          });
+                          Navigator.pop(cropCtx);
+                          HapticFeedback.mediumImpact();
+                          GageToast.show(context, 'Foto banner berhasil disesuaikan!', type: GageToastType.success);
+                        },
+                        child: const Text('Gunakan Foto Ini', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _handleSave() async {
@@ -659,29 +812,65 @@ class _InPlaceBannerEditorSheetState extends State<InPlaceBannerEditorSheet> {
             _buildCleanTextField(_subtitleCtrl, 'Masukkan keterangan...'),
             const SizedBox(height: 12),
 
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildFieldLabel('Badge Tag:'),
-                      _buildCleanTextField(_badgeCtrl, 'PROMO UTAMA'),
-                    ],
+            _buildFieldLabel('Badge Tag:'),
+            _buildCleanTextField(_badgeCtrl, 'PROMO UTAMA'),
+            const SizedBox(height: 12),
+
+            // Selector Tipe Rute Aksi Terpadu (Opsional)
+            _buildFieldLabel('Tujuan Rute Banner (Opsional):'),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+              decoration: BoxDecoration(
+                color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? Colors.white12 : Colors.grey.shade300),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _selectedRouteType,
+                  isExpanded: true,
+                  icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87,
                   ),
+                  dropdownColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1E293B) : Colors.white,
+                  items: const [
+                    DropdownMenuItem(value: 'none', child: Text('Tanpa Tautan (Hanya Visual Banner)')),
+                    DropdownMenuItem(value: 'food', child: Text('Layanan: GAGE Food')),
+                    DropdownMenuItem(value: 'ride', child: Text('Layanan: GAGE Ride')),
+                    DropdownMenuItem(value: 'car', child: Text('Layanan: GAGE Car')),
+                    DropdownMenuItem(value: 'send', child: Text('Layanan: GAGE Send')),
+                    DropdownMenuItem(value: 'shop', child: Text('Layanan: GAGE Shop')),
+                    DropdownMenuItem(value: 'merchant', child: Text('Restoran / Toko Mitra Spesifik')),
+                    DropdownMenuItem(value: 'promo', child: Text('Voucher Promo & Diskon')),
+                    DropdownMenuItem(value: 'wallet', child: Text('GAGEPay / Isi Saldo')),
+                    DropdownMenuItem(value: 'external', child: Text('Tautan Luar / Website Sponsor')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() {
+                        _selectedRouteType = val;
+                        _syncActionUrl();
+                      });
+                    }
+                  },
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildFieldLabel('Aksi / Route (Opsional):'),
-                      _buildCleanTextField(_actionCtrl, 'food / send / ride'),
-                    ],
-                  ),
-                ),
-              ],
+              ),
             ),
+
+            if (_selectedRouteType == 'merchant') ...[
+              const SizedBox(height: 10),
+              _buildFieldLabel('ID Resto / Toko Mitra:'),
+              _buildCleanTextField(_customTargetCtrl, 'Contoh: m-dimsum-sewu atau m-mie-ayam'),
+            ],
+
+            if (_selectedRouteType == 'external') ...[
+              const SizedBox(height: 10),
+              _buildFieldLabel('URL Website Eksternal:'),
+              _buildCleanTextField(_customTargetCtrl, 'https://sponsor-kami.com/promo'),
+            ],
             const SizedBox(height: 20),
 
             // Action Buttons

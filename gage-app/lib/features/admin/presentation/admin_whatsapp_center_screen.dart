@@ -754,7 +754,7 @@ class _AdminWhatsappCenterScreenState extends State<AdminWhatsappCenterScreen> {
           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
           decoration: InputDecoration(
             isDense: true,
-            hintText: '081234567890',
+            hintText: '081226001000',
             prefixIcon: const Padding(
               padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               child: Text('+62', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Colors.grey)),

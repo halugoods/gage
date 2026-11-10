@@ -373,7 +373,7 @@ class _BabeDetailScreenState extends State<BabeDetailScreen> {
                             note: 'Menawar barang dari Rp $hargaAwalFormatted menjadi Rp $hargaTawaranFormatted via WhatsApp.',
                           );
 
-                          _openWhatsApp(phone: '6281234567890', message: message);
+                          _openWhatsApp(phone: '6281226001000', message: message);
 
                           GageToast.show(
                             context,
@@ -407,7 +407,7 @@ class _BabeDetailScreenState extends State<BabeDetailScreen> {
       'assets/images/promo_banner_1.png',
     ];
 
-    final rawPrice = (item['price'] as int?) ?? 0;
+    final rawPrice = int.tryParse(item['price']?.toString().replaceAll(RegExp(r'[^0-9\-]'), '') ?? '') ?? 0;
     // Harga listing resmi bersahabat
     final listingPrice = rawPrice;
     final isNego = (item['isNego'] as bool?) ?? false;
@@ -814,7 +814,7 @@ class _BabeDetailScreenState extends State<BabeDetailScreen> {
                                 'Saya ada pertanyaan seputar produk bekas:\n'
                                 '📦 *${item['name']}* (ID: ${item['id']})\n'
                                 'Mohon bantu konfirmasi ke pemilik barang mengenai kondisi detailnya. Terima kasih!';
-                            _openWhatsApp(phone: '6281234567890', message: msg);
+                            _openWhatsApp(phone: '6281226001000', message: msg);
                           },
                         ),
                       ],
@@ -892,7 +892,7 @@ class _BabeDetailScreenState extends State<BabeDetailScreen> {
                         '🚚 *Pengiriman:* Diantar langsung ke rumah via GAGE Delivery\n'
                         '🛡️ *Metode:* Garansi Keamanan Transaksi GAGE (Garansi Toko 48 Jam)\n\n'
                         'Mohon proses verifikasi ketersediaan dan invoice aman melalui sistem pembayaran resmi GAGE. Terima kasih!';
-                    _openWhatsApp(phone: '6281234567890', message: msg);
+                    _openWhatsApp(phone: '6281226001000', message: msg);
                   },
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,

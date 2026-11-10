@@ -17,6 +17,10 @@ class GagePocketWallet extends StatefulWidget {
   final void Function(Map<String, dynamic> card)? onCardDetailsTap;
   final VoidCallback? onEyeToggle;
   final VoidCallback? onAddAccountTap;
+  final VoidCallback? onTopUpTap;
+  final VoidCallback? onPayQrisTap;
+  final VoidCallback? onWithdrawTap;
+  final VoidCallback? onExchangePointsTap;
 
   const GagePocketWallet({
     super.key,
@@ -27,6 +31,10 @@ class GagePocketWallet extends StatefulWidget {
     this.onCardDetailsTap,
     this.onEyeToggle,
     this.onAddAccountTap,
+    this.onTopUpTap,
+    this.onPayQrisTap,
+    this.onWithdrawTap,
+    this.onExchangePointsTap,
   });
 
   @override
@@ -144,7 +152,7 @@ class _GagePocketWalletState extends State<GagePocketWallet>
               onTap: _toggleFan,
               behavior: HitTestBehavior.opaque,
               child: SizedBox(
-                height: 235 + (animValue * 48), // mengembang saat kartu meluncur naik
+                height: 260 + (animValue * 48), // mengembang saat kartu meluncur naik
                 width: double.infinity,
                 child: Stack(
                   clipBehavior: Clip.none,
@@ -156,7 +164,7 @@ class _GagePocketWalletState extends State<GagePocketWallet>
                       left: 0,
                       right: 0,
                       child: Container(
-                        height: 200,
+                        height: 224,
                         decoration: BoxDecoration(
                           color: const Color(0xFF1E1512),
                           borderRadius: BorderRadius.circular(22),
@@ -425,7 +433,7 @@ class _GagePocketWalletState extends State<GagePocketWallet>
 
   Widget _buildFrontPocket(Map<String, dynamic> selectedCard, double animValue) {
     return Container(
-      height: 145,
+      height: 174,
       decoration: const BoxDecoration(
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
       ),
@@ -435,7 +443,7 @@ class _GagePocketWalletState extends State<GagePocketWallet>
           ClipPath(
             clipper: _PocketMouthClipper(),
             child: Container(
-              height: 145,
+              height: 174,
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
@@ -460,14 +468,15 @@ class _GagePocketWalletState extends State<GagePocketWallet>
 
           // Konten di Permukaan Saku Depan
           Padding(
-            padding: const EdgeInsets.fromLTRB(18, 20, 18, 12),
+            padding: const EdgeInsets.fromLTRB(16, 22, 16, 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Baris 1: Label Saldo, Toggle Mata & Tombol Tambah Rekening (+)
+                // Baris 1: Label Saldo & Tombol Tambah Rekening (+) Diturunkan proporsional
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Row(
                       children: const [
@@ -484,111 +493,170 @@ class _GagePocketWalletState extends State<GagePocketWallet>
                         ),
                       ],
                     ),
-                    Row(
-                      children: [
-                        // Toggle Mata Saldo
-                        InkWell(
+                    // Tombol Tambah Rekening (+) diturunkan lebih ke bawah sesuai arahan
+                    if (widget.onAddAccountTap != null)
+                      Transform.translate(
+                        offset: const Offset(0, 6),
+                        child: InkWell(
                           onTap: () {
                             HapticFeedback.lightImpact();
-                            setState(() => _isBalanceVisible = !_isBalanceVisible);
-                            if (widget.onEyeToggle != null) widget.onEyeToggle!();
+                            widget.onAddAccountTap!();
                           },
                           borderRadius: BorderRadius.circular(16),
-                          child: Padding(
-                            padding: const EdgeInsets.all(4),
-                            child: Icon(
-                              _isBalanceVisible ? Icons.visibility_rounded : Icons.visibility_off_rounded,
-                              color: const Color(0xFFD4B996),
-                              size: 18,
+                          child: Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.18),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white24, width: 0.9),
+                            ),
+                            child: const Icon(
+                              Icons.add_rounded,
+                              color: Color(0xFFD4B996),
+                              size: 16,
                             ),
                           ),
                         ),
-                        // Tombol Tambah Rekening (+)
-                        if (widget.onAddAccountTap != null) ...[
-                          const SizedBox(width: 4),
-                          InkWell(
-                            onTap: () {
-                              HapticFeedback.lightImpact();
-                              widget.onAddAccountTap!();
-                            },
-                            borderRadius: BorderRadius.circular(16),
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.15),
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white24, width: 0.8),
-                              ),
-                              child: const Icon(
-                                Icons.add_rounded,
-                                color: Color(0xFFD4B996),
-                                size: 16,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
+                      ),
                   ],
                 ),
 
-                // Baris 2: Nominal Saldo Besar
-                Text(
-                  _isBalanceVisible
-                      ? 'Rp ${widget.balance.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}'
-                      : 'Rp ••••••',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 23,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.5,
-                  ),
-                ),
+                const Spacer(),
 
-                // Baris 3: Poin & Kartu Penarikan Terpilih
+                // Baris 2 & 3: Kiri (Balance + Poin persis di atas Status Rekening Terpilih) & Kanan (4 Fitur Cepat Diperbesar)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white24, width: 0.8),
-                      ),
-                      child: Row(
+                    // Sisi Kiri: Balance, Poin, dan Status Rekening Terpilih bertumpuk rapi di atas status penarikan
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.stars_rounded, color: Color(0xFFF59E0B), size: 13),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${widget.points} Poin',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.bold,
+                          // Nominal Saldo Besar + Icon Mata
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  _isBalanceVisible
+                                      ? 'Rp ${widget.balance.toString().replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (m) => "${m[1]}.")}'
+                                      : 'Rp ••••••',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 21,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.5,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              InkWell(
+                                onTap: () {
+                                  HapticFeedback.lightImpact();
+                                  setState(() => _isBalanceVisible = !_isBalanceVisible);
+                                  if (widget.onEyeToggle != null) widget.onEyeToggle!();
+                                },
+                                borderRadius: BorderRadius.circular(16),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(2),
+                                  child: Icon(
+                                    _isBalanceVisible ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+                                    color: const Color(0xFFD4B996),
+                                    size: 18,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          // Indikator Poin tepat di atas status rekening penarikan terpilih
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.white24, width: 0.8),
                             ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.stars_rounded, color: Color(0xFFF59E0B), size: 11),
+                                const SizedBox(width: 3.5),
+                                Text(
+                                  '${widget.points} Poin',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          // Status Rekening Terpilih tepat di bawah poin
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                animValue > 0.5 ? Icons.touch_app_rounded : Icons.credit_card_rounded,
+                                size: 12,
+                                color: const Color(0xFFD4B996),
+                              ),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  animValue > 0.5
+                                      ? 'Pilih Kartu'
+                                      : '${selectedCard['bank']} ${selectedCard['maskedNumber'] ?? ''}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Color(0xFFD4B996),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
                     ),
+
+                    const SizedBox(width: 8),
+
+                    // Sisi Kanan: 4 Tombol Fitur Cepat Diperbesar Ukurannya Untuk Kenyamanan UX
                     Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          animValue > 0.5
-                              ? 'Pilih Rekening'
-                              : '${selectedCard['bank']} (${selectedCard['maskedNumber']})',
-                          style: const TextStyle(
-                            color: Color(0xFFD4B996),
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w700,
-                          ),
+                        _buildPocketAction(
+                          icon: Icons.add_circle_outline_rounded,
+                          label: 'Top Up',
+                          onTap: widget.onTopUpTap,
                         ),
-                        const SizedBox(width: 3),
-                        Icon(
-                          animValue > 0.5 ? Icons.keyboard_arrow_down_rounded : Icons.keyboard_arrow_up_rounded,
-                          color: const Color(0xFFF59E0B),
-                          size: 16,
+                        const SizedBox(width: 4),
+                        _buildPocketAction(
+                          icon: Icons.qr_code_scanner_rounded,
+                          label: 'QRIS',
+                          onTap: widget.onPayQrisTap,
+                        ),
+                        const SizedBox(width: 4),
+                        _buildPocketAction(
+                          icon: Icons.outbox_rounded,
+                          label: 'Tarik',
+                          onTap: widget.onWithdrawTap,
+                        ),
+                        const SizedBox(width: 4),
+                        _buildPocketAction(
+                          icon: Icons.stars_rounded,
+                          label: 'Poin',
+                          onTap: widget.onExchangePointsTap,
                         ),
                       ],
                     ),
@@ -598,6 +666,51 @@ class _GagePocketWalletState extends State<GagePocketWallet>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPocketAction({
+    required IconData icon,
+    required String label,
+    required VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        if (onTap != null) onTap();
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 1.5, vertical: 1),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 39,
+              height: 39,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.16),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: const Color(0xFFD4B996).withValues(alpha: 0.5),
+                  width: 1.0,
+                ),
+              ),
+              child: Icon(icon, size: 20, color: const Color(0xFFF59E0B)),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

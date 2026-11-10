@@ -34,6 +34,8 @@ class _GagePayScreenState extends State<GagePayScreen> {
   String _activeFilter = 'SEMUA'; // 'SEMUA', 'TOPUP', 'WITHDRAWAL', 'BELANJA'
   Map<String, dynamic>? _selectedWithdrawCard;
 
+  bool _isPromoBannerVisible = true;
+
   final List<Map<String, dynamic>> _userAccounts = [
     {
       'id': 'acc-bca',
@@ -172,7 +174,7 @@ class _GagePayScreenState extends State<GagePayScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1. Widget Saku Dompet Kulit 3D (Interactive Leather Pocket Wallet)
+              // 1. Widget Saku Dompet Kulit 3D (Interactive Leather Pocket Wallet dengan 4 Fitur Cepat Terintegrasi)
               GagePocketWallet(
                 balance: wallet.balance,
                 points: wallet.points,
@@ -192,115 +194,76 @@ class _GagePayScreenState extends State<GagePayScreen> {
                         _selectedWithdrawCard = card;
                       });
                     },
+                    onCardUpdated: (updated) {
+                      setState(() {
+                        final idx = _userAccounts.indexWhere((c) => c['id'] == updated['id']);
+                        if (idx != -1) {
+                          _userAccounts[idx] = updated;
+                        }
+                      });
+                    },
                   );
                 },
                 onAddAccountTap: () => _showAccountSelectionSheet(context),
-              ),
-
-              const SizedBox(height: 14),
-
-              // 2. Baris 4 Fitur Cepat (Top Up, Bayar QRIS, Tarik Saldo, Tukar Poin)
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-                decoration: BoxDecoration(
-                  color: isDark ? GageTheme.darkCard : Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: isDark ? GageTheme.darkBorder : Colors.grey.shade200),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.04),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildQuickAction(
-                      icon: Icons.add_circle_outline_rounded,
-                      label: 'Top Up',
-                      color: GageTheme.primary,
-                      isDark: isDark,
-                      onTap: () {
-                        TopupQrisDialog.showAsSheet(
-                          context,
-                          onTopupSuccess: (amt) {
-                            wallet.fetchWallet('usr-cust-01');
-                          },
-                        );
-                      },
-                    ),
-                    _buildQuickAction(
-                      icon: Icons.qr_code_scanner_rounded,
-                      label: 'Bayar QRIS',
-                      color: const Color(0xFF0284C7),
-                      isDark: isDark,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const QrisPayScreen()),
-                        );
-                      },
-                    ),
-                    _buildQuickAction(
-                      icon: Icons.outbox_rounded,
-                      label: 'Tarik Saldo',
-                      color: const Color(0xFF16A34A),
-                      isDark: isDark,
-                      onTap: () {
-                        if (_selectedWithdrawCard != null) {
-                          GageToast.show(
-                            context,
-                            'Menyiapkan penarikan ke ${_selectedWithdrawCard!['bank']} (${_selectedWithdrawCard!['maskedNumber']})...',
-                            type: GageToastType.info,
-                          );
-                        }
-                        GageWithdrawSheet.show(context);
-                      },
-                    ),
-                    _buildQuickAction(
-                      icon: Icons.stars_rounded,
-                      label: 'Tukar Poin',
-                      color: const Color(0xFFD97706),
-                      isDark: isDark,
-                      onTap: () => _showExchangePointsSheet(context, wallet),
-                    ),
-                  ],
-                ),
+                onTopUpTap: () {
+                  TopupQrisDialog.showAsSheet(
+                    context,
+                    onTopupSuccess: (amt) {
+                      wallet.fetchWallet('usr-cust-01');
+                    },
+                  );
+                },
+                onPayQrisTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const QrisPayScreen()),
+                  );
+                },
+                onWithdrawTap: () {
+                  if (_selectedWithdrawCard != null) {
+                    GageToast.show(
+                      context,
+                      'Menyiapkan penarikan ke ${_selectedWithdrawCard!['bank']} (${_selectedWithdrawCard!['maskedNumber']})...',
+                      type: GageToastType.info,
+                    );
+                  }
+                  GageWithdrawSheet.show(context);
+                },
+                onExchangePointsTap: () => _showExchangePointsSheet(context, wallet),
               ),
 
               const SizedBox(height: 16),
 
-              // 3. Banner Promo GAGEPay Ramping
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: AspectRatio(
-                  aspectRatio: 16 / 4.5,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      Image.asset(
-                        'assets/images/banner_gagepay_promo.png',
-                        fit: BoxFit.cover,
-                        errorBuilder: (c, e, s) => Container(color: const Color(0xFF382620)),
-                      ),
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.transparent,
-                              Colors.black.withValues(alpha: 0.1),
-                              Colors.black.withValues(alpha: 0.65),
-                            ],
-                            stops: const [0.0, 0.45, 1.0],
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
+              // 2. Banner Promo GAGEPay Dinamis (Dapat dimunculkan/dihilangkan)
+              if (_isPromoBannerVisible) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: AspectRatio(
+                    aspectRatio: 16 / 4.5,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.asset(
+                          'assets/images/banner_gagepay_promo.png',
+                          fit: BoxFit.cover,
+                          errorBuilder: (c, e, s) => Container(color: const Color(0xFF382620)),
+                        ),
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.transparent,
+                                Colors.black.withValues(alpha: 0.1),
+                                Colors.black.withValues(alpha: 0.65),
+                              ],
+                              stops: const [0.0, 0.45, 1.0],
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                            ),
                           ),
                         ),
-                      ),
-                      Padding(
+
+                        Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         child: Row(
                           children: [
@@ -372,8 +335,8 @@ class _GagePayScreenState extends State<GagePayScreen> {
                   ),
                 ),
               ),
-
-              const SizedBox(height: 22),
+              const SizedBox(height: 16),
+            ],
 
               // 4. Header Riwayat Transaksi (Sesuai Benchmark Gambar 4)
               Row(
@@ -627,9 +590,37 @@ class _GagePayScreenState extends State<GagePayScreen> {
                     final gradientColors = (acc['gradient'] as List?)?.cast<Color>() ??
                         [acc['color'] as Color, Colors.black87];
 
-                    return Container(
-                      width: 270,
-                      margin: const EdgeInsets.only(right: 14, top: 4, bottom: 8),
+                    return GestureDetector(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        Gage3DFlipCardDialog.show(
+                          context,
+                          cardData: acc,
+                          isPrimary: isPrimary,
+                          onSetAsPrimary: () {
+                            setSheetState(() {
+                              setState(() {
+                                _userAccounts.remove(acc);
+                                _userAccounts.insert(0, acc);
+                                _selectedWithdrawCard = acc;
+                              });
+                            });
+                          },
+                          onCardUpdated: (updated) {
+                            setSheetState(() {
+                              setState(() {
+                                final cardIdx = _userAccounts.indexWhere((c) => c['id'] == updated['id']);
+                                if (cardIdx != -1) {
+                                  _userAccounts[cardIdx] = updated;
+                                }
+                              });
+                            });
+                          },
+                        );
+                      },
+                      child: Container(
+                        width: 270,
+                        margin: const EdgeInsets.only(right: 14, top: 4, bottom: 8),
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
@@ -758,8 +749,9 @@ class _GagePayScreenState extends State<GagePayScreen> {
                           ),
                         ],
                       ),
-                    );
-                  },
+                    ),
+                  );
+                },
                 ),
               ),
 
@@ -794,6 +786,8 @@ class _GagePayScreenState extends State<GagePayScreen> {
     String selectedBank = 'BCA';
     final accNumCtrl = TextEditingController();
     final nameCtrl = TextEditingController(text: 'SITI RAHMAWATI');
+    List<Color> selectedGradient = (Gage3DFlipCardDialog.colorSwatches[1]['colors'] as List<Color>);
+    String? validationError;
 
     GageFloatingSheet.show(
       context: context,
@@ -802,91 +796,269 @@ class _GagePayScreenState extends State<GagePayScreen> {
         builder: (ctx, setSheetState) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Pilih Bank / Dompet Digital:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.grey.shade700)),
+              // 1. Pilihan Desain Kartu (Lingkaran Warna ala Nusa Kasir)
+              Text(
+                'Pilihan Desain Kartu:',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white70 : const Color(0xFF475569),
+                ),
+              ),
               const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: ['BCA', 'Mandiri', 'BRI', 'BNI', 'GoPay', 'DANA', 'OVO'].map((bank) {
-                  final isSel = selectedBank == bank;
-                  return ChoiceChip(
-                    label: Text(bank),
-                    selected: isSel,
-                    selectedColor: GageTheme.primaryLight,
-                    labelStyle: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
-                      color: isSel ? GageTheme.primary : (isDark ? Colors.white70 : Colors.black87),
-                    ),
-                    shape: const StadiumBorder(),
-                    onSelected: (val) {
-                      if (val) setSheetState(() => selectedBank = bank);
-                    },
-                  );
-                }).toList(),
+              SizedBox(
+                height: 58,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: Gage3DFlipCardDialog.colorSwatches.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 10),
+                  itemBuilder: (c, idx) {
+                    final swatch = Gage3DFlipCardDialog.colorSwatches[idx];
+                    final colors = swatch['colors'] as List<Color>;
+                    final name = swatch['name'] as String;
+                    final isSelected = selectedGradient.first == colors.first && selectedGradient.last == colors.last;
+
+                    return GestureDetector(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setSheetState(() => selectedGradient = colors);
+                      },
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: colors,
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isSelected ? (isDark ? Colors.white : GageTheme.primary) : Colors.black12,
+                                width: isSelected ? 2.5 : 1.0,
+                              ),
+                              boxShadow: isSelected
+                                  ? [
+                                      BoxShadow(
+                                        color: colors.first.withValues(alpha: 0.4),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            child: isSelected
+                                ? const Center(
+                                    child: Icon(Icons.check_rounded, color: Colors.white, size: 18),
+                                  )
+                                : null,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            name.split(' ').first,
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              color: isSelected
+                                  ? (isDark ? Colors.white : GageTheme.primary)
+                                  : (isDark ? Colors.white60 : Colors.black54),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
               ),
               const SizedBox(height: 14),
-              Text('Nomor Rekening / No. HP E-Wallet:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.grey.shade700)),
+
+              // 2. Dropdown Bank / E-Wallet Mitra Flip
+              Text(
+                'Pilih Bank / E-Wallet (Mitra Flip):',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white70 : const Color(0xFF475569),
+                ),
+              ),
+              const SizedBox(height: 6),
+              DropdownButtonFormField<String>(
+                value: selectedBank,
+                decoration: InputDecoration(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                  ),
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                ),
+                dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                items: Gage3DFlipCardDialog.flipInstitutions.map((inst) {
+                  final code = inst['code']!;
+                  final name = inst['name']!;
+                  final isEwallet = inst['type'] == 'ewallet';
+                  return DropdownMenuItem<String>(
+                    value: code,
+                    child: Row(
+                      children: [
+                        Icon(
+                          isEwallet ? Icons.account_balance_wallet_rounded : Icons.account_balance_rounded,
+                          size: 18,
+                          color: isEwallet ? const Color(0xFF0D9488) : const Color(0xFF1E3A8A),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          name,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+                onChanged: (val) {
+                  if (val != null) {
+                    setSheetState(() {
+                      selectedBank = val;
+                      validationError = Gage3DFlipCardDialog.validateAccountNumber(selectedBank, accNumCtrl.text);
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+
+              // 3. Nomor Rekening dengan Validasi Khas Bank
+              Text(
+                'Nomor Rekening / No. HP E-Wallet:',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white70 : const Color(0xFF475569),
+                ),
+              ),
               const SizedBox(height: 6),
               TextField(
                 controller: accNumCtrl,
                 keyboardType: TextInputType.number,
+                style: TextStyle(
+                  color: isDark ? Colors.white : Colors.black87,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
                 decoration: InputDecoration(
-                  hintText: 'Misal: 552499104242',
-                  hintStyle: TextStyle(fontSize: 12, color: Colors.grey.shade400),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  hintText: selectedBank == 'BRI'
+                      ? '15 digit angka (cth: 001201000123500)'
+                      : selectedBank == 'Mandiri'
+                          ? '13 digit angka (cth: 1370012345678)'
+                          : selectedBank == 'BCA'
+                              ? '10 digit angka (cth: 8210394812)'
+                              : 'Nomor HP e-wallet (cth: 081234567890)',
+                  hintStyle: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.white30 : Colors.black38,
+                    letterSpacing: 0,
+                  ),
+                  errorText: validationError,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   filled: true,
-                  fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                  fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
                   ),
                 ),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                onChanged: (val) {
+                  setSheetState(() {
+                    validationError = Gage3DFlipCardDialog.validateAccountNumber(selectedBank, val);
+                  });
+                },
               ),
               const SizedBox(height: 12),
-              Text('Nama Pemilik Rekening:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.grey.shade700)),
+
+              // 4. Nama Pemilik Rekening
+              Text(
+                'Nama Pemilik Rekening:',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white70 : const Color(0xFF475569),
+                ),
+              ),
               const SizedBox(height: 6),
               TextField(
                 controller: nameCtrl,
                 textCapitalization: TextCapitalization.characters,
+                style: TextStyle(
+                  color: isDark ? Colors.white : Colors.black87,
+                  fontWeight: FontWeight.w600,
+                ),
                 decoration: InputDecoration(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  hintText: 'Nama sesuai buku tabungan / e-wallet',
+                  hintStyle: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.white30 : Colors.black38,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   filled: true,
-                  fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                  fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
                   ),
                 ),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
               ),
               const SizedBox(height: 18),
+
               SizedBox(
                 width: double.infinity,
-                height: 44,
+                height: 48,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: GageTheme.primary,
                     foregroundColor: Colors.white,
-                    shape: const StadiumBorder(),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
                   ),
                   onPressed: () {
-                    final num = accNumCtrl.text.trim();
+                    final err = Gage3DFlipCardDialog.validateAccountNumber(selectedBank, accNumCtrl.text);
+                    if (err != null) {
+                      setSheetState(() => validationError = err);
+                      GageToast.show(context, err, type: GageToastType.warning);
+                      return;
+                    }
                     final name = nameCtrl.text.trim();
-                    if (num.isEmpty || name.isEmpty) return;
+                    if (name.isEmpty) {
+                      GageToast.show(context, 'Nama pemilik akun tidak boleh kosong', type: GageToastType.warning);
+                      return;
+                    }
+
                     Navigator.pop(ctx);
+                    final num = accNumCtrl.text.trim().replaceAll(' ', '');
                     final masked = num.length >= 4 ? '•••• ${num.substring(num.length - 4)}' : '•••• $num';
+                    final isEwallet = ['GoPay', 'OVO', 'DANA', 'ShopeePay', 'LinkAja'].contains(selectedBank);
+
                     final newAcc = {
                       'id': 'acc-${DateTime.now().millisecondsSinceEpoch}',
                       'bank': selectedBank,
                       'label': selectedBank,
-                      'holder': name,
+                      'holder': name.toUpperCase(),
                       'accountNumber': num,
+                      'fullNumber': num,
                       'maskedNumber': masked,
-                      'color': selectedBank == 'GoPay' || selectedBank == 'DANA' ? const Color(0xFF0D9488) : const Color(0xFF1E3A8A),
-                      'icon': selectedBank == 'GoPay' || selectedBank == 'DANA' || selectedBank == 'OVO' ? Icons.account_balance_wallet_rounded : Icons.account_balance_rounded,
+                      'validThru': '12 / 29',
+                      'color': selectedGradient.first,
+                      'gradient': selectedGradient,
+                      'chipColor': const Color(0xFFF59E0B),
+                      'icon': isEwallet ? Icons.account_balance_wallet_rounded : Icons.account_balance_rounded,
                     };
                     setState(() {
                       _userAccounts.add(newAcc);
@@ -898,7 +1070,7 @@ class _GagePayScreenState extends State<GagePayScreen> {
                       type: GageToastType.success,
                     );
                   },
-                  child: const Text('Simpan Rekening', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5)),
+                  child: const Text('Simpan Rekening', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                 ),
               ),
               const SizedBox(height: 10),
@@ -1217,48 +1389,6 @@ class _GagePayScreenState extends State<GagePayScreen> {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildQuickAction({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required bool isDark,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      borderRadius: BorderRadius.circular(14),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color, size: 22),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white70 : Colors.black87,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 

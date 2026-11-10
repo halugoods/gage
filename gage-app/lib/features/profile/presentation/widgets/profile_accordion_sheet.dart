@@ -303,7 +303,7 @@ class _ProfileAccordionSheetState extends State<ProfileAccordionSheet> {
                           ),
                           trailing: const Icon(Icons.open_in_new_rounded, size: 16, color: Color(0xFF16A34A)),
                           onTap: () async {
-                            final uri = Uri.parse('https://wa.me/6281234567890?text=Halo%20Admin%20GAGE,%20saya%20butuh%20bantuan%20terkait%20pesanan.');
+                            final uri = Uri.parse('https://wa.me/6281226001000?text=Halo%20Admin%20GAGE,%20saya%20butuh%20bantuan%20terkait%20pesanan.');
                             if (await canLaunchUrl(uri)) {
                               await launchUrl(uri, mode: LaunchMode.externalApplication);
                             }

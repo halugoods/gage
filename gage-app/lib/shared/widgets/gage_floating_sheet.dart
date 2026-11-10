@@ -109,7 +109,7 @@ class GageFloatingSheet {
                           ],
                         ),
                       ),
-                      const Divider(height: 12),
+                      const SizedBox(height: 4),
                     ],
                     Flexible(
                       child: SingleChildScrollView(

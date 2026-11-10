@@ -9,6 +9,8 @@ import 'package:gage_app/core/constants/qris_engine.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
+import 'package:gage_app/shared/widgets/horizontal_ruler_picker.dart';
+import 'package:gage_app/core/services/gage_security_service.dart';
 
 class TopupQrisDialog extends StatefulWidget {
   final Function(int addedBalance) onTopupSuccess;
@@ -48,7 +50,7 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
   bool _isQrSaved = false;
   Timer? _autoConfirmTimer;
 
-  final List<int> _nominalOptions = [10000, 20000, 50000, 100000, 200000];
+  final List<int> _nominalOptions = [10000, 20000, 50000, 100000, 200000, 500000];
   final currencyFormatter = NumberFormat.currency(
     locale: 'id_ID',
     symbol: 'Rp ',
@@ -124,7 +126,7 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
     super.dispose();
   }
 
-  void _generateQris() {
+  Future<void> _generateQris() async {
     int finalAmount = _selectedAmount;
     if (_isCustom) {
       final parsed = int.tryParse(_customController.text.replaceAll(RegExp(r'[^0-9]'), ''));
@@ -137,6 +139,19 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
         return;
       }
       finalAmount = parsed;
+    }
+
+    // Otorisasi Keamanan Biometrik / PIN sebelum membuat transaksi top up
+    final authorized = await GageSecurityService.instance.verifyAuthorization(
+      context,
+      title: 'Top Up GAGEPay',
+      amount: finalAmount,
+    );
+    if (!authorized) {
+      if (mounted) {
+        GageToast.show(context, 'Otorisasi transaksi dibatalkan.', type: GageToastType.warning);
+      }
+      return;
     }
 
     // Kode unik acak 1-499 rupiah (prioritas angka rendah < 500 saat antrean normal untuk ShopeePay)
@@ -401,10 +416,85 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
                 const SizedBox(height: 16),
 
                 if (!_isQrGenerated) ...[
+                  // Card Slider Interaktif Kelipatan Rp 5.000 Full-Rounded
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          'GESER NOMINAL TOP UP',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.0,
+                            color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          currencyFormatter.format(_selectedAmount),
+                          style: TextStyle(
+                            fontSize: 27,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.5,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        // Mistar Skala Horizontal Interaktif (Ruler Wheel)
+                        HorizontalRulerPicker(
+                          initialValue: _selectedAmount,
+                          minValue: 5000,
+                          maxValue: 5000000, // Fleksibel s.d. Rp 5.000.000+
+                          step: 5000,
+                          activeColor: GageTheme.primary,
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedAmount = val;
+                              _isCustom = false;
+                              _customController.text = val.toString();
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 6),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          child: Row(
+                            children: [
+                              Text('Rp 5.000', style: TextStyle(fontSize: 10, color: isDark ? Colors.white38 : Colors.grey.shade500, fontWeight: FontWeight.bold)),
+                              const Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: GageTheme.primary.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text('Kelipatan Rp 5.000', style: TextStyle(fontSize: 9, color: GageTheme.primary, fontWeight: FontWeight.bold)),
+                              ),
+                              const Spacer(),
+                              Text('Bebas Limit', style: TextStyle(fontSize: 10, color: isDark ? Colors.white38 : Colors.grey.shade500, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 14),
+
                   // Pilihan Nominal Cepat
-                  const Text(
+                  Text(
                     'Pilihan Nominal Cepat',
-                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Colors.black87),
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
                   ),
                   const SizedBox(height: 10),
 
@@ -416,20 +506,21 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
                       final isSelected = !_isCustom && _selectedAmount == amount;
                       return InkWell(
                         onTap: () {
+                          HapticFeedback.lightImpact();
                           setState(() {
                             _selectedAmount = amount;
                             _isCustom = false;
-                            _customController.clear();
+                            _customController.text = amount.toString();
                           });
                         },
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(14),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                           decoration: BoxDecoration(
-                            color: isSelected ? GageTheme.primary : const Color(0xFFF8FAFC),
-                            borderRadius: BorderRadius.circular(12),
+                            color: isSelected ? GageTheme.primary : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
+                            borderRadius: BorderRadius.circular(14),
                             border: Border.all(
-                              color: isSelected ? GageTheme.primary : const Color(0xFFE2E8F0),
+                              color: isSelected ? GageTheme.primary : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
                               width: 1.2,
                             ),
                             boxShadow: isSelected
@@ -445,9 +536,9 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
                           child: Text(
                             currencyFormatter.format(amount),
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: 12.5,
                               fontWeight: FontWeight.bold,
-                              color: isSelected ? Colors.white : const Color(0xFF334155),
+                              color: isSelected ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF334155)),
                             ),
                           ),
                         ),
@@ -455,15 +546,15 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
                     }).toList(),
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
 
-                  // Form Field Input Manual Bersih Anti-Excel
+                  // Form Field Input Manual Bersih
                   Container(
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(14),
+                      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: _isCustom ? GageTheme.primary : const Color(0xFFE2E8F0),
+                        color: _isCustom ? GageTheme.primary : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
                         width: _isCustom ? 1.5 : 1.0,
                       ),
                     ),
@@ -474,7 +565,7 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                           decoration: BoxDecoration(
-                            color: _isCustom ? GageTheme.primary.withValues(alpha: 0.1) : Colors.grey.shade200,
+                            color: _isCustom ? GageTheme.primary.withValues(alpha: 0.1) : (isDark ? Colors.white10 : Colors.grey.shade200),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
@@ -482,7 +573,7 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
                             style: TextStyle(
                               fontSize: 13.5,
                               fontWeight: FontWeight.bold,
-                              color: _isCustom ? GageTheme.primary : Colors.grey.shade700,
+                              color: _isCustom ? GageTheme.primary : (isDark ? Colors.white70 : Colors.grey.shade700),
                             ),
                           ),
                         ),
@@ -493,17 +584,17 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
                             controller: _customController,
                             keyboardType: TextInputType.number,
                             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 14.5,
-                              color: Colors.black87,
+                              color: isDark ? Colors.white : Colors.black87,
                             ),
                             decoration: InputDecoration(
                               border: InputBorder.none,
                               hintText: 'Ketik nominal lain...',
                               hintStyle: TextStyle(
                                 fontSize: 13,
-                                color: Colors.grey.shade400,
+                                color: isDark ? Colors.white38 : Colors.grey.shade400,
                                 fontWeight: FontWeight.normal,
                               ),
                               isDense: true,
@@ -512,6 +603,10 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
                             onChanged: (val) {
                               setState(() {
                                 _isCustom = val.trim().isNotEmpty;
+                                final parsed = int.tryParse(val.replaceAll('.', ''));
+                                if (parsed != null && parsed >= 5000 && parsed <= 10000000) {
+                                  _selectedAmount = (parsed / 5000).round() * 5000;
+                                }
                               });
                             },
                           ),
@@ -793,7 +888,7 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
     }
 
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
       backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
       insetPadding: EdgeInsets.symmetric(
         horizontal: isTablet ? (screenWidth - 480) / 2 : 16,

@@ -372,26 +372,37 @@ class CartProvider extends ChangeNotifier {
 
   int get totalFoodDiscount => _foodPromoDiscount.clamp(0, subtotal);
 
-  // Ongkir Customer dengan perhitungan Decoy Effect (0-3km: 9rb vs 12rb)
-  int get rawShippingFee => GagePricingService.calculateCustomerShippingFee(
-        distanceKm: _distanceKm,
-        deliveryOption: _deliveryOption,
-        merchantCount: merchantCount,
-      );
+  // 1. Opsi Prioritas (Express Direct: Reguler + Rp 4.000)
+  int get prioritasShippingFee => regulerShippingFee + 4000;
 
-  // Opsi Reguler (Decoy Prioritas: 0-3km Rp 12.000)
+  // 2. Opsi Reguler (Decoy Standar: 0-3km Rp 12.000)
   int get regulerShippingFee => GagePricingService.calculateCustomerShippingFee(
         distanceKm: _distanceKm,
         deliveryOption: 'REGULER',
         merchantCount: merchantCount,
       );
 
-  // Opsi Hemat (Tarif Dasar: 0-3km Rp 9.000)
+  // 3. Opsi Hemat (Tarif Dasar Saver Batch: 0-3km Rp 9.000)
   int get hematShippingFee => GagePricingService.calculateCustomerShippingFee(
         distanceKm: _distanceKm,
         deliveryOption: 'HEMAT',
         merchantCount: merchantCount,
       );
+
+  // Syarat Opsi Hemat: Hanya aktif jika jarak >= 2.5 km (untuk melindungi upah minimum driver)
+  bool get isHematAvailable => _distanceKm >= 2.5;
+
+  // Ongkir Customer Terpilih (Sesuai Opsi Aktif Tanpa Mengubah Getter Masing-Masing)
+  int get rawShippingFee {
+    final opt = _deliveryOption.toUpperCase();
+    if (opt == 'PRIORITAS') {
+      return prioritasShippingFee;
+    } else if (opt == 'HEMAT') {
+      return isHematAvailable ? hematShippingFee : regulerShippingFee;
+    } else {
+      return regulerShippingFee;
+    }
+  }
 
   int get totalShippingDiscount => _deliveryPromoDiscount.clamp(0, rawShippingFee);
 

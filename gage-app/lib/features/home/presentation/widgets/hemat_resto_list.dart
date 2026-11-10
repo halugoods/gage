@@ -16,6 +16,8 @@ class HematRestoList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -27,13 +29,13 @@ class HematRestoList extends StatelessWidget {
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text(
                       'Paket Hemat 20 Ribuan',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w900,
-                        color: GageTheme.textPrimary,
+                        color: isDark ? Colors.white : GageTheme.textPrimary,
                       ),
                     ),
                     SizedBox(height: 2),

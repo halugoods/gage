@@ -19,7 +19,7 @@ class _MerchantChatListScreenState extends State<MerchantChatListScreen> {
       'orderId': 'ORD-9021',
       'name': 'Mas Budi (Kurir GAGE)',
       'role': 'driver',
-      'phone': '6281234567890',
+      'phone': '6281226001000',
       'lastMessage': 'Sudah sampai depan outlet ya mas, pesanan siap?',
       'time': '12:46',
       'unread': 1,

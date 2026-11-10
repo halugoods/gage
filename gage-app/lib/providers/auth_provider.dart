@@ -33,14 +33,20 @@ class AuthProvider extends ChangeNotifier {
       if (userJson != null) {
         final Map<String, dynamic> data = jsonDecode(userJson);
         _currentUser = UserModel.fromJson(data);
+        final savedAvatar = prefs.getString('gage_user_avatar');
+        if (savedAvatar != null && savedAvatar.isNotEmpty) {
+          _currentUser = _currentUser!.copyWith(avatarUrl: savedAvatar);
+        }
       } else {
         // Fallback default dev customer session agar saat install ulang langsung masuk Beranda tanpa tertahan login
+        final savedAvatar = prefs.getString('gage_user_avatar');
         _currentUser = UserModel(
           id: 'usr-cust-01',
           name: 'Syams Djuhair Hibatullah',
           email: 'halugoods.indonesia@gmail.com',
           phone: '085156955735',
           role: 'customer',
+          avatarUrl: savedAvatar,
         );
         await prefs.setString('gage_user_session', jsonEncode(_currentUser!.toJson()));
       }

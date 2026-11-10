@@ -162,7 +162,7 @@ class MerchantOrderProvider extends ChangeNotifier {
         customerPhone: '081987654321',
         driverName: 'Mas Joko (Kurir GAGE)',
         driverPlate: 'AD 4120 U',
-        driverPhone: '081234567890',
+        driverPhone: '081226001000',
         status: 'COOKING',
         paymentMethod: 'GAGEPAY',
         paymentStatus: 'PAID',

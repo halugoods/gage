@@ -931,7 +931,7 @@ class _MerchantOrderCard extends StatelessWidget {
                             orderId: order.id,
                             recipientName: order.customerName ?? 'Pelanggan GAGE',
                             recipientRole: 'customer',
-                            recipientPhone: order.customerPhone ?? '081234567890',
+                            recipientPhone: order.customerPhone ?? '081226001000',
                             currentRole: 'merchant',
                           ),
                         ),
@@ -2943,7 +2943,7 @@ class _MerchantSettingsTab extends StatelessWidget {
                   icon: const Icon(Icons.headset_mic_rounded, size: 18),
                   label: const Text('Hubungi Support GAGE Pracimantoro (WhatsApp)'),
                   onPressed: () async {
-                    final uri = Uri.parse('https://wa.me/6281234567890?text=Halo%20Tim%20GAGE%20Pracimantoro,%20saya%20Mitra%20Dimsum%20Sewu');
+                    final uri = Uri.parse('https://wa.me/6281226001000?text=Halo%20Tim%20GAGE%20Pracimantoro,%20saya%20Mitra%20Dimsum%20Sewu');
                     if (await canLaunchUrl(uri)) {
                       await launchUrl(uri, mode: LaunchMode.externalApplication);
                     }

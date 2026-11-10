@@ -48,6 +48,17 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
     _loadCatalogData();
   }
 
+  int _parseInt(dynamic val, [int fallback = 0]) {
+    if (val == null) return fallback;
+    if (val is int) return val;
+    if (val is num) return val.toInt();
+    if (val is String) {
+      final cleaned = val.replaceAll(RegExp(r'[^0-9\-]'), '');
+      return int.tryParse(cleaned) ?? fallback;
+    }
+    return fallback;
+  }
+
   Future<void> _loadCatalogData() async {
     setState(() => _isLoading = true);
     await Future.delayed(const Duration(milliseconds: 280));
@@ -1224,10 +1235,10 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
-    final prodId = prod['id'] as String;
+    final prodId = prod['id']?.toString() ?? '';
     final prodName = prod['name'] ?? 'Produk';
     final prodImage = prod['image'] ?? 'assets/images/prod_beras.png';
-    final price = prod['price'] as int;
+    final price = _parseInt(prod['price'], 0);
     final unit = prod['unit'] ?? 'pcs';
     final desc = prod['desc'] ?? 'Produk segar & berkualitas terbaik pilihan langsung dari toko mitra resmi GAGE.';
     final storeId = widget.store['id'] ?? 'store-default';
@@ -1477,95 +1488,169 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
     required bool isFood,
     required bool isDark,
   }) {
-    // Sunset Orange (#EA580C) for Product discount, Deep Teal (#0D9488) for Delivery discount
-    final activeColor = isFood ? const Color(0xFFEA580C) : const Color(0xFF0D9488);
-    final bgColor = isFood
-        ? (isDark ? const Color(0xFF2A170A) : const Color(0xFFFFF7ED))
-        : (isDark ? const Color(0xFF032726) : const Color(0xFFF0FDFA));
+    final stubGradient = isFood
+        ? const [Color(0xFFF52D3D), Color(0xFFE11D48)] // Red Diskon Food
+        : const [Color(0xFF0D9488), Color(0xFF0F766E)]; // Teal Gratis Ongkir
+    final activeColor = isFood ? const Color(0xFFF52D3D) : const Color(0xFF0D9488);
     final badgeTag = isFood ? '-${discount ~/ 1000}RB' : 'ONGKIR';
+    final isApplied = isFood ? (cart.foodPromoCode == code) : (cart.deliveryPromoCode == code);
 
     return Container(
-      width: 240,
+      width: 250,
       margin: const EdgeInsets.only(right: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: activeColor.withValues(alpha: 0.35),
-          width: 1.0,
+          color: isApplied ? activeColor : (isDark ? Colors.white12 : Colors.grey.shade200),
+          width: isApplied ? 1.5 : 1.0,
         ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(
-              color: activeColor.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              isFood ? Icons.local_offer_rounded : Icons.delivery_dining_rounded,
-              color: activeColor,
-              size: 16,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                      decoration: BoxDecoration(
-                        color: activeColor,
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                      child: Text(
-                        badgeTag,
-                        style: const TextStyle(
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : Colors.black87,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  sub,
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    color: isDark ? Colors.grey.shade400 : Colors.black54,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-    );
-  }
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(13),
+        child: Stack(
+          children: [
+            Row(
+              children: [
+                // Stub Kiri
+                Container(
+                  width: 58,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: stubGradient,
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(alpha: 0.2),
+                        ),
+                        child: Icon(
+                          isFood ? Icons.percent_rounded : Icons.local_shipping_rounded,
+                          color: Colors.white,
+                          size: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        isFood ? 'Diskon' : 'Ongkir',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
 
+                // Garis Pembatas Perforasi
+                Container(
+                  width: 1,
+                  color: isDark ? Colors.white10 : Colors.grey.shade200,
+                ),
+
+                // Konten Kanan
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: activeColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                badgeTag,
+                                style: TextStyle(
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.w900,
+                                  color: activeColor,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            Expanded(
+                              child: Text(
+                                title,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          sub,
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            // Takik Tiket Atas & Bawah
+            Positioned(
+              left: 52,
+              top: -6,
+              child: Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+            Positioned(
+              left: 52,
+              bottom: -6,
+              child: Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2159,8 +2244,8 @@ class _ShopStoreDetailScreenState extends State<ShopStoreDetailScreen> {
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
                   final prod = _filteredCatalog[index];
-                  final price = prod['price'] as int;
-                  final prodId = prod['id'] as String;
+                  final price = _parseInt(prod['price'], 0);
+                  final prodId = prod['id']?.toString() ?? '';
                   final itemQty = cart.getItemQuantity(prodId);
 
                   return Container(

@@ -10,6 +10,8 @@ class GageNotification {
   final DateTime timestamp;
   bool isRead;
 
+  String get type => category;
+
   GageNotification({
     required this.id,
     required this.title,
@@ -50,6 +52,13 @@ class NotificationService extends ChangeNotifier {
   List<GageNotification> get items => List.unmodifiable(_items);
 
   int get unreadCount => _items.where((n) => !n.isRead).length;
+  int? _customUnreadPromoCount;
+  int get unreadPromoCount => _customUnreadPromoCount ?? _items.where((n) => !n.isRead && n.category == 'promo').length;
+  set unreadPromoCount(int val) {
+    _customUnreadPromoCount = val;
+    notifyListeners();
+  }
+  int unreadChatCount = 2;
   bool get hasUnread => unreadCount > 0;
 
   Future<void> _loadFromStorage() async {
@@ -111,6 +120,26 @@ class NotificationService extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> addNotification({
+    required String title,
+    required String body,
+    String category = 'sistem',
+    String type = 'sistem',
+  }) async {
+    final cat = category != 'sistem' ? category : type;
+    final newNotif = GageNotification(
+      id: 'notif-${DateTime.now().millisecondsSinceEpoch}',
+      title: title,
+      body: body,
+      category: cat,
+      timestamp: DateTime.now(),
+      isRead: false,
+    );
+    _items.insert(0, newNotif);
+    notifyListeners();
+    _saveToStorage();
+  }
+
   Future<void> markAllAsRead() async {
     for (final item in _items) {
       item.isRead = true;
@@ -126,6 +155,12 @@ class NotificationService extends ChangeNotifier {
       notifyListeners();
       _saveToStorage();
     }
+  }
+
+  Future<void> delete(String id) async {
+    _items.removeWhere((n) => n.id == id);
+    notifyListeners();
+    _saveToStorage();
   }
 
   Future<void> _saveToStorage() async {

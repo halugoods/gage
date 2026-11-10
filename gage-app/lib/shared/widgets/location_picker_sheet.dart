@@ -88,6 +88,9 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
   final TextEditingController _newAddrNameCtrl = TextEditingController();
   final TextEditingController _newAddrNotesCtrl = TextEditingController();
   final TextEditingController _newAddrSearchCtrl = TextEditingController();
+  List<OsmPlace> _newAddrSearchResults = [];
+  bool _isNewAddrSearching = false;
+  Timer? _newAddrDebounce;
   late LatLng _activePreviewLocation;
   String _activePreviewTitle = 'Titik Lokasi Pengantaran';
   late LatLng _selectedPin;
@@ -174,9 +177,35 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
     });
   }
 
+  void _onNewAddrSearchChanged(String val) {
+    _newAddrDebounce?.cancel();
+    final clean = val.trim();
+    if (clean.length < 2) {
+      setState(() {
+        _newAddrSearchResults = [];
+        _isNewAddrSearching = false;
+      });
+      return;
+    }
+
+    setState(() => _isNewAddrSearching = true);
+    _newAddrDebounce = Timer(const Duration(milliseconds: 320), () async {
+      final results = await OsmGeocodingService.searchPlaces(
+        clean,
+        proximityLocation: _selectedPin,
+      );
+      if (!mounted) return;
+      setState(() {
+        _newAddrSearchResults = results;
+        _isNewAddrSearching = false;
+      });
+    });
+  }
+
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _newAddrDebounce?.cancel();
     _searchCtrl.dispose();
     _newAddrNameCtrl.dispose();
     _newAddrNotesCtrl.dispose();
@@ -228,15 +257,8 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
         return;
       }
 
-      // Membaca posisi GPS riil langsung dari hardware perangkat
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 8),
-        ),
-      );
-
-      final gps = LatLng(position.latitude, position.longitude);
+      // Ambil posisi GPS riil dengan fallback cerdas ke LastKnownPosition / Cache
+      final gps = await LocationService.getCurrentLocation(forceFresh: true);
       final addr = await OsmGeocodingService.reverseGeocode(gps);
       final fullAddr = OsmGeocodingService.formatFullOfficialAddress(gps);
 
@@ -250,28 +272,26 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
       ));
 
       if (!mounted) return;
-      setState(() {
-        _activePreviewLocation = gps;
-        _selectedPin = gps;
-        _activePreviewTitle = addr;
-        _detectedAddr = addr;
-        _detectedFullAddr = fullAddr;
-        _hasPinMoved = true;
-        _isAcquiringGps = false;
-      });
-      _miniMapController.move(gps, 16.5);
+      setState(() => _isAcquiringGps = false);
+      Navigator.pop(context);
+      widget.onSelected(addr, fullAddr, gps);
       GageToast.show(
         context,
-        'Peta diarahkan ke lokasi GPS saat ini',
+        'Lokasi saat ini berhasil dipilih',
         type: GageToastType.success,
       );
     } catch (e) {
+      final fallbackGps = LocationService.cachedOrFallback;
+      final addr = await OsmGeocodingService.reverseGeocode(fallbackGps);
+      final fullAddr = OsmGeocodingService.formatFullOfficialAddress(fallbackGps);
       if (!mounted) return;
       setState(() => _isAcquiringGps = false);
+      Navigator.pop(context);
+      widget.onSelected(addr, fullAddr, fallbackGps);
       GageToast.show(
         context,
-        'Sensor GPS sibuk atau sinyal lemah. Silakan coba lagi atau pilih lewat peta.',
-        type: GageToastType.error,
+        'Menggunakan lokasi GPS tersimpan',
+        type: GageToastType.info,
       );
     }
   }
@@ -301,13 +321,7 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
 
   Future<void> _acquireGpsForNewAddress() async {
     try {
-      final pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 8),
-        ),
-      );
-      final latLng = LatLng(pos.latitude, pos.longitude);
+      final latLng = await LocationService.getCurrentLocation(forceFresh: true);
       _updateSelectedPin(latLng);
       _accordionMapController.move(latLng, 17.0);
       if (mounted) {
@@ -315,7 +329,10 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
       }
     } catch (e) {
       if (mounted) {
-        GageToast.show(context, 'Gagal mendeteksi sinyal GPS', type: GageToastType.warning);
+        final fallback = LocationService.cachedOrFallback;
+        _updateSelectedPin(fallback);
+        _accordionMapController.move(fallback, 17.0);
+        GageToast.show(context, 'Menggunakan titik lokasi tersimpan', type: GageToastType.info);
       }
     }
   }
@@ -579,6 +596,7 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                       ),
                       onPressed: () {
                         setState(() => _hasPinMoved = false);
+                        Navigator.pop(context);
                         widget.onSelected(addressLabel, fullAddressLabel, center);
                         GageToast.show(context, 'Titik lokasi berhasil dikunci', type: GageToastType.success);
                       },
@@ -661,6 +679,7 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                       isDense: true,
                       contentPadding: EdgeInsets.zero,
                     ),
+                    onChanged: _onNewAddrSearchChanged,
                     onSubmitted: (query) async {
                       if (query.trim().length >= 2) {
                         final results = await OsmGeocodingService.searchPlaces(query.trim(), proximityLocation: _selectedPin);
@@ -668,14 +687,91 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                           final top = results.first;
                           _updateSelectedPin(top.location, title: top.title, fullAddr: top.displayName);
                           _accordionMapController.move(top.location, 17.0);
+                          _miniMapController.move(top.location, 17.0);
+                          setState(() => _newAddrSearchResults = []);
                         }
                       }
                     },
                   ),
                 ),
+                if (_newAddrSearchCtrl.text.isNotEmpty)
+                  GestureDetector(
+                    onTap: () {
+                      _newAddrSearchCtrl.clear();
+                      _onNewAddrSearchChanged('');
+                    },
+                    child: const Icon(Icons.close_rounded, size: 16, color: Colors.grey),
+                  ),
               ],
             ),
           ),
+
+          // Live Dropdown Hasil Pencarian Accordion
+          if (_isNewAddrSearching) ...[
+            const SizedBox(height: 6),
+            const LinearProgressIndicator(
+              minHeight: 2,
+              color: GageTheme.primary,
+              backgroundColor: Colors.transparent,
+            ),
+          ],
+          if (_newAddrSearchResults.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Container(
+              constraints: const BoxConstraints(maxHeight: 180),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: GageTheme.primary.withValues(alpha: 0.35)),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 3)),
+                ],
+              ),
+              child: ListView.separated(
+                shrinkWrap: true,
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                itemCount: _newAddrSearchResults.length,
+                separatorBuilder: (ctx, i) => Divider(height: 1, color: isDark ? Colors.white12 : Colors.grey.shade100),
+                itemBuilder: (ctx, idx) {
+                  final place = _newAddrSearchResults[idx];
+                  return ListTile(
+                    dense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                    leading: const Icon(Icons.location_on_rounded, size: 18, color: GageTheme.primary),
+                    title: Text(
+                      place.title,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    subtitle: Text(
+                      place.displayName,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: isDark ? Colors.white60 : Colors.black54,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      setState(() {
+                        _newAddrSearchCtrl.text = place.title;
+                        _newAddrSearchResults = [];
+                      });
+                      _updateSelectedPin(place.location, title: place.title, fullAddr: place.displayName);
+                      _accordionMapController.move(place.location, 17.0);
+                      _miniMapController.move(place.location, 17.0);
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
 
           // 2 Quick Chips: Lokasi Saat Ini & Pilih Lewat Peta
@@ -1151,6 +1247,9 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
               latitude: p.location.latitude,
               longitude: p.location.longitude,
             ));
+            if (mounted) {
+              Navigator.pop(context);
+            }
             widget.onSelected(p.title, p.displayName, p.location);
           },
         );
