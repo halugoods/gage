@@ -225,7 +225,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                   color: const Color(0xFF3B82F6),
                   onTap: () async {
                     Navigator.pop(ctx);
-                    final link = 'https://gage.app/m/${widget.merchant['id'] ?? 'resto'} - $restoName ($restoAddress)';
+                    final link = 'gage://merchant/${widget.merchant["id"] ?? "resto"} (Buka GAGE: https://gage.app/m/${widget.merchant["id"] ?? "resto"}) - $restoName';
                     await Clipboard.setData(ClipboardData(text: link));
                     if (context.mounted) {
                       GageToast.show(context, 'Tautan $restoName berhasil disalin ke clipboard!', type: GageToastType.success);
@@ -925,7 +925,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
 
     if (mId.contains('build') || mCat.contains('bangun')) {
       return [
-        _buildInteractiveVoucherCard(
+        _buildVoucherStubCard(
           context: context,
           cart: cart,
           code: 'PROYEKHEMAT',
@@ -935,7 +935,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
           isFood: true,
           isDark: isDark,
         ),
-        _buildInteractiveVoucherCard(
+        _buildVoucherStubCard(
           context: context,
           cart: cart,
           code: 'BANGUNRUMAH',
@@ -945,7 +945,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
           isFood: true,
           isDark: isDark,
         ),
-        _buildInteractiveVoucherCard(
+        _buildVoucherStubCard(
           context: context,
           cart: cart,
           code: 'ONGKIRFREE',
@@ -958,7 +958,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
       ];
     } else if (mId.contains('farm') || mCat.contains('tani') || mCat.contains('ternak')) {
       return [
-        _buildInteractiveVoucherCard(
+        _buildVoucherStubCard(
           context: context,
           cart: cart,
           code: 'SUBSIDITANI',
@@ -968,7 +968,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
           isFood: true,
           isDark: isDark,
         ),
-        _buildInteractiveVoucherCard(
+        _buildVoucherStubCard(
           context: context,
           cart: cart,
           code: 'PETANISUKSES',
@@ -978,7 +978,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
           isFood: true,
           isDark: isDark,
         ),
-        _buildInteractiveVoucherCard(
+        _buildVoucherStubCard(
           context: context,
           cart: cart,
           code: 'ONGKIRFREE',
@@ -991,7 +991,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
       ];
     } else if (mId.contains('shop') || mCat.contains('sembako') || mCat.contains('kelontong')) {
       return [
-        _buildInteractiveVoucherCard(
+        _buildVoucherStubCard(
           context: context,
           cart: cart,
           code: 'BELANJAHEMAT',
@@ -1001,7 +1001,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
           isFood: true,
           isDark: isDark,
         ),
-        _buildInteractiveVoucherCard(
+        _buildVoucherStubCard(
           context: context,
           cart: cart,
           code: 'SEMBAKOMURAH',
@@ -1011,7 +1011,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
           isFood: true,
           isDark: isDark,
         ),
-        _buildInteractiveVoucherCard(
+        _buildVoucherStubCard(
           context: context,
           cart: cart,
           code: 'ONGKIRFREE',
@@ -1024,7 +1024,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
       ];
     } else {
       return [
-        _buildInteractiveVoucherCard(
+        _buildVoucherStubCard(
           context: context,
           cart: cart,
           code: 'GAGEHEMAT',
@@ -1034,7 +1034,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
           isFood: true,
           isDark: isDark,
         ),
-        _buildInteractiveVoucherCard(
+        _buildVoucherStubCard(
           context: context,
           cart: cart,
           code: 'KULINER10',
@@ -1044,7 +1044,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
           isFood: true,
           isDark: isDark,
         ),
-        _buildInteractiveVoucherCard(
+        _buildVoucherStubCard(
           context: context,
           cart: cart,
           code: 'ONGKIRFREE',
@@ -2091,7 +2091,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
   }
 
 
-  Widget _buildInteractiveVoucherCard({
+  Widget _buildVoucherStubCard({
     required BuildContext context,
     required CartProvider cart,
     required String code,
@@ -2101,113 +2101,166 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
     required bool isFood,
     required bool isDark,
   }) {
-    // Sunset Orange (#EA580C) for Food discount, Deep Teal (#0D9488) for Delivery discount
     final activeColor = isFood ? const Color(0xFFEA580C) : const Color(0xFF0D9488);
-    final bgColor = isFood
-        ? (isDark ? const Color(0xFF2A170A) : const Color(0xFFFFF7ED))
-        : (isDark ? const Color(0xFF032726) : const Color(0xFFF0FDFA));
+    final stubBgColor = isFood
+        ? (isDark ? const Color(0xFF3B1D0E) : const Color(0xFFFFEDD5))
+        : (isDark ? const Color(0xFF063B37) : const Color(0xFFCCFBF1));
+    final bodyBgColor = isDark ? const Color(0xFF1E293B) : Colors.white;
     final badgeTag = isFood ? '-${discount ~/ 1000}RB' : 'ONGKIR';
-    final isApplied = isFood ? cart.foodPromoCode == code : cart.deliveryPromoCode == code;
 
-    return GestureDetector(
-      onTap: () {
-        if (isApplied) {
-          if (isFood) {
-            cart.removeFoodPromo();
-          } else {
-            cart.removeDeliveryPromo();
-          }
-          GageToast.show(context, 'Voucher $code dilepas', type: GageToastType.info);
-        } else {
-          if (isFood) {
-            cart.setFoodPromo(code, discount);
-          } else {
-            cart.setDeliveryPromo(code, discount);
-          }
-          GageToast.show(context, 'Voucher $code berhasil dipasang!', type: GageToastType.success);
-        }
-      },
-      child: Container(
-        width: 240,
-        margin: const EdgeInsets.only(right: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isApplied ? activeColor : activeColor.withValues(alpha: 0.35),
-            width: isApplied ? 1.5 : 1.0,
-          ),
+    return Container(
+      width: 255,
+      height: 72,
+      margin: const EdgeInsets.only(right: 12),
+      decoration: BoxDecoration(
+        color: bodyBgColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+          width: 1.0,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
         child: Row(
           children: [
+            // Sisi Kiri: Voucher Stub dengan warna aksen lembut
             Container(
-              padding: const EdgeInsets.all(7),
-              decoration: BoxDecoration(
-                color: activeColor.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                isFood ? Icons.local_offer_rounded : Icons.delivery_dining_rounded,
-                color: activeColor,
-                size: 16,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
+              width: 72,
+              height: double.infinity,
+              color: stubBgColor,
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                        decoration: BoxDecoration(
-                          color: activeColor,
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                        child: Text(
-                          badgeTag,
-                          style: const TextStyle(
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : Colors.black87,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
+                  Icon(
+                    isFood ? Icons.local_offer_rounded : Icons.local_shipping_rounded,
+                    color: activeColor,
+                    size: 18,
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 3),
                   Text(
-                    sub,
+                    badgeTag,
                     style: TextStyle(
-                      fontSize: 10.5,
-                      color: isDark ? Colors.grey.shade400 : Colors.black54,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      color: activeColor,
+                      letterSpacing: 0.4,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
-            if (isApplied) ...[
-              const SizedBox(width: 6),
-              Icon(Icons.check_circle_rounded, color: activeColor, size: 16),
-            ],
+
+            // Garis Perforasi / Pembatas Sobekan (Stubbing Notch Divider)
+            SizedBox(
+              width: 12,
+              height: double.infinity,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Garis Putus-putus
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: List.generate(6, (i) => Container(
+                      width: 1.5,
+                      height: 4,
+                      color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
+                    )),
+                  ),
+                  // Notch setengah lingkaran atas
+                  Positioned(
+                    top: -6,
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: isDark ? GageTheme.darkBackground : GageTheme.background,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                  // Notch setengah lingkaran bawah
+                  Positioned(
+                    bottom: -6,
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: isDark ? GageTheme.darkBackground : GageTheme.background,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Sisi Kanan: Body Kupon & Status Read-Only Promo Toko
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(6, 8, 10, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      sub,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: GageTheme.accentGreen,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Expanded(
+                          child: Text(
+                            'Tersedia di Toko Ini',
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w700,
+                              color: GageTheme.accentGreen,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),

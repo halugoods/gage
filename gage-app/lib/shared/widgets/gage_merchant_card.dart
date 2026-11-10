@@ -98,6 +98,26 @@ class GageMerchantCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                  if (isSponsored)
+                    Positioned(
+                      top: 5,
+                      left: 5,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.65),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'Iklan',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 8.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
                   if (campaignBadge != null && campaignBadge!.isNotEmpty)
                     Positioned(
                       left: 0,
@@ -164,28 +184,7 @@ class GageMerchantCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    if (isSponsored) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                        decoration: BoxDecoration(
-                          color: Colors.transparent,
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(
-                            color: isDark ? Colors.white38 : Colors.grey.shade400,
-                            width: 0.8,
-                          ),
-                        ),
-                        child: Text(
-                          'Iklan',
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w600,
-                            color: isDark ? Colors.white60 : Colors.grey.shade600,
-                          ),
-                        ),
-                      ),
-                    ],
+
                   ],
                 ),
 
