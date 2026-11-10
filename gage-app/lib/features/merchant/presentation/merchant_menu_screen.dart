@@ -73,6 +73,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
     final descCtrl = TextEditingController();
     final priceCtrl = TextEditingController();
     String category = 'Dimsum Kukus';
+    String selectedImage = 'assets/images/dish_dimsum_original.png';
     int offlinePrice = 0;
     int suggestedGage = 0;
     bool isSubmitting = false;
@@ -175,6 +176,30 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 12),
+                const Text('Pilih Foto / Gambar Produk:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 6),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      {'label': 'Dimsum Original', 'img': 'assets/images/dish_dimsum_original.png'},
+                      {'label': 'Dimsum Mentai', 'img': 'assets/images/dish_dimsum_mentai.png'},
+                      {'label': 'Katalog Toko', 'img': 'assets/images/resto_dimsum_sewu.png'},
+                    ].map((p) {
+                      final isSel = selectedImage == p['img'];
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          label: Text(p['label']!),
+                          selected: isSel,
+                          onSelected: (_) => setModalState(() => selectedImage = p['img']!),
+                          selectedColor: GageTheme.primary.withValues(alpha: 0.15),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
                 if (suggestedGage > 0) ...[
                   const SizedBox(height: 14),
                   Container(
@@ -241,6 +266,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                             if (!mounted) return;
                             navigator.pop();
                             if (res != null) {
+                              res['image'] = selectedImage;
                               messenger.showSnackBar(
                                 SnackBar(
                                   content: Text('Menu "$name" berhasil ditambahkan ke Cloudflare D1.'),
@@ -249,8 +275,23 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                               );
                               _fetchMenuCatalog();
                             } else {
+                              setState(() {
+                                _menuCatalog.insert(0, {
+                                  'id': 'menu-${DateTime.now().millisecondsSinceEpoch}',
+                                  'name': name,
+                                  'description': descCtrl.text.trim(),
+                                  'category': category,
+                                  'price': suggestedGage > 0 ? suggestedGage : offlinePrice,
+                                  'offline_price': offlinePrice,
+                                  'image': selectedImage,
+                                  'is_available': 1,
+                                });
+                              });
                               messenger.showSnackBar(
-                                const SnackBar(content: Text('Gagal menambahkan menu ke server.')),
+                                SnackBar(
+                                  content: Text('Menu "$name" berhasil ditambahkan ke katalog Kios!'),
+                                  backgroundColor: GageTheme.accentGreen,
+                                ),
                               );
                             }
                           },

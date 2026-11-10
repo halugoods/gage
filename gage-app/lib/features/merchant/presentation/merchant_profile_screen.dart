@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_bottom_nav_bar.dart';
+import 'package:gage_app/features/merchant/presentation/merchant_menu_screen.dart';
+import 'package:gage_app/shared/widgets/gage_toast.dart';
 
 /// Screen Profil Kios & Pengaturan Operasional Merchant - Tab 4
 /// Mengatur jam buka-tutup toko, printer bluetooth thermal, waktu masak, dan pusat bantuan.
@@ -18,6 +20,12 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
   bool _autoPrint = true;
   int _cookingTime = 15;
   double _deliveryRadius = 7.0;
+
+  String _storeName = 'Dimsum Sewu';
+  String _storeAddress = 'Jl. Raya Pracimantoro No. 14, Depan Pasar';
+  String _storeBio = 'Spesialis Dimsum Kukus & Goreng Hangat Gurih';
+  String _storeBanner = 'assets/images/resto_dimsum_sewu.png';
+  String _storeLogo = 'assets/images/resto_dimsum_sewu.png';
 
   @override
   Widget build(BuildContext context) {
@@ -39,9 +47,8 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // 1. Profil Outlet Dimsum Sewu
+            // 1. Profil Outlet & Banner Kios Mitra (Self-Managed)
             Container(
-              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF1E293B) : Colors.white,
                 borderRadius: BorderRadius.circular(16),
@@ -49,28 +56,74 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                   color: isDark ? const Color(0xFF334155) : Colors.grey.shade200,
                 ),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: GageTheme.primaryLight,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: const Icon(Icons.store_mall_directory_rounded, color: GageTheme.primary, size: 32),
+                  // Store Hero Banner with Edit Pill
+                  Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+                        child: _storeBanner.startsWith('http')
+                            ? Image.network(_storeBanner, height: 110, width: double.infinity, fit: BoxFit.cover, errorBuilder: (_, _, _) => _fallbackBanner())
+                            : Image.asset(_storeBanner, height: 110, width: double.infinity, fit: BoxFit.cover, errorBuilder: (_, _, _) => _fallbackBanner()),
+                      ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: InkWell(
+                          onTap: _showEditStoreProfileSheet,
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.65),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.camera_alt_rounded, size: 14, color: Colors.white),
+                                SizedBox(width: 4),
+                                Text('Ganti Banner', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 8,
+                        left: 14,
+                        child: Container(
+                          width: 54,
+                          height: 54,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2.5),
+                            boxShadow: const [
+                              BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
+                            ],
+                          ),
+                          child: ClipOval(
+                            child: _storeLogo.startsWith('http')
+                                ? Image.network(_storeLogo, fit: BoxFit.cover, errorBuilder: (_, _, _) => const Icon(Icons.storefront_rounded, color: GageTheme.primary, size: 28))
+                                : Image.asset(_storeLogo, fit: BoxFit.cover, errorBuilder: (_, _, _) => const Icon(Icons.storefront_rounded, color: GageTheme.primary, size: 28)),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
+                  Padding(
+                    padding: const EdgeInsets.all(14),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            const Expanded(
+                            Expanded(
                               child: Text(
-                                'Dimsum Sewu',
-                                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                                _storeName,
+                                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -93,14 +146,52 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                           ],
                         ),
                         const SizedBox(height: 3),
-                        const Text(
-                          'Jl. Raya Pracimantoro No. 14, Depan Pasar',
-                          style: TextStyle(fontSize: 11.5, color: GageTheme.textSecondary),
+                        Text(
+                          _storeAddress,
+                          style: const TextStyle(fontSize: 11.5, color: GageTheme.textSecondary),
                         ),
-                        const SizedBox(height: 2),
-                        const Text(
-                          'ID Mitra: M-DIMSUM-SEWU • Owner: Mas Wahyu',
-                          style: TextStyle(fontSize: 10.5, color: GageTheme.textSecondary),
+                        const SizedBox(height: 3),
+                        Text(
+                          _storeBio,
+                          style: TextStyle(fontSize: 11.5, fontStyle: FontStyle.italic, color: isDark ? Colors.white70 : Colors.black87),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: _showEditStoreProfileSheet,
+                                icon: const Icon(Icons.edit_note_rounded, size: 16),
+                                label: const Text('Edit Profil & Banner', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: GageTheme.primary,
+                                  side: const BorderSide(color: GageTheme.primary),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (ctx) => const MerchantMenuScreen()),
+                                  );
+                                },
+                                icon: const Icon(Icons.restaurant_menu_rounded, size: 16),
+                                label: const Text('Katalog Menu', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: GageTheme.primary,
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -380,6 +471,143 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
           const SizedBox(height: 2),
           Text(subtitle, style: const TextStyle(fontSize: 9.5, color: GageTheme.textSecondary)),
         ],
+      ),
+    );
+  }
+  static Widget _fallbackBanner() => Container(
+        height: 110,
+        color: GageTheme.primaryLight,
+        child: const Center(
+          child: Icon(Icons.storefront_rounded, color: GageTheme.primary, size: 36),
+        ),
+      );
+
+  void _showEditStoreProfileSheet() {
+    final nameCtrl = TextEditingController(text: _storeName);
+    final addrCtrl = TextEditingController(text: _storeAddress);
+    final bioCtrl = TextEditingController(text: _storeBio);
+    String currentBanner = _storeBanner;
+    String currentLogo = _storeLogo;
+
+    final presetBanners = [
+      {'label': 'Kuliner Resto', 'path': 'assets/images/resto_dimsum_sewu.png'},
+      {'label': 'Sembako Shop', 'path': 'assets/images/resto_dimsum_sewu.png'},
+      {'label': 'Pertanian Farm', 'path': 'assets/images/resto_dimsum_sewu.png'},
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          return Container(
+            padding: EdgeInsets.only(
+              top: 16,
+              left: 20,
+              right: 20,
+              bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+            ),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text('Kelola Profil & Banner Toko', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                  const SizedBox(height: 4),
+                  const Text('Perubahan otomatis tampil di halaman detail toko pelanggan.', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: nameCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Nama Toko / Kios',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: addrCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Alamat Lengkap Toko',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: bioCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Bio / Deskripsi Singkat Toko',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text('Pilih Banner Toko:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  const SizedBox(height: 6),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: presetBanners.map((b) {
+                        final isSel = currentBanner == b['path'];
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            label: Text(b['label']!),
+                            selected: isSel,
+                            onSelected: (_) => setSheetState(() => currentBanner = b['path']!),
+                            selectedColor: GageTheme.primary.withValues(alpha: 0.15),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: GageTheme.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _storeName = nameCtrl.text.trim().isNotEmpty ? nameCtrl.text.trim() : _storeName;
+                          _storeAddress = addrCtrl.text.trim().isNotEmpty ? addrCtrl.text.trim() : _storeAddress;
+                          _storeBio = bioCtrl.text.trim().isNotEmpty ? bioCtrl.text.trim() : _storeBio;
+                          _storeBanner = currentBanner;
+                          _storeLogo = currentLogo;
+                        });
+                        Navigator.pop(ctx);
+                        GageToast.show(context, 'Profil & banner toko berhasil disimpan!', type: GageToastType.success);
+                      },
+                      child: const Text('Simpan Profil & Banner Toko', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

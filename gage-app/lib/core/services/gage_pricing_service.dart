@@ -155,37 +155,55 @@ class GagePricingService {
     required double distanceKm,
     String deliveryOption = 'REGULER',
     int merchantCount = 1,
+    double weightKg = 1.0,
   }) {
     final lower = deliveryOption.toLowerCase();
     final isHemat = lower.contains('hemat');
     final isPrioritas = lower.contains('prioritas');
     final isCar = lower.contains('car');
 
+    int weightSurcharge = 0;
+    if (weightKg > 5.0) {
+      final extraKg = (weightKg - 5.0).ceil();
+      weightSurcharge = extraKg * 2000;
+    }
+
     if (isCar) {
+      int fare;
       if (isHemat) {
-        if (distanceKm <= 3.0) return 14000;
-        final raw = 14000 + ((distanceKm - 3.0) * 4500);
-        return roundUpTo500(raw.round());
+        if (distanceKm <= 3.0) {
+          fare = 14000;
+        } else {
+          final raw = 14000 + ((distanceKm - 3.0) * 4500);
+          fare = roundUpTo500(raw.round());
+        }
       } else if (isPrioritas) {
-        if (distanceKm <= 3.0) return 20000;
-        final raw = 20000 + ((distanceKm - 3.0) * 5500);
-        return roundUpTo500(raw.round());
+        if (distanceKm <= 3.0) {
+          fare = 20000;
+        } else {
+          final raw = 20000 + ((distanceKm - 3.0) * 5500);
+          fare = roundUpTo500(raw.round());
+        }
       } else {
-        if (distanceKm <= 3.0) return 16000;
-        final raw = 16000 + ((distanceKm - 3.0) * 5000);
-        return roundUpTo500(raw.round());
+        if (distanceKm <= 3.0) {
+          fare = 16000;
+        } else {
+          final raw = 16000 + ((distanceKm - 3.0) * 5000);
+          fare = roundUpTo500(raw.round());
+        }
       }
+      return fare + weightSurcharge;
     }
 
     if (distanceKm <= 0) {
-      if (isPrioritas) return rideRegulerBase + 4000;
-      return isHemat ? rideHematBase : rideRegulerBase;
+      if (isPrioritas) return rideRegulerBase + 4000 + weightSurcharge;
+      return (isHemat ? rideHematBase : rideRegulerBase) + weightSurcharge;
     }
     final baseFare = calculateTieredFare(distanceKm: distanceKm, isReguler: !isHemat);
     if (isPrioritas) {
-      return baseFare + 4000;
+      return baseFare + 4000 + weightSurcharge;
     }
-    return baseFare;
+    return baseFare + weightSurcharge;
   }
 
   /// Hitung komisi driver untuk pengantaran belanja berbasis jarak rute riil (80% bagi hasil)

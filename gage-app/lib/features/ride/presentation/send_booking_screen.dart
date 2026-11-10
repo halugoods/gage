@@ -195,12 +195,20 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
     );
   }
 
+  double get _parsedWeightKg {
+    if (_selectedWeight.contains('10 - 20')) return 15.0;
+    if (_selectedWeight.contains('5 - 10')) return 8.0;
+    if (_selectedWeight.contains('1 - 5')) return 3.0;
+    return 1.0;
+  }
+
   int _calculateShippingFee([String? service]) {
     final opt = (service ?? _serviceType) == 'instant' ? 'REGULER' : 'HEMAT';
     final dist = _distanceKm > 0 ? _distanceKm : 2.4;
     return GagePricingService.calculateCustomerShippingFee(
       distanceKm: dist,
       deliveryOption: opt,
+      weightKg: _parsedWeightKg,
     );
   }
 
