@@ -50,6 +50,31 @@ class _ItemVariantSheetState extends State<ItemVariantSheet> {
   int _quantity = 1;
   final TextEditingController _notesController = TextEditingController();
 
+  String get _serviceDomain {
+    if (widget.cartItem != null && widget.cartItem!.serviceType.isNotEmpty) {
+      return widget.cartItem!.serviceType.toLowerCase();
+    }
+    if (widget.merchant?['domain'] != null && widget.merchant!['domain'].toString().isNotEmpty) {
+      return widget.merchant!['domain'].toString().toLowerCase();
+    }
+    if (widget.merchant?['serviceType'] != null && widget.merchant!['serviceType'].toString().isNotEmpty) {
+      return widget.merchant!['serviceType'].toString().toLowerCase();
+    }
+    final raw = (widget.merchant?['id'] ?? widget.merchant?['category'] ?? widget.merchant?['name'] ?? widget.menuItem?['id'] ?? '').toString().toLowerCase();
+    if (raw.contains('build') || raw.contains('tb-') || raw.contains('bangun') || raw.contains('material') || raw.contains('besi') || raw.contains('cat-')) {
+      return 'build';
+    }
+    if (raw.contains('farm') || raw.contains('tani') || raw.contains('ternak') || raw.contains('pupuk') || raw.contains('pakan')) {
+      return 'farm';
+    }
+    if (raw.contains('shop') || raw.contains('sembako') || raw.contains('toko') || raw.contains('kelontong') || raw.contains('minimarket') || raw.contains('mart')) {
+      return 'shop';
+    }
+    return 'food';
+  }
+
+  bool get _isFoodDomain => _serviceDomain == 'food';
+
   // State Varian Rasa / Level Pedas (Pilih 1)
   int _selectedSpiceIndex = 1;
   final List<Map<String, dynamic>> _spiceLevels = [
@@ -71,6 +96,9 @@ class _ItemVariantSheetState extends State<ItemVariantSheet> {
   @override
   void initState() {
     super.initState();
+    if (!_isFoodDomain) {
+      _selectedSpiceIndex = -1;
+    }
     if (widget.cartItem != null) {
       _quantity = widget.cartItem!.quantity;
       if (widget.cartItem!.notes != null && widget.cartItem!.notes!.isNotEmpty) {
@@ -108,7 +136,10 @@ class _ItemVariantSheetState extends State<ItemVariantSheet> {
   }
 
   int get _extraPricePerItem {
-    int extra = _parseInt(_spiceLevels[_selectedSpiceIndex]['price'], 0);
+    if (!_isFoodDomain) return 0;
+    int extra = (_selectedSpiceIndex >= 0 && _selectedSpiceIndex < _spiceLevels.length)
+        ? _parseInt(_spiceLevels[_selectedSpiceIndex]['price'], 0)
+        : 0;
     for (final top in _selectedToppings) {
       extra += _availableToppings[top] ?? 0;
     }
@@ -120,10 +151,13 @@ class _ItemVariantSheetState extends State<ItemVariantSheet> {
     final cart = context.read<CartProvider>();
 
     if (widget.cartItem != null) {
-      final List<String> variants = [
-        _spiceLevels[_selectedSpiceIndex]['name'] as String,
-        ..._selectedToppings,
-      ];
+      final List<String> variants = _isFoodDomain
+          ? [
+              if (_selectedSpiceIndex >= 0 && _selectedSpiceIndex < _spiceLevels.length)
+                _spiceLevels[_selectedSpiceIndex]['name'] as String,
+              ..._selectedToppings,
+            ]
+          : const [];
       cart.updateItemVariants(
         widget.cartItem!.menuId,
         variants: variants,
@@ -151,11 +185,14 @@ class _ItemVariantSheetState extends State<ItemVariantSheet> {
     final category = widget.menuItem?['category'] ?? 'Makanan';
     final imageUrl = widget.menuItem?['image'] ?? widget.menuItem?['image_url'];
 
-    // Kumpulkan ringkasan varian
-    final List<String> variants = [
-      _spiceLevels[_selectedSpiceIndex]['name'] as String,
-      ..._selectedToppings,
-    ];
+    // Kumpulkan ringkasan varian (hanya jika food atau item custom variant)
+    final List<String> variants = _isFoodDomain
+        ? [
+            if (_selectedSpiceIndex >= 0 && _selectedSpiceIndex < _spiceLevels.length)
+              _spiceLevels[_selectedSpiceIndex]['name'] as String,
+            ..._selectedToppings,
+          ]
+        : const [];
 
     final newItem = CartItemModel(
       menuId: menuId,
@@ -169,7 +206,7 @@ class _ItemVariantSheetState extends State<ItemVariantSheet> {
       notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
       category: category,
       imageUrl: imageUrl is String ? imageUrl : null,
-      serviceType: 'food',
+      serviceType: _serviceDomain,
     );
 
     final added = cart.addItem(newItem);
@@ -266,6 +303,7 @@ class _ItemVariantSheetState extends State<ItemVariantSheet> {
           Divider(height: 1, color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
           const SizedBox(height: 14),
 
+          if (_isFoodDomain) ...[
           // 1. OPSI PILIHAN LEVEL / VARIAN UTAMA (Pilih 1 - Wajib)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -425,16 +463,17 @@ class _ItemVariantSheetState extends State<ItemVariantSheet> {
           ),
 
           const SizedBox(height: 12),
+          ],
 
           // 3. Catatan Masak / Pesanan Khusus (Capsule Pill Rounded 24px)
-          Text('Catatan untuk Dapur (Opsional)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? Colors.white : Colors.black87)),
+          Text(_isFoodDomain ? 'Catatan untuk Dapur (Opsional)' : 'Catatan untuk Toko / Penjual (Opsional)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? Colors.white : Colors.black87)),
           const SizedBox(height: 6),
           TextField(
             controller: _notesController,
             maxLength: 100,
             style: const TextStyle(fontSize: 13.5),
             decoration: InputDecoration(
-              hintText: 'Contoh: Jangan pedas, kuah dipisah, tambah saus...',
+              hintText: _isFoodDomain ? 'Contoh: Jangan pedas, kuah dipisah, tambah saus...' : 'Contoh: Warna/kemasan khusus, pastikan segel aman...',
               hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
               filled: true,
               fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),

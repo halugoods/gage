@@ -10,7 +10,7 @@ class CartItemModel {
   String? notes;
   final String category;
   final String? imageUrl;
-  final String serviceType; // 'food', 'shop', 'tani'
+  final String serviceType; // 'food', 'shop', 'farm', 'build'
   final List<String> selectedVariants;
   final int variantPrice;
 
@@ -53,7 +53,11 @@ class CartItemModel {
       notes: json['notes']?.toString(),
       category: (json['category'] ?? 'Makanan').toString(),
       imageUrl: json['image_url']?.toString(),
-      serviceType: (json['service_type'] ?? 'food').toString(),
+      serviceType: () {
+        final raw = (json['service_type'] ?? json['serviceType'] ?? 'food').toString().toLowerCase();
+        if (raw == 'tani') return 'farm';
+        return raw;
+      }(),
       selectedVariants: (json['selected_variants'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
       variantPrice: _parseInt(json['variant_price'], 0),
     );

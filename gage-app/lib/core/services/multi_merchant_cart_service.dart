@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-/// Model item keranjang belanja multi-merchant dan multi-menu (Food, Shop, Tani)
+/// Model item keranjang belanja multi-merchant dan multi-menu (Food, Shop, Farm, Build)
 class CartItem {
   final String id;
   final String name;
@@ -11,7 +11,7 @@ class CartItem {
   final String category;
   final String image;
   String? note;
-  /// Menu asal barang ('food' | 'shop' | 'tani')
+  /// Menu asal barang ('food' | 'shop' | 'farm' | 'build')
   final String menuOrigin;
 
   CartItem({
@@ -79,7 +79,11 @@ class CartItem {
     category: json['category'] as String? ?? '',
     image: (json['image'] ?? json['imageUrl'] ?? json['image_url']) as String? ?? '',
     note: (json['note'] ?? json['notes']) as String?,
-    menuOrigin: (json['menuOrigin'] ?? json['serviceType'] ?? json['service_type'] ?? json['menu_origin']) as String? ?? 'shop',
+    menuOrigin: () {
+      final raw = ((json['menuOrigin'] ?? json['serviceType'] ?? json['service_type'] ?? json['menu_origin']) as String? ?? 'shop').toLowerCase();
+      if (raw == 'tani') return 'farm';
+      return raw;
+    }(),
   );
 }
 

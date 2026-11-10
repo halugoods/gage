@@ -19,6 +19,9 @@ import 'package:gage_app/shared/widgets/switch_merchant_dialog.dart';
 import 'package:gage_app/shared/widgets/gage_merchant_tier_badge.dart';
 import 'package:gage_app/data/models/cart_item_model.dart';
 
+/// Alias untuk mendukung navigasi generik lintas merchant domain (Food, Shop, Farm, Build)
+typedef MerchantDetailScreen = RestoDetailScreen;
+
 class RestoDetailScreen extends StatefulWidget {
   final Map<String, dynamic> merchant;
 
@@ -41,6 +44,44 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
   bool _isHeaderCollapsed = false;
   bool _isFavorite = false;
   final Map<String, String> _tempNotes = {};
+
+  String get _serviceDomain {
+    if (widget.merchant['domain'] != null && widget.merchant['domain'].toString().isNotEmpty) {
+      return widget.merchant['domain'].toString().toLowerCase();
+    }
+    if (widget.merchant['serviceType'] != null && widget.merchant['serviceType'].toString().isNotEmpty) {
+      return widget.merchant['serviceType'].toString().toLowerCase();
+    }
+    final raw = (widget.merchant['id'] ?? widget.merchant['category'] ?? widget.merchant['name'] ?? '').toString().toLowerCase();
+    if (raw.contains('build') || raw.contains('tb-') || raw.contains('bangun') || raw.contains('material') || raw.contains('besi') || raw.contains('cat-')) {
+      return 'build';
+    }
+    if (raw.contains('farm') || raw.contains('tani') || raw.contains('ternak') || raw.contains('pupuk') || raw.contains('pakan')) {
+      return 'farm';
+    }
+    if (raw.contains('shop') || raw.contains('sembako') || raw.contains('toko') || raw.contains('kelontong') || raw.contains('minimarket') || raw.contains('mart')) {
+      return 'shop';
+    }
+    return 'food';
+  }
+
+  String get _domainLabel {
+    switch (_serviceDomain) {
+      case 'build': return 'GAGE Build';
+      case 'farm': return 'GAGE Farm';
+      case 'shop': return 'GAGE Shop';
+      default: return 'GAGE Food';
+    }
+  }
+
+  String get _domainItemTerm {
+    switch (_serviceDomain) {
+      case 'build': return 'material & alat bangunan';
+      case 'farm': return 'sarana tani & pakan';
+      case 'shop': return 'produk belanjaan & sembako';
+      default: return 'kuliner lezat';
+    }
+  }
 
   @override
   void initState() {
@@ -69,7 +110,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
       setState(() => _isFavorite = newVal);
       GageToast.show(
         context,
-        newVal ? 'Resto ditambahkan ke Favorit' : 'Resto dihapus dari Favorit',
+        newVal ? '${_serviceDomain == 'food' ? 'Resto' : 'Toko'} ditambahkan ke Favorit' : '${_serviceDomain == 'food' ? 'Resto' : 'Toko'} dihapus dari Favorit',
         type: newVal ? GageToastType.success : GageToastType.info,
       );
     }
@@ -161,7 +202,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                   onTap: () async {
                     Navigator.pop(ctx);
                     final text = Uri.encodeComponent(
-                      'Yuk pesan kuliner lezat di $restoName lewat GAGE Food!\n📍 Alamat: $restoAddress\n🔗 https://gage.app/m/${widget.merchant['id'] ?? 'resto'}'
+                      'Yuk pesan $_domainItemTerm di $restoName lewat $_domainLabel!\n📍 Alamat: $restoAddress\n🔗 https://gage.app/m/${widget.merchant['id'] ?? 'resto'}'
                     );
                     final waUri = Uri.parse('whatsapp://send?text=$text');
                     final webUri = Uri.parse('https://wa.me/?text=$text');
@@ -1785,7 +1826,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                                               quantity: 1,
                                               category: item['category'] ?? 'Menu',
                                               imageUrl: _getMenuItemImage(item),
-                                              serviceType: 'food',
+                                              serviceType: _serviceDomain,
                                             );
                                             final added = cart.addItem(model);
                                             if (!added) {
@@ -1956,7 +1997,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                               price: price,
                               quantity: 1,
                               imageUrl: menuImage,
-                              serviceType: 'food',
+                              serviceType: _serviceDomain,
                             );
                             cart.addItem(newItem);
                             setModalState(() {});
@@ -2013,7 +2054,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                                   price: price,
                                   quantity: 1,
                                   imageUrl: menuImage,
-                                  serviceType: 'food',
+                                  serviceType: _serviceDomain,
                                 );
                                 cart.addItem(newItem);
                                 setModalState(() {});
