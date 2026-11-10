@@ -131,7 +131,6 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
       }
     }
 
-    _startDriverRouteMovement();
   }
 
   /// Menyesuaikan kamera peta agar seluruh rute terlihat jelas di layar
@@ -381,6 +380,13 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
 
     final currentStage = _determineLifecycleStage(order);
 
+    if (currentStage >= 4 && _driverMovementTimer == null) {
+      _startDriverRouteMovement();
+    } else if (currentStage < 4 && _driverMovementTimer != null) {
+      _driverMovementTimer?.cancel();
+      _driverMovementTimer = null;
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: _buildAppBar(order),
@@ -568,7 +574,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
               Polyline(
                 points: _routePoints,
                 strokeWidth: 5.0,
-                color: stage >= 4 ? const Color(0xFFE52320) : const Color(0xFF16A34A),
+                color: const Color(0xFFE52320),
               ),
             ],
           ),
@@ -581,7 +587,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
               point: _storeLocation,
               width: 50,
               height: 50,
-              child: _buildStoreMarker(order.merchantName),
+              child: _buildStoreMarker(order.merchantName, order.merchantAvatar),
             ),
 
             // 2. Marker Rumah Pemesan / Titik Antar
@@ -605,30 +611,43 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
     );
   }
 
-  Widget _buildStoreMarker(String storeName) {
+  Widget _buildStoreMarker(String storeName, [String? avatarUrl]) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          padding: const EdgeInsets.all(5),
-          decoration: const BoxDecoration(
-            color: Color(0xFFF97316),
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF97316),
             shape: BoxShape.circle,
-            boxShadow: [
+            border: Border.all(color: Colors.white, width: 2),
+            boxShadow: const [
               BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
             ],
           ),
-          child: const Icon(Icons.storefront_rounded, color: Colors.white, size: 20),
+          child: ClipOval(
+            child: (avatarUrl != null && avatarUrl.isNotEmpty)
+                ? (avatarUrl.startsWith('http')
+                    ? Image.network(avatarUrl, fit: BoxFit.cover, errorBuilder: (_, _, _) => const Icon(Icons.storefront_rounded, color: Colors.white, size: 20))
+                    : Image.asset(avatarUrl, fit: BoxFit.cover, errorBuilder: (_, _, _) => const Icon(Icons.storefront_rounded, color: Colors.white, size: 20)))
+                : Image.asset('assets/images/resto_dimsum_sewu.png', fit: BoxFit.cover, errorBuilder: (_, _, _) => const Icon(Icons.storefront_rounded, color: Colors.white, size: 20)),
+          ),
         ),
         const SizedBox(height: 2),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(4),
             border: Border.all(color: Colors.orange.shade200),
           ),
-          child: const Text('Resto', style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold)),
+          child: Text(
+            storeName.isNotEmpty ? storeName : 'Resto',
+            style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       ],
     );
@@ -1170,7 +1189,13 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                   CircleAvatar(
                     radius: 26,
                     backgroundColor: Colors.blue.shade50,
-                    child: const Icon(Icons.two_wheeler_rounded, color: Color(0xFF1E88E5), size: 30),
+                    child: ClipOval(
+                      child: (order.driverAvatar != null && order.driverAvatar!.isNotEmpty)
+                          ? (order.driverAvatar!.startsWith('http')
+                              ? Image.network(order.driverAvatar!, width: 52, height: 52, fit: BoxFit.cover, errorBuilder: (_, _, _) => const Icon(Icons.person_rounded, color: Color(0xFF1E88E5), size: 30))
+                              : Image.asset(order.driverAvatar!, width: 52, height: 52, fit: BoxFit.cover, errorBuilder: (_, _, _) => const Icon(Icons.person_rounded, color: Color(0xFF1E88E5), size: 30)))
+                          : Image.asset('assets/images/avatar_user.png', width: 52, height: 52, fit: BoxFit.cover, errorBuilder: (_, _, _) => const Icon(Icons.person_rounded, color: Color(0xFF1E88E5), size: 30)),
+                    ),
                   ),
                   Positioned(
                     bottom: 0,
@@ -1357,12 +1382,20 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                width: 42,
+                height: 42,
                 decoration: BoxDecoration(
                   color: Colors.amber.shade50,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.storefront_rounded, color: Color(0xFFD97706), size: 22),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: (order.merchantAvatar != null && order.merchantAvatar!.isNotEmpty)
+                      ? (order.merchantAvatar!.startsWith('http')
+                          ? Image.network(order.merchantAvatar!, fit: BoxFit.cover, errorBuilder: (_, _, _) => const Icon(Icons.storefront_rounded, color: Color(0xFFD97706), size: 22))
+                          : Image.asset(order.merchantAvatar!, fit: BoxFit.cover, errorBuilder: (_, _, _) => const Icon(Icons.storefront_rounded, color: Color(0xFFD97706), size: 22)))
+                      : Image.asset('assets/images/resto_dimsum_sewu.png', fit: BoxFit.cover, errorBuilder: (_, _, _) => const Icon(Icons.storefront_rounded, color: Color(0xFFD97706), size: 22)),
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(

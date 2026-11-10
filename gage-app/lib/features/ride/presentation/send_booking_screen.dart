@@ -33,7 +33,7 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
   final MapController _mapController = MapController();
 
   final TextEditingController _senderAddressCtrl = TextEditingController(
-    text: 'Mendeteksi titik GPS Anda...',
+    text: '',
   );
   final TextEditingController _recipientNameCtrl = TextEditingController(
     text: 'Penerima Paket',
@@ -53,7 +53,7 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
   List<LatLng> _routePoints = [];
   double _distanceKm = 0.0;
   bool _isLoadingRoute = false;
-  bool _isDetailsExpanded = false;
+  final bool _isDetailsExpanded = false;
 
   String _selectedPackageType = 'Barang Dagangan';
   String _selectedWeight = '1 - 5 kg';
@@ -186,6 +186,11 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
           _recipientAddressCtrl.text = title.isNotEmpty ? title : fullAddress;
         });
         _updateRoute();
+        Future.delayed(const Duration(milliseconds: 350), () {
+          if (mounted) {
+            _showPackageDetailsFloatingSheet();
+          }
+        });
       },
     );
   }
@@ -351,58 +356,46 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                   ),
                 MarkerLayer(
                   markers: [
-                    // Marker Jemput (Teardrop Pin Hijau Standar)
+                    // Marker Titik Jemput (1:1 Identik Ride/Car)
                     Marker(
                       point: _senderLatLng,
-                      width: 40,
-                      height: 44,
-                      alignment: Alignment.topCenter,
-                      child: Stack(
-                        alignment: Alignment.center,
+                      width: 50,
+                      height: 50,
+                      child: Column(
                         children: [
-                          const Icon(Icons.location_on_rounded, color: Color(0xFF16A34A), size: 40),
-                          Positioned(
-                            top: 8,
-                            child: Container(
-                              width: 14,
-                              height: 14,
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Center(
-                                child: Icon(Icons.inventory_2_rounded, color: Color(0xFF16A34A), size: 9),
-                              ),
+                          Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF16A34A),
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
+                              ],
                             ),
+                            child: const Icon(Icons.person_pin_circle_rounded, color: Colors.white, size: 22),
                           ),
                         ],
                       ),
                     ),
 
-                    // Marker Antar (Teardrop Pin Merah Standar)
+                    // Marker Titik Antar (1:1 Identik Ride/Car)
                     if (_recipientLatLng != null)
                       Marker(
                         point: _recipientLatLng!,
-                        width: 40,
-                        height: 44,
-                        alignment: Alignment.topCenter,
-                        child: Stack(
-                          alignment: Alignment.center,
+                        width: 50,
+                        height: 50,
+                        child: Column(
                           children: [
-                            const Icon(Icons.location_on_rounded, color: Color(0xFFE52320), size: 40),
-                            Positioned(
-                              top: 8,
-                              child: Container(
-                                width: 14,
-                                height: 14,
-                                decoration: const BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Center(
-                                  child: Icon(Icons.home_rounded, color: Color(0xFFE52320), size: 9),
-                                ),
+                            Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFE52320),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
+                                ],
                               ),
+                              child: const Icon(Icons.flag_rounded, color: Colors.white, size: 20),
                             ),
                           ],
                         ),
@@ -452,7 +445,7 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                           decoration: BoxDecoration(
                             color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(24),
                             boxShadow: const [
                               BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2)),
                             ],
@@ -516,7 +509,7 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     decoration: BoxDecoration(
                       color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(24),
                       boxShadow: const [
                         BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3)),
                       ],
@@ -539,11 +532,13 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                                   children: [
                                     const Text('Titik Jemput (Pengirim)', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
                                     Text(
-                                      _senderAddressCtrl.text,
+                                      _senderAddressCtrl.text.trim().isEmpty ? 'Pilih lokasi jemput paket Anda' : _senderAddressCtrl.text,
                                       style: TextStyle(
                                         fontSize: 12.5,
-                                        fontWeight: FontWeight.w600,
-                                        color: isDark ? Colors.white : Colors.black87,
+                                        fontWeight: _senderAddressCtrl.text.trim().isEmpty ? FontWeight.normal : FontWeight.w600,
+                                        color: _senderAddressCtrl.text.trim().isEmpty
+                                            ? (isDark ? Colors.white38 : Colors.black45)
+                                            : (isDark ? Colors.white : Colors.black87),
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
@@ -594,30 +589,28 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
               ),
             ),
 
-            // 3. Floating Map Controls (Fit Route & Recenter - Always Above Bottom Panel)
+            // 3. Floating Map Controls (Fit Route & Recenter - Posisi Seragam 1:1 Ride/Car)
             Positioned(
               right: 16,
-              bottom: _recipientLatLng == null ? 248 : 310,
+              bottom: 325,
               child: Column(
                 children: [
-                  if (_recipientLatLng != null) ...[
-                    FloatingActionButton.small(
-                      heroTag: 'btnFitSend',
-                      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                      foregroundColor: isDark ? Colors.white : Colors.black87,
-                      elevation: 3,
-                      onPressed: _fitRoute,
-                      child: const Icon(Icons.zoom_out_map_rounded, size: 20),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
+                  FloatingActionButton.small(
+                    heroTag: 'btnFitSend',
+                    backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
+                    foregroundColor: isDark ? Colors.white : Colors.black87,
+                    elevation: 3,
+                    onPressed: _fitRoute,
+                    child: const Icon(Icons.zoom_out_map_rounded, size: 20),
+                  ),
+                  const SizedBox(height: 8),
                   FloatingActionButton.small(
                     heroTag: 'btnRecenterSend',
-                    backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                    foregroundColor: isDark ? Colors.white : GageTheme.primary,
+                    backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
+                    foregroundColor: GageTheme.primary,
                     elevation: 3,
                     onPressed: _initSenderGps,
-                    child: const Icon(Icons.my_location_rounded, size: 22),
+                    child: const Icon(Icons.my_location_rounded, size: 20),
                   ),
                 ],
               ),
@@ -702,7 +695,7 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                                 width: 22,
                                 height: 22,
                                 fit: BoxFit.contain,
-                                errorBuilder: (_, __, ___) => const Icon(Icons.flash_on_rounded, size: 18, color: Colors.orange),
+                                errorBuilder: (_, _, _) => const Icon(Icons.flash_on_rounded, size: 18, color: Colors.orange),
                               ),
                               const SizedBox(width: 6),
                               Text(
@@ -759,7 +752,7 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                                 width: 22,
                                 height: 22,
                                 fit: BoxFit.contain,
-                                errorBuilder: (_, __, ___) => const Icon(Icons.schedule_rounded, size: 18, color: Colors.blue),
+                                errorBuilder: (_, _, _) => const Icon(Icons.schedule_rounded, size: 18, color: Colors.blue),
                               ),
                               const SizedBox(width: 6),
                               Text(
@@ -796,7 +789,7 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
             if (_recipientLatLng != null) ...[
               // Accordion Header
               InkWell(
-                onTap: () => setState(() => _isDetailsExpanded = !_isDetailsExpanded),
+                onTap: _showPackageDetailsFloatingSheet,
                 borderRadius: BorderRadius.circular(10),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -847,20 +840,24 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
               const SizedBox(height: 12),
             ],
 
-            // Action Button CTA
+            // Action Button CTA (2-Step Lokasi & Full Rounded)
             SizedBox(
               width: double.infinity,
-              height: 48,
+              height: 50,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: GageTheme.primary,
                   foregroundColor: Colors.white,
                   elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                 ),
                 onPressed: _isSearchingCourier
                     ? null
-                    : (_recipientLatLng == null ? _pickRecipientAddress : _bookCourier),
+                    : (_senderAddressCtrl.text.trim().isEmpty
+                        ? _pickSenderAddress
+                        : (_recipientLatLng == null
+                            ? _pickRecipientAddress
+                            : _bookCourier)),
                 child: _isSearchingCourier
                     ? const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -874,35 +871,128 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                           Text('Mencari kurir terdekat...', style: TextStyle(fontWeight: FontWeight.bold)),
                         ],
                       )
-                    : (_recipientLatLng == null
+                    : (_senderAddressCtrl.text.trim().isEmpty
                         ? const Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(Icons.search_rounded, size: 20, color: Colors.white),
                               SizedBox(width: 8),
                               Text(
-                                'Pilih Titik Antar',
+                                'Pilih Titik Jemput (Pengirim)',
                                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
                               ),
                             ],
                           )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'Pesan GAGE Send',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                              ),
-                              Text(
-                                '${currencyFormatter.format(totalFare)} →',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                              ),
-                            ],
-                          )),
+                        : (_recipientLatLng == null
+                            ? const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.search_rounded, size: 20, color: Colors.white),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Pilih Titik Antar (Penerima)',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
+                                  ),
+                                ],
+                              )
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'Pesan GAGE Send',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                  ),
+                                  Text(
+                                    '${currencyFormatter.format(totalFare)} \u2192',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                  ),
+                                ],
+                              ))),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showPackageDetailsFloatingSheet() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          return Container(
+            padding: EdgeInsets.only(
+              top: 14,
+              left: 20,
+              right: 20,
+              bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+            ),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : Colors.white,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              boxShadow: const [
+                BoxShadow(color: Colors.black26, blurRadius: 16, offset: Offset(0, -4)),
+              ],
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white24 : Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      const Icon(Icons.inventory_2_rounded, color: GageTheme.primary, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Rincian Barang & Penerima',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  _buildPackageDetailsForm(isDark),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: GageTheme.primary,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                      ),
+                      onPressed: () {
+                        setState(() {});
+                        Navigator.pop(ctx);
+                      },
+                      child: const Text('Simpan & Lanjutkan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

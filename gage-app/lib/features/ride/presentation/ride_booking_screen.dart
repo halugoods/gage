@@ -325,7 +325,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                           decoration: BoxDecoration(
                             color: isDark ? GageTheme.darkSurface : Colors.white,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(24),
                             boxShadow: const [
                               BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2)),
                             ],
@@ -379,7 +379,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     decoration: BoxDecoration(
                       color: isDark ? GageTheme.darkSurface : Colors.white,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(24),
                       boxShadow: const [
                         BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3)),
                       ],
@@ -395,8 +395,14 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
-                                  _pickupController.text,
-                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? Colors.white : GageTheme.textPrimary),
+                                  _pickupController.text.trim().isEmpty ? 'Pilih lokasi jemput Anda' : _pickupController.text,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: _pickupController.text.trim().isEmpty ? FontWeight.normal : FontWeight.w600,
+                                    color: _pickupController.text.trim().isEmpty
+                                        ? (isDark ? Colors.white38 : Colors.black45)
+                                        : (isDark ? Colors.white : GageTheme.textPrimary),
+                                  ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -515,11 +521,11 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                 strokeWidth: 7.0,
                 color: Colors.black.withValues(alpha: 0.15),
               ),
-              // Garis rute utama hijau/merah
+              // Garis rute utama merah
               Polyline(
                 points: _routePoints,
                 strokeWidth: 5.0,
-                color: _selectedTab == 'ride' ? GageTheme.primary : const Color(0xFF1E88E5),
+                color: GageTheme.primary,
               ),
             ],
           ),
@@ -573,7 +579,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
             ),
 
             // Marker Driver Bergerak (Rotasi mengikuti arah jalan)
-            if (_driverAccepted || _isSearchingDriver)
+            if (_driverAccepted)
               Marker(
                 point: _driverLocation,
                 width: 48,
@@ -918,7 +924,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
 
           const SizedBox(height: 14),
 
-          // Tombol Pesan Utama -> Masuk ke Screen Checkout
+          // Tombol Pesan Utama -> Masuk ke Screen Checkout (2-Step Lokasi & Full Rounded)
           SafeArea(
             top: false,
             child: SizedBox(
@@ -927,29 +933,31 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
               child: ElevatedButton(
                 onPressed: _isSearchingDriver
                     ? null
-                    : (_dropoffLocation == null
-                        ? () => _showAddressSearchSheet(false)
-                        : () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (ctx) => RideCheckoutScreen(
-                                  serviceType: _selectedTab,
-                                  rideOption: _selectedOption,
-                                  pickupLocation: _pickupLocation,
-                                  dropoffLocation: _dropoffLocation!,
-                                  pickupAddress: _pickupController.text,
-                                  dropoffAddress: _dropoffController.text,
-                                  distanceKm: _distanceKm,
-                                  baseFare: fare,
-                                ),
-                              ),
-                            );
-                          }),
+                    : (_pickupController.text.trim().isEmpty
+                        ? () => _showAddressSearchSheet(true)
+                        : (_dropoffLocation == null
+                            ? () => _showAddressSearchSheet(false)
+                            : () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (ctx) => RideCheckoutScreen(
+                                      serviceType: _selectedTab,
+                                      rideOption: _selectedOption,
+                                      pickupLocation: _pickupLocation,
+                                      dropoffLocation: _dropoffLocation!,
+                                      pickupAddress: _pickupController.text,
+                                      dropoffAddress: _dropoffController.text,
+                                      distanceKm: _distanceKm,
+                                      baseFare: fare,
+                                    ),
+                                  ),
+                                );
+                              })),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: GageTheme.primary,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                   elevation: 0,
                 ),
                 child: _isSearchingDriver
@@ -965,31 +973,43 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                           Text('Mencari driver terdekat...', style: TextStyle(fontWeight: FontWeight.bold)),
                         ],
                       )
-                    : (_dropoffLocation == null
+                    : (_pickupController.text.trim().isEmpty
                         ? const Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(Icons.search_rounded, size: 20, color: Colors.white),
                               SizedBox(width: 8),
                               Text(
-                                'Pilih Tujuan Perjalanan',
+                                'Pilih Titik Jemput',
                                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                               ),
                             ],
                           )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'Lanjut ke Checkout',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                              ),
-                              Text(
-                                '${currencyFormatter.format(fare)} →',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                              ),
-                            ],
-                          )),
+                        : (_dropoffLocation == null
+                            ? const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.search_rounded, size: 20, color: Colors.white),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Pilih Titik Antar',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                  ),
+                                ],
+                              )
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    _selectedTab == 'ride' ? 'Pesan GAGE Ride' : 'Pesan GAGE Car',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                  ),
+                                  Text(
+                                    '${currencyFormatter.format(fare)} \u2192',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                  ),
+                                ],
+                              ))),
               ),
             ),
           ),
