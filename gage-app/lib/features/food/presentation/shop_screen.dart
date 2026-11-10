@@ -1,3 +1,4 @@
+import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -314,6 +315,14 @@ class _ShopScreenState extends State<ShopScreen> {
           return countB.compareTo(countA);
         });
         break;
+      case 'Top Rating':
+        filtered.sort((a, b) {
+          final rA = (a['rating'] is num) ? (a['rating'] as num).toDouble() : (double.tryParse(a['rating']?.toString() ?? '') ?? 0.0);
+          final rB = (b['rating'] is num) ? (b['rating'] as num).toDouble() : (double.tryParse(b['rating']?.toString() ?? '') ?? 0.0);
+          return rB.compareTo(rA);
+        });
+        break;
+      case 'Terdekat':
       case 'Toko Terdekat':
         filtered.sort((a, b) {
           final distA = double.tryParse((a['distance'] ?? '').toString().replaceAll(RegExp(r'[^0-9.]'), '')) ?? 99.0;
@@ -330,7 +339,7 @@ class _ShopScreenState extends State<ShopScreen> {
   }
 
   Widget _buildRankingSwitch(bool isDark) {
-    final options = ['Rekomendasi', 'Terlaris', 'Toko Terdekat'];
+    final options = ['Rekomendasi', 'Terlaris', 'Top Rating', 'Terdekat'];
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -497,14 +506,27 @@ class _ShopScreenState extends State<ShopScreen> {
                                       'Kategori',
                                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
                                     ),
-                                    if (_selectedCategory != 'Semua')
-                                      GestureDetector(
-                                        onTap: () => setState(() => _selectedCategory = 'Semua'),
-                                        child: const Text(
-                                          'Reset',
-                                          style: TextStyle(fontSize: 12, color: GageTheme.primary, fontWeight: FontWeight.bold),
+                                    Row(
+                                      children: [
+                                        if (_selectedCategory != 'Semua') ...[
+                                          GestureDetector(
+                                            onTap: () => setState(() => _selectedCategory = 'Semua'),
+                                            child: const Text(
+                                              'Reset',
+                                              style: TextStyle(fontSize: 12, color: GageTheme.primary, fontWeight: FontWeight.bold),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                        ],
+                                        GestureDetector(
+                                          onTap: () => _showAllCategoriesSheet(context),
+                                          child: const Text(
+                                            'Lihat Semua',
+                                            style: TextStyle(fontSize: 12, color: GageTheme.primary, fontWeight: FontWeight.bold),
+                                          ),
                                         ),
-                                      ),
+                                      ],
+                                    ),
                                   ],
                                 ),
                         ),
@@ -693,4 +715,71 @@ class _ShopScreenState extends State<ShopScreen> {
     ),
   );
   }
+
+  void _showAllCategoriesSheet(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    GageFloatingSheet.show(
+      context: context,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Semua Kategori Shop',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close_rounded, size: 20),
+                onPressed: () => Navigator.pop(ctx),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _categories.map((cat) {
+              final isSelected = _selectedCategory == cat['name'];
+              return InkWell(
+                onTap: () {
+                  Navigator.pop(ctx);
+                  setState(() => _selectedCategory = cat['name'] as String);
+                },
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? GageTheme.primary
+                        : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isSelected ? GageTheme.primary : (isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                    ),
+                  ),
+                  child: Text(
+                    cat['name'] as String,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                      color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
 }

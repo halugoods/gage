@@ -438,7 +438,7 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
     }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final options = ['Rekomendasi', 'Terlaris', 'Top Rating'];
+    final options = ['Rekomendasi', 'Terlaris', 'Top Rating', 'Terdekat'];
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -539,6 +539,14 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
           final ratingA = (a['rating'] is num) ? (a['rating'] as num).toDouble() : double.tryParse(a['rating']?.toString() ?? '') ?? 0.0;
           final ratingB = (b['rating'] is num) ? (b['rating'] as num).toDouble() : double.tryParse(b['rating']?.toString() ?? '') ?? 0.0;
           return ratingB.compareTo(ratingA);
+        });
+        break;
+
+      case 'Terdekat':
+        filtered.sort((a, b) {
+          final distA = double.tryParse((a['distance'] ?? '').toString().replaceAll(RegExp(r'[^0-9.]'), '')) ?? 99.0;
+          final distB = double.tryParse((b['distance'] ?? '').toString().replaceAll(RegExp(r'[^0-9.]'), '')) ?? 99.0;
+          return distA.compareTo(distB);
         });
         break;
 
