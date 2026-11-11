@@ -1247,9 +1247,6 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
               latitude: p.location.latitude,
               longitude: p.location.longitude,
             ));
-            if (mounted) {
-              Navigator.pop(context);
-            }
             widget.onSelected(p.title, p.displayName, p.location);
           },
         );

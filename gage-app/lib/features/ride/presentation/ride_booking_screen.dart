@@ -359,7 +359,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFFFEBEE),
-                                    borderRadius: BorderRadius.circular(10),
+                                    borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Text(
                                     '${_distanceKm.toStringAsFixed(1)} km',
@@ -452,7 +452,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
             // 3. Floating Map Controls (Fit Route & Recenter)
             Positioned(
               right: 16,
-              bottom: _driverAccepted ? 210 : 325,
+              bottom: _driverAccepted ? 180 : 235,
               child: Column(
                 children: [
                   FloatingActionButton.small(
@@ -715,12 +715,12 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                 Expanded(
                   child: InkWell(
                     onTap: () => setState(() => _selectedOption = 'standard'),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(20),
                     child: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         color: _selectedOption == 'standard' ? (isDark ? const Color(0xFF2C1E1E) : const Color(0xFFFFF1F0)) : (isDark ? const Color(0xFF1E293B) : Colors.white),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: _selectedOption == 'standard' ? GageTheme.primary : (isDark ? Colors.white12 : Colors.grey.shade300),
                           width: _selectedOption == 'standard' ? 1.5 : 1,
@@ -766,12 +766,12 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                 Expanded(
                   child: InkWell(
                     onTap: () => setState(() => _selectedOption = 'hemat'),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(20),
                     child: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         color: _selectedOption == 'hemat' ? (isDark ? const Color(0xFF2C231E) : const Color(0xFFFFF7ED)) : (isDark ? const Color(0xFF1E293B) : Colors.white),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: _selectedOption == 'hemat' ? const Color(0xFFEA580C) : (isDark ? Colors.white12 : Colors.grey.shade300),
                           width: _selectedOption == 'hemat' ? 1.5 : 1,
@@ -821,12 +821,12 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                 Expanded(
                   child: InkWell(
                     onTap: () => setState(() => _selectedOption = 'standard'),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(20),
                     child: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         color: _selectedOption == 'standard' ? (isDark ? const Color(0xFF1E2638) : const Color(0xFFF0F9FF)) : (isDark ? const Color(0xFF1E293B) : Colors.white),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: _selectedOption == 'standard' ? const Color(0xFF0284C7) : (isDark ? Colors.white12 : Colors.grey.shade300),
                           width: _selectedOption == 'standard' ? 1.5 : 1,
@@ -872,12 +872,12 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                 Expanded(
                   child: InkWell(
                     onTap: () => setState(() => _selectedOption = 'hemat'),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(20),
                     child: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         color: _selectedOption == 'hemat' ? (isDark ? const Color(0xFF162E2B) : const Color(0xFFF0FDFA)) : (isDark ? const Color(0xFF1E293B) : Colors.white),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: _selectedOption == 'hemat' ? const Color(0xFF0D9488) : (isDark ? Colors.white12 : Colors.grey.shade300),
                           width: _selectedOption == 'hemat' ? 1.5 : 1,

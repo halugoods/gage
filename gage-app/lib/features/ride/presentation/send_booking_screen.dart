@@ -496,7 +496,7 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                     decoration: BoxDecoration(
                                       color: const Color(0xFFDCFCE7),
-                                      borderRadius: BorderRadius.circular(10),
+                                      borderRadius: BorderRadius.circular(20),
                                     ),
                                     child: Text(
                                       '${_distanceKm.toStringAsFixed(1)} km',
@@ -600,7 +600,7 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
             // 3. Floating Map Controls (Fit Route & Recenter - Posisi Seragam 1:1 Ride/Car)
             Positioned(
               right: 16,
-              bottom: 325,
+              bottom: 235,
               child: Column(
                 children: [
                   FloatingActionButton.small(
@@ -648,7 +648,7 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         boxShadow: const [
           BoxShadow(color: Colors.black12, blurRadius: 16, offset: Offset(0, -4)),
         ],
@@ -678,14 +678,14 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                 Expanded(
                   child: InkWell(
                     onTap: () => setState(() => _serviceType = 'instant'),
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(20),
                     child: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         color: _serviceType == 'instant'
                             ? GageTheme.primary.withValues(alpha: 0.08)
                             : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: _serviceType == 'instant'
                               ? GageTheme.primary
@@ -735,14 +735,14 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                 Expanded(
                   child: InkWell(
                     onTap: () => setState(() => _serviceType = 'sameday'),
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(20),
                     child: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         color: _serviceType == 'sameday'
                             ? GageTheme.primary.withValues(alpha: 0.08)
                             : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: _serviceType == 'sameday'
                               ? GageTheme.primary
@@ -798,12 +798,12 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
               // Accordion Header
               InkWell(
                 onTap: _showPackageDetailsFloatingSheet,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(20),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
                     children: [
@@ -941,7 +941,7 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
             ),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF0F172A) : Colors.white,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
               boxShadow: const [
                 BoxShadow(color: Colors.black26, blurRadius: 16, offset: Offset(0, -4)),
               ],
@@ -1010,7 +1010,7 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isDark ? Colors.white10 : Colors.grey.shade200,
         ),
@@ -1025,7 +1025,7 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
                   decoration: BoxDecoration(
                     color: isDark ? const Color(0xFF0F172A) : Colors.white,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(24),
                     border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade300),
                   ),
                   child: TextField(
@@ -1048,7 +1048,7 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
                   decoration: BoxDecoration(
                     color: isDark ? const Color(0xFF0F172A) : Colors.white,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(24),
                     border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade300),
                   ),
                   child: TextField(
@@ -1090,7 +1090,7 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                       color: isSelected ? GageTheme.primary : (isDark ? Colors.white70 : Colors.black87),
                     ),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(24),
                       side: BorderSide(
                         color: isSelected ? GageTheme.primary : (isDark ? Colors.white12 : Colors.grey.shade300),
                       ),
@@ -1111,14 +1111,14 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 2),
                   child: InkWell(
                     onTap: () => setState(() => _selectedWeight = w),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(24),
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       decoration: BoxDecoration(
                         color: isSelected
                             ? GageTheme.primary.withValues(alpha: 0.12)
                             : (isDark ? const Color(0xFF0F172A) : Colors.white),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(24),
                         border: Border.all(
                           color: isSelected ? GageTheme.primary : (isDark ? Colors.white12 : Colors.grey.shade300),
                         ),
@@ -1144,7 +1144,7 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF0F172A) : Colors.white,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(24),
               border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade300),
             ),
             child: TextField(

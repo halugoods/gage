@@ -229,7 +229,7 @@ class _VoucherHistoryScreenState extends State<VoucherHistoryScreen> {
                                                   color: isUsed
                                                       ? const Color(0xFFDCFCE7)
                                                       : (isDark ? Colors.white10 : Colors.grey.shade200),
-                                                  borderRadius: BorderRadius.circular(6),
+                                                  borderRadius: BorderRadius.circular(20),
                                                 ),
                                                 child: Text(
                                                   isUsed ? 'TERPAKAI' : 'KEDALUWARSA',
@@ -285,9 +285,24 @@ class _VoucherHistoryScreenState extends State<VoucherHistoryScreen> {
                                 ],
                               ),
 
-                              // Takik Setengah Lingkaran
+                              // Garis Perforasi Vertikal Putus-putus Tepat di Tengah Seam (x = 74)
                               Positioned(
-                                left: 71,
+                                left: 74 - 0.75,
+                                top: 8,
+                                bottom: 8,
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                  children: List.generate(7, (i) => Container(
+                                    width: 1.5,
+                                    height: 5,
+                                    color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
+                                  )),
+                                ),
+                              ),
+
+                              // Takik Setengah Lingkaran (Symmetric Center at x = 74)
+                              Positioned(
+                                left: 74 - 7,
                                 top: -7,
                                 child: Container(
                                   width: 14,
@@ -295,11 +310,12 @@ class _VoucherHistoryScreenState extends State<VoucherHistoryScreen> {
                                   decoration: BoxDecoration(
                                     color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                                     shape: BoxShape.circle,
+                                    border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
                                   ),
                                 ),
                               ),
                               Positioned(
-                                left: 71,
+                                left: 74 - 7,
                                 bottom: -7,
                                 child: Container(
                                   width: 14,
@@ -307,6 +323,7 @@ class _VoucherHistoryScreenState extends State<VoucherHistoryScreen> {
                                   decoration: BoxDecoration(
                                     color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                                     shape: BoxShape.circle,
+                                    border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
                                   ),
                                 ),
                               ),

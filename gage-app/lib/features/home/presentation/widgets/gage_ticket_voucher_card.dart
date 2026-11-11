@@ -37,26 +37,39 @@ class GageTicketVoucherCard extends StatelessWidget {
     this.compact = false,
   });
 
-  List<Color> _getStubGradient(String service, String type) {
+  Color _getStubBgColor(String service, String type, bool isDark) {
     if (type == 'delivery') {
-      return const [Color(0xFF0D9488), Color(0xFF0F766E)]; // Hijau Teal Gratis Ongkir
+      return isDark ? const Color(0xFF063B37) : const Color(0xFFCCFBF1);
     }
     switch (service) {
       case 'GAGE Food':
-        return const [Color(0xFFF52D3D), Color(0xFFE11D48)]; // Merah Diskon GAGE Food
+        return isDark ? const Color(0xFF3B1D0E) : const Color(0xFFFFEDD5);
       case 'GAGE Ride':
-        return const [Color(0xFF2563EB), Color(0xFF1D4ED8)]; // Biru GAGE Ride
+        return isDark ? const Color(0xFF172554) : const Color(0xFFDBEAFE);
       case 'GAGE Car':
-        return const [Color(0xFF1E3A8A), Color(0xFF172554)]; // Biru Tua GAGE Car
+        return isDark ? const Color(0xFF1E1B4B) : const Color(0xFFE0E7FF);
       case 'GAGE Mart':
-        return const [Color(0xFF16A34A), Color(0xFF15803D)]; // Emerald GAGE Mart
+        return isDark ? const Color(0xFF052E16) : const Color(0xFFDCFCE7);
       case 'GAGE Send':
-        return const [Color(0xFFEA580C), Color(0xFFC2410C)]; // Oranye GAGE Send
+        return isDark ? const Color(0xFF451A03) : const Color(0xFFFFEDD5);
       case 'GAGE Pay':
-        return const [Color(0xFFD97706), Color(0xFFB45309)]; // Amber GAGE Pay
+        return isDark ? const Color(0xFF422006) : const Color(0xFFFEF3C7);
       default:
-        return const [Color(0xFFF52D3D), Color(0xFFDC2626)]; // Merah Utama Diskon
+        return isDark ? const Color(0xFF3B1D0E) : const Color(0xFFFFEDD5);
     }
+  }
+
+  Color _getActiveColor(String service, String type) {
+    if (type == 'delivery') return const Color(0xFF0D9488);
+    const map = {
+      'GAGE Food': Color(0xFFEA580C),
+      'GAGE Ride': Color(0xFF2563EB),
+      'GAGE Car': Color(0xFF4F46E5),
+      'GAGE Mart': Color(0xFF16A34A),
+      'GAGE Send': Color(0xFFEA580C),
+      'GAGE Pay': Color(0xFFD97706),
+    };
+    return map[service] ?? GageTheme.primary;
   }
 
   IconData _getCategoryIcon(String service, String type) {
@@ -106,7 +119,7 @@ class GageTicketVoucherCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
           width: 0.8,
@@ -147,7 +160,8 @@ class GageTicketVoucherCard extends StatelessWidget {
 
     final service = voucher['service'] as String? ?? 'GAGE Food';
     final type = voucher['type'] as String? ?? 'order';
-    final stubGradient = _getStubGradient(service, type);
+    final stubBgColor = _getStubBgColor(service, type, isDark);
+    final activeColor = _getActiveColor(service, type);
     final icon = _getCategoryIcon(service, type);
     final label = _getCategoryLabel(service, type);
 
@@ -176,7 +190,7 @@ class GageTicketVoucherCard extends StatelessWidget {
           color: bgColor,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isApplied ? stubGradient[0] : borderColor,
+            color: isApplied ? activeColor : borderColor,
             width: isApplied ? 1.8 : 1.0,
           ),
           boxShadow: [
@@ -194,61 +208,31 @@ class GageTicketVoucherCard extends StatelessWidget {
               Row(
               children: [
                 // ==========================================
-                // A. BAGIAN KIRI (VOUCHER STUB)
+                // A. BAGIAN KIRI (STUB VOUCHER 1:1 Image 4)
                 // ==========================================
                 Container(
                   width: stubWidth,
                   height: double.infinity,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: stubGradient,
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                  color: stubBgColor,
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // 1. Icon Kategori Voucher
-                      Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withValues(alpha: 0.22),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.35),
-                            width: 1.2,
-                          ),
-                        ),
-                        child: Icon(icon, color: Colors.white, size: 19),
-                      ),
+                      Icon(icon, color: activeColor, size: 22),
                       const SizedBox(height: 4),
-                      // 2. Nama Kategori Voucher
                       Text(
                         label,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w800,
+                        style: TextStyle(
+                          color: activeColor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
                           letterSpacing: 0.3,
                           height: 1.15,
                         ),
                       ),
                     ],
-                  ),
-                ),
-
-                // Garis Perforasi Vertikal (Dashed Divider)
-                SizedBox(
-                  width: 1,
-                  child: CustomPaint(
-                    painter: _DashedLinePainter(
-                      color: isDark ? Colors.white24 : Colors.grey.shade300,
-                    ),
                   ),
                 ),
 
@@ -374,7 +358,7 @@ class GageTicketVoucherCard extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                   decoration: BoxDecoration(
                     color: GageTheme.primaryLight,
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: GageTheme.primary.withValues(alpha: 0.25)),
                   ),
                   child: Text(
@@ -449,25 +433,25 @@ class GageTicketVoucherCard extends StatelessWidget {
               ),
             ),
 
-            // Takik Setengah Lingkaran (Ticket Cutout) Pada Sisi Kiri Kartu
+            // Garis Perforasi Vertikal Putus-putus Tepat di Tengah Seam (x = stubWidth)
             Positioned(
-              left: -8,
-              top: (cardHeight - 16) / 2,
-              child: Container(
-                width: 16,
-                height: 16,
-                decoration: BoxDecoration(
-                  color: screenBgColor,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: borderColor, width: 1),
-                ),
+              left: stubWidth - 0.75,
+              top: 8,
+              bottom: 8,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: List.generate(7, (i) => Container(
+                  width: 1.5,
+                  height: 5,
+                  color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
+                )),
               ),
             ),
 
-            // Takik Setengah Lingkaran Atas & Bawah Pada Garis Perforasi
+            // Takik Setengah Lingkaran Atas & Bawah Pada Garis Perforasi (Symmetric Center at x = stubWidth)
             Positioned(
               left: stubWidth - 7,
-              top: -8,
+              top: -7,
               child: Container(
                 width: 14,
                 height: 14,
@@ -480,7 +464,7 @@ class GageTicketVoucherCard extends StatelessWidget {
             ),
             Positioned(
               left: stubWidth - 7,
-              bottom: -8,
+              bottom: -7,
               child: Container(
                 width: 14,
                 height: 14,
@@ -497,29 +481,4 @@ class GageTicketVoucherCard extends StatelessWidget {
     ),
     );
   }
-}
-
-/// Painter garis putus-putus (perforasi vertikal tiket)
-class _DashedLinePainter extends CustomPainter {
-  final Color color;
-
-  _DashedLinePainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const double dashHeight = 4.0;
-    const double dashSpace = 3.0;
-    double startY = 8.0;
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1.0;
-
-    while (startY < size.height - 8.0) {
-      canvas.drawLine(Offset(0, startY), Offset(0, startY + dashHeight), paint);
-      startY += dashHeight + dashSpace;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _DashedLinePainter oldDelegate) => oldDelegate.color != color;
 }

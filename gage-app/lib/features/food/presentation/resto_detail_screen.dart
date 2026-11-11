@@ -1,3 +1,4 @@
+import 'package:gage_app/features/home/presentation/promo_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -1567,13 +1568,57 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
               else
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
-                        children: _buildServiceVouchers(context, cart, isDark),
-                      ),
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Voucher Toko',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => const PromoScreen()),
+                                  );
+                                },
+                                child: const Row(
+                                  children: [
+                                    Text(
+                                      'Lihat Semua',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: GageTheme.primary,
+                                      ),
+                                    ),
+                                    SizedBox(width: 2),
+                                    Icon(Icons.chevron_right_rounded, size: 16, color: GageTheme.primary),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Row(
+                            children: _buildServiceVouchers(context, cart, isDark),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -2100,25 +2145,29 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
     required int discount,
     required bool isFood,
     required bool isDark,
+    String expiryText = 'Berlaku s/d 31 Des',
   }) {
     final activeColor = isFood ? const Color(0xFFEA580C) : const Color(0xFF0D9488);
     final stubBgColor = isFood
         ? (isDark ? const Color(0xFF3B1D0E) : const Color(0xFFFFEDD5))
         : (isDark ? const Color(0xFF063B37) : const Color(0xFFCCFBF1));
     final bodyBgColor = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final notchBgColor = isDark ? GageTheme.darkBackground : const Color(0xFFF8FAFC);
+    final borderColor = isDark ? Colors.white12 : const Color(0xFFE2E8F0);
     final badgeTag = isFood ? '-${discount ~/ 1000}RB' : 'ONGKIR';
 
+    const double stubWidth = 72.0;
+    const double cardHeight = 74.0;
+    const double notchSize = 14.0;
+
     return Container(
-      width: 255,
-      height: 72,
+      width: 258,
+      height: cardHeight,
       margin: const EdgeInsets.only(right: 12),
       decoration: BoxDecoration(
         color: bodyBgColor,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-          width: 1.0,
-        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor, width: 1.0),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
@@ -2128,136 +2177,140 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
-        child: Row(
+        borderRadius: BorderRadius.circular(15),
+        child: Stack(
           children: [
-            // Sisi Kiri: Voucher Stub dengan warna aksen lembut
-            Container(
-              width: 72,
-              height: double.infinity,
-              color: stubBgColor,
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    isFood ? Icons.local_offer_rounded : Icons.local_shipping_rounded,
-                    color: activeColor,
-                    size: 18,
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    badgeTag,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
-                      color: activeColor,
-                      letterSpacing: 0.4,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Garis Perforasi / Pembatas Sobekan (Stubbing Notch Divider)
-            SizedBox(
-              width: 12,
-              height: double.infinity,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  // Garis Putus-putus
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: List.generate(6, (i) => Container(
-                      width: 1.5,
-                      height: 4,
-                      color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
-                    )),
-                  ),
-                  // Notch setengah lingkaran atas
-                  Positioned(
-                    top: -6,
-                    child: Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: isDark ? GageTheme.darkBackground : GageTheme.background,
-                        shape: BoxShape.circle,
+            // Row Isi Utama: Stub di kiri & Body di kanan (Seam persis di stubWidth)
+            Row(
+              children: [
+                // Sisi Kiri: Voucher Stub dengan warna aksen lembut
+                Container(
+                  width: stubWidth,
+                  height: double.infinity,
+                  color: stubBgColor,
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        isFood ? Icons.local_offer_rounded : Icons.local_shipping_rounded,
+                        color: activeColor,
+                        size: 20,
                       ),
-                    ),
-                  ),
-                  // Notch setengah lingkaran bawah
-                  Positioned(
-                    bottom: -6,
-                    child: Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: isDark ? GageTheme.darkBackground : GageTheme.background,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Sisi Kanan: Body Kupon & Status Read-Only Promo Toko
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(6, 8, 10, 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black87,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      sub,
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: const BoxDecoration(
-                            color: GageTheme.accentGreen,
-                            shape: BoxShape.circle,
-                          ),
+                      const SizedBox(height: 3),
+                      Text(
+                        badgeTag,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          color: activeColor,
+                          letterSpacing: 0.4,
                         ),
-                        const SizedBox(width: 4),
-                        const Expanded(
-                          child: Text(
-                            'Tersedia di Toko Ini',
-                            style: TextStyle(
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w700,
-                              color: GageTheme.accentGreen,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Sisi Kanan: Body Kupon & Status Kedaluwarsa
+                Expanded(
+                  child: Container(
+                    color: bodyBgColor,
+                    padding: const EdgeInsets.fromLTRB(12, 8, 10, 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : Colors.black87,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          sub,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.schedule_rounded,
+                              size: 11,
+                              color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                expiryText,
+                                style: TextStyle(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
+                  ),
+                ),
+              ],
+            ),
+
+            // Garis Perforasi Vertikal Putus-putus Tepat di Tengah Seam (x = stubWidth)
+            Positioned(
+              left: stubWidth - 0.75,
+              top: notchSize / 2,
+              bottom: notchSize / 2,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: List.generate(6, (i) => Container(
+                  width: 1.5,
+                  height: 4,
+                  color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
+                )),
+              ),
+            ),
+
+            // Takik Setengah Lingkaran Atas (Pusat Takik Persis di x = stubWidth)
+            Positioned(
+              left: stubWidth - (notchSize / 2),
+              top: -(notchSize / 2),
+              child: Container(
+                width: notchSize,
+                height: notchSize,
+                decoration: BoxDecoration(
+                  color: notchBgColor,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: borderColor, width: 1.0),
+                ),
+              ),
+            ),
+
+            // Takik Setengah Lingkaran Bawah (Pusat Takik Persis di x = stubWidth)
+            Positioned(
+              left: stubWidth - (notchSize / 2),
+              bottom: -(notchSize / 2),
+              child: Container(
+                width: notchSize,
+                height: notchSize,
+                decoration: BoxDecoration(
+                  color: notchBgColor,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: borderColor, width: 1.0),
                 ),
               ),
             ),

@@ -13,7 +13,6 @@ import 'package:gage_app/core/localization/gage_localization.dart';
 import 'package:gage_app/core/services/gage_security_service.dart';
 import 'package:gage_app/features/auth/presentation/terms_and_privacy_screen.dart';
 import 'package:gage_app/features/profile/presentation/edit_profile_screen.dart';
-import 'package:gage_app/features/affiliate/presentation/affiliate_hub_screen.dart';
 import 'package:gage_app/features/membership/presentation/membership_screen.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
@@ -947,56 +946,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 18),
 
                   // ==========================================
-                  // 2. LAYANAN & PROGRAM GAGE
+                  // 2. LANGGANAN EKSKLUSIF VIP (GAGE Plus & Max)
                   // ==========================================
-                  _buildSectionHeader('Layanan & Program GAGE', isDark),
+                  _buildSectionHeader('Langganan VIP', isDark),
                   const SizedBox(height: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        _buildSeamlessMenuTile(
-                          icon: Icons.video_library_rounded,
-                          iconColor: const Color(0xFFEA580C),
-                          title: 'GAGE Cuan (Portal Affiliator)',
-                          subtitle: 'Feed TikTok KW, lolos Kerkun & komisi 10%',
-                          isDark: isDark,
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const AffiliateHubScreen()),
-                            );
-                          },
-                        ),
-                        _buildSoftCardDivider(isDark),
-                        _buildSeamlessMenuTile(
-                          icon: Icons.card_membership_rounded,
-                          iconColor: const Color(0xFF16A34A),
-                          title: 'Langganan GAGE (GAGE Plus & Max)',
-                          subtitle: 'Hemat pasti 900 voucher & prioritas',
-                          isDark: isDark,
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const MembershipScreen()),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
+                  _buildLuxurySubscriptionCard(isDark),
 
                   const SizedBox(height: 18),
 
@@ -1572,4 +1526,167 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return initialWidget;
   }
+
+  Widget _buildLuxurySubscriptionCard(bool isDark) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFF18181B), // Zinc 900
+            Color(0xFF27272A), // Zinc 800
+            Color(0xFF231E12), // Deep gold tint
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(
+          color: const Color(0xFFEAB308).withValues(alpha: 0.5), // Royal Gold border
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFEAB308).withValues(alpha: 0.12),
+            blurRadius: 18,
+            offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.35),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22),
+          onTap: () {
+            HapticFeedback.mediumImpact();
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const MembershipScreen()),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
+            child: Row(
+              children: [
+                // Icon Crown / Star Badge Mewah
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(
+                      colors: [
+                        Color(0xFFFDE047),
+                        Color(0xFFCA8A04),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFEAB308).withValues(alpha: 0.4),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.workspace_premium_rounded,
+                      color: Color(0xFF422006),
+                      size: 28,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                // Teks Penjelasan Mewah
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Text(
+                            'Langganan GAGE',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                              ),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'VIP PLUS',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      const Text(
+                        'Akses 900 voucher hemat, diskon 50% & prioritas driver',
+                        style: TextStyle(
+                          color: Color(0xFFE2E8F0),
+                          fontSize: 11.5,
+                          height: 1.25,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Tombol Aksi Mewah 'Buka >'
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEAB308).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: const Color(0xFFEAB308).withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Buka',
+                        style: TextStyle(
+                          color: Color(0xFFFDE047),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
+                      ),
+                      SizedBox(width: 2),
+                      Icon(Icons.chevron_right_rounded, color: Color(0xFFFDE047), size: 16),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
 }

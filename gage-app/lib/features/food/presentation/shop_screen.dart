@@ -1,4 +1,4 @@
-import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
+import 'package:gage_app/features/food/presentation/all_categories_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -717,67 +717,24 @@ class _ShopScreenState extends State<ShopScreen> {
   }
 
   void _showAllCategoriesSheet(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    GageFloatingSheet.show(
-      context: context,
-      builder: (ctx) => Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Semua Kategori Shop',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black87,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close_rounded, size: 20),
-                onPressed: () => Navigator.pop(ctx),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _categories.map((cat) {
-              final isSelected = _selectedCategory == cat['name'];
-              return InkWell(
-                onTap: () {
-                  Navigator.pop(ctx);
-                  setState(() => _selectedCategory = cat['name'] as String);
-                },
-                borderRadius: BorderRadius.circular(20),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? GageTheme.primary
-                        : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: isSelected ? GageTheme.primary : (isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-                    ),
-                  ),
-                  child: Text(
-                    cat['name'] as String,
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                      color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 16),
-        ],
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (c) => AllCategoriesScreen(
+          title: 'Semua Kategori Belanja',
+          searchHint: 'Cari kategori sembako & belanja harian...',
+          countLabel: 'Kategori Belanja Mitra',
+          subtitleAction: 'Pilih untuk filter toko',
+          customCategories: _categories.map((cat) => CategoryItem(
+            id: cat['name'] as String,
+            name: cat['name'] as String,
+            image: cat['image'] as String,
+            icon: cat['icon'] as IconData?,
+          )).toList(),
+          onSelectCategory: (name) {
+            setState(() => _selectedCategory = name);
+          },
+        ),
       ),
     );
   }
