@@ -156,10 +156,10 @@ class _VoucherHistoryScreenState extends State<VoucherHistoryScreen> {
                             children: [
                               Row(
                                 children: [
-                                  // Stub Kiri
+                                  // Stub Kiri 1:1 Square
                                   Container(
-                                    width: 78,
-                                    constraints: const BoxConstraints(minHeight: 104),
+                                    width: 88,
+                                    constraints: const BoxConstraints(minHeight: 88),
                                     decoration: BoxDecoration(
                                       gradient: LinearGradient(
                                         colors: stubGradient,

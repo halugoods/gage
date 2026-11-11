@@ -178,8 +178,8 @@ class GageTicketVoucherCard extends StatelessWidget {
     final currencyFmt = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0);
     final minOrderText = minOrder > 0 ? 'Min. belanja ${currencyFmt.format(minOrder)}' : 'Tanpa min. belanja';
 
-    final double stubWidth = compact ? 62.0 : 78.0;
-    final double cardHeight = compact ? 82.0 : 102.0;
+    final double cardHeight = compact ? 84.0 : 88.0;
+    final double stubWidth = cardHeight; // 1:1 square ratio!
 
     return Opacity(
       opacity: isEligible ? 1.0 : 0.62,

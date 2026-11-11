@@ -64,10 +64,10 @@ class GageFloatingSheet {
                     filter: ImageFilter.blur(sigmaX: 24.0, sigmaY: 24.0),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: backgroundColor ?? (isDark ? const Color(0xFF1E293B).withValues(alpha: 0.70) : Colors.white.withValues(alpha: 0.72)),
+                        color: backgroundColor ?? (isDark ? const Color(0xFF1E293B) : Colors.white),
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(
-                          color: isDark ? Colors.white.withValues(alpha: 0.12) : Colors.white.withValues(alpha: 0.65),
+                          color: isDark ? Colors.white.withValues(alpha: 0.12) : Colors.white.withValues(alpha: 0.85),
                           width: 1.0,
                         ),
                       ),

@@ -9,6 +9,7 @@ import 'package:gage_app/providers/wallet_provider.dart';
 import 'package:gage_app/providers/order_provider.dart';
 import 'package:gage_app/providers/auth_provider.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/core/services/gage_pricing_service.dart';
 import 'package:gage_app/core/constants/qris_engine.dart';
 import 'package:gage_app/features/orders/presentation/order_tracking_screen.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
@@ -131,21 +132,28 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
     }
   }
 
-  // Tier-based fare calculation
-  int get _tierBaseFare {
-    if (widget.serviceType == 'send') {
-      if (_selectedTier == 'SAMEDAY') {
-        return (widget.baseFare * 0.75).round();
-      }
-      return widget.baseFare; // INSTANT
-    }
+  // Tier-based fare calculation (0-2 km fix rate, km berikutnya 5rb/km Reguler & 4rb/km Hemat)
+  int get _tierBaseFare => _calculateTierFare(_selectedTier);
 
-    if (_selectedTier == 'HEMAT') {
-      return (widget.baseFare * 0.85).round();
-    } else if (_selectedTier == 'PRIORITAS') {
-      return (widget.baseFare * 1.25).round();
+  int _calculateTierFare(String tier) {
+    final isCar = widget.serviceType == 'car';
+    final isHemat = tier == 'HEMAT';
+    final dist = widget.distanceKm;
+
+    if (isCar) {
+      final base = isHemat ? 14000 : 16000;
+      final perKm = isHemat ? 4000 : 5000;
+      if (dist <= 2.0) return base;
+      final raw = base + ((dist - 2.0) * perKm);
+      return GagePricingService.roundUpTo500(raw.round());
+    } else {
+      // Ride dan Send
+      final base = isHemat ? 8000 : 10000;
+      final perKm = isHemat ? 4000 : 5000;
+      if (dist <= 2.0) return base;
+      final raw = base + ((dist - 2.0) * perKm);
+      return GagePricingService.roundUpTo500(raw.round());
     }
-    return widget.baseFare; // REGULER
   }
 
   int get _adminFee => 1000;
@@ -884,62 +892,27 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (isSend) ...[
-                              // Opsi Instant
-                              _buildTierRadioOption(
-                                id: 'INSTANT',
-                                title: 'Instant',
-                                badge: '15-30 min',
-                                badgeColor: const Color(0xFFE52320),
-                                desc: 'Kurir langsung jalan, barang cepat tiba & aman',
-                                price: widget.baseFare,
-                                isDark: isDark,
-                              ),
-                              const Divider(height: 16),
-                              // Opsi Sameday
-                              _buildTierRadioOption(
-                                id: 'SAMEDAY',
-                                title: 'Sameday',
-                                badge: '3-5 Jam',
-                                badgeColor: const Color(0xFF10B981),
-                                desc: 'Pengiriman hemat gabungan rute dalam hari yang sama',
-                                price: (widget.baseFare * 0.75).round(),
-                                isDark: isDark,
-                              ),
-                            ] else ...[
-                              // Opsi Prioritas
-                              _buildTierRadioOption(
-                                id: 'PRIORITAS',
-                                title: 'Prioritas',
-                                badge: '~${((_realisticEstimates["pickup"] ?? 4) / 2).round()} min',
-                                badgeColor: const Color(0xFFF59E0B),
-                                desc: 'Driver terdekat diprioritaskan kilat tanpa nunggu',
-                                price: (widget.baseFare * 1.25).round(),
-                                isDark: isDark,
-                              ),
-                              const Divider(height: 16),
-                              // Opsi Reguler
-                              _buildTierRadioOption(
-                                id: 'REGULER',
-                                title: 'Reguler',
-                                badge: '~${_realisticEstimates["pickup"] ?? 4} min',
-                                badgeColor: const Color(0xFF3B82F6),
-                                desc: 'Langsung ke titik jemput, pasti tepat waktu',
-                                price: widget.baseFare,
-                                isDark: isDark,
-                              ),
-                              const Divider(height: 16),
-                              // Opsi Hemat
-                              _buildTierRadioOption(
-                                id: 'HEMAT',
-                                title: 'Hemat',
-                                badge: '~${(_realisticEstimates["pickup"] ?? 4) + 4} min',
-                                badgeColor: const Color(0xFF10B981),
-                                desc: 'Tarif super irit untuk perjalanan santai',
-                                price: (widget.baseFare * 0.85).round(),
-                                isDark: isDark,
-                              ),
-                            ],
+                            // Opsi Reguler
+                            _buildTierRadioOption(
+                              id: 'REGULER',
+                              title: 'Reguler',
+                              badge: isSend ? 'Langsung' : '~${_realisticEstimates["pickup"] ?? 4} min',
+                              badgeColor: const Color(0xFF3B82F6),
+                              desc: isSend ? 'Kurir langsung jalan, barang cepat tiba & aman' : 'Langsung ke titik tujuan, pasti tepat waktu',
+                              price: _calculateTierFare('REGULER'),
+                              isDark: isDark,
+                            ),
+                            const Divider(height: 16),
+                            // Opsi Hemat
+                            _buildTierRadioOption(
+                              id: 'HEMAT',
+                              title: 'Hemat',
+                              badge: isSend ? 'Hemat' : '~${(_realisticEstimates["pickup"] ?? 4) + 4} min',
+                              badgeColor: const Color(0xFF10B981),
+                              desc: isSend ? 'Pengiriman hemat pengantaran rute gabungan' : 'Tarif super irit untuk perjalanan santai',
+                              price: _calculateTierFare('HEMAT'),
+                              isDark: isDark,
+                            ),
                           ],
                         ),
                       ),
@@ -965,8 +938,8 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                               children: [
                                 MiniLocationPreviewMap(
                                   location: _currentDropoffLocation,
-                                  size: 46,
-                                  borderRadius: 12,
+                                  size: 68,
+                                  borderRadius: 14,
                                   onTap: () => _openLocationPicker(isDropoff: true),
                                 ),
                                 const SizedBox(width: 12),
@@ -1498,18 +1471,49 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       children: [
-                                        const Icon(Icons.info_outline_rounded, color: Color(0xFFDC2626), size: 16),
-                                        const SizedBox(width: 6),
-                                        Expanded(
-                                          child: Text(
-                                            'Saldo GAGEPay kurang ${currencyFormatter.format(_totalAmount - wallet.balance)}',
-                                            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF991B1B)),
+                                        Row(
+                                          children: [
+                                            const Icon(Icons.info_outline_rounded, color: Color(0xFFDC2626), size: 16),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              'Saldo GAGEPay kurang ${currencyFormatter.format(_totalAmount - wallet.balance)}',
+                                              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF991B1B)),
+                                            ),
+                                          ],
+                                        ),
+                                        InkWell(
+                                          onTap: () async {
+                                            await Navigator.push(
+                                              context,
+                                              MaterialPageRoute(builder: (_) => const GagePayScreen()),
+                                            );
+                                            setState(() {});
+                                          },
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: const Padding(
+                                            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(
+                                                  'Top Up',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: GageTheme.primary,
+                                                  ),
+                                                ),
+                                                SizedBox(width: 2),
+                                                Icon(Icons.chevron_right_rounded, size: 16, color: GageTheme.primary),
+                                              ],
+                                            ),
                                           ),
                                         ),
                                       ],
                                     ),
-                                    const SizedBox(height: 8),
+                                    const SizedBox(height: 10),
                                     Row(
                                       children: [
                                         Expanded(
@@ -1518,50 +1522,30 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                                               foregroundColor: GageTheme.primary,
                                               side: const BorderSide(color: GageTheme.primary),
                                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                                              padding: const EdgeInsets.symmetric(vertical: 7),
                                               visualDensity: VisualDensity.compact,
                                             ),
                                             onPressed: () {
                                               _savePaymentPreference('GAGEPAY_COD');
                                             },
-                                            child: const Text('GAGEPay + COD', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold), maxLines: 1),
+                                            child: const Text('GAGEPay + COD', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                                           ),
                                         ),
-                                        const SizedBox(width: 6),
+                                        const SizedBox(width: 8),
                                         Expanded(
                                           child: OutlinedButton(
                                             style: OutlinedButton.styleFrom(
                                               foregroundColor: const Color(0xFF0284C7),
                                               side: const BorderSide(color: Color(0xFF0284C7)),
                                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                                              padding: const EdgeInsets.symmetric(vertical: 7),
                                               visualDensity: VisualDensity.compact,
                                             ),
                                             onPressed: () {
                                               _savePaymentPreference('GAGEPAY_QRIS');
                                             },
-                                            child: const Text('GAGEPay + QRIS', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold), maxLines: 1),
+                                            child: const Text('GAGEPay + QRIS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                                           ),
-                                        ),
-                                        const SizedBox(width: 6),
-                                        ElevatedButton.icon(
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: const Color(0xFF059669),
-                                            foregroundColor: Colors.white,
-                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
-                                            visualDensity: VisualDensity.compact,
-                                            elevation: 0,
-                                          ),
-                                          onPressed: () async {
-                                            await Navigator.push(
-                                              context,
-                                              MaterialPageRoute(builder: (_) => const GagePayScreen()),
-                                            );
-                                            setState(() {});
-                                          },
-                                          icon: const Icon(Icons.add_circle_outline_rounded, size: 13, color: Colors.white),
-                                          label: const Text('Top Up', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
                                         ),
                                       ],
                                     ),

@@ -98,28 +98,23 @@ class GagePricingService {
     required double distanceKm,
   }) {
     final lower = serviceType.toLowerCase();
-    if (lower == 'car' || lower == 'car_reguler') {
-      if (distanceKm <= 3.0) {
-        return 16000;
-      } else {
-        final raw = 16000 + ((distanceKm - 3.0) * 5000);
-        return roundUpTo500(raw.round());
-      }
-    } else if (lower == 'car_hemat') {
-      if (distanceKm <= 3.0) {
-        return 14000;
-      } else {
-        final raw = 14000 + ((distanceKm - 3.0) * 4500);
-        return roundUpTo500(raw.round());
-      }
-    }
+    final isHemat = lower.contains('hemat');
+    final isCar = lower.contains('car');
 
-    if (distanceKm <= 0) {
-      return lower == 'hemat' ? rideHematBase : rideRegulerBase;
+    if (isCar) {
+      final base = isHemat ? 14000 : 16000;
+      final perKm = isHemat ? 4000 : 5000;
+      if (distanceKm <= 2.0) return base;
+      final raw = base + ((distanceKm - 2.0) * perKm);
+      return roundUpTo500(raw.round());
+    } else {
+      // Motor (Ride / Send)
+      final base = isHemat ? 8000 : 10000;
+      final perKm = isHemat ? 4000 : 5000;
+      if (distanceKm <= 2.0) return base;
+      final raw = base + ((distanceKm - 2.0) * perKm);
+      return roundUpTo500(raw.round());
     }
-
-    final isReguler = lower != 'hemat';
-    return calculateTieredFare(distanceKm: distanceKm, isReguler: isReguler);
   }
 
   /// Hitung komisi riil DRIVER (Exact aktual berdasarkan jarak riil, 80% bagi hasil)

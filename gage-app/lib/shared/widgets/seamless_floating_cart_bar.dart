@@ -77,9 +77,13 @@ class _SeamlessFloatingCartBarState extends State<SeamlessFloatingCartBar> {
       child: Container(
         decoration: BoxDecoration(
           color: isDark
-              ? const Color(0xFF1E293B).withValues(alpha: 0.96)
-              : Colors.white.withValues(alpha: 0.98),
+              ? const Color(0xFF1E293B).withValues(alpha: 0.68)
+              : Colors.white.withValues(alpha: 0.70),
           borderRadius: BorderRadius.circular(32),
+          border: Border.all(
+            color: isDark ? Colors.white.withValues(alpha: 0.12) : Colors.white.withValues(alpha: 0.65),
+            width: 1.0,
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
@@ -91,7 +95,7 @@ class _SeamlessFloatingCartBarState extends State<SeamlessFloatingCartBar> {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(32),
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
             child: InkWell(
               onTap: () {
                 HapticFeedback.lightImpact();

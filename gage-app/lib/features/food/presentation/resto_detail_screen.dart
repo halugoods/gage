@@ -2156,8 +2156,8 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
     final borderColor = isDark ? Colors.white12 : const Color(0xFFE2E8F0);
     final badgeTag = isFood ? '-${discount ~/ 1000}RB' : 'ONGKIR';
 
-    const double stubWidth = 72.0;
     const double cardHeight = 74.0;
+    const double stubWidth = 74.0; // 1:1 square ratio!
     const double notchSize = 14.0;
 
     return Container(

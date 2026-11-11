@@ -1621,8 +1621,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                   children: [
                                     MiniLocationPreviewMap(
                                       location: _selectedDeliveryLocation,
-                                      size: 44,
-                                      borderRadius: 12,
+                                      size: 68,
+                                      borderRadius: 14,
                                       onTap: _openLocationPicker,
                                     ),
                                     const SizedBox(width: 12),
@@ -2292,18 +2292,49 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                             children: [
-                                              const Icon(Icons.info_outline_rounded, color: Color(0xFFDC2626), size: 16),
-                                              const SizedBox(width: 6),
-                                              Expanded(
-                                                child: Text(
-                                                  'Saldo GAGEPay kurang ${currencyFormatter.format(totalPay - wallet.balance)}',
-                                                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF991B1B)),
+                                              Row(
+                                                children: [
+                                                  const Icon(Icons.info_outline_rounded, color: Color(0xFFDC2626), size: 16),
+                                                  const SizedBox(width: 6),
+                                                  Text(
+                                                    'Saldo GAGEPay kurang ${currencyFormatter.format(totalPay - wallet.balance)}',
+                                                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF991B1B)),
+                                                  ),
+                                                ],
+                                              ),
+                                              InkWell(
+                                                onTap: () async {
+                                                  await Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(builder: (_) => const GagePayScreen()),
+                                                  );
+                                                  setState(() {});
+                                                },
+                                                borderRadius: BorderRadius.circular(8),
+                                                child: const Padding(
+                                                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                                  child: Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      Text(
+                                                        'Top Up',
+                                                        style: TextStyle(
+                                                          fontSize: 12,
+                                                          fontWeight: FontWeight.bold,
+                                                          color: GageTheme.primary,
+                                                        ),
+                                                      ),
+                                                      SizedBox(width: 2),
+                                                      Icon(Icons.chevron_right_rounded, size: 16, color: GageTheme.primary),
+                                                    ],
+                                                  ),
                                                 ),
                                               ),
                                             ],
                                           ),
-                                          const SizedBox(height: 8),
+                                          const SizedBox(height: 10),
                                           Row(
                                             children: [
                                               Expanded(
@@ -2312,52 +2343,32 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                                     foregroundColor: GageTheme.primary,
                                                     side: const BorderSide(color: GageTheme.primary),
                                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                                                    padding: const EdgeInsets.symmetric(vertical: 7),
                                                     visualDensity: VisualDensity.compact,
                                                   ),
                                                   onPressed: () {
                                                     cart.setPaymentMethod('GAGEPAY_COD');
                                                     setState(() {});
                                                   },
-                                                  child: const Text('GAGEPay + COD', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold), maxLines: 1),
+                                                  child: const Text('GAGEPay + COD', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                                                 ),
                                               ),
-                                              const SizedBox(width: 6),
+                                              const SizedBox(width: 8),
                                               Expanded(
                                                 child: OutlinedButton(
                                                   style: OutlinedButton.styleFrom(
                                                     foregroundColor: const Color(0xFF0284C7),
                                                     side: const BorderSide(color: Color(0xFF0284C7)),
                                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                                                    padding: const EdgeInsets.symmetric(vertical: 7),
                                                     visualDensity: VisualDensity.compact,
                                                   ),
                                                   onPressed: () {
                                                     cart.setPaymentMethod('GAGEPAY_QRIS');
                                                     setState(() {});
                                                   },
-                                                  child: const Text('GAGEPay + QRIS', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold), maxLines: 1),
+                                                  child: const Text('GAGEPay + QRIS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                                                 ),
-                                              ),
-                                              const SizedBox(width: 6),
-                                              ElevatedButton.icon(
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor: const Color(0xFF059669),
-                                                  foregroundColor: Colors.white,
-                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
-                                                  visualDensity: VisualDensity.compact,
-                                                  elevation: 0,
-                                                ),
-                                                onPressed: () async {
-                                                  await Navigator.push(
-                                                    context,
-                                                    MaterialPageRoute(builder: (_) => const GagePayScreen()),
-                                                  );
-                                                  setState(() {});
-                                                },
-                                                icon: const Icon(Icons.add_circle_outline_rounded, size: 13, color: Colors.white),
-                                                label: const Text('Top Up', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
                                               ),
                                             ],
                                           ),
