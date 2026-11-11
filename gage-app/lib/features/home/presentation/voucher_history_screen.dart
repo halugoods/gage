@@ -19,7 +19,7 @@ class _VoucherHistoryScreenState extends State<VoucherHistoryScreen> {
     {
       'id': 'hist-01',
       'code': 'DISKON50',
-      'title': 'Diskon 50% Kuliner Pengguna Baru',
+      'title': 'Diskon 50% s.d 15RB',
       'service': 'GAGE Food',
       'discountAmount': 15000,
       'status': 'USED',
@@ -30,7 +30,7 @@ class _VoucherHistoryScreenState extends State<VoucherHistoryScreen> {
     {
       'id': 'hist-02',
       'code': 'ONGKIRGRATIS',
-      'title': 'Gratis Ongkir Xtra s/d Rp7.000',
+      'title': 'Gratis Ongkir s.d 7RB',
       'service': 'GAGE Food',
       'discountAmount': 7000,
       'status': 'USED',
@@ -41,7 +41,7 @@ class _VoucherHistoryScreenState extends State<VoucherHistoryScreen> {
     {
       'id': 'hist-03',
       'code': 'RIDEHEMAT',
-      'title': 'Potongan Rp4.000 Motor GAGE Ride',
+      'title': 'Diskon 4RB',
       'service': 'GAGE Ride',
       'discountAmount': 4000,
       'status': 'USED',
@@ -52,7 +52,7 @@ class _VoucherHistoryScreenState extends State<VoucherHistoryScreen> {
     {
       'id': 'hist-04',
       'code': 'GAJIANOKT',
-      'title': 'Cashback Spesial Gajian Oktober',
+      'title': 'Cashback s.d 10RB',
       'service': 'GAGE Pay',
       'discountAmount': 10000,
       'status': 'EXPIRED',

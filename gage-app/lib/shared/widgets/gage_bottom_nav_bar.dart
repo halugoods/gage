@@ -102,20 +102,20 @@ class GageBottomNavBar extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(32),
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
                 child: Container(
                   decoration: BoxDecoration(
                     color: effectiveDark
                         ? (isVideoTab
-                            ? const Color(0xFF0F172A).withValues(alpha: 0.82)
-                            : const Color(0xFF1E293B).withValues(alpha: 0.82))
-                        : Colors.white.withValues(alpha: 0.84),
+                            ? const Color(0xFF0F172A).withValues(alpha: 0.65)
+                            : const Color(0xFF1E293B).withValues(alpha: 0.68))
+                        : Colors.white.withValues(alpha: 0.70),
                     borderRadius: BorderRadius.circular(32),
                     border: Border.all(
                       color: effectiveDark
-                          ? Colors.white.withValues(alpha: 0.15)
-                          : Colors.white.withValues(alpha: 0.8),
-                      width: 1.2,
+                          ? Colors.white.withValues(alpha: 0.12)
+                          : Colors.white.withValues(alpha: 0.65),
+                      width: 1.0,
                     ),
                   ),
                   child: Row(

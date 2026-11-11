@@ -22,6 +22,9 @@ import 'package:gage_app/data/models/cart_item_model.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
+import 'package:gage_app/shared/widgets/mini_location_preview_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:gage_app/features/wallet/presentation/gagepay_screen.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -33,6 +36,7 @@ class CheckoutScreen extends StatefulWidget {
 class _CheckoutScreenState extends State<CheckoutScreen> {
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _notePatokanController = TextEditingController();
+  LatLng _selectedDeliveryLocation = const LatLng(-8.0772, 110.8242);
 
   final TextEditingController _giftRecipientNameCtrl = TextEditingController();
   final TextEditingController _giftRecipientPhoneCtrl = TextEditingController();
@@ -345,6 +349,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       onSelected: (title, fullAddress, latLng) {
         setState(() {
           _addressController.text = fullAddress;
+          _selectedDeliveryLocation = latLng;
         });
         context.read<CartProvider>().setDeliveryAddress(fullAddress, 1.8);
       },
@@ -946,7 +951,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     iconColor: const Color(0xFF0284C7),
                     title: 'GAGEPay + QRIS',
                     subtitle: 'GAGEPay ${currencyFormatter.format(wallet.balance)} + QRIS ${currencyFormatter.format(totalPay - wallet.balance)}',
-                    badge: 'SPLIT',
+                    badge: 'KOMBO',
                     badgeColor: const Color(0xFF0284C7),
                     onTap: () {
                       cart.setPaymentMethod('GAGEPAY_QRIS');
@@ -966,7 +971,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     iconColor: const Color(0xFF16A34A),
                     title: 'GAGEPay + COD',
                     subtitle: 'GAGEPay ${currencyFormatter.format(wallet.balance)} + Tunai ${currencyFormatter.format(totalPay - wallet.balance)}',
-                    badge: 'SPLIT',
+                    badge: 'KOMBO',
                     badgeColor: const Color(0xFF16A34A),
                     onTap: () {
                       cart.setPaymentMethod('GAGEPAY_COD');
@@ -1614,14 +1619,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Container(
-                                      width: 40,
-                                      height: 40,
-                                      decoration: BoxDecoration(
-                                        color: GageTheme.primary.withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: const Icon(Icons.location_on_rounded, color: GageTheme.primary, size: 22),
+                                    MiniLocationPreviewMap(
+                                      location: _selectedDeliveryLocation,
+                                      size: 44,
+                                      borderRadius: 12,
+                                      onTap: _openLocationPicker,
                                     ),
                                     const SizedBox(width: 12),
                                     Expanded(
@@ -2243,9 +2245,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                                 cart.paymentMethod == 'GAGEPAY'
                                                     ? 'GAGEPay'
                                                     : (cart.paymentMethod == 'GAGEPAY_QRIS'
-                                                        ? 'GAGEPay + QRIS (Split)'
+                                                        ? 'GAGEPay + QRIS'
                                                         : (cart.paymentMethod == 'GAGEPAY_COD'
-                                                            ? 'GAGEPay + COD (Split)'
+                                                            ? 'GAGEPay + COD'
                                                             : (cart.paymentMethod == 'QRIS'
                                                                 ? 'QRIS'
                                                                 : 'Tunai ke Driver (COD)'))),
@@ -2310,32 +2312,52 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                                     foregroundColor: GageTheme.primary,
                                                     side: const BorderSide(color: GageTheme.primary),
                                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                                    padding: const EdgeInsets.symmetric(vertical: 6),
+                                                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
                                                     visualDensity: VisualDensity.compact,
                                                   ),
                                                   onPressed: () {
                                                     cart.setPaymentMethod('GAGEPAY_COD');
                                                     setState(() {});
                                                   },
-                                                  child: const Text('Split + Tunai (COD)', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold)),
+                                                  child: const Text('GAGEPay + COD', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold), maxLines: 1),
                                                 ),
                                               ),
-                                              const SizedBox(width: 8),
+                                              const SizedBox(width: 6),
                                               Expanded(
                                                 child: OutlinedButton(
                                                   style: OutlinedButton.styleFrom(
                                                     foregroundColor: const Color(0xFF0284C7),
                                                     side: const BorderSide(color: Color(0xFF0284C7)),
                                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                                    padding: const EdgeInsets.symmetric(vertical: 6),
+                                                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
                                                     visualDensity: VisualDensity.compact,
                                                   ),
                                                   onPressed: () {
                                                     cart.setPaymentMethod('GAGEPAY_QRIS');
                                                     setState(() {});
                                                   },
-                                                  child: const Text('Split + QRIS', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold)),
+                                                  child: const Text('GAGEPay + QRIS', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold), maxLines: 1),
                                                 ),
+                                              ),
+                                              const SizedBox(width: 6),
+                                              ElevatedButton.icon(
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: const Color(0xFF059669),
+                                                  foregroundColor: Colors.white,
+                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+                                                  visualDensity: VisualDensity.compact,
+                                                  elevation: 0,
+                                                ),
+                                                onPressed: () async {
+                                                  await Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(builder: (_) => const GagePayScreen()),
+                                                  );
+                                                  setState(() {});
+                                                },
+                                                icon: const Icon(Icons.add_circle_outline_rounded, size: 13, color: Colors.white),
+                                                label: const Text('Top Up', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
                                               ),
                                             ],
                                           ),

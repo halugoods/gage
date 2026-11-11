@@ -51,7 +51,7 @@ class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with Si
   static const List<VoucherModel> _deliveryVouchers = [
     VoucherModel(
       code: 'ONGKIRGRATIS',
-      title: 'Diskon Ongkir Rp 7.000',
+      title: 'Gratis Ongkir s.d 7RB',
       subtitle: 'Min. belanja Rp 15.000',
       isDeliveryPromo: true,
       discountAmount: 7000,
@@ -62,7 +62,7 @@ class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with Si
     ),
     VoucherModel(
       code: 'ONGKIR5RB',
-      title: 'Diskon Ongkir Rp 5.000',
+      title: 'Gratis Ongkir s.d 5RB',
       subtitle: 'Min. belanja Rp 25.000',
       isDeliveryPromo: true,
       discountAmount: 5000,
@@ -73,7 +73,7 @@ class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with Si
     ),
     VoucherModel(
       code: 'GAGEPAYONGKIR',
-      title: 'Diskon Ongkir Rp 10.000',
+      title: 'Gratis Ongkir s.d 10RB',
       subtitle: 'Khusus saldo GAGEPay',
       isDeliveryPromo: true,
       discountAmount: 10000,
@@ -84,7 +84,7 @@ class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with Si
     ),
     VoucherModel(
       code: 'GAGERATIH',
-      title: 'Diskon Ongkir Rp 2.000',
+      title: 'Gratis Ongkir s.d 2RB',
       subtitle: 'Tanpa min. belanja',
       isDeliveryPromo: true,
       discountAmount: 2000,
@@ -98,7 +98,7 @@ class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with Si
   static const List<VoucherModel> _foodVouchers = [
     VoucherModel(
       code: 'DISKON50',
-      title: 'Diskon 50% Makanan',
+      title: 'Diskon 50% s.d 15RB',
       subtitle: 'Maks. potongan Rp 15.000',
       isDeliveryPromo: false,
       discountAmount: 15000,
@@ -110,7 +110,7 @@ class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with Si
     ),
     VoucherModel(
       code: 'KULINER10',
-      title: 'Diskon Makanan Rp 10.000',
+      title: 'Diskon 10RB',
       subtitle: 'Min. belanja Rp 35.000',
       isDeliveryPromo: false,
       discountAmount: 10000,
@@ -121,7 +121,7 @@ class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with Si
     ),
     VoucherModel(
       code: 'HEMATAJI',
-      title: 'Diskon Makanan Rp 8.000',
+      title: 'Diskon 8RB',
       subtitle: 'Min. belanja Rp 25.000',
       isDeliveryPromo: false,
       discountAmount: 8000,
@@ -132,7 +132,7 @@ class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with Si
     ),
     VoucherModel(
       code: 'GAGEPAYFEST',
-      title: 'GAGEPay Culinary Festival Rp 15.000',
+      title: 'Diskon 15RB',
       subtitle: 'Potongan ekstra Rp 15.000 untuk pesta kuliner via GAGEPay',
       isDeliveryPromo: false,
       discountAmount: 15000,

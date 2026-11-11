@@ -61,14 +61,14 @@ class GageFloatingSheet {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(24),
                   child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
+                    filter: ImageFilter.blur(sigmaX: 24.0, sigmaY: 24.0),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: backgroundColor ?? (isDark ? const Color(0xFF1E293B).withValues(alpha: 0.85) : Colors.white.withValues(alpha: 0.88)),
+                        color: backgroundColor ?? (isDark ? const Color(0xFF1E293B).withValues(alpha: 0.70) : Colors.white.withValues(alpha: 0.72)),
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(
-                          color: isDark ? Colors.white.withValues(alpha: 0.12) : Colors.white.withValues(alpha: 0.75),
-                          width: 1.2,
+                          color: isDark ? Colors.white.withValues(alpha: 0.12) : Colors.white.withValues(alpha: 0.65),
+                          width: 1.0,
                         ),
                       ),
                       child: Column(
