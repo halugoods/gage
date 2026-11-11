@@ -150,7 +150,7 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
   void _pickSenderAddress() {
     LocationPickerSheet.show(
       context,
-      title: 'Pilih Titik Jemput (Pengirim)',
+      title: 'Pilih Titik Jemput',
       initialLocation: _senderLatLng,
       showMiniMap: false,
       autoFocusSearch: true,
@@ -171,7 +171,7 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
   void _pickRecipientAddress() {
     LocationPickerSheet.show(
       context,
-      title: 'Pilih Titik Antar (Penerima)',
+      title: 'Pilih Titik Antar',
       initialLocation: _recipientLatLng ?? _senderLatLng,
       showMiniMap: false,
       autoFocusSearch: true,
@@ -463,7 +463,7 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text('Titik Jemput (Pengirim)', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
+                                    const Text('Titik Jemput', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
                                     Text(
                                       _senderAddressCtrl.text.trim().isEmpty ? 'Pilih lokasi jemput paket Anda' : _senderAddressCtrl.text,
                                       style: TextStyle(
@@ -495,7 +495,7 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text('Titik Antar (Penerima)', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
+                                    const Text('Titik Antar', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
                                     Text(
                                       _recipientLatLng == null ? 'Kirim ke mana? Ketuk untuk cari tujuan' : _recipientAddressCtrl.text,
                                       style: TextStyle(
@@ -815,7 +815,7 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                               Icon(Icons.search_rounded, size: 20, color: Colors.white),
                               SizedBox(width: 8),
                               Text(
-                                'Pilih Titik Jemput (Pengirim)',
+                                'Pilih Titik Jemput',
                                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
                               ),
                             ],
@@ -827,7 +827,7 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                                   Icon(Icons.search_rounded, size: 20, color: Colors.white),
                                   SizedBox(width: 8),
                                   Text(
-                                    'Pilih Titik Antar (Penerima)',
+                                    'Pilih Titik Antar',
                                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
                                   ),
                                 ],

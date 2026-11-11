@@ -1,3 +1,4 @@
+import 'package:gage_app/data/mock/gage_voucher_data.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -25,145 +26,17 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
   late TabController _tabController;
   final TextEditingController _codeCtrl = TextEditingController();
   int _selectedTabIndex = 0;
+  final Map<String, bool> _expandedSections = {
+    'food': true,
+    'mart': true,
+    'transport': true,
+    'send': true,
+  };
 
   final List<String> _tabs = ['Semua', 'Diskon', 'Gratis Ongkir'];
 
   // Master Database Voucher Kupon GAGE (Urutan Terstruktur: Food -> Mart -> Transport -> Logistik)
-  final List<Map<String, dynamic>> _allVouchers = [
-    // 1. KULINER (GAGE Food) - Diskon Utama & Ongkir
-    {
-      'id': 'v-food-50',
-      'code': 'DISKON50',
-      'service': 'GAGE Food',
-      'type': 'order',
-      'title': 'Diskon 50% s.d 15RB',
-      'discountText': 'Diskon 50% s.d 15RB',
-      'minOrder': 20000,
-      'quantity': 3,
-      'tag': 'Pengguna Baru',
-      'expiry': '31 Des 2026',
-      'terms': [
-        'Diskon 50% hingga maksimal potongan Rp 15.000.',
-        'Berlaku untuk semua resto kuliner mitra GAGE Food.',
-        'Minimal transaksi pemesanan Rp 20.000.',
-        'Dapat digabung dengan voucher gratis ongkir.',
-      ],
-      'howToUse': 'Klik "Pakai", lalu potongan harga langsung otomatis memotong total belanja Anda di keranjang checkout.',
-    },
-    {
-      'id': 'v-food-20',
-      'code': 'KULINER20',
-      'service': 'GAGE Food',
-      'type': 'order',
-      'title': 'Diskon 20% s.d 20RB',
-      'discountText': 'Diskon 20% s.d 20RB',
-      'minOrder': 50000,
-      'quantity': 2,
-      'tag': 'Diskon Terus',
-      'expiry': '31 Des 2026',
-      'terms': [
-        'Diskon 20% hingga maksimal potongan Rp 20.000.',
-        'Berlaku untuk pesanan makan siang dan malam.',
-        'Minimal belanja Rp 50.000.',
-      ],
-      'howToUse': 'Otomatis terpasang di keranjang GAGE Food.',
-    },
-    {
-      'id': 'v-ongkir-01',
-      'code': 'ONGKIRGRATIS',
-      'service': 'GAGE Food',
-      'type': 'delivery',
-      'title': 'Gratis Ongkir s.d 7RB',
-      'discountText': 'Gratis Ongkir s.d 7RB',
-      'minOrder': 25000,
-      'quantity': 5,
-      'tag': 'Semua Resto',
-      'expiry': '31 Des 2026',
-      'terms': [
-        'Potongan ongkir gratis hingga maksimal Rp 7.000.',
-        'Berlaku untuk pengantaran kurir motor GAGE Food.',
-        'Minimal transaksi pemesanan Rp 25.000.',
-        'Dapat digunakan bersamaan dengan voucher diskon makanan.',
-      ],
-      'howToUse': 'Pilih voucher ini, dan biaya kurir antar otomatis terpotong di keranjang.',
-    },
-
-    // 2. BELANJA & SEMBAKO (GAGE Mart)
-    {
-      'id': 'v-mart-01',
-      'code': 'BELANJAMART',
-      'service': 'GAGE Mart',
-      'type': 'order',
-      'title': 'Diskon 10RB',
-      'discountText': 'Diskon 10RB',
-      'minOrder': 35000,
-      'quantity': 1,
-      'tag': 'Mitra Toko',
-      'expiry': '31 Des 2026',
-      'terms': [
-        'Potongan langsung Rp 10.000 di toko mitra resmi GAGE Mart.',
-        'Minimal total belanja sembako Rp 35.000.',
-      ],
-      'howToUse': 'Pilih voucher saat checkout belanjaan toko.',
-    },
-
-    // 3. TRANSPORTASI (GAGE Car & GAGE Ride)
-    {
-      'id': 'v-car-01',
-      'code': 'GAGECAR15',
-      'service': 'GAGE Car',
-      'type': 'order',
-      'title': 'Diskon 15RB',
-      'discountText': 'Diskon 15RB',
-      'minOrder': 30000,
-      'quantity': 2,
-      'tag': 'GAGE Car',
-      'expiry': '31 Des 2026',
-      'terms': [
-        'Potongan langsung Rp 15.000 untuk pemesanan armada GAGE Car.',
-        'Minimal tarif perjalanan Rp 30.000.',
-        'Berlaku untuk seluruh perjalanan di area operasional GAGE.',
-      ],
-      'howToUse': 'Gunakan saat memesan armada GAGE Car.',
-    },
-    {
-      'id': 'v-ride-01',
-      'code': 'RIDEHEMAT',
-      'service': 'GAGE Ride',
-      'type': 'order',
-      'title': 'Diskon 4RB',
-      'discountText': 'Diskon 4RB',
-      'minOrder': 10000,
-      'quantity': 1,
-      'tag': 'GAGE Ride',
-      'expiry': '31 Des 2026',
-      'terms': [
-        'Potongan Rp 4.000 untuk perjalanan ojek motor GAGE Ride.',
-        'Minimal transaksi Rp 10.000.',
-        'Berlaku 1x sehari untuk setiap akun pengguna.',
-      ],
-      'howToUse': 'Pilih saat memesan GAGE Ride sebelum klik konfirmasi driver.',
-    },
-
-    // 4. PENGIRIMAN & LOGISTIK (GAGE Send)
-    {
-      'id': 'v-send-01',
-      'code': 'KIRIMKILAT',
-      'service': 'GAGE Send',
-      'type': 'delivery',
-      'title': 'Gratis Ongkir s.d 5RB',
-      'discountText': 'Gratis Ongkir s.d 5RB',
-      'minOrder': 12000,
-      'quantity': 3,
-      'tag': 'GAGE Send',
-      'expiry': '31 Des 2026',
-      'terms': [
-        'Subsidi ongkir Rp 5.000 untuk pengiriman barang dan dokumen kilat.',
-        'Tarif hemat khusus wilayah Pracimantoro dan sekitarnya.',
-      ],
-      'howToUse': 'Gunakan di halaman pemesanan kurir kirim barang GAGE Send.',
-    },
-  ];
+  List<Map<String, dynamic>> get _allVouchers => GageVoucherData.allVouchers;
 
   @override
   void initState() {
@@ -407,6 +280,121 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
     );
   }
 
+  Widget _buildAccordionSection({
+    required BuildContext context,
+    required String sectionKey,
+    required String title,
+    required IconData icon,
+    required List<Map<String, dynamic>> vouchers,
+    required bool isDark,
+  }) {
+    if (vouchers.isEmpty) return const SizedBox.shrink();
+    final isExpanded = _expandedSections[sectionKey] ?? true;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          onTap: () {
+            HapticFeedback.selectionClick();
+            setState(() {
+              _expandedSections[sectionKey] = !isExpanded;
+            });
+          },
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            margin: const EdgeInsets.only(top: 8, bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(icon, size: 18, color: GageTheme.primary),
+                    const SizedBox(width: 8),
+                    Text(
+                      '$title (${vouchers.length})',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+                Icon(
+                  isExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                  size: 20,
+                  color: isDark ? Colors.white70 : Colors.black54,
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (isExpanded)
+          ...vouchers.map(
+            (v) => GageTicketVoucherCard(
+              voucher: v,
+              onApply: () => _applyAndRedirect(context, v),
+              onTermsTap: () => _showVoucherTerms(context, v),
+            ),
+          ),
+        const SizedBox(height: 4),
+      ],
+    );
+  }
+
+  Widget _buildAllTabAccordion(BuildContext context, bool isDark) {
+    final foodVouchers = _allVouchers.where((v) => v['service'] == 'GAGE Food').toList();
+    final martVouchers = _allVouchers.where((v) => v['service'] == 'GAGE Mart').toList();
+    final transportVouchers = _allVouchers.where((v) => v['service'] == 'GAGE Ride' || v['service'] == 'GAGE Car').toList();
+    final sendVouchers = _allVouchers.where((v) => v['service'] == 'GAGE Send').toList();
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 85),
+      children: [
+        _buildAccordionSection(
+          context: context,
+          sectionKey: 'food',
+          title: 'Kuliner & Resto Mitra',
+          icon: Icons.restaurant_rounded,
+          vouchers: foodVouchers,
+          isDark: isDark,
+        ),
+        _buildAccordionSection(
+          context: context,
+          sectionKey: 'mart',
+          title: 'Belanja & Toko Sembako',
+          icon: Icons.storefront_rounded,
+          vouchers: martVouchers,
+          isDark: isDark,
+        ),
+        _buildAccordionSection(
+          context: context,
+          sectionKey: 'transport',
+          title: 'Transportasi Motor & Mobil',
+          icon: Icons.two_wheeler_rounded,
+          vouchers: transportVouchers,
+          isDark: isDark,
+        ),
+        _buildAccordionSection(
+          context: context,
+          sectionKey: 'send',
+          title: 'Pengiriman & Logistik Paket',
+          icon: Icons.local_shipping_rounded,
+          vouchers: sendVouchers,
+          isDark: isDark,
+        ),
+      ],
+    );
+  }
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -558,6 +546,9 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
               child: TabBarView(
                 controller: _tabController,
                 children: List.generate(_tabs.length, (tabIdx) {
+                  if (tabIdx == 0) {
+                    return _buildAllTabAccordion(context, isDark);
+                  }
                   final list = _getVouchersForTab(tabIdx);
 
                   if (list.isEmpty) {

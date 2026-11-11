@@ -19,7 +19,6 @@ import 'package:gage_app/shared/widgets/mini_location_preview_map.dart';
 import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
 import 'package:gage_app/features/wallet/presentation/gagepay_screen.dart';
 import 'package:gage_app/features/voucher/presentation/voucher_selection_screen.dart';
-import 'package:gage_app/providers/cart_provider.dart';
 
 
 class RideCheckoutScreen extends StatefulWidget {
@@ -200,26 +199,20 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
   }
 
   Future<void> _openVoucherSelection() async {
-    await Navigator.push(
+    final result = await Navigator.push<Map<String, dynamic>>(
       context,
       MaterialPageRoute(
-        builder: (ctx) => const VoucherSelectionScreen(initialTabIndex: 0),
+        builder: (ctx) => VoucherSelectionScreen(
+          serviceType: widget.serviceType,
+          initialTabIndex: 0,
+        ),
       ),
     );
-    if (mounted) {
-      final cart = context.read<CartProvider>();
-      if (cart.deliveryPromoCode != null) {
-        setState(() {
-          _appliedVoucherCode = cart.deliveryPromoCode;
-          _voucherDiscount = cart.deliveryPromoDiscount > 0 ? cart.deliveryPromoDiscount : 4000;
-        });
-      } else if (cart.foodPromoCode != null) {
-        setState(() {
-          _appliedVoucherCode = cart.foodPromoCode;
-          _voucherDiscount = cart.foodPromoDiscount > 0 ? cart.foodPromoDiscount : 4000;
-        });
-      }
-      setState(() {});
+    if (result != null && mounted) {
+      setState(() {
+        _appliedVoucherCode = result['code'] as String?;
+        _voucherDiscount = (result['discount'] as num?)?.toInt() ?? 0;
+      });
     }
   }
 
@@ -1224,6 +1217,8 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                         ),
                       ),
 
+                      const SizedBox(height: 14),
+
                       // =========================================================
                       // 6. METODE PEMBAYARAN CARD (In-Page Tile + Deficit Box Image 3)
                       // =========================================================
@@ -1578,11 +1573,9 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                                 height: 22,
                                 child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
                               )
-                            : Text(
-                                isSend
-                                    ? 'Pesan GAGE Send'
-                                    : (isCar ? 'Pesan GAGE Car' : 'Pesan GAGE Ride'),
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                            : const Text(
+                                'Pesan Sekarang',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                               ),
                       ),
                     ),
