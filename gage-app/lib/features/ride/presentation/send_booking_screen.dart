@@ -1,19 +1,14 @@
+import 'package:gage_app/features/ride/presentation/ride_checkout_screen.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
-import 'package:gage_app/providers/wallet_provider.dart';
-import 'package:gage_app/providers/order_provider.dart';
-import 'package:gage_app/providers/auth_provider.dart';
 import 'package:gage_app/core/services/location_service.dart';
 import 'package:gage_app/core/services/osrm_routing_service.dart';
 import 'package:gage_app/core/services/gage_pricing_service.dart';
 import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
-import 'package:gage_app/shared/widgets/gage_toast.dart';
-import 'package:gage_app/features/orders/presentation/order_tracking_screen.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 /// Screen utama pemesanan pengantaran barang GAGE Send.
@@ -220,104 +215,34 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
     return _calculateShippingFee(service) + _calculateAdminFee();
   }
 
-  void _bookCourier() {
+  void _goToCheckout() {
     if (_recipientLatLng == null) {
       _pickRecipientAddress();
       return;
     }
 
-    final shippingFee = _calculateShippingFee();
-    final adminFee = _calculateAdminFee();
-    final totalFare = _calculateTotalFare();
-
-    if (_paymentMethod == 'gagepay') {
-      final wallet = context.read<WalletProvider>();
-      if (wallet.balance < totalFare) {
-        final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
-        GageToast.show(
-          context,
-          'Saldo GAGEPay (${currencyFormatter.format(wallet.balance)}) tidak mencukupi total ongkir!',
-          type: GageToastType.warning,
-        );
-        return;
-      }
-    }
-
-    setState(() => _isSearchingCourier = true);
-    Future.delayed(const Duration(milliseconds: 1400), () {
-      if (!mounted) return;
-      setState(() => _isSearchingCourier = false);
-
-      final auth = context.read<AuthProvider>();
-      final orderProvider = context.read<OrderProvider>();
-      final user = auth.currentUser;
-      final userId = user?.id ?? 'usr-cust-01';
-
-      final now = DateTime.now();
-      final dateStr = DateFormat('yyyyMMdd').format(now);
-      final userSuffix = (user?.name ?? 'USER').toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
-      final shortUser = userSuffix.length >= 4 ? userSuffix.substring(0, 4) : userSuffix.padRight(4, 'X');
-      final hashSuffix = now.millisecondsSinceEpoch.toString().substring(8);
-      final invoiceNumber = 'INV/GG/$dateStr/SD/$shortUser-$hashSuffix';
-
-      final orderData = {
-        'id': 'ord-send-${now.millisecondsSinceEpoch}',
-        'order_number': invoiceNumber,
-        'user_id': userId,
-        'merchant_id': 'mch-gage-send',
-        'merchant_name': 'GAGE Send ${_serviceType == "instant" ? "Instant" : "Sameday"}',
-        'merchant_address': _senderAddressCtrl.text,
-        'driver_name': 'Budi Santoso (Honda Beat AD 6721 WB)',
-        'driver_plate': 'AD 6721 WB',
-        'driver_phone': '081398765432',
-        'status': 'ON_DELIVERY',
-        'payment_method': _paymentMethod.toUpperCase(),
-        'payment_status': 'PAID',
-        'total_amount': totalFare,
-        'items_subtotal': shippingFee,
-        'shipping_fee': shippingFee,
-        'shipping_discount': 0,
-        'admin_fee': adminFee,
-        'order_type': 'send',
-        'service_type': _serviceType,
-        'pickup_address': _senderAddressCtrl.text,
-        'dropoff_address': _recipientAddressCtrl.text,
-        'recipient_name': _recipientNameCtrl.text,
-        'recipient_phone': _recipientPhoneCtrl.text,
-        'package_type': _selectedPackageType,
-        'package_weight': _selectedWeight,
-        'package_desc': _packageDescCtrl.text,
-        'distance_km': _distanceKm,
-        'items': [
-          {
-            'name': 'GAGE Send (${_serviceType == "instant" ? "Instant" : "Sameday"} - $_selectedPackageType)',
-            'quantity': 1,
-            'price': shippingFee,
-            'subtotal': shippingFee,
-            'notes': _packageDescCtrl.text.isNotEmpty ? _packageDescCtrl.text : 'Kirim paket aman',
-          }
-        ],
-        'created_at': now.millisecondsSinceEpoch ~/ 1000,
-      };
-
-      orderProvider.createOrder(orderData);
-
-      GageToast.show(
-        context,
-        'Kurir GAGE Send ditemukan! Paket siap dijemput.',
-        type: GageToastType.success,
-      );
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (ctx) => OrderTrackingScreen(
-            orderId: orderData['id'] as String,
-          ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (ctx) => RideCheckoutScreen(
+          serviceType: 'send',
+          rideOption: _selectedPackageType,
+          pickupLocation: _senderLatLng,
+          dropoffLocation: _recipientLatLng!,
+          pickupAddress: _senderAddressCtrl.text,
+          dropoffAddress: _recipientAddressCtrl.text,
+          distanceKm: _distanceKm,
+          baseFare: _calculateShippingFee(),
+          recipientName: _recipientNameCtrl.text.isNotEmpty ? _recipientNameCtrl.text : 'Penerima Paket',
+          recipientPhone: _recipientPhoneCtrl.text.isNotEmpty ? _recipientPhoneCtrl.text : '081226001000',
+          packageType: _selectedPackageType,
+          weightTier: _selectedWeight,
+          itemDescription: _packageDescCtrl.text,
         ),
-      );
-    });
+      ),
+    );
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -600,7 +525,7 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
             // 3. Floating Map Controls (Fit Route & Recenter - Posisi Seragam 1:1 Ride/Car)
             Positioned(
               right: 16,
-              bottom: 235,
+              bottom: 252,
               child: Column(
                 children: [
                   FloatingActionButton.small(
@@ -865,7 +790,7 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                         ? _pickSenderAddress
                         : (_recipientLatLng == null
                             ? _pickRecipientAddress
-                            : _bookCourier)),
+                            : _goToCheckout)),
                 child: _isSearchingCourier
                     ? const Row(
                         mainAxisAlignment: MainAxisAlignment.center,

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
-import 'package:gage_app/shared/widgets/gage_bottom_nav_bar.dart';
 import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
 
 class ChatHubScreen extends StatefulWidget {
@@ -104,26 +103,20 @@ class _ChatHubScreenState extends State<ChatHubScreen> with SingleTickerProvider
       appBar: AppBar(
         backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
         elevation: 0.5,
-        automaticallyImplyLeading: false,
-        title: Row(
-          children: [
-            Image.asset(
-              'assets/images/gage_chat_icon.png',
-              width: 26,
-              height: 26,
-              fit: BoxFit.contain,
-              errorBuilder: (c, e, s) => const Icon(Icons.chat_bubble_rounded, color: GageTheme.primary, size: 24),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              'Pesan & Bantuan',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
-            ),
-          ],
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back_rounded,
+            color: isDark ? Colors.white : const Color(0xFF1E293B),
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          'Pesan & Bantuan',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(56),
@@ -155,9 +148,7 @@ class _ChatHubScreenState extends State<ChatHubScreen> with SingleTickerProvider
           ),
         ),
       ),
-      body: Stack(
-        children: [
-          TabBarView(
+      body: TabBarView(
             controller: _tabController,
             children: List.generate(_tabs.length, (idx) {
               final chats = _filterChats(idx);
@@ -189,7 +180,7 @@ class _ChatHubScreenState extends State<ChatHubScreen> with SingleTickerProvider
 
               // WhatsApp-Style Pure Clean Chat List with Hairline Divider
               return ListView.separated(
-                padding: const EdgeInsets.fromLTRB(0, 4, 0, 96),
+                padding: const EdgeInsets.fromLTRB(0, 4, 0, 16),
                 itemCount: chats.length,
                 separatorBuilder: (context, index) => Padding(
                   padding: const EdgeInsets.only(left: 74, right: 16),
@@ -340,16 +331,6 @@ class _ChatHubScreenState extends State<ChatHubScreen> with SingleTickerProvider
               );
             }),
           ),
-
-          // Floating Bottom Navigation Bar (Tab 3: Chat)
-          const Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: GageBottomNavBar(currentIndex: 3),
-          ),
-        ],
-      ),
     );
   }
 }

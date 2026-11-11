@@ -14,7 +14,6 @@ import 'package:gage_app/providers/cart_provider.dart';
 import 'package:gage_app/providers/wallet_provider.dart';
 import 'package:gage_app/providers/order_provider.dart';
 import 'package:gage_app/features/orders/presentation/order_tracking_screen.dart';
-import 'package:gage_app/features/wallet/presentation/topup_qris_dialog.dart';
 import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
 import 'package:gage_app/features/food/presentation/food_explore_screen.dart';
 import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
@@ -533,21 +532,85 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     // Validasi Saldo GagePay & Multi Metode
     if (cart.paymentMethod == 'GAGEPAY') {
       if (wallet.balance < totalPay) {
-        GageFloatingSheet.showConfirm(
+        final deficit = totalPay - wallet.balance;
+        GageFloatingSheet.show(
           context: context,
-          title: 'Saldo GAGEPay Kurang',
-          message:
-              'Saldo Anda: ${currencyFormatter.format(wallet.balance)} | Total: ${currencyFormatter.format(totalPay)}.\nSilakan gunakan metode Split (GAGEPay + QRIS / COD) atau top-up saldo.',
-          confirmLabel: 'Top-Up Sekarang',
-          cancelLabel: 'Batal',
-        ).then((ok) {
-          if (ok == true && context.mounted) {
-            TopupQrisDialog.showAsSheet(
-              context,
-              onTopupSuccess: (_) => wallet.fetchWallet(userId),
-            );
-          }
-        });
+          title: 'Kombinasi Pembayaran (Split)',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Saldo GAGEPay Anda ${currencyFormatter.format(wallet.balance)} kurang ${currencyFormatter.format(deficit)} untuk total bayar ${currencyFormatter.format(totalPay)}.\n\nPilih kombinasi pembayaran split:',
+                style: const TextStyle(fontSize: 13, height: 1.4),
+              ),
+              const SizedBox(height: 16),
+              InkWell(
+                onTap: () {
+                  Navigator.pop(context);
+                  cart.setPaymentMethod('GAGEPAY_COD');
+                  _handleCheckout(context);
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: GageTheme.primary, width: 1.5),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.payments_rounded, color: GageTheme.primary, size: 24),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('GAGEPay + Tunai (COD)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                            Text('Pakai saldo ${currencyFormatter.format(wallet.balance)}, bayar sisa ${currencyFormatter.format(deficit)} tunai ke driver', style: const TextStyle(fontSize: 11.5)),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: GageTheme.primary),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              InkWell(
+                onTap: () {
+                  Navigator.pop(context);
+                  cart.setPaymentMethod('GAGEPAY_QRIS');
+                  _handleCheckout(context);
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFF0284C7), width: 1.5),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.qr_code_2_rounded, color: Color(0xFF0284C7), size: 24),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('GAGEPay + QRIS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                            Text('Pakai saldo ${currencyFormatter.format(wallet.balance)}, bayar kekurangan ${currencyFormatter.format(deficit)} via QRIS', style: const TextStyle(fontSize: 11.5)),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Color(0xFF0284C7)),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
         return;
       }
 
@@ -2213,43 +2276,68 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                       ],
                                     ),
                                   ),
-                                  // Pengingat Saldo Bersih Jika GAGEPay Kurang
+                                  // Opsi Split Otomatis Jika GAGEPay Kurang
                                   if (cart.paymentMethod == 'GAGEPAY' && wallet.balance < totalPay) ...[
                                     const SizedBox(height: 10),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                      padding: const EdgeInsets.all(10),
                                       decoration: BoxDecoration(
                                         color: const Color(0xFFFEF2F2),
                                         borderRadius: BorderRadius.circular(12),
                                         border: Border.all(color: const Color(0xFFFECACA)),
                                       ),
-                                      child: Row(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          const Icon(Icons.info_outline_rounded, color: Color(0xFFDC2626), size: 18),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              'Saldo GAGEPay kurang ${currencyFormatter.format(totalPay - wallet.balance)}',
-                                              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF991B1B)),
-                                            ),
-                                          ),
-                                          InkWell(
-                                            onTap: () => TopupQrisDialog.showAsSheet(
-                                              context,
-                                              onTopupSuccess: (amt) {
-                                                wallet.topUp(amt);
-                                                setState(() {});
-                                              },
-                                            ),
-                                            borderRadius: BorderRadius.circular(16),
-                                            child: Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                              decoration: BoxDecoration(
-                                                color: GageTheme.primary,
-                                                borderRadius: BorderRadius.circular(16),
+                                          Row(
+                                            children: [
+                                              const Icon(Icons.info_outline_rounded, color: Color(0xFFDC2626), size: 16),
+                                              const SizedBox(width: 6),
+                                              Expanded(
+                                                child: Text(
+                                                  'Saldo GAGEPay kurang ${currencyFormatter.format(totalPay - wallet.balance)}',
+                                                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF991B1B)),
+                                                ),
                                               ),
-                                              child: const Text('Top Up', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
-                                            ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: OutlinedButton(
+                                                  style: OutlinedButton.styleFrom(
+                                                    foregroundColor: GageTheme.primary,
+                                                    side: const BorderSide(color: GageTheme.primary),
+                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                                    padding: const EdgeInsets.symmetric(vertical: 6),
+                                                    visualDensity: VisualDensity.compact,
+                                                  ),
+                                                  onPressed: () {
+                                                    cart.setPaymentMethod('GAGEPAY_COD');
+                                                    setState(() {});
+                                                  },
+                                                  child: const Text('Split + Tunai (COD)', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold)),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: OutlinedButton(
+                                                  style: OutlinedButton.styleFrom(
+                                                    foregroundColor: const Color(0xFF0284C7),
+                                                    side: const BorderSide(color: Color(0xFF0284C7)),
+                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                                    padding: const EdgeInsets.symmetric(vertical: 6),
+                                                    visualDensity: VisualDensity.compact,
+                                                  ),
+                                                  onPressed: () {
+                                                    cart.setPaymentMethod('GAGEPAY_QRIS');
+                                                    setState(() {});
+                                                  },
+                                                  child: const Text('Split + QRIS', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold)),
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ),

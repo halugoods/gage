@@ -165,15 +165,15 @@ class GageTicketVoucherCard extends StatelessWidget {
     final icon = _getCategoryIcon(service, type);
     final label = _getCategoryLabel(service, type);
 
-    final title = voucher['discountText'] as String? ?? voucher['title'] as String? ?? 'Diskon Spesial';
+    final title = voucher['title'] as String? ?? voucher['discountText'] as String? ?? 'Diskon Spesial';
     final code = voucher['code'] as String? ?? '';
     final minOrder = _parseInt(voucher['minOrder'] ?? voucher['minSpend'], 0);
     final expiry = voucher['expiry'] as String? ?? '31 Des 2026';
     final quantity = _parseInt(voucher['quantity'], 1);
 
-    // Badges filter admin yang rapi
-    final tag = voucher['tag'] as String? ?? (service == 'GAGE Food' ? 'Diskon Terus' : 'Pengguna Baru');
-    final secondaryBadge = voucher['badge'] as String? ?? (type == 'delivery' ? 'Semua Resto' : null);
+    // Badges filter admin yang rapi (tidak berlebihan)
+    final tag = voucher['tag'] as String?;
+    final secondaryBadge = voucher['badge'] as String?;
 
     final currencyFmt = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0);
     final minOrderText = minOrder > 0 ? 'Min. belanja ${currencyFmt.format(minOrder)}' : 'Tanpa min. belanja';
@@ -283,10 +283,12 @@ class GageTicketVoucherCard extends StatelessWidget {
                               children: [
                                 if (code.isNotEmpty) ...[
                                   _buildBadge(code, isDark, isPrimary: true),
-                                  const SizedBox(width: 4),
                                 ],
-                                _buildBadge(tag, isDark, isPrimary: code.isEmpty),
-                                if (secondaryBadge != null) ...[
+                                if (tag != null && tag.isNotEmpty && tag != code) ...[
+                                  const SizedBox(width: 4),
+                                  _buildBadge(tag, isDark, isPrimary: false),
+                                ],
+                                if (secondaryBadge != null && secondaryBadge.isNotEmpty && secondaryBadge != tag) ...[
                                   const SizedBox(width: 4),
                                   _buildBadge(secondaryBadge, isDark, isPrimary: false),
                                 ],

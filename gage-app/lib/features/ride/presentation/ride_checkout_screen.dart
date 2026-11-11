@@ -14,14 +14,19 @@ import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 class RideCheckoutScreen extends StatefulWidget {
-  final String serviceType; // 'ride' or 'car'
-  final String rideOption; // 'standard' (reguler) or 'hemat'
+  final String serviceType; // 'ride', 'car', or 'send'
+  final String rideOption; // 'standard' (reguler), 'hemat', or packageType
   final LatLng pickupLocation;
   final LatLng dropoffLocation;
   final String pickupAddress;
   final String dropoffAddress;
   final double distanceKm;
   final int baseFare;
+  final String? recipientName;
+  final String? recipientPhone;
+  final String? packageType;
+  final String? weightTier;
+  final String? itemDescription;
 
   const RideCheckoutScreen({
     super.key,
@@ -33,6 +38,11 @@ class RideCheckoutScreen extends StatefulWidget {
     required this.dropoffAddress,
     required this.distanceKm,
     required this.baseFare,
+    this.recipientName,
+    this.recipientPhone,
+    this.packageType,
+    this.weightTier,
+    this.itemDescription,
   });
 
   @override
@@ -67,7 +77,12 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
     final lastMethod = prefs.getString('last_ride_payment_method');
     if (mounted) {
       setState(() {
-        _selectedPaymentMethod = lastMethod; // Akan null jika pertama kali
+        if (lastMethod != null && lastMethod.isNotEmpty) {
+          _selectedPaymentMethod = lastMethod;
+        } else {
+          // Default ke GAGEPay
+          _selectedPaymentMethod = 'gagepay';
+        }
         _isLoadingPreference = false;
       });
     }
@@ -225,7 +240,7 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
     );
   }
 
-  void _showQrisModal(VoidCallback onConfirmed) {
+  void _showQrisModal(int amount, VoidCallback onConfirmed) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     GageFloatingSheet.show(
       context: context,
@@ -238,7 +253,7 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'QRIS',
+                'Pembayaran QRIS',
                 style: TextStyle(
                   fontSize: 16.5,
                   fontWeight: FontWeight.bold,
@@ -296,7 +311,7 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    currencyFormatter.format(_totalAmount),
+                    currencyFormatter.format(amount),
                     style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: GageTheme.primary),
                   ),
                   const Text('NMID: ID102003847291 • GAGE Pracimantoro', style: TextStyle(fontSize: 10, color: Colors.black54)),
@@ -312,7 +327,7 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: GageTheme.primary,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                 elevation: 0,
               ),
               icon: const Icon(Icons.check_circle_rounded, size: 20),
@@ -328,7 +343,113 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
     );
   }
 
+  void _showSplitPaymentOfferSheet(WalletProvider wallet) {
+    final deficit = _totalAmount - wallet.balance;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    GageFloatingSheet.show(
+      context: context,
+      title: 'Kombinasi Pembayaran (Split)',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Saldo GAGEPay Anda ${currencyFormatter.format(wallet.balance)} kurang ${currencyFormatter.format(deficit)} untuk total bayar ${currencyFormatter.format(_totalAmount)}.',
+            style: TextStyle(
+              fontSize: 13,
+              color: isDark ? Colors.white70 : Colors.black87,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Opsi 1: GAGEPay + Tunai
+          InkWell(
+            onTap: () {
+              Navigator.pop(context);
+              setState(() => _selectedPaymentMethod = 'gagepay_cod');
+              _finalizeRideOrder();
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: GageTheme.primary, width: 1.5),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.payments_rounded, color: GageTheme.primary, size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'GAGEPay + Tunai (COD)',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                        ),
+                        Text(
+                          'Pakai saldo ${currencyFormatter.format(wallet.balance)}, bayar sisa ${currencyFormatter.format(deficit)} tunai ke driver',
+                          style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white60 : Colors.grey.shade600),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: GageTheme.primary),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          // Opsi 2: GAGEPay + QRIS
+          InkWell(
+            onTap: () {
+              Navigator.pop(context);
+              setState(() => _selectedPaymentMethod = 'gagepay_qris');
+              _showQrisModal(deficit, () => _finalizeRideOrder());
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFF0284C7), width: 1.5),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.qr_code_2_rounded, color: Color(0xFF0284C7), size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'GAGEPay + QRIS',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                        ),
+                        Text(
+                          'Pakai saldo ${currencyFormatter.format(wallet.balance)}, bayar kekurangan ${currencyFormatter.format(deficit)} via QRIS',
+                          style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white60 : Colors.grey.shade600),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Color(0xFF0284C7)),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
+
   void _processBooking() {
+    final wallet = context.read<WalletProvider>();
+
     if (_selectedPaymentMethod == null) {
       GageToast.show(
         context,
@@ -338,20 +459,17 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
       return;
     }
 
-    if (_selectedPaymentMethod == 'gagepay') {
-      final wallet = context.read<WalletProvider>();
-      if (wallet.balance < _totalAmount) {
-        GageToast.show(
-          context,
-          'Saldo GAGEPay (${currencyFormatter.format(wallet.balance)}) tidak mencukupi total $_totalAmount!',
-          type: GageToastType.error,
-        );
-        return;
-      }
+    // Jika user memilih gagepay tapi saldo kurang: langsung tawarkan split pembayaran!
+    if (_selectedPaymentMethod == 'gagepay' && wallet.balance < _totalAmount) {
+      _showSplitPaymentOfferSheet(wallet);
+      return;
     }
 
     if (_selectedPaymentMethod == 'qris') {
-      _showQrisModal(() => _finalizeRideOrder());
+      _showQrisModal(_totalAmount, () => _finalizeRideOrder());
+    } else if (_selectedPaymentMethod == 'gagepay_qris') {
+      final qrisAmount = _totalAmount - wallet.balance;
+      _showQrisModal(qrisAmount, () => _finalizeRideOrder());
     } else {
       _finalizeRideOrder();
     }
@@ -369,18 +487,43 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
     final userSuffix = (user?.name ?? 'USER').toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
     final shortUser = userSuffix.length >= 4 ? userSuffix.substring(0, 4) : userSuffix.padRight(4, 'X');
     final hashSuffix = now.millisecondsSinceEpoch.toString().substring(8);
-    final serviceCode = widget.serviceType == 'car' ? 'CR' : (widget.rideOption == 'hemat' ? 'RH' : 'RD');
+    final isSend = widget.serviceType == 'send';
+    final serviceCode = isSend ? 'GS' : (widget.serviceType == 'car' ? 'CR' : (widget.rideOption == 'hemat' ? 'RH' : 'RD'));
     final invoiceNumber = 'INV/GG/$dateStr/$serviceCode/$shortUser-$hashSuffix';
+
+    // Potong saldo jika menggunakan GAGEPay penuh atau split
+    final wallet = context.read<WalletProvider>();
+    if (_selectedPaymentMethod == 'gagepay') {
+      wallet.deductBalance(_totalAmount);
+    } else if (_selectedPaymentMethod == 'gagepay_cod' || _selectedPaymentMethod == 'gagepay_qris') {
+      if (wallet.balance > 0) {
+        wallet.deductBalance(wallet.balance);
+      }
+    }
+
+    final String merchantName = isSend
+        ? 'GAGE Send Pracimantoro'
+        : (widget.serviceType == 'car' ? 'GAGE Car Pracimantoro' : 'GAGE Ride Pracimantoro');
+    final String driverName = isSend
+        ? 'Joko Susilo (Kurir GAGE Send - Vario AD 5521 ZA)'
+        : (widget.serviceType == 'car' ? 'Budi Santoso (Avanza AD 1892 TG)' : 'Slamet Widodo (Vario AD 4521 WN)');
+    final String driverPlate = isSend ? 'AD 5521 ZA' : (widget.serviceType == 'car' ? 'AD 1892 TG' : 'AD 4521 WN');
+
+    final String itemName = isSend
+        ? 'Pengiriman GAGE Send (${widget.packageType ?? "Paket"} - ${widget.weightTier ?? "< 1 kg"})'
+        : (widget.serviceType == 'car'
+            ? 'Perjalanan GAGE Car (${widget.distanceKm.toStringAsFixed(1)} km)'
+            : 'Perjalanan GAGE Ride ${widget.rideOption == "hemat" ? "Hemat" : "Reguler"} (${widget.distanceKm.toStringAsFixed(1)} km)');
 
     final orderData = {
       'id': 'ord-ride-${now.millisecondsSinceEpoch}',
       'order_number': invoiceNumber,
       'user_id': userId,
       'merchant_id': 'mch-gage-transport',
-      'merchant_name': widget.serviceType == 'car' ? 'GAGE Car Pracimantoro' : 'GAGE Ride Pracimantoro',
+      'merchant_name': merchantName,
       'merchant_address': widget.pickupAddress,
-      'driver_name': widget.serviceType == 'car' ? 'Budi Santoso (Avanza AD 1892 TG)' : 'Slamet Widodo (Vario AD 4521 WN)',
-      'driver_plate': widget.serviceType == 'car' ? 'AD 1892 TG' : 'AD 4521 WN',
+      'driver_name': driverName,
+      'driver_plate': driverPlate,
       'driver_phone': '081226001000',
       'status': 'ON_DELIVERY',
       'payment_method': _selectedPaymentMethod?.toUpperCase() ?? 'GAGEPAY',
@@ -396,13 +539,13 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
       'items': [
         {
           'id': 'item-ride-01',
-          'name': widget.serviceType == 'car'
-              ? 'Perjalanan GAGE Car (${widget.distanceKm.toStringAsFixed(1)} km)'
-              : 'Perjalanan GAGE Ride ${widget.rideOption == "hemat" ? "Hemat" : "Reguler"} (${widget.distanceKm.toStringAsFixed(1)} km)',
+          'name': itemName,
           'price': widget.baseFare,
           'quantity': 1,
           'subtotal': widget.baseFare,
-          'notes': _noteController.text.isNotEmpty ? _noteController.text : 'Jemput sesuai titik peta',
+          'notes': _noteController.text.isNotEmpty
+              ? _noteController.text
+              : (isSend ? 'Penerima: ${widget.recipientName ?? "-"} (${widget.recipientPhone ?? "-"})' : 'Jemput sesuai titik peta'),
         }
       ],
       'created_at': now.millisecondsSinceEpoch ~/ 1000,
@@ -437,7 +580,7 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
       backgroundColor: isDark ? GageTheme.darkBackground : const Color(0xFFF8F9FA),
       appBar: AppBar(
         title: Text(
-          isCar ? 'Checkout GAGE Car' : 'Checkout GAGE Ride',
+          widget.serviceType == 'send' ? 'Checkout GAGE Send' : (isCar ? 'Checkout GAGE Car' : 'Checkout GAGE Ride'),
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 17,
@@ -459,14 +602,18 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: isCar
-                          ? (isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF))
-                          : (isDark ? const Color(0xFF2C1E1E) : const Color(0xFFFFF1F0)),
+                      color: widget.serviceType == 'send'
+                          ? (isDark ? const Color(0xFF2C1E1E) : const Color(0xFFFFF1F0))
+                          : (isCar
+                              ? (isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF))
+                              : (isDark ? const Color(0xFF2C1E1E) : const Color(0xFFFFF1F0))),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: isCar
-                            ? (isDark ? const Color(0xFF3B82F6) : const Color(0xFFBFDBFE))
-                            : (isDark ? GageTheme.primary : const Color(0xFFFFCCC7)),
+                        color: widget.serviceType == 'send'
+                            ? const Color(0xFFE52320)
+                            : (isCar
+                                ? (isDark ? const Color(0xFF3B82F6) : const Color(0xFFBFDBFE))
+                                : (isDark ? GageTheme.primary : const Color(0xFFFFCCC7))),
                       ),
                     ),
                     child: Row(
@@ -479,15 +626,23 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                             color: isDark ? GageTheme.darkSurface : Colors.white,
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: isCar ? const Color(0xFF3B82F6) : GageTheme.primary,
+                              color: widget.serviceType == 'send'
+                                  ? const Color(0xFFE52320)
+                                  : (isCar ? const Color(0xFF3B82F6) : GageTheme.primary),
                             ),
                           ),
                           child: Image.asset(
-                            isCar ? 'assets/images/gage_car_3d.png' : 'assets/images/gage_ride_3d.png',
+                            widget.serviceType == 'send'
+                                ? 'assets/images/gage_send_3d.png'
+                                : (isCar ? 'assets/images/gage_car_3d.png' : 'assets/images/gage_ride_3d.png'),
                             fit: BoxFit.contain,
                             errorBuilder: (c, e, s) => Icon(
-                              isCar ? Icons.directions_car_rounded : Icons.two_wheeler_rounded,
-                              color: isCar ? const Color(0xFF1D4ED8) : GageTheme.primary,
+                              widget.serviceType == 'send'
+                                  ? Icons.local_shipping_rounded
+                                  : (isCar ? Icons.directions_car_rounded : Icons.two_wheeler_rounded),
+                              color: widget.serviceType == 'send'
+                                  ? const Color(0xFFE52320)
+                                  : (isCar ? const Color(0xFF1D4ED8) : GageTheme.primary),
                               size: 24,
                             ),
                           ),
@@ -498,7 +653,9 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Driver Tiba dlm ~${est["pickup"]} Menit',
+                                widget.serviceType == 'send'
+                                    ? 'Kurir Tiba dlm ~${est["pickup"]} Menit'
+                                    : 'Driver Tiba dlm ~${est["pickup"]} Menit',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 14,
@@ -507,7 +664,7 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                'Jarak ${widget.distanceKm.toStringAsFixed(1)} km • Estimasi durasi sampai tujuan ~${est["trip"]} mnt',
+                                'Jarak ${widget.distanceKm.toStringAsFixed(1)} km • Estimasi sampai tujuan ~${est["trip"]} mnt',
                                 style: TextStyle(
                                   fontSize: 11.5,
                                   color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
@@ -519,6 +676,56 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                       ],
                     ),
                   ),
+
+                  if (widget.serviceType == 'send') ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: isDark ? GageTheme.darkSurface : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: isDark ? GageTheme.darkBorder : Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.inventory_2_rounded, size: 18, color: GageTheme.primary),
+                              SizedBox(width: 8),
+                              Text('Rincian Paket & Penerima', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Penerima:', style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.grey.shade700)),
+                              Text('${widget.recipientName ?? "Penerima"} (${widget.recipientPhone ?? "-"})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Kategori & Berat:', style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.grey.shade700)),
+                              Text('${widget.packageType ?? "Barang"} • ${widget.weightTier ?? "< 1 kg"}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                            ],
+                          ),
+                          if (widget.itemDescription != null && widget.itemDescription!.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('Deskripsi:', style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.grey.shade700)),
+                                Expanded(child: Text(widget.itemDescription!, textAlign: TextAlign.end, style: const TextStyle(fontSize: 11.5), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
 
                   const SizedBox(height: 16),
 
@@ -757,15 +964,99 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                         _buildPaymentOptionTile(
                           id: 'gagepay',
                           title: 'GAGEPay Saldo',
-                          subtitle: 'Saldo Anda: ${currencyFormatter.format(wallet.balance)}',
+                          subtitle: wallet.balance >= _totalAmount
+                              ? 'Saldo Anda: ${currencyFormatter.format(wallet.balance)}'
+                              : 'Saldo Anda: ${currencyFormatter.format(wallet.balance)} (Kurang ${currencyFormatter.format(_totalAmount - wallet.balance)})',
                           icon: Icons.account_balance_wallet_rounded,
+                          iconColor: GageTheme.primary,
+                          isDark: isDark,
+                        ),
+
+                        // Jika saldo kurang dan user memilih gagepay: tawarkan split cepat
+                        if (_selectedPaymentMethod == 'gagepay' && wallet.balance < _totalAmount) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF2C1E1E) : const Color(0xFFFEF2F2),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.red.shade200),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Saldo GAGEPay kurang ${currencyFormatter.format(_totalAmount - wallet.balance)}',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? Colors.red.shade300 : const Color(0xFFDC2626),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: OutlinedButton(
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: GageTheme.primary,
+                                          side: const BorderSide(color: GageTheme.primary),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                          padding: const EdgeInsets.symmetric(vertical: 6),
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                        onPressed: () => _savePaymentPreference('gagepay_cod'),
+                                        child: const Text('Split + Tunai (COD)', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold)),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: OutlinedButton(
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: const Color(0xFF0284C7),
+                                          side: const BorderSide(color: Color(0xFF0284C7)),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                          padding: const EdgeInsets.symmetric(vertical: 6),
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                        onPressed: () => _savePaymentPreference('gagepay_qris'),
+                                        child: const Text('Split + QRIS', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold)),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+
+                        const SizedBox(height: 8),
+
+                        // Opsi 2: Split GAGEPay + Tunai
+                        _buildPaymentOptionTile(
+                          id: 'gagepay_cod',
+                          title: 'GAGEPay + Tunai (COD)',
+                          subtitle: 'GAGEPay ${currencyFormatter.format(wallet.balance)} + Tunai ${currencyFormatter.format((_totalAmount - wallet.balance).clamp(0, 99999999))}',
+                          icon: Icons.call_split_rounded,
                           iconColor: GageTheme.primary,
                           isDark: isDark,
                         ),
 
                         const SizedBox(height: 8),
 
-                        // Opsi 2: QRIS
+                        // Opsi 3: Split GAGEPay + QRIS
+                        _buildPaymentOptionTile(
+                          id: 'gagepay_qris',
+                          title: 'GAGEPay + QRIS',
+                          subtitle: 'GAGEPay ${currencyFormatter.format(wallet.balance)} + QRIS ${currencyFormatter.format((_totalAmount - wallet.balance).clamp(0, 99999999))}',
+                          icon: Icons.qr_code_scanner_rounded,
+                          iconColor: const Color(0xFF0284C7),
+                          isDark: isDark,
+                        ),
+
+                        const SizedBox(height: 8),
+
+                        // Opsi 4: QRIS Penuh
                         _buildPaymentOptionTile(
                           id: 'qris',
                           title: 'QRIS',
@@ -777,10 +1068,10 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
 
                         const SizedBox(height: 8),
 
-                        // Opsi 3: Tunai ke Driver
+                        // Opsi 5: Tunai ke Driver
                         _buildPaymentOptionTile(
                           id: 'cash',
-                          title: 'Tunai ke Driver',
+                          title: 'Tunai ke Driver (COD)',
                           subtitle: 'Bayar uang tunai langsung ke driver saat sampai',
                           icon: Icons.payments_rounded,
                           iconColor: const Color(0xFFD97706),

@@ -130,9 +130,11 @@ class _VoucherHistoryScreenState extends State<VoucherHistoryScreen> {
                       final item = filteredList[index];
                       final isUsed = item['status'] == 'USED';
 
-                      final stubGradient = isUsed
-                          ? const [Color(0xFF475569), Color(0xFF334155)]
-                          : const [Color(0xFF94A3B8), Color(0xFF64748B)];
+                      final stubGradient = isDark
+                          ? const [Color(0xFF1E293B), Color(0xFF0F172A)]
+                          : const [Color(0xFFF1F5F9), Color(0xFFE2E8F0)];
+                      final stubIconColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+                      final stubTextColor = isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569);
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 12),
@@ -174,11 +176,11 @@ class _VoucherHistoryScreenState extends State<VoucherHistoryScreen> {
                                           height: 32,
                                           decoration: BoxDecoration(
                                             shape: BoxShape.circle,
-                                            color: Colors.white.withValues(alpha: 0.2),
+                                            color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
                                           ),
                                           child: Icon(
-                                            isUsed ? Icons.check_circle_rounded : Icons.timer_off_rounded,
-                                            color: Colors.white,
+                                            isUsed ? Icons.check_circle_outline_rounded : Icons.timer_off_outlined,
+                                            color: stubIconColor,
                                             size: 18,
                                           ),
                                         ),
@@ -186,8 +188,8 @@ class _VoucherHistoryScreenState extends State<VoucherHistoryScreen> {
                                         Text(
                                           isUsed ? 'Voucher\nTerpakai' : 'Voucher\nKedaluwarsa',
                                           textAlign: TextAlign.center,
-                                          style: const TextStyle(
-                                            color: Colors.white,
+                                          style: TextStyle(
+                                            color: stubTextColor,
                                             fontSize: 9.5,
                                             fontWeight: FontWeight.w800,
                                             height: 1.15,
@@ -224,11 +226,9 @@ class _VoucherHistoryScreenState extends State<VoucherHistoryScreen> {
                                                 ),
                                               ),
                                               Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                                 decoration: BoxDecoration(
-                                                  color: isUsed
-                                                      ? const Color(0xFFDCFCE7)
-                                                      : (isDark ? Colors.white10 : Colors.grey.shade200),
+                                                  color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
                                                   borderRadius: BorderRadius.circular(20),
                                                 ),
                                                 child: Text(
@@ -236,7 +236,8 @@ class _VoucherHistoryScreenState extends State<VoucherHistoryScreen> {
                                                   style: TextStyle(
                                                     fontSize: 9,
                                                     fontWeight: FontWeight.w900,
-                                                    color: isUsed ? const Color(0xFF16A34A) : Colors.grey.shade600,
+                                                    letterSpacing: 0.4,
+                                                    color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
                                                   ),
                                                 ),
                                               ),
@@ -258,8 +259,8 @@ class _VoucherHistoryScreenState extends State<VoucherHistoryScreen> {
                                             'Hemat ${currencyFmt.format(item['discountAmount'])}',
                                             style: TextStyle(
                                               fontSize: 11.5,
-                                              fontWeight: FontWeight.w900,
-                                              color: isUsed ? const Color(0xFF16A34A) : Colors.grey.shade500,
+                                              fontWeight: FontWeight.w800,
+                                              color: isDark ? Colors.white60 : const Color(0xFF475569),
                                             ),
                                           ),
                                           const SizedBox(height: 4),

@@ -89,21 +89,10 @@ class GageBottomNavBar extends StatelessWidget {
           child: Container(
             height: 60,
             decoration: BoxDecoration(
-              color: effectiveDark
-                  ? (isVideoTab
-                      ? const Color(0xFF0F172A).withValues(alpha: 0.88)
-                      : const Color(0xFF1E293B).withValues(alpha: 0.94))
-                  : Colors.white.withValues(alpha: 0.96),
               borderRadius: BorderRadius.circular(32),
-              border: Border.all(
-                color: effectiveDark
-                    ? Colors.white.withValues(alpha: 0.12)
-                    : const Color(0xFFE2E8F0),
-                width: 1,
-              ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: effectiveDark ? 0.45 : 0.08),
+                  color: Colors.black.withValues(alpha: effectiveDark ? 0.35 : 0.10),
                   blurRadius: 20,
                   offset: const Offset(0, 6),
                   spreadRadius: 0,
@@ -113,8 +102,23 @@ class GageBottomNavBar extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(32),
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-                child: Row(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: effectiveDark
+                        ? (isVideoTab
+                            ? const Color(0xFF0F172A).withValues(alpha: 0.82)
+                            : const Color(0xFF1E293B).withValues(alpha: 0.82))
+                        : Colors.white.withValues(alpha: 0.84),
+                    borderRadius: BorderRadius.circular(32),
+                    border: Border.all(
+                      color: effectiveDark
+                          ? Colors.white.withValues(alpha: 0.15)
+                          : Colors.white.withValues(alpha: 0.8),
+                      width: 1.2,
+                    ),
+                  ),
+                  child: Row(
                   children: [
                     _buildNavItem(
                       context,
@@ -165,6 +169,7 @@ class GageBottomNavBar extends StatelessWidget {
               ),
             ),
           ),
+        ),
         ),
       ),
     );

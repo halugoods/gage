@@ -452,7 +452,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
             // 3. Floating Map Controls (Fit Route & Recenter)
             Positioned(
               right: 16,
-              bottom: _driverAccepted ? 180 : 235,
+              bottom: _driverAccepted ? 180 : 252,
               child: Column(
                 children: [
                   FloatingActionButton.small(
@@ -463,7 +463,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                     onPressed: _fitRouteInCamera,
                     child: const Icon(Icons.zoom_out_map_rounded, size: 20),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   FloatingActionButton.small(
                     heroTag: 'btnRecenter',
                     backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,

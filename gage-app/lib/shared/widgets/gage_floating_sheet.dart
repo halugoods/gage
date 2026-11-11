@@ -49,21 +49,29 @@ class GageFloatingSheet {
                   MediaQuery.of(sheetContext).padding.bottom > 0 ? 12 : 16,
                 ),
                 decoration: BoxDecoration(
-                  color: backgroundColor ?? (isDark ? const Color(0xFF1E293B) : Colors.white),
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: isDark ? const Color(0xFF334155) : Colors.grey.shade200,
-                    width: 1.0,
-                  ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.16),
+                      color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.14),
                       blurRadius: 28,
                       offset: const Offset(0, 10),
                     ),
                   ],
                 ),
-                child: Column(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: backgroundColor ?? (isDark ? const Color(0xFF1E293B).withValues(alpha: 0.85) : Colors.white.withValues(alpha: 0.88)),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: isDark ? Colors.white.withValues(alpha: 0.12) : Colors.white.withValues(alpha: 0.75),
+                          width: 1.2,
+                        ),
+                      ),
+                      child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const SizedBox(height: 10),
@@ -122,7 +130,10 @@ class GageFloatingSheet {
               ),
             ),
           ),
-        );
+        ),
+      ),
+    ),
+  );
       },
     );
   }
