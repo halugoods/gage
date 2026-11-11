@@ -1,4 +1,3 @@
-import 'package:gage_app/features/merchant/presentation/merchant_root_screen.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -952,21 +951,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   // ==========================================
                   _buildSectionHeader('Layanan & Program GAGE', isDark),
                   const SizedBox(height: 8),
-                  _buildSeamlessMenuTile(
-                    icon: Icons.storefront_rounded,
-                    iconColor: const Color(0xFFEA580C),
-                    title: 'Portal Mitra Merchant',
-                    subtitle: 'Kelola kios, banner, foto profil, dan produk jualan Anda',
-                    badge: 'MITRA',
-                    badgeColor: GageTheme.accentGreen,
-                    isDark: isDark,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (ctx) => const MerchantRootScreen()),
-                      );
-                    },
-                  ),
                   Container(
                     decoration: BoxDecoration(
                       color: isDark ? const Color(0xFF1E293B) : Colors.white,

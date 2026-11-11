@@ -16,6 +16,8 @@ import 'package:gage_app/features/chat/providers/in_app_chat_provider.dart';
 import 'package:gage_app/providers/merchant_order_provider.dart';
 import 'package:gage_app/providers/theme_provider.dart';
 import 'package:gage_app/providers/language_provider.dart';
+import 'package:gage_app/features/merchant/presentation/merchant_root_screen.dart';
+import 'package:gage_app/features/admin/presentation/admin_root_screen.dart';
 
 
 void main() async {
@@ -74,6 +76,10 @@ class GageApp extends StatelessWidget {
             darkTheme: GageTheme.darkTheme,
             themeMode: themeProvider.themeMode,
             home: const AuthGate(),
+            routes: {
+              '/merchant': (context) => const MerchantRootScreen(),
+              '/admin': (context) => const AdminRootScreen(),
+            },
           );
         },
       ),
