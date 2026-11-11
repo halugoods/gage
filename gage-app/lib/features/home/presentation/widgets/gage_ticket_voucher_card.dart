@@ -25,6 +25,8 @@ class GageTicketVoucherCard extends StatelessWidget {
   final bool isEligible;
   final String? ineligibilityReason;
   final bool compact;
+  final String? statusBadge;
+  final bool isMonochrome;
 
   const GageTicketVoucherCard({
     super.key,
@@ -35,6 +37,8 @@ class GageTicketVoucherCard extends StatelessWidget {
     this.isEligible = true,
     this.ineligibilityReason,
     this.compact = false,
+    this.statusBadge,
+    this.isMonochrome = false,
   });
 
   Color _getStubBgColor(String service, String type, bool isDark) {
@@ -181,7 +185,7 @@ class GageTicketVoucherCard extends StatelessWidget {
     final double cardHeight = compact ? 84.0 : 88.0;
     final double stubWidth = cardHeight; // 1:1 square ratio!
 
-    return Opacity(
+    final cardWidget = Opacity(
       opacity: isEligible ? 1.0 : 0.62,
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
@@ -350,9 +354,30 @@ class GageTicketVoucherCard extends StatelessWidget {
             ),
 
             // ==========================================
-            // C. BADGE KUANTITAS DI POJOK KANAN ATAS
+            // C. STATUS BADGE / BADGE KUANTITAS DI POJOK KANAN ATAS
             // ==========================================
-            if (quantity > 1)
+            if (statusBadge != null)
+              Positioned(
+                top: 8,
+                right: 10,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    statusBadge!,
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.4,
+                      color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                    ),
+                  ),
+                ),
+              )
+            else if (quantity > 1)
               Positioned(
                 top: 8,
                 right: 10,
@@ -377,9 +402,10 @@ class GageTicketVoucherCard extends StatelessWidget {
             // ==========================================
             // D. TOMBOL AKSI ("Pakai") DI POJOK KANAN BAWAH
             // ==========================================
-            Positioned(
-              bottom: 8,
-              right: 10,
+            if (statusBadge == null)
+              Positioned(
+                bottom: 8,
+                right: 10,
               child: SizedBox(
                 height: 28,
                 child: isApplied
@@ -481,6 +507,19 @@ class GageTicketVoucherCard extends StatelessWidget {
         ),
       ),
     ),
-    );
+  );
+
+    if (isMonochrome) {
+      return ColorFiltered(
+        colorFilter: const ColorFilter.matrix([
+          0.2126, 0.7152, 0.0722, 0, 0,
+          0.2126, 0.7152, 0.0722, 0, 0,
+          0.2126, 0.7152, 0.0722, 0, 0,
+          0,      0,      0,      1, 0,
+        ]),
+        child: cardWidget,
+      );
+    }
+    return cardWidget;
   }
 }

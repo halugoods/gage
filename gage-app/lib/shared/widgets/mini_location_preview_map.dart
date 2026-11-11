@@ -27,6 +27,7 @@ class MiniLocationPreviewMap extends StatelessWidget {
         width: size,
         height: size,
         decoration: BoxDecoration(
+          color: const Color(0xFFE5E7EB),
           borderRadius: BorderRadius.circular(borderRadius),
           border: Border.all(
             color: GageTheme.primary.withValues(alpha: 0.25),
@@ -48,7 +49,7 @@ class MiniLocationPreviewMap extends StatelessWidget {
               FlutterMap(
                 options: MapOptions(
                   initialCenter: location,
-                  initialZoom: 16.0,
+                  initialZoom: 14.0,
                   interactionOptions: const InteractionOptions(
                     flags: InteractiveFlag.none,
                   ),
@@ -59,7 +60,7 @@ class MiniLocationPreviewMap extends StatelessWidget {
                     subdomains: const ['0', '1', '2', '3'],
                     tileDimension: 256,
                     maxZoom: 21.0,
-                    userAgentPackageName: 'com.gage.customer',
+                    userAgentPackageName: 'com.gagepracimantoro.customer',
                     fallbackUrl: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                   ),
                 ],

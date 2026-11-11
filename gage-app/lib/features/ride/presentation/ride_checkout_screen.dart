@@ -18,6 +18,9 @@ import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 import 'package:gage_app/shared/widgets/mini_location_preview_map.dart';
 import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
 import 'package:gage_app/features/wallet/presentation/gagepay_screen.dart';
+import 'package:gage_app/features/voucher/presentation/voucher_selection_screen.dart';
+import 'package:gage_app/providers/cart_provider.dart';
+
 
 class RideCheckoutScreen extends StatefulWidget {
   final String serviceType; // 'ride', 'car', or 'send'
@@ -180,172 +183,44 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
     };
   }
 
-  void _showVoucherPickerModal() {
-    final isSend = widget.serviceType == 'send';
-    final isCar = widget.serviceType == 'car';
-
-    final List<Map<String, dynamic>> availableVouchers = isSend
-        ? [
-            {
-              'code': 'KIRIMKILAT',
-              'title': 'Gratis Ongkir s.d 5RB',
-              'desc': 'Subsidi pengiriman barang paket kilat GAGE Send',
-              'discount': 5000,
-            },
-            {
-              'code': 'GAGERATIH',
-              'title': 'Gratis Ongkir s.d 2RB',
-              'desc': 'Tanpa min. transaksi antar paket se-Pracimantoro',
-              'discount': 2000,
-            },
-          ]
-        : (isCar
-            ? [
-                {
-                  'code': 'GAGECAR15',
-                  'title': 'Diskon 15RB',
-                  'desc': 'Keluarga & rombongan nyaman keliling Wonogiri',
-                  'discount': 15000,
-                },
-                {
-                  'code': 'PRACICAR',
-                  'title': 'Diskon 3RB',
-                  'desc': 'Tarif hemat armada mobil GAGE Car',
-                  'discount': 3000,
-                },
-              ]
-            : [
-                {
-                  'code': 'RIDEHEMAT',
-                  'title': 'Diskon 4RB',
-                  'desc': 'Potongan ojek motor GAGE Ride Pracimantoro',
-                  'discount': 4000,
-                },
-                {
-                  'code': 'GAGEHEMAT',
-                  'title': 'Diskon 2RB',
-                  'desc': 'Khusus pengguna setia GAGE Ride',
-                  'discount': 2000,
-                },
-                {
-                  'code': 'PELAJARPRACI',
-                  'title': 'Diskon 1.5RB',
-                  'desc': 'Tarif hemat antar jemput sekolah Pracimantoro',
-                  'discount': 1500,
-                },
-              ]);
-
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    GageFloatingSheet.show(
+  void _editAddressNote() async {
+    final text = await GageFloatingSheet.showNoteInput(
       context: context,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Pilih Voucher Promo',
-                  style: TextStyle(
-                    fontSize: 16.5,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : Colors.black87,
-                  ),
-                ),
-                InkWell(
-                  onTap: () => Navigator.pop(context),
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF27272A) : const Color(0xFFF3F4F6),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.close_rounded,
-                      size: 16,
-                      color: isDark ? Colors.white70 : Colors.black87,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            ...availableVouchers.map((v) {
-              final isApplied = _appliedVoucherCode == v['code'];
-              return Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                decoration: BoxDecoration(
-                  color: isApplied
-                      ? (isDark ? const Color(0xFF2C1E1E) : const Color(0xFFFFF1F0))
-                      : (isDark ? const Color(0xFF1E293B) : Colors.white),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isApplied ? GageTheme.primary : (isDark ? Colors.grey.shade800 : const Color(0xFFE2E8F0)),
-                    width: isApplied ? 1.5 : 1.0,
-                  ),
-                ),
-                child: ListTile(
-                  leading: Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: isApplied
-                          ? GageTheme.primary.withValues(alpha: 0.12)
-                          : (isDark ? const Color(0xFF27272A) : const Color(0xFFF3F4F6)),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.confirmation_number_rounded,
-                      color: isApplied ? GageTheme.primary : Colors.grey.shade600,
-                      size: 20,
-                    ),
-                  ),
-                  title: Text(
-                    v['title'],
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: isDark ? Colors.white : Colors.black87),
-                  ),
-                  subtitle: Text(
-                    v['desc'],
-                    style: TextStyle(fontSize: 11, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
-                  ),
-                  trailing: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isApplied ? Colors.grey.shade300 : GageTheme.primary,
-                      foregroundColor: isApplied ? Colors.black87 : Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                      visualDensity: VisualDensity.compact,
-                      elevation: 0,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        if (isApplied) {
-                          _appliedVoucherCode = null;
-                          _voucherDiscount = 0;
-                        } else {
-                          _appliedVoucherCode = v['code'];
-                          _voucherDiscount = v['discount'] as int;
-                        }
-                      });
-                      Navigator.pop(context);
-                    },
-                    child: Text(
-                      isApplied ? 'Batal' : 'Pakai',
-                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ],
-        ),
+      title: 'Catatan Patokan Driver',
+      subtitle: 'Beri petunjuk lokasi agar driver mudah menemukan alamat',
+      initialValue: _noteController.text,
+      hintText: 'Contoh: surya tani, depan warung...',
+    );
+    if (text != null && mounted) {
+      setState(() {
+        _noteController.text = text;
+      });
+      GageToast.show(context, 'Catatan patokan disimpan', type: GageToastType.success);
+    }
+  }
+
+  Future<void> _openVoucherSelection() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (ctx) => const VoucherSelectionScreen(initialTabIndex: 0),
       ),
     );
+    if (mounted) {
+      final cart = context.read<CartProvider>();
+      if (cart.deliveryPromoCode != null) {
+        setState(() {
+          _appliedVoucherCode = cart.deliveryPromoCode;
+          _voucherDiscount = cart.deliveryPromoDiscount > 0 ? cart.deliveryPromoDiscount : 4000;
+        });
+      } else if (cart.foodPromoCode != null) {
+        setState(() {
+          _appliedVoucherCode = cart.foodPromoCode;
+          _voucherDiscount = cart.foodPromoDiscount > 0 ? cart.foodPromoDiscount : 4000;
+        });
+      }
+      setState(() {});
+    }
   }
 
   void _showPaymentMethodSheet(BuildContext context, WalletProvider wallet) {
@@ -920,7 +795,7 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                       const SizedBox(height: 14),
 
                       // =========================================================
-                      // 2. ALAMAT PENGANTARAN / TUJUAN (with Mini Map Preview)
+                      // 2. ALAMAT PENGANTARAN / TUJUAN (with Mini Map Preview 1:1 Food/Shop/Farm/Build)
                       // =========================================================
                       Container(
                         padding: const EdgeInsets.all(14),
@@ -982,20 +857,65 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
                                       ),
+                                      const SizedBox(height: 8),
+                                      // Catatan Driver Dinamis Button (1:1 with Food / Shop / Farm / Build)
+                                      InkWell(
+                                        onTap: _editAddressNote,
+                                        borderRadius: BorderRadius.circular(14),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                          decoration: BoxDecoration(
+                                            color: isDark ? const Color(0xFF27272A) : const Color(0xFFF8FAFC),
+                                            borderRadius: BorderRadius.circular(14),
+                                            border: Border.all(
+                                              color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                _noteController.text.isNotEmpty
+                                                    ? Icons.edit_note_rounded
+                                                    : Icons.add_comment_outlined,
+                                                size: 14,
+                                                color: GageTheme.primary,
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Flexible(
+                                                child: Text(
+                                                  _noteController.text.isNotEmpty
+                                                      ? 'Catatan: "${_noteController.text}"'
+                                                      : '+ Tambah catatan / patokan driver',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: _noteController.text.isNotEmpty
+                                                        ? (isDark ? Colors.white : Colors.black87)
+                                                        : (isDark ? Colors.white60 : Colors.grey.shade600),
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
-                                const SizedBox(width: 6),
+                                const SizedBox(width: 10),
                                 OutlinedButton(
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: GageTheme.primary,
-                                    side: const BorderSide(color: GageTheme.primary),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                    side: const BorderSide(color: GageTheme.primary, width: 1.2),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                                     visualDensity: VisualDensity.compact,
                                   ),
                                   onPressed: () => _openLocationPicker(isDropoff: true),
-                                  child: const Text('Ganti', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                  child: const Text('Ganti', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                                 ),
                               ],
                             ),
@@ -1035,31 +955,6 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                                   ),
                                 ],
                               ),
-                            ),
-
-                            const SizedBox(height: 10),
-
-                            // Catatan Driver Field
-                            TextField(
-                              controller: _noteController,
-                              decoration: InputDecoration(
-                                isDense: true,
-                                hintText: '+ Tambah catatan / patokan driver...',
-                                hintStyle: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade500 : Colors.black38),
-                                prefixIcon: Icon(Icons.note_alt_outlined, size: 18, color: isDark ? Colors.grey.shade400 : Colors.black45),
-                                filled: true,
-                                fillColor: isDark ? GageTheme.darkCard : const Color(0xFFF8FAFC),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(color: cardBorder),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(color: cardBorder),
-                                ),
-                              ),
-                              style: TextStyle(fontSize: 12, color: isDark ? Colors.white : Colors.black87),
                             ),
                           ],
                         ),
@@ -1234,89 +1129,100 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                       const SizedBox(height: 14),
 
                       // =========================================================
-                      // 5. VOUCHER & DISKON PROMO CARD
+                      // 5. VOUCHER & DISKON PROMO CARD (1:1 with Food / Shop / Farm / Build)
                       // =========================================================
                       Container(
-                        padding: const EdgeInsets.all(14),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         decoration: BoxDecoration(
                           color: cardColor,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: cardBorder),
                           boxShadow: cardShadow,
+                          border: Border.all(
+                            color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                            width: 1.0,
+                          ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
+                        child: InkWell(
+                          onTap: _openVoucherSelection,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: GageTheme.primary.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(
+                                  Icons.confirmation_number_rounded,
+                                  color: GageTheme.primary,
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Row(
                                   children: [
-                                    const Icon(Icons.confirmation_number_rounded, color: GageTheme.primary, size: 18),
-                                    const SizedBox(width: 8),
                                     Text(
-                                      'Voucher Diskon',
+                                      'Voucher',
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
-                                        fontSize: 14,
+                                        fontSize: 13.5,
                                         color: isDark ? Colors.white : Colors.black87,
                                       ),
                                     ),
-                                  ],
-                                ),
-                                TextButton(
-                                  onPressed: _showVoucherPickerModal,
-                                  style: TextButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    visualDensity: VisualDensity.compact,
-                                  ),
-                                  child: const Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text('Ganti / Pilih', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: GageTheme.primary)),
-                                      Icon(Icons.chevron_right_rounded, size: 16, color: GageTheme.primary),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            if (_appliedVoucherCode != null) ...[
-                              const SizedBox(height: 10),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: isDark ? const Color(0xFF2C1E1E) : const Color(0xFFFFF1F0),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: GageTheme.primary.withValues(alpha: 0.3)),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.check_circle_rounded, color: GageTheme.primary, size: 16),
                                     const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        'Voucher $_appliedVoucherCode (Hemat ${currencyFormatter.format(_voucherDiscount)})',
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: GageTheme.primary),
+                                    if (_appliedVoucherCode != null && _voucherDiscount > 0) ...[
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF0D9488).withValues(alpha: 0.12),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          '$_appliedVoucherCode (-${currencyFormatter.format(_voucherDiscount)})',
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF0D9488),
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                    InkWell(
-                                      onTap: () {
-                                        setState(() {
-                                          _appliedVoucherCode = null;
-                                          _voucherDiscount = 0;
-                                        });
-                                      },
-                                      child: const Icon(Icons.close_rounded, size: 16, color: Colors.grey),
-                                    ),
+                                    ] else ...[
+                                      Text(
+                                        'Gunakan / masukkan kode',
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          color: isDark ? Colors.white60 : Colors.grey.shade500,
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),
+                              if (_appliedVoucherCode != null)
+                                GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      _appliedVoucherCode = null;
+                                      _voucherDiscount = 0;
+                                    });
+                                  },
+                                  child: const Padding(
+                                    padding: EdgeInsets.symmetric(horizontal: 4),
+                                    child: Icon(Icons.close_rounded, size: 18, color: Colors.grey),
+                                  ),
+                                ),
+                              const Icon(
+                                Icons.chevron_right_rounded,
+                                color: Colors.black45,
+                                size: 20,
+                              ),
                             ],
-                          ],
+                          ),
                         ),
                       ),
-
-                      const SizedBox(height: 14),
 
                       // =========================================================
                       // 6. METODE PEMBAYARAN CARD (In-Page Tile + Deficit Box Image 3)
