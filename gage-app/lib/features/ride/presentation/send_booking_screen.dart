@@ -522,39 +522,43 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
               ),
             ),
 
-            // 3. Floating Map Controls (Fit Route & Recenter - Posisi Seragam 1:1 Ride/Car)
-            Positioned(
-              right: 16,
-              bottom: 252,
-              child: Column(
-                children: [
-                  FloatingActionButton.small(
-                    heroTag: 'btnFitSend',
-                    backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
-                    foregroundColor: isDark ? Colors.white : Colors.black87,
-                    elevation: 3,
-                    onPressed: _fitRoute,
-                    child: const Icon(Icons.zoom_out_map_rounded, size: 20),
-                  ),
-                  const SizedBox(height: 8),
-                  FloatingActionButton.small(
-                    heroTag: 'btnRecenterSend',
-                    backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
-                    foregroundColor: GageTheme.primary,
-                    elevation: 3,
-                    onPressed: _initSenderGps,
-                    child: const Icon(Icons.my_location_rounded, size: 20),
-                  ),
-                ],
-              ),
-            ),
-
-            // 4. Fixed Bottom Panel 1:1 Ride/Car
+            // 3 & 4. Fixed Bottom Panel with Floating Map Controls dynamically docked on top (Equal 10px spacing)
             Positioned(
               bottom: 0,
               left: 0,
               right: 0,
-              child: _buildSendBottomPanel(isDark, currencyFormatter, shippingFee, adminFee, totalFare),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 16, bottom: 10),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        FloatingActionButton.small(
+                          heroTag: 'btnFitSend',
+                          backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
+                          foregroundColor: isDark ? Colors.white : Colors.black87,
+                          elevation: 3,
+                          onPressed: _fitRoute,
+                          child: const Icon(Icons.zoom_out_map_rounded, size: 20),
+                        ),
+                        const SizedBox(height: 10),
+                        FloatingActionButton.small(
+                          heroTag: 'btnRecenterSend',
+                          backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
+                          foregroundColor: GageTheme.primary,
+                          elevation: 3,
+                          onPressed: _initSenderGps,
+                          child: const Icon(Icons.my_location_rounded, size: 20),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _buildSendBottomPanel(isDark, currencyFormatter, shippingFee, adminFee, totalFare),
+                ],
+              ),
             ),
           ],
         ),

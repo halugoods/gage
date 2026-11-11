@@ -449,41 +449,45 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
               ),
             ),
 
-            // 3. Floating Map Controls (Fit Route & Recenter)
-            Positioned(
-              right: 16,
-              bottom: _driverAccepted ? 180 : 252,
-              child: Column(
-                children: [
-                  FloatingActionButton.small(
-                    heroTag: 'btnFit',
-                    backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
-                    foregroundColor: isDark ? Colors.white : Colors.black87,
-                    elevation: 3,
-                    onPressed: _fitRouteInCamera,
-                    child: const Icon(Icons.zoom_out_map_rounded, size: 20),
-                  ),
-                  const SizedBox(height: 10),
-                  FloatingActionButton.small(
-                    heroTag: 'btnRecenter',
-                    backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
-                    foregroundColor: GageTheme.primary,
-                    elevation: 3,
-                    onPressed: _recenterToCurrentGps,
-                    child: const Icon(Icons.my_location_rounded, size: 20),
-                  ),
-                ],
-              ),
-            ),
-
-            // 4. Bottom Booking / Driver Panel
+            // 3 & 4. Bottom Booking / Driver Panel with Floating Map Controls dynamically docked on top
             Positioned(
               bottom: 0,
               left: 0,
               right: 0,
-              child: _driverAccepted
-                  ? _buildDriverTrackingPanel()
-                  : _buildBookingOptionsPanel(wallet, currencyFormatter, fare),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 16, bottom: 10),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        FloatingActionButton.small(
+                          heroTag: 'btnFit',
+                          backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
+                          foregroundColor: isDark ? Colors.white : Colors.black87,
+                          elevation: 3,
+                          onPressed: _fitRouteInCamera,
+                          child: const Icon(Icons.zoom_out_map_rounded, size: 20),
+                        ),
+                        const SizedBox(height: 10),
+                        FloatingActionButton.small(
+                          heroTag: 'btnRecenter',
+                          backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
+                          foregroundColor: GageTheme.primary,
+                          elevation: 3,
+                          onPressed: _recenterToCurrentGps,
+                          child: const Icon(Icons.my_location_rounded, size: 20),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _driverAccepted
+                      ? _buildDriverTrackingPanel()
+                      : _buildBookingOptionsPanel(wallet, currencyFormatter, fare),
+                ],
+              ),
             ),
           ],
         ),
