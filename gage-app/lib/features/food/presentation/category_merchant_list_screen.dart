@@ -48,7 +48,7 @@ class _CategoryMerchantListScreenState extends State<CategoryMerchantListScreen>
   Future<void> _loadMerchants() async {
     setState(() => _isLoading = true);
     await Future.delayed(const Duration(milliseconds: 300));
-    final list = await GageApiClient.getMerchants();
+    final list = await GageApiClient.getFoodMerchants();
 
     // Default fallback directory merchant Pracimantoro
     final fallback = [

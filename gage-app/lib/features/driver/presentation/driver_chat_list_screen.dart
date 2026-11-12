@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:gage_app/core/services/notification_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/driver/presentation/widgets/driver_bottom_nav_bar.dart';
 import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
@@ -67,7 +68,7 @@ class DriverChatListScreen extends StatelessWidget {
           itemBuilder: (ctx, idx) {
             final room = _chatRooms[idx];
             final role = room['role'] as String;
-            final unread = room['unread'] as int;
+            final roomKey = 'drv-${room['orderId']}-$role';
 
             Color avatarBg;
             Color roleColor;
@@ -87,9 +88,14 @@ class DriverChatListScreen extends StatelessWidget {
               roleIcon = Icons.verified_rounded;
             }
 
-            return InkWell(
+            return AnimatedBuilder(
+              animation: NotificationService.instance,
+              builder: (ctx, _) {
+                final unread = NotificationService.instance.unreadCountForDriverChat(roomKey);
+                return InkWell(
               onTap: () {
                 HapticFeedback.lightImpact();
+                NotificationService.instance.markDriverChatAsRead(roomKey);
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -199,6 +205,8 @@ class DriverChatListScreen extends StatelessWidget {
                   ],
                 ),
               ),
+                );
+              },
             );
           },
         ),

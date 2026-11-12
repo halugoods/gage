@@ -218,6 +218,18 @@ class BannerManagerService extends ChangeNotifier {
       ctaText: 'Mulai Belanja',
     );
 
+    _banners['customer_build'] = const BannerConfig(
+      menuKey: 'customer_build',
+      menuName: 'GAGE Build Material',
+      title: 'Material Bangunan & Tukang Lengkap',
+      subtitle: 'Semen, cat, besi SNI & perkakas antar langsung ke lokasi proyek',
+      badge: '',
+      imagePath: 'assets/images/prod_semen.png',
+      ctaText: 'Belanja Material',
+    );
+
+    _banners['build'] = _banners['customer_build']!;
+
     _banners['driver_home_info'] = const BannerConfig(
       menuKey: 'driver_home_info',
       menuName: 'GAGE Driver Info',
@@ -287,6 +299,20 @@ class BannerManagerService extends ChangeNotifier {
     );
   }
 
+  String _sanitizeImagePath(String target, String imagePath) {
+    final normalizedTarget = target.trim().toLowerCase();
+    final trimmed = imagePath.trim();
+    if ((normalizedTarget == 'customer_shop' || normalizedTarget == 'shop') &&
+        (trimmed.isEmpty || trimmed == 'assets/images/send_hero_banner.png')) {
+      return 'assets/images/shop_hero_banner.png';
+    }
+    if ((normalizedTarget == 'customer_build' || normalizedTarget == 'build') &&
+        (trimmed.isEmpty || trimmed.contains('ic_build'))) {
+      return 'assets/images/prod_semen.png';
+    }
+    return trimmed;
+  }
+
   /// Memuat konfigurasi banner dari SharedPreferences
   Future<void> loadFromPrefs() async {
     try {
@@ -296,7 +322,10 @@ class BannerManagerService extends ChangeNotifier {
         final Map<String, dynamic> decoded = json.decode(savedString) as Map<String, dynamic>;
         decoded.forEach((key, val) {
           if (val is Map<String, dynamic>) {
-            _banners[key] = BannerConfig.fromMap(val);
+            final parsed = BannerConfig.fromMap(val);
+            _banners[key] = parsed.copyWith(
+              imagePath: _sanitizeImagePath(key, parsed.imagePath),
+            );
           }
         });
         notifyListeners();
@@ -316,13 +345,14 @@ class BannerManagerService extends ChangeNotifier {
         for (final item in list) {
           final target = item['screen_target'] as String? ?? '';
           if (target.isNotEmpty) {
+            final rawImg = item['image_url'] as String? ?? 'assets/images/home_hero_banner.png';
             _banners[target] = BannerConfig(
               menuKey: target,
               menuName: target,
               title: item['title'] as String? ?? '',
               subtitle: item['subtitle'] as String? ?? '',
               badge: 'PROMO GAGE',
-              imagePath: item['image_url'] as String? ?? 'assets/images/home_hero_banner.png',
+              imagePath: _sanitizeImagePath(target, rawImg),
               ctaText: 'Lihat Promo',
               isActive: (item['is_active'] == 1 || item['is_active'] == true),
             );
@@ -362,7 +392,9 @@ class BannerManagerService extends ChangeNotifier {
       'beranda': 'customer_home_hero',
       'food': 'customer_food_explore',
       'tani': 'customer_tani',
+      'farm': 'customer_tani',
       'shop': 'customer_shop',
+      'build': 'customer_build',
       'driver': 'driver_home_info',
       'merchant': 'merchant_home_info',
       'admin': 'admin_promo',

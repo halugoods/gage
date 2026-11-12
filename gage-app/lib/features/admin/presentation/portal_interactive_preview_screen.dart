@@ -41,11 +41,13 @@ class _PortalInteractivePreviewScreenState extends State<PortalInteractivePrevie
     super.initState();
     _activePortal = widget.initialPortal;
     LiveAppEditScope.globalEditMode = true;
+    LiveAppEditScope.globalBannerEditor = InPlaceBannerEditorSheet.showConfirmationAndOpen;
   }
 
   @override
   void dispose() {
     LiveAppEditScope.globalEditMode = false;
+    LiveAppEditScope.globalBannerEditor = null;
     super.dispose();
   }
 

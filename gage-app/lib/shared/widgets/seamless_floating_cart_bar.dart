@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/core/services/merchant_discount_tier_service.dart';
+import 'package:gage_app/data/mock/gage_voucher_data.dart';
 import 'package:gage_app/providers/cart_provider.dart';
 import 'package:gage_app/features/checkout/presentation/checkout_screen.dart';
 import 'package:gage_app/shared/widgets/gage_cart_sheet.dart';
@@ -43,34 +44,31 @@ class _SeamlessFloatingCartBarState extends State<SeamlessFloatingCartBar> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final subtotal = cart.subtotal;
 
-    // Kalkulasi multi-tier diskon dinamis berbasis konfigurasi merchant & kategori
+    final activeTiers = GageVoucherData.orderVouchersForService(cart.primaryServiceType).map((v) {
+      final minSpend = GageVoucherData.minOrderFor(v);
+      final evalAmount = subtotal > minSpend ? subtotal : minSpend;
+      final disc = GageVoucherData.calculateDiscount(v, evalAmount);
+      return MerchantDiscountTier(
+        minSpend: minSpend,
+        discountAmount: disc,
+        voucherCode: v['code'] as String?,
+        label: (v['title'] as String?) ?? 'Diskon ${MerchantDiscountTierService.formatRb(disc)}',
+      );
+    }).toList();
+
+    // Kalkulasi multi-tier diskon dinamis berbasis voucher resmi per layanan
     final discountProgress = MerchantDiscountTierService.calculateProgress(
       subtotal: subtotal,
       merchantId: cart.merchantId,
       serviceType: cart.primaryServiceType,
+      customTiers: activeTiers,
     );
 
-    // Sinkronisasi diskon merchant ke CartProvider secara aman pasca-build
-    if (discountProgress.hasDiscount) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (cart.foodPromoDiscount != discountProgress.discountAmount) {
-          cart.setFoodPromo(
-            discountProgress.currentTier?.voucherCode ?? 'TIER_PROMO',
-            discountProgress.discountAmount,
-          );
-        }
-      });
-    } else if (cart.foodPromoCode != null &&
-        (cart.foodPromoCode == 'GAGEHEMAT' ||
-            cart.foodPromoCode == 'GAGEPROMO10' ||
-            cart.foodPromoCode == 'SUPERHEMAT' ||
-            cart.foodPromoCode == 'TIER_PROMO')) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (cart.foodPromoDiscount > 0) {
-          cart.removeFoodPromo();
-        }
-      });
-    }
+    // Sinkronisasi otomatis kedua jenis voucher (order + delivery) secara aman pasca-build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<CartProvider>().syncAutoPromos(serviceType: cart.primaryServiceType);
+    });
 
     Widget cartWidget = Padding(
       padding: EdgeInsets.fromLTRB(16, 0, 16, widget.bottomPadding),
@@ -161,7 +159,10 @@ class _SeamlessFloatingCartBarState extends State<SeamlessFloatingCartBar> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Row(
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Row(
                             children: [
                               Text(
                                 '${cart.totalItemCount} ${cart.itemQuantityLabel}',
@@ -215,6 +216,7 @@ class _SeamlessFloatingCartBarState extends State<SeamlessFloatingCartBar> {
                                 ),
                               ],
                             ],
+                          ),
                           ),
                           const SizedBox(height: 2),
 

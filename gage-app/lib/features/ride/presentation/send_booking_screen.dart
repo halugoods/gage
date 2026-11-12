@@ -1,15 +1,17 @@
-import 'package:gage_app/features/ride/presentation/ride_checkout_screen.dart';
-import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:intl/intl.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/services/location_service.dart';
 import 'package:gage_app/core/services/osrm_routing_service.dart';
 import 'package:gage_app/core/services/gage_pricing_service.dart';
-import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
+import 'package:gage_app/features/ride/presentation/ride_checkout_screen.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
+import 'package:gage_app/shared/widgets/gage_toast.dart';
+import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
 
 /// Screen utama pemesanan pengantaran barang GAGE Send.
 /// Mengadopsi arsitektur 1:1 Ride/Car:
@@ -31,10 +33,10 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
     text: '',
   );
   final TextEditingController _recipientNameCtrl = TextEditingController(
-    text: 'Penerima Paket',
+    text: GageApiClient.useDevSeedData ? 'Penerima Paket' : '',
   );
   final TextEditingController _recipientPhoneCtrl = TextEditingController(
-    text: '081226001000',
+    text: GageApiClient.useDevSeedData ? '081226001000' : '',
   );
   final TextEditingController _recipientAddressCtrl = TextEditingController(
     text: '',
@@ -48,13 +50,11 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
   List<LatLng> _routePoints = [];
   double _distanceKm = 0.0;
   bool _isLoadingRoute = false;
-  final bool _isDetailsExpanded = false;
 
   String _selectedPackageType = 'Barang Dagangan';
   String _selectedWeight = '1 - 5 kg';
   String _serviceType = 'instant'; // 'instant' (Reguler) or 'sameday' (Hemat)
   final String _paymentMethod = 'gagepay';
-  bool _isSearchingCourier = false;
 
   final List<String> _packageTypes = [
     'Barang Dagangan',
@@ -143,8 +143,16 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
       if (p.longitude > maxLng) maxLng = p.longitude;
     }
 
-    final center = LatLng((minLat + maxLat) / 2, (minLng + maxLng) / 2);
-    _mapController.move(center, 14.5);
+    final bounds = LatLngBounds(
+      LatLng(minLat - 0.003, minLng - 0.003),
+      LatLng(maxLat + 0.005, maxLng + 0.003),
+    );
+    _mapController.fitCamera(
+      CameraFit.bounds(
+        bounds: bounds,
+        padding: const EdgeInsets.only(top: 160, bottom: 260, left: 30, right: 30),
+      ),
+    );
   }
 
   void _pickSenderAddress() {
@@ -216,8 +224,24 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
   }
 
   void _goToCheckout() {
+    if (_senderAddressCtrl.text.trim().isEmpty) {
+      _pickSenderAddress();
+      return;
+    }
     if (_recipientLatLng == null) {
       _pickRecipientAddress();
+      return;
+    }
+
+    final recipientName = _recipientNameCtrl.text.trim();
+    final recipientPhone = _recipientPhoneCtrl.text.trim();
+    if (recipientName.isEmpty || recipientPhone.isEmpty) {
+      GageToast.show(
+        context,
+        'Lengkapi nama dan nomor WhatsApp penerima dahulu',
+        type: GageToastType.warning,
+      );
+      _showPackageDetailsFloatingSheet();
       return;
     }
 
@@ -226,18 +250,18 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
       MaterialPageRoute(
         builder: (ctx) => RideCheckoutScreen(
           serviceType: 'send',
-          rideOption: _selectedPackageType,
+          rideOption: _serviceType,
           pickupLocation: _senderLatLng,
           dropoffLocation: _recipientLatLng!,
           pickupAddress: _senderAddressCtrl.text,
           dropoffAddress: _recipientAddressCtrl.text,
           distanceKm: _distanceKm,
           baseFare: _calculateShippingFee(),
-          recipientName: _recipientNameCtrl.text.isNotEmpty ? _recipientNameCtrl.text : 'Penerima Paket',
-          recipientPhone: _recipientPhoneCtrl.text.isNotEmpty ? _recipientPhoneCtrl.text : '081226001000',
+          recipientName: recipientName,
+          recipientPhone: recipientPhone,
           packageType: _selectedPackageType,
           weightTier: _selectedWeight,
-          itemDescription: _packageDescCtrl.text,
+          itemDescription: _packageDescCtrl.text.trim(),
         ),
       ),
     );
@@ -420,12 +444,18 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFDCFCE7),
-                                      borderRadius: BorderRadius.circular(20),
+                                      color: isDark
+                                          ? const Color(0xFF16A34A).withValues(alpha: 0.18)
+                                          : const Color(0xFFDCFCE7),
+                                      borderRadius: BorderRadius.circular(999),
                                     ),
                                     child: Text(
                                       '${_distanceKm.toStringAsFixed(1)} km',
-                                      style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF15803D)),
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: isDark ? const Color(0xFF4ADE80) : const Color(0xFF15803D),
+                                      ),
                                     ),
                                   ),
                               ],
@@ -604,135 +634,42 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
             // Pilihan Layanan GAGE Send (Instant vs Sameday)
             Row(
               children: [
-                Expanded(
-                  child: InkWell(
-                    onTap: () => setState(() => _serviceType = 'instant'),
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: _serviceType == 'instant'
-                            ? GageTheme.primary.withValues(alpha: 0.08)
-                            : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: _serviceType == 'instant'
-                              ? GageTheme.primary
-                              : (isDark ? Colors.white10 : Colors.grey.shade200),
-                          width: _serviceType == 'instant' ? 1.5 : 1.0,
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Image.asset(
-                                'assets/images/gage_send_3d.png',
-                                width: 22,
-                                height: 22,
-                                fit: BoxFit.contain,
-                                errorBuilder: (_, _, _) => const Icon(Icons.flash_on_rounded, size: 18, color: Colors.orange),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Send Instant',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12.5,
-                                  color: isDark ? Colors.white : Colors.black87,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          const Text('1-2 jam tiba', style: TextStyle(fontSize: 10, color: Colors.grey)),
-                          const SizedBox(height: 4),
-                          if (_isLoadingRoute)
-                            const GageSkeletonBox(width: 50, height: 14)
-                          else
-                            Text(
-                              currencyFormatter.format(_calculateShippingFee('instant')),
-                              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: GageTheme.primary),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
+                _buildSendTierCard(
+                  serviceId: 'instant',
+                  title: 'Send Instant',
+                  subtitle: '1-2 jam tiba',
+                  fallbackIcon: Icons.flash_on_rounded,
+                  fallbackColor: Colors.orange,
+                  fareText: currencyFormatter.format(_calculateShippingFee('instant')),
+                  fareColor: GageTheme.primary,
+                  isDark: isDark,
                 ),
                 const SizedBox(width: 10),
-                Expanded(
-                  child: InkWell(
-                    onTap: () => setState(() => _serviceType = 'sameday'),
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: _serviceType == 'sameday'
-                            ? GageTheme.primary.withValues(alpha: 0.08)
-                            : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: _serviceType == 'sameday'
-                              ? GageTheme.primary
-                              : (isDark ? Colors.white10 : Colors.grey.shade200),
-                          width: _serviceType == 'sameday' ? 1.5 : 1.0,
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Image.asset(
-                                'assets/images/gage_send_3d.png',
-                                width: 22,
-                                height: 22,
-                                fit: BoxFit.contain,
-                                errorBuilder: (_, _, _) => const Icon(Icons.schedule_rounded, size: 18, color: Colors.blue),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Send Hemat',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12.5,
-                                  color: isDark ? Colors.white : Colors.black87,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          const Text('Pilihan Hemat • 2-4 jam', style: TextStyle(fontSize: 10, color: Colors.grey)),
-                          const SizedBox(height: 4),
-                          if (_isLoadingRoute)
-                            const GageSkeletonBox(width: 50, height: 14)
-                          else
-                            Text(
-                              currencyFormatter.format(_calculateShippingFee('sameday')),
-                              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: Color(0xFF16A34A)),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
+                _buildSendTierCard(
+                  serviceId: 'sameday',
+                  title: 'Send Hemat',
+                  subtitle: 'Pilihan Hemat • 2-4 jam',
+                  fallbackIcon: Icons.schedule_rounded,
+                  fallbackColor: Colors.blue,
+                  fareText: currencyFormatter.format(_calculateShippingFee('sameday')),
+                  fareColor: const Color(0xFF16A34A),
+                  isDark: isDark,
                 ),
               ],
             ),
 
             const SizedBox(height: 12),
 
-            // If destination is chosen: show expandable/scrollable details
+            // Ringkasan rincian paket saat titik antar sudah dipilih
             if (_recipientLatLng != null) ...[
-              // Accordion Header
               InkWell(
                 onTap: _showPackageDetailsFloatingSheet,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(999),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                   decoration: BoxDecoration(
                     color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(999),
                   ),
                   child: Row(
                     children: [
@@ -754,26 +691,15 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      Icon(
-                        _isDetailsExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
-                        color: Colors.grey,
+                      const Icon(
+                        Icons.tune_rounded,
+                        size: 17,
+                        color: GageTheme.primary,
                       ),
                     ],
                   ),
                 ),
               ),
-
-              if (_isDetailsExpanded) ...[
-                const SizedBox(height: 10),
-                ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxHeight: MediaQuery.of(context).size.height * 0.32,
-                  ),
-                  child: SingleChildScrollView(
-                    child: _buildPackageDetailsForm(isDark),
-                  ),
-                ),
-              ],
               const SizedBox(height: 12),
             ],
 
@@ -788,66 +714,123 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                   elevation: 0,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                 ),
-                onPressed: _isSearchingCourier
-                    ? null
-                    : (_senderAddressCtrl.text.trim().isEmpty
-                        ? _pickSenderAddress
-                        : (_recipientLatLng == null
-                            ? _pickRecipientAddress
-                            : _goToCheckout)),
-                child: _isSearchingCourier
+                onPressed: _senderAddressCtrl.text.trim().isEmpty
+                    ? _pickSenderAddress
+                    : (_recipientLatLng == null
+                        ? _pickRecipientAddress
+                        : _goToCheckout),
+                child: _senderAddressCtrl.text.trim().isEmpty
                     ? const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          Icon(Icons.search_rounded, size: 20, color: Colors.white),
+                          SizedBox(width: 8),
+                          Text(
+                            'Pilih Titik Jemput',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
                           ),
-                          SizedBox(width: 10),
-                          Text('Mencari kurir terdekat...', style: TextStyle(fontWeight: FontWeight.bold)),
                         ],
                       )
-                    : (_senderAddressCtrl.text.trim().isEmpty
+                    : (_recipientLatLng == null
                         ? const Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(Icons.search_rounded, size: 20, color: Colors.white),
                               SizedBox(width: 8),
                               Text(
-                                'Pilih Titik Jemput',
+                                'Pilih Titik Antar',
                                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
                               ),
                             ],
                           )
-                        : (_recipientLatLng == null
-                            ? const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.search_rounded, size: 20, color: Colors.white),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'Pilih Titik Antar',
-                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
-                                  ),
-                                ],
-                              )
-                            : Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text(
-                                    'Pesan GAGE Send',
-                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                                  ),
-                                  Text(
-                                    '${currencyFormatter.format(totalFare)} \u2192',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                                  ),
-                                ],
-                              ))),
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Pesan GAGE Send',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
+                              Text(
+                                '${currencyFormatter.format(totalFare)} \u2192',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
+                            ],
+                          )),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSendTierCard({
+    required String serviceId,
+    required String title,
+    required String subtitle,
+    required IconData fallbackIcon,
+    required Color fallbackColor,
+    required String fareText,
+    required Color fareColor,
+    required bool isDark,
+  }) {
+    final isSelected = _serviceType == serviceId;
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          setState(() => _serviceType = serviceId);
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? GageTheme.primary.withValues(alpha: 0.08)
+                : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isSelected
+                  ? GageTheme.primary
+                  : (isDark ? Colors.white10 : Colors.grey.shade200),
+              width: isSelected ? 1.5 : 1.0,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Image.asset(
+                    'assets/images/gage_send_3d.png',
+                    width: 22,
+                    height: 22,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) => Icon(fallbackIcon, size: 18, color: fallbackColor),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12.5,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(subtitle, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+              const SizedBox(height: 4),
+              if (_isLoadingRoute)
+                const GageSkeletonBox(width: 50, height: 14)
+              else
+                Text(
+                  fareText,
+                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: fareColor),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -1010,20 +993,20 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                   child: ChoiceChip(
                     label: Text(type),
                     selected: isSelected,
-                    onSelected: (_) => setState(() => _selectedPackageType = type),
-                    backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
-                    selectedColor: GageTheme.primary.withValues(alpha: 0.15),
+                    showCheckmark: false,
+                    onSelected: (_) {
+                      HapticFeedback.selectionClick();
+                      setState(() => _selectedPackageType = type);
+                    },
+                    backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                    selectedColor: GageTheme.primary,
                     labelStyle: TextStyle(
                       fontSize: 10.5,
                       fontWeight: FontWeight.bold,
-                      color: isSelected ? GageTheme.primary : (isDark ? Colors.white70 : Colors.black87),
+                      color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
                     ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
-                      side: BorderSide(
-                        color: isSelected ? GageTheme.primary : (isDark ? Colors.white12 : Colors.grey.shade300),
-                      ),
-                    ),
+                    shape: const StadiumBorder(),
+                    side: BorderSide.none,
                   ),
                 );
               }).toList(),
@@ -1039,18 +1022,18 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 2),
                   child: InkWell(
-                    onTap: () => setState(() => _selectedWeight = w),
-                    borderRadius: BorderRadius.circular(24),
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _selectedWeight = w);
+                    },
+                    borderRadius: BorderRadius.circular(999),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      padding: const EdgeInsets.symmetric(vertical: 7),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? GageTheme.primary.withValues(alpha: 0.12)
-                            : (isDark ? const Color(0xFF0F172A) : Colors.white),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(
-                          color: isSelected ? GageTheme.primary : (isDark ? Colors.white12 : Colors.grey.shade300),
-                        ),
+                            ? GageTheme.primary
+                            : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9)),
+                        borderRadius: BorderRadius.circular(999),
                       ),
                       child: Center(
                         child: Text(
@@ -1058,7 +1041,7 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
-                            color: isSelected ? GageTheme.primary : (isDark ? Colors.white70 : Colors.black87),
+                            color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
                           ),
                         ),
                       ),

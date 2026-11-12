@@ -721,6 +721,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         final res = await RatingReviewSheet.show(
                           context,
                           orderId: order.id,
+                          merchantId: order.merchantId,
+                          serviceType: order.channel,
                           merchantName: order.merchantName,
                           merchantAvatar: order.merchantAvatar,
                           driverName: order.driverName ?? 'Driver GAGE',

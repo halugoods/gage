@@ -534,6 +534,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                   RatingReviewSheet.show(
                                     context,
                                     orderId: order.orderNumber,
+                                    merchantId: order.merchantId,
+                                    serviceType: order.channel,
                                     merchantName: merchantTitle,
                                     merchantAvatar: order.merchantAvatar,
                                     driverName: 'Syamsul Maarif',

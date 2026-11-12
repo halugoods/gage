@@ -9,9 +9,11 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/core/services/location_service.dart';
+import 'package:gage_app/core/services/merchant_storefront_service.dart';
 import 'package:gage_app/core/services/osrm_routing_service.dart';
 import 'package:gage_app/providers/driver_order_provider.dart';
 import 'package:gage_app/providers/driver_wallet_provider.dart';
+import 'package:gage_app/shared/widgets/storefront_image.dart';
 
 /// Layar Perjalanan Aktif Pengemudi (Active Trip Screen)
 /// Dirancang dengan arsitektur 3 Tahap Eksekusi Ergonomis:
@@ -38,12 +40,72 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
   bool _isLoadingRoute = true;
   StreamSubscription<Position>? _gpsSub;
   late LatLng _driverLocation;
+  String? _merchantLocationPhoto;
 
   @override
   void initState() {
     super.initState();
     _driverLocation = LocationService.cachedOrFallback;
+    _loadMerchantLocationPhoto();
     _initGpsAndRoute();
+  }
+
+  Future<void> _loadMerchantLocationPhoto() async {
+    final storefront = await MerchantStorefrontService.loadStorefront(
+      null,
+      merchantName: widget.trip.storeName,
+    );
+    if (!mounted) return;
+    final photo = storefront?.locationPhoto?.trim();
+    if (photo != null && photo.isNotEmpty) {
+      setState(() => _merchantLocationPhoto = photo);
+    }
+  }
+
+  void _showMerchantLocationPhotoDialog() {
+    final photo = _merchantLocationPhoto;
+    if (photo == null || photo.isEmpty) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AspectRatio(
+              aspectRatio: 16 / 10,
+              child: StorefrontImage(
+                path: photo,
+                fit: BoxFit.cover,
+                fallback: Container(
+                  color: Colors.grey.shade200,
+                  child: const Icon(Icons.storefront_rounded, size: 48, color: Colors.grey),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Foto Lapak ${widget.trip.storeName}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    widget.trip.pickupAddress,
+                    style: const TextStyle(fontSize: 12, color: GageTheme.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _initGpsAndRoute() async {
@@ -592,6 +654,52 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                       ),
                     ],
                   ),
+
+                  // Foto Lapak Merchant untuk memudahkan driver mengenali lokasi penjemputan
+                  if (currentStep <= 1 && _merchantLocationPhoto != null) ...[
+                    const SizedBox(height: 10),
+                    InkWell(
+                      onTap: _showMerchantLocationPhotoDialog,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: GageTheme.primary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: GageTheme.primary.withValues(alpha: 0.25)),
+                        ),
+                        child: Row(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: SizedBox(
+                                width: 44,
+                                height: 44,
+                                child: StorefrontImage(path: _merchantLocationPhoto, fit: BoxFit.cover),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Foto Lapak / Lokasi Merchant',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: GageTheme.primary),
+                                  ),
+                                  Text(
+                                    'Ketuk untuk melihat tampak depan lokasi penjemputan',
+                                    style: TextStyle(fontSize: 10.5, color: GageTheme.textSecondary),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.chevron_right_rounded, color: GageTheme.primary),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
 
                   // Detail Barang di Tahap 2 (Verifikasi Barang)
                   if (currentStep == 1) ...[

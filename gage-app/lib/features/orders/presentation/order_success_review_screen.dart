@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:gage_app/core/services/merchant_storefront_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/data/models/order_model.dart';
 import 'package:gage_app/features/home/presentation/home_screen.dart';
@@ -397,6 +398,21 @@ class _OrderSuccessReviewScreenState extends State<OrderSuccessReviewScreen> {
                   ),
                   onPressed: () {
                     HapticFeedback.mediumImpact();
+                    final typedComment = _commentCtrl.text.trim();
+                    final chipsText = _selectedMerchantChips.join(', ');
+                    final finalComment = [
+                      if (typedComment.isNotEmpty) typedComment,
+                      if (chipsText.isNotEmpty) chipsText,
+                    ].join(' - ');
+                    MerchantStorefrontService.submitBuyerReview(
+                      merchantId: widget.order.merchantId,
+                      merchantName: widget.order.merchantName,
+                      domain: widget.order.channel,
+                      stars: _merchantStars,
+                      comment: finalComment,
+                      orderedItems: widget.order.items.map((e) => e.name).toList(),
+                      userName: widget.order.customerName ?? 'Pelanggan GAGE',
+                    );
                     setState(() => _isSubmitted = true);
                     GageToast.show(
                       context,

@@ -28,6 +28,7 @@ class GageMerchantCard extends StatelessWidget {
   final double? width;
   final bool? isFavorite;
   final VoidCallback? onFavoriteTap;
+  final String? matchedProductsLabel;
 
   const GageMerchantCard({
     super.key,
@@ -47,6 +48,7 @@ class GageMerchantCard extends StatelessWidget {
     this.width,
     this.isFavorite,
     this.onFavoriteTap,
+    this.matchedProductsLabel,
   });
 
   @override
@@ -292,6 +294,27 @@ class GageMerchantCard extends StatelessWidget {
                         ),
                       );
                     }).toList(),
+                  ),
+                ],
+                if (matchedProductsLabel != null && matchedProductsLabel!.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(Icons.inventory_2_outlined, size: 13, color: Color(0xFF0F766E)),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          matchedProductsLabel!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? const Color(0xFF5EEAD4) : const Color(0xFF0F766E),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ],

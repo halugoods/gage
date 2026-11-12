@@ -16,18 +16,29 @@ import 'package:gage_app/providers/order_provider.dart';
 import 'package:gage_app/features/orders/presentation/order_tracking_screen.dart';
 import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
 import 'package:gage_app/features/food/presentation/food_explore_screen.dart';
+import 'package:gage_app/features/food/presentation/shop_screen.dart';
+import 'package:gage_app/features/food/presentation/farm_screen.dart';
+import 'package:gage_app/features/food/presentation/build_screen.dart';
 import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
 import 'package:gage_app/features/voucher/presentation/voucher_selection_screen.dart';
 import 'package:gage_app/data/models/cart_item_model.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
+import 'package:gage_app/core/services/location_service.dart';
+import 'package:gage_app/core/services/osm_geocoding_service.dart';
+import 'package:gage_app/core/services/pracimantoro_places_database.dart';
 import 'package:gage_app/shared/widgets/mini_location_preview_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:gage_app/features/wallet/presentation/gagepay_screen.dart';
 
 class CheckoutScreen extends StatefulWidget {
-  const CheckoutScreen({super.key});
+  final String? serviceType;
+
+  const CheckoutScreen({
+    super.key,
+    this.serviceType,
+  });
 
   @override
   State<CheckoutScreen> createState() => _CheckoutScreenState();
@@ -36,7 +47,8 @@ class CheckoutScreen extends StatefulWidget {
 class _CheckoutScreenState extends State<CheckoutScreen> {
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _notePatokanController = TextEditingController();
-  LatLng _selectedDeliveryLocation = const LatLng(-8.0772, 110.8242);
+  late LatLng _selectedDeliveryLocation;
+  bool _hasExplicitLocation = false;
 
   final TextEditingController _giftRecipientNameCtrl = TextEditingController();
   final TextEditingController _giftRecipientPhoneCtrl = TextEditingController();
@@ -46,6 +58,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   bool _sendAsGift = false;
   int _driverTip = 0;
   bool _isLoading = false;
+
+  LatLng get _merchantLocation {
+    final merchantName = context.read<CartProvider>().merchantName;
+    if (merchantName != null && merchantName.trim().isNotEmpty) {
+      final matches = PracimantoroPlacesDatabase.searchLocalPlaces(merchantName);
+      if (matches.isNotEmpty) {
+        return matches.first.location;
+      }
+    }
+    return PracimantoroPlacesDatabase.centerPracimantoro;
+  }
+
+  double _calculateDistanceKm(LatLng from, LatLng to) {
+    final meters = const Distance().as(LengthUnit.Meter, from, to);
+    final km = (meters / 1000.0).clamp(0.8, 25.0);
+    return double.parse(km.toStringAsFixed(1));
+  }
 
   Future<void> _refreshCheckout() async {
     setState(() => _isLoading = true);
@@ -58,12 +87,46 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   void initState() {
     super.initState();
     final cart = context.read<CartProvider>();
-    _addressController.text = cart.deliveryAddress.isNotEmpty
+    _hasExplicitLocation = cart.hasCustomDeliveryLocation;
+    _selectedDeliveryLocation = cart.deliveryLocation ?? LocationService.cachedOrFallback;
+    _addressController.text = (!cart.isPickup && cart.deliveryAddress.isNotEmpty)
         ? cart.deliveryAddress
-        : 'XR89+JGX, Pracimantoro, Wonogiri';
+        : OsmGeocodingService.formatFullOfficialAddress(_selectedDeliveryLocation);
     _notePatokanController.text = cart.addressNotes.isNotEmpty
         ? cart.addressNotes
         : '';
+    if (!_hasExplicitLocation) {
+      _syncInitialGpsLocation();
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final cart = context.read<CartProvider>();
+      final activeService = widget.serviceType ?? cart.primaryServiceType;
+      cart.syncAutoPromos(serviceType: activeService);
+    });
+  }
+
+  Future<void> _syncInitialGpsLocation() async {
+    try {
+      final gps = await LocationService.getCurrentLocation();
+      if (!mounted || _hasExplicitLocation) return;
+      final cart = context.read<CartProvider>();
+      final resolvedAddr = OsmGeocodingService.formatFullOfficialAddress(gps);
+      final distKm = _calculateDistanceKm(_merchantLocation, gps);
+      setState(() {
+        _selectedDeliveryLocation = gps;
+        if (cart.deliveryAddress.isEmpty || cart.isPickup) {
+          _addressController.text = resolvedAddr;
+        }
+      });
+      if (!cart.hasCustomDeliveryLocation) {
+        cart.setDeliveryAddress(
+          (!cart.isPickup && cart.deliveryAddress.isNotEmpty) ? cart.deliveryAddress : resolvedAddr,
+          distKm,
+          location: gps,
+        );
+      }
+    } catch (_) {}
   }
 
   @override
@@ -346,21 +409,35 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     LocationPickerSheet.show(
       context,
       title: 'Pilih Titik Antar',
+      initialLocation: _selectedDeliveryLocation,
       onSelected: (title, fullAddress, latLng) {
+        final resolvedAddress = fullAddress.isNotEmpty ? fullAddress : title;
+        final distKm = _calculateDistanceKm(_merchantLocation, latLng);
         setState(() {
-          _addressController.text = fullAddress;
+          _hasExplicitLocation = true;
+          _addressController.text = resolvedAddress;
           _selectedDeliveryLocation = latLng;
         });
-        context.read<CartProvider>().setDeliveryAddress(fullAddress, 1.8);
+        context.read<CartProvider>().setDeliveryAddress(
+              resolvedAddress,
+              distKm,
+              location: latLng,
+            );
       },
     );
   }
 
   Future<void> _openVoucherSelection({int initialTabIndex = 0}) async {
+    final cart = context.read<CartProvider>();
+    final activeService = widget.serviceType ?? cart.primaryServiceType;
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (ctx) => VoucherSelectionScreen(initialTabIndex: initialTabIndex),
+        builder: (ctx) => VoucherSelectionScreen(
+          initialTabIndex: initialTabIndex,
+          serviceType: activeService,
+          currentSubtotal: cart.subtotal,
+        ),
       ),
     );
     if (mounted) {
@@ -368,7 +445,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
-  void _showMerchantMapDialog(BuildContext context, String merchantName, String address) {
+  void _showMerchantMapDialog(BuildContext context, String merchantName, String address, LatLng location) {
     showDialog(
       context: context,
       builder: (ctx) {
@@ -400,31 +477,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
-                  child: Container(
-                    height: 200,
-                    width: double.infinity,
-                    color: const Color(0xFFE2E8F0),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Positioned(
-                          top: 90,
-                          left: 0,
-                          right: 0,
-                          child: Container(height: 18, color: Colors.white),
-                        ),
-                        Positioned(
-                          left: 120,
-                          top: 0,
-                          bottom: 0,
-                          child: Container(width: 18, color: Colors.white),
-                        ),
-                        const Icon(Icons.location_on, color: GageTheme.primary, size: 36),
-                      ],
-                    ),
-                  ),
+                MiniLocationPreviewMap(
+                  location: location,
+                  width: double.infinity,
+                  height: 200,
+                  borderRadius: 14,
+                  zoom: 16.8,
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -645,6 +703,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         return;
       }
 
+      if (!context.mounted) return;
+
       if (cart.paymentMethod == 'GAGEPAY_COD') {
         final remainingCod = totalPay - wallet.balance;
         if (remainingCod > 75000) {
@@ -657,6 +717,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         }
       }
     }
+
+    if (!context.mounted) return;
 
     // Validasi COD
     if (cart.paymentMethod == 'CASH_COD') {
@@ -1552,53 +1614,37 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                     const SizedBox(width: 8),
 
                                     // 3. Mini Map View 1:1 Interaktif (Bisa di-expand)
-                                    GestureDetector(
-                                      onTap: () {
-                                        _showMerchantMapDialog(
-                                          context,
-                                          cart.merchantName ?? 'Resto Mitra GAGE',
-                                          'Komplek Pasar Pracimantoro Lor, Wonogiri',
-                                        );
-                                      },
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(10),
-                                        child: Container(
-                                          width: 58,
-                                          height: 58,
-                                          color: const Color(0xFFE2E8F0),
-                                          child: Stack(
-                                            alignment: Alignment.center,
-                                            children: [
-                                              // Mini road grid simulation
-                                              Positioned(
-                                                top: 26,
-                                                left: -4,
-                                                right: -4,
-                                                child: Container(height: 8, color: Colors.white),
+                                    Stack(
+                                      children: [
+                                        MiniLocationPreviewMap(
+                                          location: _merchantLocation,
+                                          size: 58,
+                                          borderRadius: 10,
+                                          zoom: 16.5,
+                                          onTap: () {
+                                            _showMerchantMapDialog(
+                                              context,
+                                              cart.merchantName ?? 'Resto Mitra GAGE',
+                                              'Komplek Pasar Pracimantoro Lor, Wonogiri',
+                                              _merchantLocation,
+                                            );
+                                          },
+                                        ),
+                                        Positioned(
+                                          bottom: 3,
+                                          right: 3,
+                                          child: IgnorePointer(
+                                            child: Container(
+                                              padding: const EdgeInsets.all(2),
+                                              decoration: const BoxDecoration(
+                                                color: Colors.black54,
+                                                shape: BoxShape.circle,
                                               ),
-                                              Positioned(
-                                                left: 26,
-                                                top: -4,
-                                                bottom: -4,
-                                                child: Container(width: 8, color: Colors.white),
-                                              ),
-                                              const Icon(Icons.location_on, color: GageTheme.primary, size: 22),
-                                              Positioned(
-                                                bottom: 2,
-                                                right: 2,
-                                                child: Container(
-                                                  padding: const EdgeInsets.all(2),
-                                                  decoration: const BoxDecoration(
-                                                    color: Colors.black54,
-                                                    shape: BoxShape.circle,
-                                                  ),
-                                                  child: const Icon(Icons.fullscreen, color: Colors.white, size: 10),
-                                                ),
-                                              ),
-                                            ],
+                                              child: const Icon(Icons.fullscreen, color: Colors.white, size: 10),
+                                            ),
                                           ),
                                         ),
-                                      ),
+                                      ],
                                     ),
                                   ],
                                 ),
@@ -1632,12 +1678,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                         children: [
                                           Row(
                                             children: [
-                                              Text(
-                                                'Alamat Pengantaran',
-                                                style: TextStyle(
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: isDark ? Colors.white : Colors.black87,
+                                              Flexible(
+                                                child: Text(
+                                                  'Alamat Pengantaran',
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: isDark ? Colors.white : Colors.black87,
+                                                  ),
                                                 ),
                                               ),
                                               const SizedBox(width: 8),
@@ -1839,15 +1889,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                   const SizedBox(height: 12),
                                   Row(
                                     children: [
-                                      const Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text('Ada lagi yang mau dibeli?', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87)),
-                                          SizedBox(height: 2),
-                                          Text('Masih bisa nambah menu lain, ya.', style: TextStyle(fontSize: 12, color: Colors.black54)),
-                                        ],
+                                      const Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text('Ada lagi yang mau dibeli?', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87)),
+                                            SizedBox(height: 2),
+                                            Text('Masih bisa nambah menu lain, ya.', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                                          ],
+                                        ),
                                       ),
-                                      const Spacer(),
+                                      const SizedBox(width: 8),
                                       OutlinedButton(
                                         style: OutlinedButton.styleFrom(
                                           foregroundColor: GageTheme.primary,
@@ -1857,6 +1909,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                           visualDensity: VisualDensity.compact,
                                         ),
                                         onPressed: () {
+                                          final effectiveService = (widget.serviceType != null && widget.serviceType!.trim().isNotEmpty)
+                                              ? widget.serviceType!.trim().toLowerCase()
+                                              : cart.primaryServiceType.toLowerCase();
                                           if (cart.merchantId != null && cart.merchantId!.isNotEmpty) {
                                             Navigator.push(
                                               context,
@@ -1865,15 +1920,31 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                                   merchant: {
                                                     'id': cart.merchantId,
                                                     'name': cart.merchantName,
-                                                    'service_type': cart.primaryServiceType,
+                                                    'domain': effectiveService,
+                                                    'serviceType': effectiveService,
                                                   },
                                                 ),
                                               ),
                                             );
                                           } else {
+                                            Widget destination;
+                                            switch (effectiveService) {
+                                              case 'shop':
+                                              case 'mart':
+                                                destination = const ShopScreen();
+                                                break;
+                                              case 'farm':
+                                                destination = const FarmScreen();
+                                                break;
+                                              case 'build':
+                                                destination = const BuildScreen();
+                                                break;
+                                              default:
+                                                destination = const FoodExploreScreen();
+                                            }
                                             Navigator.push(
                                               context,
-                                              MaterialPageRoute(builder: (ctx) => const FoodExploreScreen()),
+                                              MaterialPageRoute(builder: (ctx) => destination),
                                             );
                                           }
                                         },
@@ -1884,80 +1955,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 ],
                               ),
                             ),
-
-                             // =========================================================
-                            // 4b. DRIVER TIP SELECTOR CARD (Apresiasi Driver 100%)
-                            // =========================================================
-                            if (!isPickup)
-                              Container(
-                                margin: const EdgeInsets.only(top: 14),
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: cardColor,
-                                  borderRadius: BorderRadius.circular(16),
-                                  boxShadow: cardShadow,
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(6),
-                                          decoration: const BoxDecoration(
-                                            color: Color(0xFFFEF3C7),
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: const Icon(Icons.favorite_rounded, color: Color(0xFFD97706), size: 16),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        const Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                'Beri Tip untuk Driver?',
-                                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Colors.black87),
-                                              ),
-                                              SizedBox(height: 2),
-                                              Text(
-                                                '100% tip apresiasi diserahkan penuh ke driver',
-                                                style: TextStyle(fontSize: 11, color: Colors.black54),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        if (_driverTip > 0)
-                                          Text(
-                                            currencyFormatter.format(_driverTip),
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 13,
-                                              color: GageTheme.primary,
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 12),
-                                    SingleChildScrollView(
-                                      scrollDirection: Axis.horizontal,
-                                      child: Row(
-                                        children: [
-                                          _buildTipChip(0, 'Tanpa Tip'),
-                                          const SizedBox(width: 8),
-                                          _buildTipChip(2000, '+Rp 2.000'),
-                                          const SizedBox(width: 8),
-                                          _buildTipChip(5000, '+Rp 5.000'),
-                                          const SizedBox(width: 8),
-                                          _buildTipChip(10000, '+Rp 10.000'),
-                                          const SizedBox(width: 8),
-                                          _buildCustomTipChip(),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
 
                             // =========================================================
                             // 5. RINGKASAN PEMBAYARAN (Detail Terperinci)
@@ -1993,27 +1990,34 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                         Row(
                                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                           children: [
-                                            Row(
-                                              children: [
-                                                const Text(
-                                                  'Diskon Makanan',
-                                                  style: TextStyle(fontSize: 13.5, color: Color(0xFF16A34A), fontWeight: FontWeight.w600),
-                                                ),
-                                                const SizedBox(width: 8),
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                                  decoration: BoxDecoration(
-                                                    color: const Color(0xFFDCFCE7),
-                                                    borderRadius: BorderRadius.circular(6),
-                                                    border: Border.all(color: const Color(0xFF86EFAC)),
+                                            Expanded(
+                                              child: Row(
+                                                children: [
+                                                  const Flexible(
+                                                    child: Text(
+                                                      'Diskon Makanan',
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                      style: TextStyle(fontSize: 13.5, color: Color(0xFF16A34A), fontWeight: FontWeight.w600),
+                                                    ),
                                                   ),
-                                                  child: Text(
-                                                    cart.foodPromoCode ?? 'DISKON',
-                                                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF15803D), letterSpacing: 0.3),
+                                                  const SizedBox(width: 8),
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                                    decoration: BoxDecoration(
+                                                      color: const Color(0xFFDCFCE7),
+                                                      borderRadius: BorderRadius.circular(6),
+                                                      border: Border.all(color: const Color(0xFF86EFAC)),
+                                                    ),
+                                                    child: Text(
+                                                      cart.foodPromoCode ?? 'DISKON',
+                                                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF15803D), letterSpacing: 0.3),
+                                                    ),
                                                   ),
-                                                ),
-                                              ],
+                                                ],
+                                              ),
                                             ),
+                                            const SizedBox(width: 8),
                                             Text(
                                               '- ${currencyFormatter.format(cart.totalFoodDiscount)}',
                                               style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: Color(0xFF16A34A)),
@@ -2026,28 +2030,35 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                       Row(
                                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
-                                          Row(
-                                            children: [
-                                              Text(
-                                                isPickup ? 'Biaya Pengiriman (Pickup)' : 'Ongkos Kirim',
-                                                style: TextStyle(fontSize: 13.5, color: isDark ? Colors.white : Colors.black87),
-                                              ),
-                                              if (!isPickup) ...[
-                                                const SizedBox(width: 8),
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                  decoration: BoxDecoration(
-                                                    color: isDark ? const Color(0xFF27272A) : const Color(0xFFF1F5F9),
-                                                    borderRadius: BorderRadius.circular(6),
-                                                  ),
+                                          Expanded(
+                                            child: Row(
+                                              children: [
+                                                Flexible(
                                                   child: Text(
-                                                    cart.deliveryOption,
-                                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.grey.shade700),
+                                                    isPickup ? 'Biaya Pengiriman (Pickup)' : 'Ongkos Kirim',
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
+                                                    style: TextStyle(fontSize: 13.5, color: isDark ? Colors.white : Colors.black87),
                                                   ),
                                                 ),
+                                                if (!isPickup) ...[
+                                                  const SizedBox(width: 8),
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                    decoration: BoxDecoration(
+                                                      color: isDark ? const Color(0xFF27272A) : const Color(0xFFF1F5F9),
+                                                      borderRadius: BorderRadius.circular(6),
+                                                    ),
+                                                    child: Text(
+                                                      cart.deliveryOption,
+                                                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.grey.shade700),
+                                                    ),
+                                                  ),
+                                                ],
                                               ],
-                                            ],
+                                            ),
                                           ),
+                                          const SizedBox(width: 8),
                                           Text(
                                             isPickup ? 'Gratis (Rp 0)' : currencyFormatter.format(cart.rawShippingFee),
                                             style: TextStyle(
@@ -2064,27 +2075,34 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                         Row(
                                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                           children: [
-                                            Row(
-                                              children: [
-                                                const Text(
-                                                  'Diskon Ongkir',
-                                                  style: TextStyle(fontSize: 13.5, color: Color(0xFF16A34A), fontWeight: FontWeight.w600),
-                                                ),
-                                                const SizedBox(width: 8),
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                                  decoration: BoxDecoration(
-                                                    color: const Color(0xFFDCFCE7),
-                                                    borderRadius: BorderRadius.circular(6),
-                                                    border: Border.all(color: const Color(0xFF86EFAC)),
+                                            Expanded(
+                                              child: Row(
+                                                children: [
+                                                  const Flexible(
+                                                    child: Text(
+                                                      'Diskon Ongkir',
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                      style: TextStyle(fontSize: 13.5, color: Color(0xFF16A34A), fontWeight: FontWeight.w600),
+                                                    ),
                                                   ),
-                                                  child: Text(
-                                                    cart.deliveryPromoCode ?? 'ONGKIR',
-                                                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF15803D), letterSpacing: 0.3),
+                                                  const SizedBox(width: 8),
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                                    decoration: BoxDecoration(
+                                                      color: const Color(0xFFDCFCE7),
+                                                      borderRadius: BorderRadius.circular(6),
+                                                      border: Border.all(color: const Color(0xFF86EFAC)),
+                                                    ),
+                                                    child: Text(
+                                                      cart.deliveryPromoCode ?? 'ONGKIR',
+                                                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF15803D), letterSpacing: 0.3),
+                                                    ),
                                                   ),
-                                                ),
-                                              ],
+                                                ],
+                                              ),
                                             ),
+                                            const SizedBox(width: 8),
                                             Text(
                                               '- ${currencyFormatter.format(cart.totalShippingDiscount)}',
                                               style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: Color(0xFF16A34A)),
@@ -2137,7 +2155,98 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             ),
 
                             // =========================================================
-                            // 6. METODE PEMBAYARAN (In-Page Section + Split Payment)
+                            // 6a. VOUCHER & DISKON CARD (Sleek Ticket Row per Image 5)
+                            // =========================================================
+                            Builder(
+                              builder: (ctx) {
+                                final hasFoodPromo = cart.foodPromoCode != null;
+                                final hasDeliveryPromo = cart.deliveryPromoCode != null;
+                                final hasAnyPromo = hasFoodPromo || hasDeliveryPromo;
+
+                                return Container(
+                                  margin: const EdgeInsets.only(top: 14),
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: cardColor,
+                                    borderRadius: BorderRadius.circular(16),
+                                    boxShadow: cardShadow,
+                                    border: Border.all(
+                                      color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                                      width: 1.0,
+                                    ),
+                                  ),
+                                  child: InkWell(
+                                    onTap: () => _openVoucherSelection(initialTabIndex: 0),
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 32,
+                                          height: 32,
+                                          decoration: BoxDecoration(
+                                            color: GageTheme.primary.withValues(alpha: 0.12),
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          child: const Icon(
+                                            Icons.confirmation_number_rounded,
+                                            color: GageTheme.primary,
+                                            size: 18,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Wrap(
+                                            crossAxisAlignment: WrapCrossAlignment.center,
+                                            spacing: 6,
+                                            runSpacing: 4,
+                                            children: [
+                                              Text(
+                                                'Voucher',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 13.5,
+                                                  color: isDark ? Colors.white : Colors.black87,
+                                                ),
+                                              ),
+                                              if (hasDeliveryPromo)
+                                                _buildTicketBadge(
+                                                  text: 'Diskon Ongkir',
+                                                  color: const Color(0xFF0D9488),
+                                                  isDark: isDark,
+                                                  onRemove: () => cart.removeDeliveryPromo(),
+                                                ),
+                                              if (hasFoodPromo)
+                                                _buildTicketBadge(
+                                                  text: '-${MerchantDiscountTierService.formatRb(cart.foodPromoDiscount)}',
+                                                  color: const Color(0xFFEA580C),
+                                                  isDark: isDark,
+                                                  onRemove: () => cart.removeFoodPromo(),
+                                                ),
+                                              if (!hasAnyPromo)
+                                                Text(
+                                                  'Gunakan / masukkan kode',
+                                                  style: TextStyle(
+                                                    fontSize: 11.5,
+                                                    color: isDark ? Colors.white60 : Colors.grey.shade500,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                        const Icon(
+                                          Icons.chevron_right_rounded,
+                                          color: Colors.black45,
+                                          size: 20,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+
+                            // =========================================================
+                            // 6b. METODE PEMBAYARAN (In-Page Section + Split Payment)
                             // =========================================================
                             Container(
                               margin: const EdgeInsets.only(top: 14),
@@ -2294,16 +2403,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                           Row(
                                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                             children: [
-                                              Row(
-                                                children: [
-                                                  const Icon(Icons.info_outline_rounded, color: Color(0xFFDC2626), size: 16),
-                                                  const SizedBox(width: 6),
-                                                  Text(
-                                                    'Saldo GAGEPay kurang ${currencyFormatter.format(totalPay - wallet.balance)}',
-                                                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF991B1B)),
-                                                  ),
-                                                ],
+                                              Expanded(
+                                                child: Row(
+                                                  children: [
+                                                    const Icon(Icons.info_outline_rounded, color: Color(0xFFDC2626), size: 16),
+                                                    const SizedBox(width: 6),
+                                                    Expanded(
+                                                      child: Text(
+                                                        'Saldo GAGEPay kurang ${currencyFormatter.format(totalPay - wallet.balance)}',
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow.ellipsis,
+                                                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF991B1B)),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
+                                              const SizedBox(width: 6),
                                               InkWell(
                                                 onTap: () async {
                                                   await Navigator.push(
@@ -2381,98 +2497,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             ),
 
                             // =========================================================
-                            // 7. VOUCHER & DISKON CARD (Sleek Ticket Row per Image 5)
-                            // =========================================================
-                            Builder(
-                              builder: (ctx) {
-                                final hasFoodPromo = cart.foodPromoCode != null;
-                                final hasDeliveryPromo = cart.deliveryPromoCode != null;
-                                final hasAnyPromo = hasFoodPromo || hasDeliveryPromo;
-
-                                return Container(
-                                  margin: const EdgeInsets.only(top: 14),
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                  decoration: BoxDecoration(
-                                    color: cardColor,
-                                    borderRadius: BorderRadius.circular(16),
-                                    boxShadow: cardShadow,
-                                    border: Border.all(
-                                      color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-                                      width: 1.0,
-                                    ),
-                                  ),
-                                  child: InkWell(
-                                    onTap: () => _openVoucherSelection(initialTabIndex: 0),
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          width: 32,
-                                          height: 32,
-                                          decoration: BoxDecoration(
-                                            color: GageTheme.primary.withValues(alpha: 0.12),
-                                            borderRadius: BorderRadius.circular(10),
-                                          ),
-                                          child: const Icon(
-                                            Icons.confirmation_number_rounded,
-                                            color: GageTheme.primary,
-                                            size: 18,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Row(
-                                            children: [
-                                              Text(
-                                                'Voucher',
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 13.5,
-                                                  color: isDark ? Colors.white : Colors.black87,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              if (hasDeliveryPromo) ...[
-                                                _buildTicketBadge(
-                                                  text: 'Diskon Ongkir',
-                                                  color: const Color(0xFF0D9488),
-                                                  isDark: isDark,
-                                                ),
-                                                const SizedBox(width: 6),
-                                              ],
-                                              if (hasFoodPromo) ...[
-                                                _buildTicketBadge(
-                                                  text: '-${MerchantDiscountTierService.formatRb(cart.foodPromoDiscount)}',
-                                                  color: const Color(0xFFEA580C),
-                                                  isDark: isDark,
-                                                ),
-                                              ],
-                                              if (!hasAnyPromo) ...[
-                                                Text(
-                                                  'Gunakan / masukkan kode',
-                                                  style: TextStyle(
-                                                    fontSize: 11.5,
-                                                    color: isDark ? Colors.white60 : Colors.grey.shade500,
-                                                  ),
-                                                ),
-                                              ],
-                                            ],
-                                          ),
-                                        ),
-                                        const Icon(
-                                          Icons.chevron_right_rounded,
-                                          color: Colors.black45,
-                                          size: 20,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-
-                            // =========================================================
-                            // 8. OPSI TAMBAHAN (Kirim Sebagai Hadiah)
+                            // 7. OPSI TAMBAHAN (Kirim Sebagai Hadiah)
                             // =========================================================
                             Container(
                               margin: const EdgeInsets.only(top: 14),
@@ -2542,6 +2567,80 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               ),
                             ),
 
+                            // =========================================================
+                            // 8. DRIVER TIP SELECTOR CARD (Apresiasi Driver 100%)
+                            // =========================================================
+                            if (!isPickup)
+                              Container(
+                                margin: const EdgeInsets.only(top: 14),
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: cardColor,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: cardShadow,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: const BoxDecoration(
+                                            color: Color(0xFFFEF3C7),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(Icons.favorite_rounded, color: Color(0xFFD97706), size: 16),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        const Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'Beri Tip untuk Driver?',
+                                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Colors.black87),
+                                              ),
+                                              SizedBox(height: 2),
+                                              Text(
+                                                '100% tip apresiasi diserahkan penuh ke driver',
+                                                style: TextStyle(fontSize: 11, color: Colors.black54),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        if (_driverTip > 0)
+                                          Text(
+                                            currencyFormatter.format(_driverTip),
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 13,
+                                              color: GageTheme.primary,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      child: Row(
+                                        children: [
+                                          _buildTipChip(0, 'Tanpa Tip'),
+                                          const SizedBox(width: 8),
+                                          _buildTipChip(2000, '+Rp 2.000'),
+                                          const SizedBox(width: 8),
+                                          _buildTipChip(5000, '+Rp 5.000'),
+                                          const SizedBox(width: 8),
+                                          _buildTipChip(10000, '+Rp 10.000'),
+                                          const SizedBox(width: 8),
+                                          _buildCustomTipChip(),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
                             const SizedBox(height: 30),
                           ],
                         ),
@@ -2587,7 +2686,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
-  Widget _buildTicketBadge({required String text, required Color color, required bool isDark}) {
+  Widget _buildTicketBadge({
+    required String text,
+    required Color color,
+    required bool isDark,
+    VoidCallback? onRemove,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
@@ -2595,14 +2699,27 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         borderRadius: BorderRadius.circular(6),
         border: Border.all(color: color.withValues(alpha: 0.35), width: 1.0),
       ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-          color: color,
-          letterSpacing: 0.2,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: color,
+              letterSpacing: 0.2,
+            ),
+          ),
+          if (onRemove != null) ...[
+            const SizedBox(width: 4),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onRemove,
+              child: Icon(Icons.close_rounded, size: 13, color: color),
+            ),
+          ],
+        ],
       ),
     );
   }

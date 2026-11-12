@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:gage_app/core/services/notification_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
 
 class ChatHubScreen extends StatefulWidget {
@@ -118,6 +120,27 @@ class _ChatHubScreenState extends State<ChatHubScreen> with SingleTickerProvider
             color: isDark ? Colors.white : Colors.black87,
           ),
         ),
+        actions: [
+          AnimatedBuilder(
+            animation: NotificationService.instance,
+            builder: (context, _) {
+              if (NotificationService.instance.unreadChatCount <= 0) {
+                return const SizedBox.shrink();
+              }
+              return TextButton.icon(
+                onPressed: () {
+                  NotificationService.instance.markAllChatsAsRead();
+                  GageToast.show(context, 'Semua chat ditandai dibaca', type: GageToastType.success);
+                },
+                icon: const Icon(Icons.done_all_rounded, size: 16, color: GageTheme.primary),
+                label: const Text(
+                  'Tandai Dibaca',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: GageTheme.primary),
+                ),
+              );
+            },
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(56),
           child: Container(
@@ -192,12 +215,16 @@ class _ChatHubScreenState extends State<ChatHubScreen> with SingleTickerProvider
                 ),
                 itemBuilder: (ctx, itemIdx) {
                   final chat = chats[itemIdx];
-                  final unread = (chat['unread'] as int?) ?? 0;
+                  final chatId = (chat['id'] as String?) ?? '';
                   final avatarPath = chat['avatar'] as String? ?? 'assets/images/gage_chat_icon.png';
 
-                  return InkWell(
+                  return AnimatedBuilder(
+                    animation: NotificationService.instance,
+                    builder: (ctx, _) {
+                      final unread = NotificationService.instance.unreadCountForChat(chatId);
+                      return InkWell(
                     onTap: () {
-                      setState(() => chat['unread'] = 0);
+                      NotificationService.instance.markChatAsRead(chatId);
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -326,6 +353,8 @@ class _ChatHubScreenState extends State<ChatHubScreen> with SingleTickerProvider
                         ],
                       ),
                     ),
+                    );
+                    },
                   );
                 },
               );

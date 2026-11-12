@@ -83,26 +83,6 @@ class GageVoucherData {
       'howToUse': 'Pilih voucher saat checkout pesanan.',
     },
 
-    // 2. BELANJA & SEMBAKO (GAGE Mart)
-    {
-      'id': 'v-mart-01',
-      'code': 'BELANJAMART',
-      'service': 'GAGE Mart',
-      'type': 'order',
-      'title': 'Diskon 10RB',
-      'discountText': 'Diskon 10RB',
-      'minOrder': 35000,
-      'discountAmount': 10000,
-      'quantity': 1,
-      'tag': 'Mitra Toko',
-      'expiry': '31 Des 2026',
-      'terms': [
-        'Potongan langsung Rp 10.000 di toko mitra resmi GAGE Mart.',
-        'Minimal total belanja sembako Rp 35.000.',
-      ],
-      'howToUse': 'Pilih voucher saat checkout belanjaan toko.',
-    },
-
     // 3. TRANSPORTASI (GAGE Ride)
     {
       'id': 'v-ride-01',
@@ -235,5 +215,299 @@ class GageVoucherData {
       ],
       'howToUse': 'Gunakan saat memesan kurir barang.',
     },
+
+    // 6. PERTANIAN & HASIL BUMI (GAGE Farm)
+    {
+      'id': 'v-farm-01',
+      'code': 'SUBSIDITANI',
+      'service': 'GAGE Farm',
+      'type': 'order',
+      'title': 'Diskon 10RB',
+      'discountText': 'Diskon 10RB',
+      'minOrder': 30000,
+      'discountAmount': 10000,
+      'quantity': 3,
+      'tag': 'GAGE Farm',
+      'expiry': '31 Des 2026',
+      'terms': [
+        'Potongan langsung Rp 10.000 untuk bibit, pupuk, dan produk tani.',
+        'Minimal transaksi pemesanan Rp 30.000.',
+      ],
+      'howToUse': 'Pilih voucher saat checkout pesanan GAGE Farm.',
+    },
+    {
+      'id': 'v-farm-02',
+      'code': 'PETANISUKSES',
+      'service': 'GAGE Farm',
+      'type': 'order',
+      'title': 'Diskon 15RB',
+      'discountText': 'Diskon 15RB',
+      'minOrder': 50000,
+      'discountAmount': 15000,
+      'quantity': 2,
+      'tag': 'Petani Hebat',
+      'expiry': '31 Des 2026',
+      'terms': [
+        'Potongan langsung Rp 15.000 untuk perlengkapan dan hasil pertanian.',
+        'Minimal belanja Rp 50.000.',
+      ],
+      'howToUse': 'Pilih voucher saat checkout pesanan GAGE Farm.',
+    },
+    {
+      'id': 'v-farm-03',
+      'code': 'ONGKIRFREE-FARM',
+      'service': 'GAGE Farm',
+      'type': 'delivery',
+      'title': 'Gratis Ongkir s.d 7RB',
+      'discountText': 'Gratis Ongkir s.d 7RB',
+      'minOrder': 25000,
+      'discountAmount': 7000,
+      'quantity': 5,
+      'tag': 'Hemat Ongkir',
+      'expiry': '31 Des 2026',
+      'terms': [
+        'Subsidi ongkir Rp 7.000 untuk pengantaran pesanan tani dan ternak.',
+        'Minimal transaksi pemesanan Rp 25.000.',
+      ],
+      'howToUse': 'Pilih voucher saat checkout pesanan GAGE Farm.',
+    },
+
+    // 7. TOKO & KELONTONG (GAGE Shop)
+    {
+      'id': 'v-shop-01',
+      'code': 'BELANJAHEMAT',
+      'service': 'GAGE Shop',
+      'type': 'order',
+      'title': 'Diskon 8RB',
+      'discountText': 'Diskon 8RB',
+      'minOrder': 25000,
+      'discountAmount': 8000,
+      'quantity': 2,
+      'tag': 'GAGE Shop',
+      'expiry': '31 Des 2026',
+      'terms': [
+        'Potongan langsung Rp 8.000 di toko mitra resmi GAGE Shop.',
+        'Minimal transaksi belanja Rp 25.000.',
+      ],
+      'howToUse': 'Pilih voucher saat checkout belanjaan toko.',
+    },
+    {
+      'id': 'v-shop-02',
+      'code': 'SEMBAKOMURAH',
+      'service': 'GAGE Shop',
+      'type': 'order',
+      'title': 'Diskon 10RB',
+      'discountText': 'Diskon 10RB',
+      'minOrder': 40000,
+      'discountAmount': 10000,
+      'quantity': 2,
+      'tag': 'Sembako Murah',
+      'expiry': '31 Des 2026',
+      'terms': [
+        'Potongan belanja Rp 10.000 untuk sembako dan kebutuhan harian.',
+        'Minimal transaksi belanja Rp 40.000.',
+      ],
+      'howToUse': 'Pilih voucher saat checkout belanjaan toko.',
+    },
+    {
+      'id': 'v-shop-03',
+      'code': 'ONGKIRFREE-SHOP',
+      'service': 'GAGE Shop',
+      'type': 'delivery',
+      'title': 'Gratis Ongkir s.d 7RB',
+      'discountText': 'Gratis Ongkir s.d 7RB',
+      'minOrder': 20000,
+      'discountAmount': 7000,
+      'quantity': 3,
+      'tag': 'Hemat Ongkir',
+      'expiry': '31 Des 2026',
+      'terms': [
+        'Subsidi ongkir Rp 7.000 untuk pengiriman barang toko mitra.',
+        'Minimal transaksi pemesanan Rp 20.000.',
+      ],
+      'howToUse': 'Pilih voucher saat checkout belanja toko.',
+    },
+
+    // 8. MATERIAL & KONSTRUKSI (GAGE Build)
+    {
+      'id': 'v-build-01',
+      'code': 'PROYEKHEMAT',
+      'service': 'GAGE Build',
+      'type': 'order',
+      'title': 'Diskon 15RB',
+      'discountText': 'Diskon 15RB',
+      'minOrder': 50000,
+      'discountAmount': 15000,
+      'quantity': 2,
+      'tag': 'GAGE Build',
+      'expiry': '31 Des 2026',
+      'terms': [
+        'Potongan langsung Rp 15.000 untuk material bangunan dan perkakas.',
+        'Minimal transaksi belanja Rp 50.000.',
+      ],
+      'howToUse': 'Pilih voucher saat checkout pesanan GAGE Build.',
+    },
+    {
+      'id': 'v-build-02',
+      'code': 'BANGUNRUMAH',
+      'service': 'GAGE Build',
+      'type': 'order',
+      'title': 'Diskon 25RB',
+      'discountText': 'Diskon 25RB',
+      'minOrder': 100000,
+      'discountAmount': 25000,
+      'quantity': 1,
+      'tag': 'Bangun Rumah',
+      'expiry': '31 Des 2026',
+      'terms': [
+        'Potongan langsung Rp 25.000 untuk proyek renovasi dan bangunan.',
+        'Minimal transaksi belanja Rp 100.000.',
+      ],
+      'howToUse': 'Pilih voucher saat checkout pesanan GAGE Build.',
+    },
+    {
+      'id': 'v-build-03',
+      'code': 'ONGKIRFREE-BUILD',
+      'service': 'GAGE Build',
+      'type': 'delivery',
+      'title': 'Gratis Ongkir s.d 10RB',
+      'discountText': 'Gratis Ongkir s.d 10RB',
+      'minOrder': 50000,
+      'discountAmount': 10000,
+      'quantity': 3,
+      'tag': 'Gratis Ongkir',
+      'expiry': '31 Des 2026',
+      'terms': [
+        'Subsidi ongkir Rp 10.000 untuk pengiriman material bangunan.',
+        'Minimal transaksi belanja Rp 50.000.',
+      ],
+      'howToUse': 'Pilih voucher saat checkout pesanan GAGE Build.',
+    },
   ];
+
+  static String serviceNameForType(String serviceType) {
+    switch (serviceType.trim().toLowerCase()) {
+      case 'ride':
+        return 'GAGE Ride';
+      case 'car':
+        return 'GAGE Car';
+      case 'send':
+        return 'GAGE Send';
+      case 'shop':
+      case 'mart':
+        return 'GAGE Shop';
+      case 'farm':
+        return 'GAGE Farm';
+      case 'build':
+        return 'GAGE Build';
+      case 'food':
+      default:
+        return 'GAGE Food';
+    }
+  }
+
+  static List<Map<String, dynamic>> vouchersForService(String serviceType) {
+    final serviceName = serviceNameForType(serviceType);
+    return allVouchers.where((v) => v['service'] == serviceName).toList();
+  }
+
+  static Map<String, dynamic>? findByCode(String code) {
+    final normalized = code.trim().toUpperCase();
+    if (normalized.isEmpty) return null;
+    for (final v in allVouchers) {
+      if ((v['code'] as String).toUpperCase() == normalized) {
+        return v;
+      }
+    }
+    return null;
+  }
+
+  static int minOrderFor(Map<String, dynamic> voucher) {
+    return (voucher['minOrder'] as num?)?.toInt() ?? 0;
+  }
+
+  static bool isVoucherEligible(Map<String, dynamic> voucher, int orderAmount) {
+    if (orderAmount <= 0) return false;
+    return orderAmount >= minOrderFor(voucher);
+  }
+
+  static int calculateDiscount(Map<String, dynamic> voucher, int orderAmount) {
+    if (orderAmount <= 0) return 0;
+    final maxDiscount = (voucher['discountAmount'] as num?)?.toInt() ?? 0;
+    final pct = (voucher['discountPercentage'] as num?)?.toDouble();
+    if (pct != null && pct > 0) {
+      return (orderAmount * pct).round().clamp(0, maxDiscount);
+    }
+    return maxDiscount.clamp(0, orderAmount);
+  }
+
+  static String? ineligibilityReason(Map<String, dynamic> voucher, int orderAmount) {
+    if (isVoucherEligible(voucher, orderAmount)) return null;
+    final minOrder = minOrderFor(voucher);
+    if (minOrder <= 0) return 'Tambahkan transaksi terlebih dahulu';
+    if (orderAmount <= 0) return 'Min. belanja Rp${_formatThousands(minOrder)}';
+    final shortage = (minOrder - orderAmount).clamp(0, minOrder);
+    return 'Min. Rp${_formatThousands(minOrder)} (kurang Rp${_formatThousands(shortage)})';
+  }
+
+  static String _formatThousands(int amount) {
+    final raw = amount.abs().toString();
+    final buf = StringBuffer();
+    for (int i = 0; i < raw.length; i++) {
+      final revIndex = raw.length - i;
+      buf.write(raw[i]);
+      if (revIndex > 1 && revIndex % 3 == 1) {
+        buf.write('.');
+      }
+    }
+    return buf.toString();
+  }
+
+  static List<Map<String, dynamic>> orderVouchersForService(String serviceType) {
+    final list = vouchersForService(serviceType).where((v) => v['type'] == 'order').toList();
+    list.sort((a, b) => minOrderFor(a).compareTo(minOrderFor(b)));
+    return list;
+  }
+
+  /// Picks the highest-value order voucher whose minimum order requirement
+  /// is satisfied for [serviceType] and [subtotal].
+  static Map<String, dynamic>? bestEligibleOrderVoucher({
+    required String serviceType,
+    required int subtotal,
+  }) {
+    if (subtotal <= 0) return null;
+    final candidates = vouchersForService(serviceType).where((v) {
+      return v['type'] == 'order' && isVoucherEligible(v, subtotal);
+    }).toList();
+    if (candidates.isEmpty) return null;
+    candidates.sort((a, b) {
+      final da = calculateDiscount(a, subtotal);
+      final db = calculateDiscount(b, subtotal);
+      final cmp = db.compareTo(da);
+      if (cmp != 0) return cmp;
+      return minOrderFor(b).compareTo(minOrderFor(a));
+    });
+    return candidates.first;
+  }
+
+  /// Picks the highest-value delivery ("gratis ongkir") voucher whose minimum
+  /// order requirement is satisfied for [serviceType] and [subtotal].
+  static Map<String, dynamic>? bestEligibleDeliveryVoucher({
+    required String serviceType,
+    required int subtotal,
+  }) {
+    if (subtotal <= 0) return null;
+    final candidates = vouchersForService(serviceType).where((v) {
+      return v['type'] == 'delivery' && isVoucherEligible(v, subtotal);
+    }).toList();
+    if (candidates.isEmpty) return null;
+    candidates.sort((a, b) {
+      final da = (a['discountAmount'] as num?)?.toInt() ?? 0;
+      final db = (b['discountAmount'] as num?)?.toInt() ?? 0;
+      final cmp = db.compareTo(da);
+      if (cmp != 0) return cmp;
+      return minOrderFor(b).compareTo(minOrderFor(a));
+    });
+    return candidates.first;
+  }
 }

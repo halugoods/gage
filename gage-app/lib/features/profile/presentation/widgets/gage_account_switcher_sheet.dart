@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/providers/auth_provider.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
-import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/features/auth/presentation/login_screen.dart';
 
 /// Floating Sheet GAGE untuk Beralih Akun (Account Switcher)
@@ -115,70 +113,7 @@ class GageAccountSwitcherSheet extends StatelessWidget {
 
         const SizedBox(height: 16),
 
-        // 2. Akun Demo / Akun Tersimpan Lainnya
-        Text(
-          'Akun Terdaftar Lainnya',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
-          ),
-        ),
-        const SizedBox(height: 8),
-
-        // Akun Mitra / Merchant Tester
-        InkWell(
-          onTap: () async {
-            HapticFeedback.selectionClick();
-            Navigator.pop(context);
-            GageToast.show(context, 'Beralih ke akun Mitra Merchant...');
-          },
-          borderRadius: BorderRadius.circular(14),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.amber.shade100,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.storefront_rounded, color: Color(0xFFD97706), size: 22),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Mitra Merchant Dimsum Sewu',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : GageTheme.textPrimary,
-                        ),
-                      ),
-                      Text(
-                        'mitra.dimsum@gage.id • Akun Toko',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: isDark ? Colors.grey.shade400 : GageTheme.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
-              ],
-            ),
-          ),
-        ),
-
-        const Divider(height: 18),
-
-        // 3. Tombol Tambah / Masuk Akun Lain
+        // 2. Tombol Tambah / Masuk Akun Lain
         OutlinedButton.icon(
           onPressed: () {
             Navigator.pop(context);

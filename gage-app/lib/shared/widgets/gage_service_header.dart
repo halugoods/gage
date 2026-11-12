@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/core/services/banner_manager_service.dart';
-import 'package:gage_app/features/admin/presentation/widgets/in_place_banner_editor_sheet.dart';
+import 'package:gage_app/shared/widgets/live_app_edit_scope.dart';
 
 /// Hero Banner 16:9 full-bleed mencapai batas atas status bar (edge-to-edge).
 /// Mendukung animasi fade out halus saat halaman di-scroll ke bawah dan WYSIWYG In-Place Edit.
@@ -122,7 +122,7 @@ class GageServiceHeroBanner extends StatelessWidget {
       imageWidget = GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () {
-          InPlaceBannerEditorSheet.showConfirmationAndOpen(
+          LiveAppEditScope.triggerEdit(
             context: context,
             screenTarget: effectiveTarget,
             title: liveConfig.title.isNotEmpty ? liveConfig.title : fallbackTitle,
@@ -215,8 +215,11 @@ class GageServiceStickyHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final headerListenable = searchController != null
+        ? Listenable.merge([scrollController, searchController!])
+        : scrollController;
     return AnimatedBuilder(
-      animation: scrollController,
+      animation: headerListenable,
       builder: (context, _) {
         final screenWidth = MediaQuery.of(context).size.width;
         final topPadding = MediaQuery.of(context).padding.top;
@@ -494,6 +497,8 @@ class GageServiceStickyHeader extends StatelessWidget {
                           controller: searchController,
                           onChanged: onSearchChanged,
                           onTap: onSearchTap,
+                          textInputAction: TextInputAction.search,
+                          onSubmitted: (_) => FocusScope.of(context).unfocus(),
                           textAlignVertical: TextAlignVertical.center,
                           style: TextStyle(
                             fontSize: 13,

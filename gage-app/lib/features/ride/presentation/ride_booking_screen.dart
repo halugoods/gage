@@ -1,16 +1,19 @@
-import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/providers/wallet_provider.dart';
 import 'package:gage_app/core/services/osrm_routing_service.dart';
 import 'package:gage_app/core/services/osm_geocoding_service.dart';
 import 'package:gage_app/core/services/location_service.dart';
 import 'package:gage_app/core/services/gage_pricing_service.dart';
+import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
 import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
 import 'package:gage_app/features/ride/presentation/ride_checkout_screen.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
@@ -345,21 +348,27 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                               Expanded(
                                 child: Text(
                                   _selectedTab == 'ride' ? 'Pesan GAGE Ride' : 'Pesan GAGE Car',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: GageTheme.textPrimary),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: isDark ? Colors.white : GageTheme.textPrimary,
+                                  ),
                                 ),
                               ),
                               if (_isLoadingRoute)
                                 const GageSkeletonBox(
                                   width: 48,
                                   height: 18,
-                                  borderRadius: BorderRadius.all(Radius.circular(10)),
+                                  borderRadius: BorderRadius.all(Radius.circular(999)),
                                 )
                               else
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFFFEBEE),
-                                    borderRadius: BorderRadius.circular(20),
+                                    color: isDark
+                                        ? GageTheme.primary.withValues(alpha: 0.16)
+                                        : const Color(0xFFFFEBEE),
+                                    borderRadius: BorderRadius.circular(999),
                                   ),
                                   child: Text(
                                     '${_distanceKm.toStringAsFixed(1)} km',
@@ -641,71 +650,17 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Switcher Tab: GAGE Ride vs GAGE Car
+          // Switcher Tab: GAGE Ride vs GAGE Car (Full-Rounded Capsule per AGENTS.md)
           Container(
             padding: const EdgeInsets.all(3),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0F172A) : Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(30),
+              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(999),
             ),
             child: Row(
               children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() => _selectedTab = 'ride');
-                      _initRoute();
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 9),
-                      decoration: BoxDecoration(
-                        color: _selectedTab == 'ride' ? (isDark ? const Color(0xFF1E293B) : Colors.white) : Colors.transparent,
-                        borderRadius: BorderRadius.circular(26),
-                        boxShadow: _selectedTab == 'ride'
-                            ? const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 1))]
-                            : null,
-                      ),
-                      child: Center(
-                        child: Text(
-                          'GAGE Ride',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: _selectedTab == 'ride' ? GageTheme.primary : Colors.grey,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() => _selectedTab = 'car');
-                      _initRoute();
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 9),
-                      decoration: BoxDecoration(
-                        color: _selectedTab == 'car' ? (isDark ? const Color(0xFF1E293B) : Colors.white) : Colors.transparent,
-                        borderRadius: BorderRadius.circular(26),
-                        boxShadow: _selectedTab == 'car'
-                            ? const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 1))]
-                            : null,
-                      ),
-                      child: Center(
-                        child: Text(
-                          'GAGE Car',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: _selectedTab == 'car' ? const Color(0xFF1E88E5) : Colors.grey,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+                _buildVehicleTabPill(tabId: 'ride', label: 'GAGE Ride', isDark: isDark),
+                _buildVehicleTabPill(tabId: 'car', label: 'GAGE Car', isDark: isDark),
               ],
             ),
           ),
@@ -716,212 +671,68 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
           if (_selectedTab == 'ride')
             Row(
               children: [
-                Expanded(
-                  child: InkWell(
-                    onTap: () => setState(() => _selectedOption = 'standard'),
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: _selectedOption == 'standard' ? (isDark ? const Color(0xFF2C1E1E) : const Color(0xFFFFF1F0)) : (isDark ? const Color(0xFF1E293B) : Colors.white),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: _selectedOption == 'standard' ? GageTheme.primary : (isDark ? Colors.white12 : Colors.grey.shade300),
-                          width: _selectedOption == 'standard' ? 1.5 : 1,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          const DynamicAssetIcon(
-                            slotKey: 'vehicle_ride',
-                            defaultAsset: 'assets/images/gage_ride_3d.png',
-                            width: 38,
-                            height: 38,
-                            fit: BoxFit.contain,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Ride Reguler', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: isDark ? Colors.white : Colors.black87)),
-                                const SizedBox(height: 2),
-                                if (_isLoadingRoute) ...[
-                                  const SizedBox(height: 4),
-                                  const GageSkeletonBox(width: 65, height: 14),
-                                  const SizedBox(height: 4),
-                                  const GageSkeletonBox(width: 50, height: 10),
-                                ] else ...[
-                                  Text(
-                                    currencyFormatter.format(GagePricingService.calculateCustomerRideFare(serviceType: 'reguler', distanceKm: _distanceKm)),
-                                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: GageTheme.primary),
-                                  ),
-                                  Text('${_distanceKm.toStringAsFixed(1)} km • ~${_realisticTripMins}m', style: TextStyle(fontSize: 9.5, color: isDark ? Colors.white60 : Colors.black54)),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                _buildServiceOptionCard(
+                  optionId: 'standard',
+                  title: 'Ride Reguler',
+                  slotKey: 'vehicle_ride',
+                  defaultAsset: 'assets/images/gage_ride_3d.png',
+                  fareText: currencyFormatter.format(
+                    GagePricingService.calculateCustomerRideFare(serviceType: 'reguler', distanceKm: _distanceKm),
                   ),
+                  subtitle: '${_distanceKm.toStringAsFixed(1)} km • ~${_realisticTripMins}m',
+                  accentColor: GageTheme.primary,
+                  selectedLightBg: const Color(0xFFFFF1F0),
+                  selectedDarkBg: const Color(0xFF2C1E1E),
+                  isDark: isDark,
                 ),
                 const SizedBox(width: 8),
-                Expanded(
-                  child: InkWell(
-                    onTap: () => setState(() => _selectedOption = 'hemat'),
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: _selectedOption == 'hemat' ? (isDark ? const Color(0xFF2C231E) : const Color(0xFFFFF7ED)) : (isDark ? const Color(0xFF1E293B) : Colors.white),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: _selectedOption == 'hemat' ? const Color(0xFFEA580C) : (isDark ? Colors.white12 : Colors.grey.shade300),
-                          width: _selectedOption == 'hemat' ? 1.5 : 1,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          const DynamicAssetIcon(
-                            slotKey: 'vehicle_ride',
-                            defaultAsset: 'assets/images/gage_ride_3d.png',
-                            width: 38,
-                            height: 38,
-                            fit: BoxFit.contain,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Ride Hemat', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: isDark ? Colors.white : Colors.black87)),
-                                const SizedBox(height: 2),
-                                if (_isLoadingRoute) ...[
-                                  const SizedBox(height: 4),
-                                  const GageSkeletonBox(width: 65, height: 14),
-                                  const SizedBox(height: 4),
-                                  const GageSkeletonBox(width: 50, height: 10),
-                                ] else ...[
-                                  Text(
-                                    currencyFormatter.format(GagePricingService.calculateCustomerRideFare(serviceType: 'hemat', distanceKm: _distanceKm)),
-                                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: Color(0xFFEA580C)),
-                                  ),
-                                  Text('${_distanceKm.toStringAsFixed(1)} km • ~${_realisticTripMins + 2}m', style: TextStyle(fontSize: 9.5, color: isDark ? Colors.white60 : Colors.black54)),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                _buildServiceOptionCard(
+                  optionId: 'hemat',
+                  title: 'Ride Hemat',
+                  slotKey: 'vehicle_ride',
+                  defaultAsset: 'assets/images/gage_ride_3d.png',
+                  fareText: currencyFormatter.format(
+                    GagePricingService.calculateCustomerRideFare(serviceType: 'hemat', distanceKm: _distanceKm),
                   ),
+                  subtitle: '${_distanceKm.toStringAsFixed(1)} km • ~${_realisticTripMins + 2}m',
+                  accentColor: const Color(0xFFEA580C),
+                  selectedLightBg: const Color(0xFFFFF7ED),
+                  selectedDarkBg: const Color(0xFF2C231E),
+                  isDark: isDark,
                 ),
               ],
             )
           else
             Row(
               children: [
-                Expanded(
-                  child: InkWell(
-                    onTap: () => setState(() => _selectedOption = 'standard'),
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: _selectedOption == 'standard' ? (isDark ? const Color(0xFF1E2638) : const Color(0xFFF0F9FF)) : (isDark ? const Color(0xFF1E293B) : Colors.white),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: _selectedOption == 'standard' ? const Color(0xFF0284C7) : (isDark ? Colors.white12 : Colors.grey.shade300),
-                          width: _selectedOption == 'standard' ? 1.5 : 1,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          const DynamicAssetIcon(
-                            slotKey: 'vehicle_car',
-                            defaultAsset: 'assets/images/gage_car_3d.png',
-                            width: 38,
-                            height: 38,
-                            fit: BoxFit.contain,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Car Reguler', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: isDark ? Colors.white : Colors.black87)),
-                                const SizedBox(height: 2),
-                                if (_isLoadingRoute) ...[
-                                  const SizedBox(height: 4),
-                                  const GageSkeletonBox(width: 65, height: 14),
-                                  const SizedBox(height: 4),
-                                  const GageSkeletonBox(width: 50, height: 10),
-                                ] else ...[
-                                  Text(
-                                    currencyFormatter.format(GagePricingService.calculateCustomerRideFare(serviceType: 'car_reguler', distanceKm: _distanceKm)),
-                                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: Color(0xFF0284C7)),
-                                  ),
-                                  Text(_distanceKm > 0 ? '${_distanceKm.toStringAsFixed(1)} km • ~${_realisticTripMins}m' : '0-3 km • AC 1-4 Org', style: TextStyle(fontSize: 9.5, color: isDark ? Colors.white60 : Colors.black54)),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                _buildServiceOptionCard(
+                  optionId: 'standard',
+                  title: 'Car Reguler',
+                  slotKey: 'vehicle_car',
+                  defaultAsset: 'assets/images/gage_car_3d.png',
+                  fareText: currencyFormatter.format(
+                    GagePricingService.calculateCustomerRideFare(serviceType: 'car_reguler', distanceKm: _distanceKm),
                   ),
+                  subtitle: _distanceKm > 0 ? '${_distanceKm.toStringAsFixed(1)} km • ~${_realisticTripMins}m' : '0-3 km • AC 1-4 Org',
+                  accentColor: const Color(0xFF0284C7),
+                  selectedLightBg: const Color(0xFFF0F9FF),
+                  selectedDarkBg: const Color(0xFF1E2638),
+                  isDark: isDark,
                 ),
                 const SizedBox(width: 8),
-                Expanded(
-                  child: InkWell(
-                    onTap: () => setState(() => _selectedOption = 'hemat'),
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: _selectedOption == 'hemat' ? (isDark ? const Color(0xFF162E2B) : const Color(0xFFF0FDFA)) : (isDark ? const Color(0xFF1E293B) : Colors.white),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: _selectedOption == 'hemat' ? const Color(0xFF0D9488) : (isDark ? Colors.white12 : Colors.grey.shade300),
-                          width: _selectedOption == 'hemat' ? 1.5 : 1,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          const DynamicAssetIcon(
-                            slotKey: 'vehicle_car',
-                            defaultAsset: 'assets/images/gage_car_3d.png',
-                            width: 38,
-                            height: 38,
-                            fit: BoxFit.contain,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Car Hemat', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: isDark ? Colors.white : Colors.black87)),
-                                const SizedBox(height: 2),
-                                if (_isLoadingRoute) ...[
-                                  const SizedBox(height: 4),
-                                  const GageSkeletonBox(width: 65, height: 14),
-                                  const SizedBox(height: 4),
-                                  const GageSkeletonBox(width: 50, height: 10),
-                                ] else ...[
-                                  Text(
-                                    currencyFormatter.format(GagePricingService.calculateCustomerRideFare(serviceType: 'car_hemat', distanceKm: _distanceKm)),
-                                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: Color(0xFF0D9488)),
-                                  ),
-                                  Text(_distanceKm > 0 ? '${_distanceKm.toStringAsFixed(1)} km • ~${_realisticTripMins + 2}m' : '0-3 km • Ekonomis', style: TextStyle(fontSize: 9.5, color: isDark ? Colors.white60 : Colors.black54)),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                _buildServiceOptionCard(
+                  optionId: 'hemat',
+                  title: 'Car Hemat',
+                  slotKey: 'vehicle_car',
+                  defaultAsset: 'assets/images/gage_car_3d.png',
+                  fareText: currencyFormatter.format(
+                    GagePricingService.calculateCustomerRideFare(serviceType: 'car_hemat', distanceKm: _distanceKm),
                   ),
+                  subtitle: _distanceKm > 0 ? '${_distanceKm.toStringAsFixed(1)} km • ~${_realisticTripMins + 2}m' : '0-3 km • Ekonomis',
+                  accentColor: const Color(0xFF0D9488),
+                  selectedLightBg: const Color(0xFFF0FDFA),
+                  selectedDarkBg: const Color(0xFF162E2B),
+                  isDark: isDark,
                 ),
               ],
             ),
@@ -1022,30 +833,187 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
     );
   }
 
+  Widget _buildVehicleTabPill({
+    required String tabId,
+    required String label,
+    required bool isDark,
+  }) {
+    final isSelected = _selectedTab == tabId;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          if (_selectedTab != tabId) {
+            setState(() => _selectedTab = tabId);
+            _initRoute();
+          }
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          decoration: BoxDecoration(
+            color: isSelected ? GageTheme.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: isSelected
+                    ? Colors.white
+                    : (isDark ? Colors.white60 : const Color(0xFF64748B)),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildServiceOptionCard({
+    required String optionId,
+    required String title,
+    required String slotKey,
+    required String defaultAsset,
+    required String fareText,
+    required String subtitle,
+    required Color accentColor,
+    required Color selectedLightBg,
+    required Color selectedDarkBg,
+    required bool isDark,
+  }) {
+    final isSelected = _selectedOption == optionId;
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          setState(() => _selectedOption = optionId);
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? (isDark ? selectedDarkBg : selectedLightBg)
+                : (isDark ? const Color(0xFF1E293B) : Colors.white),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isSelected
+                  ? accentColor
+                  : (isDark ? Colors.white12 : Colors.grey.shade300),
+              width: isSelected ? 1.5 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              DynamicAssetIcon(
+                slotKey: slotKey,
+                defaultAsset: defaultAsset,
+                width: 38,
+                height: 38,
+                fit: BoxFit.contain,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    if (_isLoadingRoute) ...[
+                      const SizedBox(height: 4),
+                      const GageSkeletonBox(width: 65, height: 14),
+                      const SizedBox(height: 4),
+                      const GageSkeletonBox(width: 50, height: 10),
+                    ] else ...[
+                      Text(
+                        fareText,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 13,
+                          color: accentColor,
+                        ),
+                      ),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          color: isDark ? Colors.white60 : Colors.black54,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _callDriver(String phone) async {
+    HapticFeedback.lightImpact();
+    final uri = Uri.parse('tel:$phone');
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+        return;
+      }
+    } catch (_) {}
+    await Clipboard.setData(ClipboardData(text: phone));
+    if (mounted) {
+      GageToast.show(context, 'Nomor driver disalin: $phone', type: GageToastType.info);
+    }
+  }
+
   Widget _buildDriverTrackingPanel() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isCar = _selectedTab == 'car';
+    final useSeed = GageApiClient.useDevSeedData;
+    final driverName = useSeed
+        ? (isCar ? 'Budi Santoso' : 'Slamet Widodo')
+        : 'Mitra Driver GAGE';
+    final driverVehicle = useSeed
+        ? (isCar ? 'Toyota Avanza Silver • AD 1842 PK' : 'Honda Vario Merah • AD 4518 JK')
+        : (isCar ? 'Armada GAGE Car Terdekat' : 'Armada GAGE Ride Terdekat');
+    const driverPhone = '081226001000';
+
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        boxShadow: [
-          BoxShadow(color: Colors.black12, blurRadius: 16, offset: Offset(0, -4)),
-        ],
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        boxShadow: isDark
+            ? []
+            : const [
+                BoxShadow(color: Colors.black12, blurRadius: 16, offset: Offset(0, -4)),
+              ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Drag handle bar
           Center(
             child: Container(
               width: 36,
               height: 4,
-              decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white24 : Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
           ),
           const SizedBox(height: 12),
-
-          // Header Status Driver
           Row(
             children: [
               Container(
@@ -1054,32 +1022,59 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                 child: const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 20),
               ),
               const SizedBox(width: 8),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Driver Sedang Menuju ke Anda', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                    Text('Estimasi tiba dalam ~2-3 menit', style: TextStyle(fontSize: 11.5, color: Colors.black54)),
+                    Text(
+                      'Driver Sedang Menuju ke Anda',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                    Text(
+                      'Estimasi tiba dalam ~${isCar ? '4-6' : '2-3'} menit',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: isDark ? Colors.white60 : Colors.black54,
+                      ),
+                    ),
                   ],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: const Color(0xFFFFF3E0), borderRadius: BorderRadius.circular(8)),
-                child: const Text('OTW 🛵', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFE65100))),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF3E0),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isCar ? Icons.directions_car_rounded : Icons.two_wheeler_rounded,
+                      size: 13,
+                      color: const Color(0xFFE65100),
+                    ),
+                    const SizedBox(width: 4),
+                    const Text(
+                      'OTW',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFE65100)),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
-
           const SizedBox(height: 14),
-
-          // Card Info Driver & Kendaraan
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.grey.shade50,
+              color: isDark ? const Color(0xFF0F172A) : Colors.grey.shade50,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
             ),
             child: Row(
               children: [
@@ -1089,48 +1084,83 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                   child: Icon(Icons.person_rounded, color: Colors.white, size: 28),
                 ),
                 const SizedBox(width: 12),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Slamet Widodo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                      SizedBox(height: 2),
-                      Text('Honda Vario Merah • AD 4518 JK', style: TextStyle(fontSize: 12, color: Colors.black87, fontWeight: FontWeight.w600)),
-                      Text('⭐ 4.9 (1.240 pesanan)', style: TextStyle(fontSize: 11, color: Colors.black54)),
+                      Text(
+                        driverName,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        driverVehicle,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? Colors.white70 : Colors.black87,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          const Icon(Icons.star_rounded, size: 14, color: Color(0xFFF59E0B)),
+                          const SizedBox(width: 3),
+                          Text(
+                            useSeed ? '4.9 (1.240 pesanan)' : 'Mitra Terverifikasi GAGE',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: isDark ? Colors.white60 : Colors.black54,
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
-                // Action Buttons: Chat & Call
                 Row(
                   children: [
                     IconButton.filledTonal(
                       onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Membuka chat dengan Driver Slamet...'), duration: Duration(seconds: 1)),
+                        HapticFeedback.lightImpact();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => InAppChatScreen(
+                              orderId: 'RIDE-LIVE-01',
+                              recipientName: driverName,
+                              recipientRole: 'driver',
+                              recipientPhone: driverPhone,
+                              currentRole: 'customer',
+                            ),
+                          ),
                         );
                       },
                       icon: const Icon(Icons.chat_bubble_rounded, size: 18),
-                      style: IconButton.styleFrom(backgroundColor: const Color(0xFFFFEBEE), foregroundColor: GageTheme.primary),
+                      style: IconButton.styleFrom(
+                        backgroundColor: isDark ? GageTheme.primary.withValues(alpha: 0.2) : const Color(0xFFFFEBEE),
+                        foregroundColor: GageTheme.primary,
+                      ),
                     ),
                     const SizedBox(width: 6),
                     IconButton.filledTonal(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Menghubungi Driver Slamet via Telepon...'), duration: Duration(seconds: 1)),
-                        );
-                      },
+                      onPressed: () => _callDriver(driverPhone),
                       icon: const Icon(Icons.phone_rounded, size: 18),
-                      style: IconButton.styleFrom(backgroundColor: const Color(0xFFE3F2FD), foregroundColor: const Color(0xFF1E88E5)),
+                      style: IconButton.styleFrom(
+                        backgroundColor: isDark ? const Color(0xFF0284C7).withValues(alpha: 0.2) : const Color(0xFFE3F2FD),
+                        foregroundColor: const Color(0xFF1E88E5),
+                      ),
                     ),
                   ],
                 ),
               ],
             ),
           ),
-
           const SizedBox(height: 14),
-
-          // Action: Batalkan Pesanan
           SafeArea(
             top: false,
             child: SizedBox(
@@ -1141,217 +1171,11 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.red.shade700,
                   side: BorderSide(color: Colors.red.shade300),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
                 ),
                 child: const Text('Batalkan Pesanan', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Modal Pencarian Alamat & Lokasi OpenStreetMap Nominatim
-// ---------------------------------------------------------------------------
-class _AddressSearchModal extends StatefulWidget {
-  final bool isPickup;
-  final LatLng currentLocation;
-  final Function(String title, String fullAddress, LatLng latLng) onSelected;
-
-  const _AddressSearchModal({
-    required this.isPickup,
-    required this.currentLocation,
-    required this.onSelected,
-  });
-
-  @override
-  State<_AddressSearchModal> createState() => _AddressSearchModalState();
-}
-
-class _AddressSearchModalState extends State<_AddressSearchModal> {
-  final TextEditingController _searchCtrl = TextEditingController();
-  List<OsmPlace> _searchResults = [];
-  bool _isSearching = false;
-  Timer? _searchDebounce;
-
-  void _onSearchChanged(String val) {
-    _searchDebounce?.cancel();
-    final clean = val.trim();
-    if (clean.length < 2) {
-      setState(() {
-        _searchResults = [];
-        _isSearching = false;
-      });
-      return;
-    }
-
-    setState(() => _isSearching = true);
-    _searchDebounce = Timer(const Duration(milliseconds: 350), () async {
-      final list = await OsmGeocodingService.searchPlaces(
-        clean,
-        proximityLocation: widget.currentLocation,
-      );
-      if (!mounted) return;
-      setState(() {
-        _searchResults = list;
-        _isSearching = false;
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    _searchDebounce?.cancel();
-    _searchCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Padding(
-      padding: EdgeInsets.only(
-        top: 16,
-        left: 16,
-        right: 16,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                widget.isPickup ? 'Pilih Titik Jemput' : 'Pilih Titik Tujuan',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const Spacer(),
-              IconButton(
-                icon: const Icon(Icons.close_rounded),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-
-          // Search Field
-          TextField(
-            controller: _searchCtrl,
-            onChanged: _onSearchChanged,
-            autofocus: true,
-            decoration: InputDecoration(
-              hintText: 'Ketik nama jalan, toko, gedung, atau tujuan...',
-              hintStyle: TextStyle(fontSize: 13, color: isDark ? Colors.white38 : Colors.black38),
-              prefixIcon: const Icon(Icons.search_rounded, color: GageTheme.primary),
-              suffixIcon: _isSearching
-                  ? const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: GageTheme.primary)),
-                    )
-                  : (_searchCtrl.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear_rounded, size: 18, color: Colors.black45),
-                          onPressed: () {
-                            _searchCtrl.clear();
-                            setState(() => _searchResults = []);
-                          },
-                        )
-                      : null),
-              filled: true,
-              fillColor: Colors.grey.shade100,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // Search Results
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 320),
-            child: _searchResults.isNotEmpty
-                ? ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: _searchResults.length,
-                    separatorBuilder: (ctx, i) => Divider(height: 1, color: Colors.grey.shade100),
-                    itemBuilder: (ctx, i) {
-                      final p = _searchResults[i];
-                      return ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                        leading: CircleAvatar(
-                          radius: 18,
-                          backgroundColor: const Color(0xFFFFEBEE),
-                          child: const Icon(Icons.location_on_rounded, color: GageTheme.primary, size: 20),
-                        ),
-                        title: Text(p.title, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold)),
-                        subtitle: Text(
-                          p.displayName,
-                          style: const TextStyle(fontSize: 11.5, color: Colors.black54),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        trailing: p.distanceText.isNotEmpty
-                            ? Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFFEBEE),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  p.distanceText,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: GageTheme.primary,
-                                  ),
-                                ),
-                              )
-                            : null,
-                        onTap: () => widget.onSelected(p.title, p.displayName, p.location),
-                      );
-                    },
-                  )
-                : (_isSearching
-                    ? ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: 4,
-                        itemBuilder: (ctx, idx) => const GageSkeletonLocationTile(),
-                      )
-                    : (_searchCtrl.text.trim().isNotEmpty
-                        ? const Center(
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(vertical: 30),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.location_off_rounded, size: 36, color: Colors.black26),
-                                  SizedBox(height: 8),
-                                  Text('Tempat tidak ditemukan', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black54)),
-                                  SizedBox(height: 4),
-                                  Text('Coba gunakan nama jalan atau kata kunci lain', style: TextStyle(fontSize: 11.5, color: Colors.black38)),
-                                ],
-                              ),
-                            ),
-                          )
-                        : const Center(
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(vertical: 28),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.near_me_rounded, size: 36, color: Colors.black26),
-                                  SizedBox(height: 8),
-                                  Text('Cari Alamat atau Tujuan', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black54)),
-                                  SizedBox(height: 4),
-                                  Text('Pencarian otomatis diprioritaskan di sekitar radius GPS Anda', style: TextStyle(fontSize: 11.5, color: Colors.black38)),
-                                ],
-                              ),
-                            ),
-                          ))),
           ),
         ],
       ),

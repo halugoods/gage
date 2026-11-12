@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:gage_app/features/home/presentation/promo_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,11 +7,17 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/core/network/gage_api_client.dart';
+import 'package:gage_app/core/services/merchant_storefront_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/data/mock/gage_voucher_data.dart';
+import 'package:gage_app/shared/widgets/storefront_image.dart';
 import 'package:gage_app/providers/cart_provider.dart';
+import 'package:gage_app/providers/order_provider.dart';
 import 'package:gage_app/shared/widgets/seamless_floating_cart_bar.dart';
+import 'package:gage_app/features/food/data/merchant_catalog_helper.dart';
 import 'resto_info_screen.dart';
 import 'favorite_resto_screen.dart';
+import 'shop_favorite_screen.dart';
 import 'item_variant_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
@@ -25,10 +32,14 @@ typedef MerchantDetailScreen = RestoDetailScreen;
 
 class RestoDetailScreen extends StatefulWidget {
   final Map<String, dynamic> merchant;
+  final Map<String, dynamic>? initialProductItem;
+  final String? initialProductId;
 
   const RestoDetailScreen({
     super.key,
     required this.merchant,
+    this.initialProductItem,
+    this.initialProductId,
   });
 
   @override
@@ -42,8 +53,12 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
   List<Map<String, dynamic>> _menuItems = [];
   bool _isLoading = true;
   String _searchQuery = '';
+  MerchantProductSortMode _sortMode = MerchantProductSortMode.recommended;
+  bool _didHandleInitialProduct = false;
   bool _isHeaderCollapsed = false;
   bool _isFavorite = false;
+  MerchantStorefrontData? _storefront;
+  MerchantRatingSummary? _ratingSummary;
   final Map<String, String> _tempNotes = {};
 
   String get _serviceDomain {
@@ -89,7 +104,29 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
     super.initState();
     _loadMenus();
     _loadFavoriteStatus();
+    _loadStorefrontAndRating();
     _scrollController.addListener(_onScroll);
+  }
+
+  Future<void> _loadStorefrontAndRating() async {
+    final merchantId = widget.merchant['id']?.toString();
+    final merchantName = widget.merchant['name']?.toString();
+    final results = await Future.wait<dynamic>([
+      MerchantStorefrontService.loadStorefront(
+        merchantId,
+        merchantName: merchantName,
+      ),
+      MerchantStorefrontService.loadRatingSummary(
+        merchantId: merchantId,
+        merchantName: merchantName,
+        domain: _serviceDomain,
+      ),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      _storefront = results[0] as MerchantStorefrontData?;
+      _ratingSummary = results[1] as MerchantRatingSummary;
+    });
   }
 
   Future<void> _loadFavoriteStatus() async {
@@ -311,39 +348,217 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
     }
   }
 
+  bool _itemHasVariants(Map<String, dynamic> item) {
+    return item['variant_groups'] != null ||
+        item['variants'] != null ||
+        item['has_variants'] == true ||
+        (item['name'] != null && item['name'].toString().toLowerCase().contains('combo'));
+  }
+
   Future<void> _loadMenus() async {
     setState(() => _isLoading = true);
     final merchantId = widget.merchant['id'] ?? 'm-dimsum-sewu';
     final items = await GageApiClient.getMerchantMenu(merchantId);
+    final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
     setState(() {
       _menuItems = items;
+      for (final item in items) {
+        final menuId = (item['id'] ?? '').toString();
+        if (menuId.isNotEmpty && prefs.containsKey('fav_item_$menuId')) {
+          _tempNotes['fav_item_$menuId'] = (prefs.getBool('fav_item_$menuId') ?? false) ? 'true' : 'false';
+        }
+      }
       _isLoading = false;
+    });
+    _openInitialProductIfNeeded();
+  }
+
+  void _openInitialProductIfNeeded() {
+    if (_didHandleInitialProduct) return;
+    final targetId = (widget.initialProductId ?? widget.initialProductItem?['id'] ?? '').toString().trim();
+    final targetItem = widget.initialProductItem;
+    if (targetId.isEmpty && targetItem == null) return;
+    _didHandleInitialProduct = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _openProductFromFavorite(
+        targetItem ?? <String, dynamic>{'id': targetId},
+      );
     });
   }
 
-  int _parseInt(dynamic val, [int fallback = 0]) {
-    if (val == null) return fallback;
-    if (val is int) return val;
-    if (val is num) return val.toInt();
-    if (val is String) {
-      final cleaned = val.replaceAll(RegExp(r'[^0-9\-]'), '');
-      return int.tryParse(cleaned) ?? fallback;
+  void _openProductFromFavorite(Map<String, dynamic> favItem) {
+    if (!mounted) return;
+    final targetId = (favItem['id'] ?? '').toString().trim().toLowerCase();
+    final targetName = (favItem['name'] ?? '').toString().trim().toLowerCase();
+
+    Map<String, dynamic>? matched;
+    if (targetId.isNotEmpty) {
+      matched = _menuItems.cast<Map<String, dynamic>?>().firstWhere(
+            (m) => (m?['id'] ?? '').toString().trim().toLowerCase() == targetId,
+            orElse: () => null,
+          );
     }
-    return fallback;
+    if (matched == null && targetName.isNotEmpty) {
+      matched = _menuItems.cast<Map<String, dynamic>?>().firstWhere(
+            (m) {
+              final n = (m?['name'] ?? '').toString().trim().toLowerCase();
+              return n == targetName || n.contains(targetName) || targetName.contains(n);
+            },
+            orElse: () => null,
+          );
+    }
+
+    final resolvedItem = matched ??
+        <String, dynamic>{
+          ...favItem,
+          'gage_price': favItem['gage_price'] ?? _parseInt(favItem['price'], 0),
+        };
+    final cart = context.read<CartProvider>();
+    final completedCounts = _completedOrderCounts(context.read<OrderProvider>());
+    _showProductDetailModal(
+      context,
+      resolvedItem,
+      cart,
+      completedOrderCounts: completedCounts,
+    );
   }
 
-  List<Map<String, dynamic>> get _filteredMenus {
-    var list = _menuItems;
-    if (_searchQuery.trim().isNotEmpty) {
-      final q = _searchQuery.toLowerCase().trim();
-      list = list.where((m) {
-        final name = (m['name'] ?? '').toString().toLowerCase();
-        final desc = (m['description'] ?? '').toString().toLowerCase();
-        return name.contains(q) || desc.contains(q);
-      }).toList();
+  Future<void> _toggleItemFavorite(
+    Map<String, dynamic> item,
+    String menuId,
+    int price,
+    String menuImage,
+  ) async {
+    final favKey = 'fav_item_$menuId';
+    final nextVal = _tempNotes[favKey] != 'true';
+    setState(() {
+      _tempNotes[favKey] = nextVal ? 'true' : 'false';
+    });
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(favKey, nextVal);
+    if (nextVal) {
+      final formatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+      await prefs.setString(
+        'fav_item_meta_$menuId',
+        jsonEncode({
+          'id': menuId,
+          'name': (item['name'] ?? '').toString(),
+          'store': (widget.merchant['name'] ?? '').toString(),
+          'storeId': (widget.merchant['id'] ?? '').toString(),
+          'price': formatter.format(price),
+          'image': menuImage,
+          'domain': _serviceDomain,
+        }),
+      );
+    } else {
+      await prefs.remove('fav_item_meta_$menuId');
     }
-    return list;
+    if (mounted) {
+      GageToast.show(
+        context,
+        nextVal ? '${item['name']} disukai!' : '${item['name']} dihapus dari favorit',
+        type: nextVal ? GageToastType.success : GageToastType.info,
+      );
+    }
+  }
+
+  int _parseInt(dynamic val, [int fallback = 0]) {
+    return MerchantCatalogHelper.parseInt(val, fallback);
+  }
+
+  Map<String, int> _completedOrderCounts(OrderProvider orderProvider) {
+    return MerchantCatalogHelper.buildCompletedOrderCounts(
+      orderProvider.orderHistory,
+      merchantId: widget.merchant['id']?.toString(),
+    );
+  }
+
+  List<Map<String, dynamic>> _resolveFilteredMenus(Map<String, int> completedCounts) {
+    return MerchantCatalogHelper.applySearchAndSort(
+      _menuItems,
+      searchQuery: _searchQuery,
+      sortMode: _sortMode,
+      storefront: _storefront,
+      completedOrderQtyByKey: completedCounts,
+    );
+  }
+
+  void _showSortPickerSheet(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    HapticFeedback.selectionClick();
+    GageFloatingSheet.show(
+      context: context,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Urutkan & Filter Produk',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...MerchantProductSortMode.values.map((mode) {
+            final isSelected = _sortMode == mode;
+            return InkWell(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                setState(() => _sortMode = mode);
+                Navigator.pop(context);
+              },
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? GageTheme.primary.withValues(alpha: isDark ? 0.18 : 0.08)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            mode.label,
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                              color: isSelected
+                                  ? GageTheme.primary
+                                  : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            mode.subtitle,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (isSelected)
+                      const Icon(Icons.check_circle_rounded, color: GageTheme.primary, size: 20),
+                  ],
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
   }
 
   void _showGroupOrderSheet(BuildContext context, CartProvider cart) {
@@ -658,7 +873,9 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Pilih kapan resto harus menyiapkan dan mengantar pesanan Anda.',
+                  _serviceDomain == 'food'
+                      ? 'Pilih kapan resto harus menyiapkan dan mengantar pesanan Anda.'
+                      : 'Pilih kapan toko harus menyiapkan dan mengantar pesanan Anda.',
                   style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
                 ),
                 const SizedBox(height: 16),
@@ -920,157 +1137,81 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
     return 'assets/images/dish_dimsum_original.png';
   }
 
+  /// Resolves store vouchers from the centralized registry by [_serviceDomain]
+  /// (instead of guessing from ID/category keywords) so Admin-created service
+  /// vouchers automatically match live merchant accounts in production.
   List<Widget> _buildServiceVouchers(BuildContext context, CartProvider cart, bool isDark) {
-    final mCat = (widget.merchant['category'] ?? '').toString().toLowerCase();
-    final mId = (widget.merchant['id'] ?? '').toString().toLowerCase();
+    final vouchers = GageVoucherData.vouchersForService(_serviceDomain);
+    final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
-    if (mId.contains('build') || mCat.contains('bangun')) {
-      return [
-        _buildVoucherStubCard(
-          context: context,
-          cart: cart,
-          code: 'PROYEKHEMAT',
-          title: 'Diskon 15RB',
-          sub: 'Min. pembelian Rp 50.000',
-          discount: 15000,
-          isFood: true,
-          isDark: isDark,
-        ),
-        _buildVoucherStubCard(
-          context: context,
-          cart: cart,
-          code: 'BANGUNRUMAH',
-          title: 'Diskon 25RB',
-          sub: 'Min. pembelian Rp 100.000',
-          discount: 25000,
-          isFood: true,
-          isDark: isDark,
-        ),
-        _buildVoucherStubCard(
-          context: context,
-          cart: cart,
-          code: 'ONGKIRFREE',
-          title: 'Gratis Ongkir s.d 10RB',
-          sub: 'Min. pembelian Rp 50.000',
-          discount: 10000,
-          isFood: false,
-          isDark: isDark,
-        ),
-      ];
-    } else if (mId.contains('farm') || mCat.contains('tani') || mCat.contains('ternak')) {
-      return [
-        _buildVoucherStubCard(
-          context: context,
-          cart: cart,
-          code: 'SUBSIDITANI',
-          title: 'Diskon 10RB',
-          sub: 'Min. pembelian Rp 30.000',
-          discount: 10000,
-          isFood: true,
-          isDark: isDark,
-        ),
-        _buildVoucherStubCard(
-          context: context,
-          cart: cart,
-          code: 'PETANISUKSES',
-          title: 'Diskon 15RB',
-          sub: 'Min. pembelian Rp 50.000',
-          discount: 15000,
-          isFood: true,
-          isDark: isDark,
-        ),
-        _buildVoucherStubCard(
-          context: context,
-          cart: cart,
-          code: 'ONGKIRFREE',
-          title: 'Gratis Ongkir s.d 7RB',
-          sub: 'Min. pembelian Rp 25.000',
-          discount: 7000,
-          isFood: false,
-          isDark: isDark,
-        ),
-      ];
-    } else if (mId.contains('shop') || mCat.contains('sembako') || mCat.contains('kelontong')) {
-      return [
-        _buildVoucherStubCard(
-          context: context,
-          cart: cart,
-          code: 'BELANJAHEMAT',
-          title: 'Diskon 8RB',
-          sub: 'Min. pembelian Rp 25.000',
-          discount: 8000,
-          isFood: true,
-          isDark: isDark,
-        ),
-        _buildVoucherStubCard(
-          context: context,
-          cart: cart,
-          code: 'SEMBAKOMURAH',
-          title: 'Diskon 10RB',
-          sub: 'Min. pembelian Rp 40.000',
-          discount: 10000,
-          isFood: true,
-          isDark: isDark,
-        ),
-        _buildVoucherStubCard(
-          context: context,
-          cart: cart,
-          code: 'ONGKIRFREE',
-          title: 'Gratis Ongkir s.d 7RB',
-          sub: 'Min. pembelian Rp 20.000',
-          discount: 7000,
-          isFood: false,
-          isDark: isDark,
-        ),
-      ];
-    } else {
-      return [
-        _buildVoucherStubCard(
-          context: context,
-          cart: cart,
-          code: 'GAGEHEMAT',
-          title: 'Diskon 8RB',
-          sub: 'Min. pembelian Rp 15.000',
-          discount: 8000,
-          isFood: true,
-          isDark: isDark,
-        ),
-        _buildVoucherStubCard(
-          context: context,
-          cart: cart,
-          code: 'KULINER10',
-          title: 'Diskon 10RB',
-          sub: 'Min. pembelian Rp 30.000',
-          discount: 10000,
-          isFood: true,
-          isDark: isDark,
-        ),
-        _buildVoucherStubCard(
-          context: context,
-          cart: cart,
-          code: 'ONGKIRFREE',
-          title: 'Gratis Ongkir s.d 7RB',
-          sub: 'Min. pembelian Rp 20.000',
-          discount: 7000,
-          isFood: false,
-          isDark: isDark,
-        ),
-      ];
-    }
+    return vouchers.map((v) {
+      final minOrder = _parseInt(v['minOrder']);
+      final discount = _parseInt(v['discountAmount']);
+      final isOrderVoucher = v['type'] != 'delivery';
+      final rawExpiry = (v['expiry'] ?? '31 Des 2026').toString().trim();
+      final expiryText = rawExpiry.startsWith('Berlaku') ? rawExpiry : 'Berlaku s/d $rawExpiry';
+
+      return _buildVoucherStubCard(
+        context: context,
+        cart: cart,
+        code: (v['code'] ?? '').toString(),
+        title: (v['title'] ?? v['discountText'] ?? 'Voucher Promo').toString(),
+        sub: minOrder > 0 ? 'Min. pembelian ${currencyFormatter.format(minOrder)}' : 'Tanpa minimal pembelian',
+        discount: discount,
+        isFood: isOrderVoucher,
+        isDark: isDark,
+        expiryText: expiryText,
+      );
+    }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
     final cart = context.watch<CartProvider>();
+    final orderProvider = context.watch<OrderProvider>();
+    final completedOrderCounts = _completedOrderCounts(orderProvider);
+    final displayedMenus = _resolveFilteredMenus(completedOrderCounts);
     final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final name = widget.merchant['name'] ?? 'Mie Ayam Mbak Linda, Maguhan';
-    final category = widget.merchant['category'] ?? 'Bakmie, Jajanan, Minuman';
-    final address = widget.merchant['address'] ?? 'Maguhan, Pracimantoro, Solo';
-    final String imageAsset = widget.merchant['image'] ?? 'assets/images/resto_dimsum_sewu.png';
-    final rating = (widget.merchant['rating'] ?? 4.1).toDouble();
-    final ratingCount = widget.merchant['ratingCount'] ?? '50+';
+    final sfName = _storefront?.name?.trim();
+    final name = (sfName != null && sfName.isNotEmpty)
+        ? sfName
+        : (widget.merchant['name'] ?? 'Mie Ayam Mbak Linda, Maguhan').toString();
+    final category = (widget.merchant['category'] ?? 'Bakmie, Jajanan, Minuman').toString();
+    final sfAddress = _storefront?.address?.trim();
+    final address = (sfAddress != null && sfAddress.isNotEmpty)
+        ? sfAddress
+        : (widget.merchant['address'] ?? 'Maguhan, Pracimantoro, Solo').toString();
+    final sfBanner = _storefront?.bannerPhoto?.trim();
+    final sfLogo = _storefront?.logoPhoto?.trim();
+    final String imageAsset = (sfBanner != null && sfBanner.isNotEmpty)
+        ? sfBanner
+        : ((sfLogo != null && sfLogo.isNotEmpty)
+            ? sfLogo
+            : (widget.merchant['image'] ?? 'assets/images/resto_dimsum_sewu.png').toString());
+    final String profileImageAsset = (sfLogo != null && sfLogo.isNotEmpty)
+        ? sfLogo
+        : imageAsset;
+    final double rawRating = ((widget.merchant['rating'] ?? 4.1) as num).toDouble();
+    final double rating = (_ratingSummary != null && _ratingSummary!.totalReviews > 0)
+        ? double.parse(_ratingSummary!.averageRating.toStringAsFixed(1))
+        : rawRating;
+    final String ratingCount = (_ratingSummary != null && _ratingSummary!.totalReviews > 0)
+        ? _ratingSummary!.formattedCount
+        : (widget.merchant['ratingCount'] ?? '50+').toString();
+    final double? merchantLat = _storefront?.latitude ??
+        (widget.merchant['latitude'] is num
+            ? (widget.merchant['latitude'] as num).toDouble()
+            : double.tryParse((widget.merchant['latitude'] ?? '').toString()));
+    final double? merchantLng = _storefront?.longitude ??
+        (widget.merchant['longitude'] is num
+            ? (widget.merchant['longitude'] as num).toDouble()
+            : double.tryParse((widget.merchant['longitude'] ?? '').toString()));
+    final sfLocPhoto = _storefront?.locationPhoto?.trim();
+    final String? locationPhoto = (sfLocPhoto != null && sfLocPhoto.isNotEmpty)
+        ? sfLocPhoto
+        : widget.merchant['locationPhoto']?.toString();
     final distance = widget.merchant['distance'] ?? '8.56 km';
     final isPickup = cart.isPickup;
 
@@ -1141,7 +1282,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                             style: const TextStyle(fontSize: 13),
                             decoration: InputDecoration(
                               isDense: true,
-                              hintText: 'Cari menu di resto ini...',
+                              hintText: _serviceDomain == 'food' ? 'Cari menu di resto ini...' : 'Cari produk di toko ini...',
                               hintStyle: TextStyle(fontSize: 12.5, color: Colors.grey.shade500),
                               prefixIcon: const Icon(Icons.search_rounded, size: 18, color: GageTheme.primary),
                               suffixIcon: _searchQuery.isNotEmpty
@@ -1200,11 +1341,30 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                               ),
                               const SizedBox(width: 8),
                               GestureDetector(
-                                onTap: () {
-                                  Navigator.push(
+                                onTap: () async {
+                                  final openMerchantId = (widget.merchant['id'] ?? '').toString();
+                                  final pickedItem = await Navigator.push<Map<String, dynamic>>(
                                     context,
-                                    MaterialPageRoute(builder: (ctx) => const FavoriteRestoScreen()),
+                                    MaterialPageRoute(
+                                      builder: (ctx) => (_serviceDomain == 'shop' ||
+                                              _serviceDomain == 'farm' ||
+                                              _serviceDomain == 'build')
+                                          ? ShopFavoriteScreen(
+                                              domain: _serviceDomain,
+                                              initialTabIndex: 1,
+                                              filterMerchantId: openMerchantId.isNotEmpty ? openMerchantId : null,
+                                              filterMerchantName: name.toString(),
+                                            )
+                                          : FavoriteRestoScreen(
+                                              initialTabIndex: 1,
+                                              filterMerchantId: openMerchantId.isNotEmpty ? openMerchantId : null,
+                                              filterMerchantName: name.toString(),
+                                            ),
+                                    ),
                                   );
+                                  if (pickedItem != null && mounted) {
+                                    _openProductFromFavorite(pickedItem);
+                                  }
                                 },
                                 child: Container(
                                   width: 38,
@@ -1256,10 +1416,10 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                         ),
                       ],
                 flexibleSpace: FlexibleSpaceBar(
-                  background: Image.asset(
-                    imageAsset,
+                  background: StorefrontImage(
+                    path: imageAsset,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(color: GageTheme.primaryLight),
+                    fallback: Container(color: GageTheme.primaryLight),
                   ),
                 ),
               ),
@@ -1337,15 +1497,22 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                               MaterialPageRoute(
                                 builder: (ctx) => RestoInfoScreen(
                                   restoName: name,
-                                  restoImage: imageAsset,
+                                  restoImage: profileImageAsset,
                                   address: address,
                                   distance: distance,
                                   rating: rating,
                                   ratingCount: ratingCount.toString(),
                                   category: category,
+                                  domain: _serviceDomain,
+                                  merchantId: widget.merchant['id']?.toString(),
+                                  eta: widget.merchant['eta']?.toString(),
+                                  latitude: merchantLat,
+                                  longitude: merchantLng,
+                                  locationPhoto: locationPhoto,
+                                  openHours: (widget.merchant['openHours'] ?? '23:59').toString(),
                                 ),
                               ),
-                            );
+                            ).then((_) => _loadStorefrontAndRating());
                           },
                           child: Row(
                             children: [
@@ -1370,13 +1537,13 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
 
                         const SizedBox(height: 14),
 
-                        // Switcher Delivery vs Pickup (Full Pill Capsule)
+                        // Switcher Delivery vs Pickup (Full Pill Capsule 999)
                         Container(
                           height: 42,
                           padding: const EdgeInsets.all(3),
                           decoration: BoxDecoration(
                             color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(30),
+                            borderRadius: BorderRadius.circular(999),
                           ),
                           child: Row(
                             children: [
@@ -1384,6 +1551,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                               Expanded(
                                 child: InkWell(
                                   onTap: () {
+                                    HapticFeedback.selectionClick();
                                     if (cart.isPickup) {
                                       cart.setIsPickup(false);
                                       GageToast.show(
@@ -1393,11 +1561,11 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                                       );
                                     }
                                   },
-                                  borderRadius: BorderRadius.circular(26),
+                                  borderRadius: BorderRadius.circular(999),
                                   child: Container(
                                     decoration: BoxDecoration(
                                       color: !isPickup ? GageTheme.primary : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(26),
+                                      borderRadius: BorderRadius.circular(999),
                                     ),
                                     alignment: Alignment.center,
                                     child: Text(
@@ -1416,6 +1584,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                               Expanded(
                                 child: InkWell(
                                   onTap: () {
+                                    HapticFeedback.selectionClick();
                                     if (!cart.isPickup) {
                                       cart.setIsPickup(true);
                                       GageToast.show(
@@ -1425,11 +1594,11 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                                       );
                                     }
                                   },
-                                  borderRadius: BorderRadius.circular(26),
+                                  borderRadius: BorderRadius.circular(999),
                                   child: Container(
                                     decoration: BoxDecoration(
                                       color: isPickup ? GageTheme.primary : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(26),
+                                      borderRadius: BorderRadius.circular(999),
                                     ),
                                     alignment: Alignment.center,
                                     child: Text(
@@ -1623,7 +1792,77 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                   ),
                 ),
 
-              // 4. DAFTAR MENU MAKANAN (Persis Gambar 1 Gojek)
+              // 4. HEADER KATALOG + SORT DROPDOWN & DAFTAR PRODUK
+              if (!_isLoading)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _serviceDomain == 'food' ? 'Daftar Menu' : 'Katalog Produk',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            ),
+                          ),
+                        ),
+                        InkWell(
+                          onTap: () => _showSortPickerSheet(context),
+                          borderRadius: BorderRadius.circular(999),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                            decoration: BoxDecoration(
+                              color: _sortMode != MerchantProductSortMode.recommended
+                                  ? GageTheme.primary
+                                  : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                color: _sortMode != MerchantProductSortMode.recommended
+                                    ? GageTheme.primary
+                                    : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.tune_rounded,
+                                  size: 14,
+                                  color: _sortMode != MerchantProductSortMode.recommended
+                                      ? Colors.white
+                                      : (isDark ? Colors.white70 : const Color(0xFF334155)),
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  _sortMode.label,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: _sortMode != MerchantProductSortMode.recommended
+                                        ? Colors.white
+                                        : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                                  ),
+                                ),
+                                const SizedBox(width: 2),
+                                Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  size: 16,
+                                  color: _sortMode != MerchantProductSortMode.recommended
+                                      ? Colors.white
+                                      : (isDark ? Colors.white70 : const Color(0xFF334155)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
               if (_isLoading)
                 SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1634,276 +1873,77 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                     ),
                   ),
                 )
-              else if (_filteredMenus.isEmpty)
+              else if (displayedMenus.isEmpty)
                 SliverFillRemaining(
+                  hasScrollBody: false,
                   child: Center(
-                    child: Text(
-                      'Belum ada menu di kategori ini.',
-                      style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        _sortMode == MerchantProductSortMode.promoOnly
+                            ? 'Belum ada produk dengan harga promo saat ini.'
+                            : (_serviceDomain == 'food'
+                                ? 'Belum ada menu yang sesuai.'
+                                : 'Belum ada produk yang sesuai.'),
+                        style: TextStyle(
+                          color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                          fontSize: 13,
+                        ),
+                      ),
                     ),
                   ),
                 )
-              else
+              else if (_sortMode.usesCategorySections) ...[
+                for (final section in MerchantCatalogHelper.groupByOrderedCategories(
+                  displayedMenus,
+                  customOrder: _storefront?.categoryOrder,
+                )) ...[
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 2),
+                      child: Text(
+                        section.key,
+                        style: TextStyle(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w800,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                      ),
+                    ),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) => _buildMenuCard(
+                          context: context,
+                          item: section.value[index],
+                          index: index,
+                          cart: cart,
+                          isDark: isDark,
+                          currencyFormatter: currencyFormatter,
+                          completedOrderCounts: completedOrderCounts,
+                        ),
+                        childCount: section.value.length,
+                      ),
+                    ),
+                  ),
+                ],
+              ] else
                 SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final item = _filteredMenus[index];
-                        final price = _parseInt(item['gage_price'] ?? item['price'] ?? item['offline_price'], 0);
-                        final menuId = (item['id'] ?? 'item-$index').toString();
-                        final cartItem = cart.items.where((i) => i.menuId == menuId).firstOrNull;
-                        final inCartQty = cartItem?.quantity ?? 0;
-                        final currentNote = cartItem?.notes ?? _tempNotes[menuId] ?? '';
-                        final menuImage = _getMenuItemImage(item);
-                        final bool hasVariants = item['variants'] != null ||
-                            item['has_variants'] == true ||
-                            (item['name'] != null && item['name'].toString().toLowerCase().contains('combo'));
-
-                        return InkWell(
-                          onTap: () => _showProductDetailModal(context, item, cart),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            decoration: BoxDecoration(
-                              border: Border(
-                                bottom: BorderSide(color: Colors.grey.shade200, width: 0.8),
-                              ),
-                            ),
-                            child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // KIRI: Nama Menu, Deskripsi, Harga (Gambar 1)
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      item['name'] ?? '',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 15,
-                                        color: Colors.black87,
-                                      ),
-                                    ),
-                                    if (item['description'] != null && item['description'].toString().isNotEmpty) ...[
-                                      const SizedBox(height: 3),
-                                      Text(
-                                        item['description'],
-                                        style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      currencyFormatter.format(price),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14.5,
-                                        color: Colors.black87,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-
-                              // KANAN: Foto Makanan + Stepper / Tambah (Gambar 1)
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Stack(
-                                    children: [
-                                      ClipRRect(
-                                        borderRadius: BorderRadius.circular(12),
-                                        child: SizedBox(
-                                          width: 86,
-                                          height: 86,
-                                          child: Image.asset(
-                                            menuImage,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (context, error, stackTrace) => Container(
-                                              color: GageTheme.primaryLight,
-                                              child: Icon(_getFallbackIcon(item['category']), color: GageTheme.primary),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      Positioned(
-                                        top: 4,
-                                        right: 4,
-                                        child: GestureDetector(
-                                          onTap: () {
-                                            final favKey = 'fav_item_$menuId';
-                                            final isFav = _tempNotes[favKey] == 'true';
-                                            setState(() {
-                                              _tempNotes[favKey] = isFav ? 'false' : 'true';
-                                            });
-                                            GageToast.show(
-                                              context,
-                                              !isFav ? '${item['name']} disukai!' : '${item['name']} dihapus dari favorit',
-                                              type: !isFav ? GageToastType.success : GageToastType.info,
-                                            );
-                                          },
-                                          child: Container(
-                                            padding: const EdgeInsets.all(4),
-                                            decoration: const BoxDecoration(
-                                              color: Colors.white,
-                                              shape: BoxShape.circle,
-                                              boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 3)],
-                                            ),
-                                            child: Icon(
-                                              _tempNotes['fav_item_$menuId'] == 'true' ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                                              size: 14,
-                                              color: _tempNotes['fav_item_$menuId'] == 'true' ? GageTheme.primary : Colors.black45,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-
-                                  // Stepper or Tambah button (Full Rounded 24px Capsule)
-                                  if (inCartQty > 0) ...[
-                                    Container(
-                                      height: 32,
-                                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(24),
-                                        border: Border.all(color: GageTheme.primary, width: 1.5),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: GageTheme.primary.withValues(alpha: 0.15),
-                                            blurRadius: 4,
-                                            offset: const Offset(0, 1),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          InkWell(
-                                            onTap: () => cart.updateQuantity(menuId, -1),
-                                            borderRadius: BorderRadius.circular(20),
-                                            child: const Padding(
-                                              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                                              child: Icon(Icons.remove, color: GageTheme.primary, size: 16),
-                                            ),
-                                          ),
-                                          Padding(
-                                            padding: const EdgeInsets.symmetric(horizontal: 6),
-                                            child: Text(
-                                              '$inCartQty',
-                                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87),
-                                            ),
-                                          ),
-                                          InkWell(
-                                            onTap: () => cart.updateQuantity(menuId, 1),
-                                            borderRadius: BorderRadius.circular(20),
-                                            child: const Padding(
-                                              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                                              child: Icon(Icons.add, color: GageTheme.primary, size: 16),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    if (hasVariants) ...[
-                                      const SizedBox(height: 6),
-                                      // Tombol Catatan & Varian (Capsule 24px)
-                                      InkWell(
-                                        onTap: () => ItemVariantSheet.show(
-                                          context,
-                                          menuItem: item,
-                                          merchant: widget.merchant,
-                                        ),
-                                        borderRadius: BorderRadius.circular(24),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white,
-                                            borderRadius: BorderRadius.circular(24),
-                                            border: Border.all(color: Colors.grey.shade300),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              const Icon(Icons.tune_rounded, size: 12, color: Colors.black54),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                currentNote.isNotEmpty ? currentNote : 'Ubah Varian',
-                                                style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Colors.black87),
-                                                maxLines: 1,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ] else
-                                    SizedBox(
-                                      height: 32,
-                                      child: ElevatedButton(
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: GageTheme.primary,
-                                          foregroundColor: Colors.white,
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                                          padding: const EdgeInsets.symmetric(horizontal: 14),
-                                          elevation: 0,
-                                        ),
-                                        onPressed: () {
-                                          if (hasVariants) {
-                                            ItemVariantSheet.show(
-                                              context,
-                                              menuItem: item,
-                                              merchant: widget.merchant,
-                                            );
-                                          } else {
-                                            final price = _parseInt(item['price'] ?? item['gage_price'] ?? item['offline_price'], 0);
-                                            final model = CartItemModel(
-                                              menuId: menuId,
-                                              merchantId: widget.merchant['id'] ?? 'm-dimsum-sewu',
-                                              merchantName: widget.merchant['name'] ?? 'Dimsum Sewu by Halu Goods',
-                                              name: item['name'] ?? '',
-                                              price: price,
-                                              quantity: 1,
-                                              category: item['category'] ?? 'Menu',
-                                              imageUrl: _getMenuItemImage(item),
-                                              serviceType: _serviceDomain,
-                                            );
-                                            final added = cart.addItem(model);
-                                            if (!added) {
-                                              _showSwitchMerchantDialog(context, cart, model);
-                                            } else {
-                                              HapticFeedback.lightImpact();
-                                              GageToast.show(
-                                                context,
-                                                '${item['name']} ditambahkan ke keranjang',
-                                                type: GageToastType.success,
-                                              );
-                                            }
-                                          }
-                                        },
-                                        child: const Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(Icons.add, size: 15),
-                                            SizedBox(width: 2),
-                                            Text('Tambah', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                      },
-                      childCount: _filteredMenus.length,
+                      (context, index) => _buildMenuCard(
+                        context: context,
+                        item: displayedMenus[index],
+                        index: index,
+                        cart: cart,
+                        isDark: isDark,
+                        currencyFormatter: currencyFormatter,
+                        completedOrderCounts: completedOrderCounts,
+                      ),
+                      childCount: displayedMenus.length,
                     ),
                   ),
                 ),
@@ -1925,11 +1965,345 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
     );
   }
 
-  void _showProductDetailModal(BuildContext context, Map<String, dynamic> item, CartProvider cart) {
+  Widget _buildMenuCard({
+    required BuildContext context,
+    required Map<String, dynamic> item,
+    required int index,
+    required CartProvider cart,
+    required bool isDark,
+    required NumberFormat currencyFormatter,
+    required Map<String, int> completedOrderCounts,
+  }) {
+    final resolvedPrice = MerchantCatalogHelper.resolvePrice(item, storefront: _storefront);
+    final price = resolvedPrice.effectivePrice;
+    final originalPrice = resolvedPrice.originalPrice;
+    final discountPercent = resolvedPrice.discountPercent;
+    final soldCount = MerchantCatalogHelper.resolveSoldCount(
+      item,
+      completedOrderQtyByKey: completedOrderCounts,
+    );
+    final soldLabel = MerchantCatalogHelper.formatSoldLabel(soldCount);
+
+    final menuId = (item['id'] ?? 'item-$index').toString();
+    final cartItem = cart.items.where((i) => i.menuId == menuId).firstOrNull;
+    final inCartQty = cartItem?.quantity ?? 0;
+    final currentNote = cartItem?.notes ?? _tempNotes[menuId] ?? '';
+    final menuImage = _getMenuItemImage(item);
+    final bool hasVariants = _itemHasVariants(item);
+    final pricedItem = MerchantCatalogHelper.withResolvedPrice(item, storefront: _storefront);
+
+    return InkWell(
+      onTap: () => _showProductDetailModal(
+        context,
+        item,
+        cart,
+        completedOrderCounts: completedOrderCounts,
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: isDark ? Colors.white12 : Colors.grey.shade200,
+              width: 0.8,
+            ),
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // KIRI: Nama Menu, Deskripsi, Harga (+ Harga Coret), Terjual polos di bawah harga
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    (item['name'] ?? '').toString(),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                  if (item['description'] != null && item['description'].toString().isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      item['description'].toString(),
+                      style: TextStyle(
+                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                        fontSize: 12,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 2,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        currencyFormatter.format(price),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14.5,
+                          color: resolvedPrice.hasDiscount
+                              ? GageTheme.primary
+                              : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                        ),
+                      ),
+                      if (originalPrice != null && resolvedPrice.hasDiscount)
+                        Text(
+                          currencyFormatter.format(originalPrice),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? Colors.grey.shade500 : Colors.grey.shade500,
+                            decoration: TextDecoration.lineThrough,
+                            decorationColor: Colors.grey.shade500,
+                          ),
+                        ),
+                      if (discountPercent != null)
+                        Text(
+                          '-$discountPercent%',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w800,
+                            color: GageTheme.primary,
+                          ),
+                        ),
+                    ],
+                  ),
+                  if (soldLabel.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      soldLabel,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
+                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 14),
+
+            // KANAN: Foto Produk + Stepper / Tambah
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: SizedBox(
+                        width: 86,
+                        height: 86,
+                        child: Image.asset(
+                          menuImage,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            color: GageTheme.primaryLight,
+                            child: Icon(_getFallbackIcon(item['category']), color: GageTheme.primary),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: GestureDetector(
+                        onTap: () => _toggleItemFavorite(item, menuId, price, menuImage),
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 3)],
+                          ),
+                          child: Icon(
+                            _tempNotes['fav_item_$menuId'] == 'true' ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                            size: 14,
+                            color: _tempNotes['fav_item_$menuId'] == 'true' ? GageTheme.primary : Colors.black45,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+
+                if (inCartQty > 0) ...[
+                  Container(
+                    height: 32,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: GageTheme.primary, width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: GageTheme.primary.withValues(alpha: 0.15),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        InkWell(
+                          onTap: () => cart.updateQuantity(menuId, -1),
+                          borderRadius: BorderRadius.circular(20),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                            child: Icon(Icons.remove, color: GageTheme.primary, size: 16),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          child: Text(
+                            '$inCartQty',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                        ),
+                        InkWell(
+                          onTap: () => cart.updateQuantity(menuId, 1),
+                          borderRadius: BorderRadius.circular(20),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                            child: Icon(Icons.add, color: GageTheme.primary, size: 16),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (hasVariants) ...[
+                    const SizedBox(height: 6),
+                    InkWell(
+                      onTap: () => ItemVariantSheet.show(
+                        context,
+                        menuItem: pricedItem,
+                        merchant: widget.merchant,
+                        cartItem: cartItem,
+                      ),
+                      borderRadius: BorderRadius.circular(24),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: isDark ? Colors.white24 : Colors.grey.shade300,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.tune_rounded,
+                              size: 12,
+                              color: isDark ? Colors.white70 : Colors.black54,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              currentNote.isNotEmpty ? currentNote : 'Ubah Varian',
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
+                              maxLines: 1,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ] else
+                  SizedBox(
+                    height: 32,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: GageTheme.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        elevation: 0,
+                      ),
+                      onPressed: () {
+                        if (hasVariants) {
+                          ItemVariantSheet.show(
+                            context,
+                            menuItem: pricedItem,
+                            merchant: widget.merchant,
+                          );
+                        } else {
+                          final model = CartItemModel(
+                            menuId: menuId,
+                            merchantId: widget.merchant['id'] ?? 'm-dimsum-sewu',
+                            merchantName: widget.merchant['name'] ?? 'Dimsum Sewu by Halu Goods',
+                            name: item['name'] ?? '',
+                            price: price,
+                            quantity: 1,
+                            category: item['category'] ?? 'Menu',
+                            imageUrl: menuImage,
+                            serviceType: _serviceDomain,
+                          );
+                          final added = cart.addItem(model);
+                          if (!added) {
+                            _showSwitchMerchantDialog(context, cart, model);
+                          } else {
+                            HapticFeedback.lightImpact();
+                            GageToast.show(
+                              context,
+                              '${item['name']} ditambahkan ke keranjang',
+                              type: GageToastType.success,
+                            );
+                          }
+                        }
+                      },
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.add, size: 15),
+                          SizedBox(width: 2),
+                          Text('Tambah', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showProductDetailModal(
+    BuildContext context,
+    Map<String, dynamic> item,
+    CartProvider cart, {
+    Map<String, int> completedOrderCounts = const {},
+  }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
-    final price = _parseInt(item['gage_price'] ?? item['price'] ?? item['offline_price'], 10000);
-    final menuId = item['id'] ?? 'item-generic';
+    final resolvedPrice = MerchantCatalogHelper.resolvePrice(item, storefront: _storefront);
+    final price = resolvedPrice.effectivePrice;
+    final originalPrice = resolvedPrice.originalPrice;
+    final discountPercent = resolvedPrice.discountPercent;
+    final soldLabel = MerchantCatalogHelper.formatSoldLabel(
+      MerchantCatalogHelper.resolveSoldCount(item, completedOrderQtyByKey: completedOrderCounts),
+    );
+    final pricedItem = MerchantCatalogHelper.withResolvedPrice(item, storefront: _storefront);
+    final menuId = (item['id'] ?? 'item-generic').toString();
     final menuImage = _getMenuItemImage(item);
 
     GageFloatingSheet.show(
@@ -2009,19 +2383,63 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                 ),
                 const SizedBox(height: 14),
 
-                // Baris: Harga di kiri, Tombol Tambah / Stepper di kanan
+                // Baris: Harga (+ Harga Coret) & Terjual di kiri, Tombol Tambah / Stepper di kanan
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Text(
-                      currencyFormatter.format(price),
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                        color: GageTheme.primary,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 2,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text(
+                                currencyFormatter.format(price),
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w900,
+                                  color: GageTheme.primary,
+                                ),
+                              ),
+                              if (originalPrice != null && resolvedPrice.hasDiscount)
+                                Text(
+                                  currencyFormatter.format(originalPrice),
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    color: Colors.grey.shade500,
+                                    decoration: TextDecoration.lineThrough,
+                                    decorationColor: Colors.grey.shade500,
+                                  ),
+                                ),
+                              if (discountPercent != null)
+                                Text(
+                                  '-$discountPercent%',
+                                  style: const TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: GageTheme.primary,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          if (soldLabel.isNotEmpty) ...[
+                            const SizedBox(height: 3),
+                            Text(
+                              soldLabel,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
+                    const SizedBox(width: 10),
                     if (inCartQty == 0)
                       SizedBox(
                         height: 36,
@@ -2034,6 +2452,15 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                             elevation: 0,
                           ),
                           onPressed: () {
+                            if (_itemHasVariants(item)) {
+                              Navigator.pop(ctx);
+                              ItemVariantSheet.show(
+                                context,
+                                menuItem: pricedItem,
+                                merchant: widget.merchant,
+                              );
+                              return;
+                            }
                             final newItem = CartItemModel(
                               menuId: menuId,
                               merchantId: widget.merchant['id'] ?? 'm-default',
@@ -2044,7 +2471,12 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                               imageUrl: menuImage,
                               serviceType: _serviceDomain,
                             );
-                            cart.addItem(newItem);
+                            final added = cart.addItem(newItem);
+                            if (!added) {
+                              Navigator.pop(ctx);
+                              _showSwitchMerchantDialog(context, cart, newItem);
+                              return;
+                            }
                             setModalState(() {});
                           },
                           icon: const Icon(Icons.add, size: 16),
@@ -2091,17 +2523,18 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                             ),
                             InkWell(
                               onTap: () {
-                                final newItem = CartItemModel(
-                                  menuId: menuId,
-                                  merchantId: widget.merchant['id'] ?? 'm-default',
-                                  merchantName: widget.merchant['name'] ?? 'Resto',
-                                  name: item['name'] ?? 'Menu',
-                                  price: price,
-                                  quantity: 1,
-                                  imageUrl: menuImage,
-                                  serviceType: _serviceDomain,
-                                );
-                                cart.addItem(newItem);
+                                if (_itemHasVariants(item)) {
+                                  final existing = cart.items.where((i) => i.menuId == menuId).firstOrNull;
+                                  Navigator.pop(ctx);
+                                  ItemVariantSheet.show(
+                                    context,
+                                    menuItem: pricedItem,
+                                    merchant: widget.merchant,
+                                    cartItem: existing,
+                                  );
+                                  return;
+                                }
+                                cart.updateQuantity(menuId, 1);
                                 setModalState(() {});
                               },
                               borderRadius: const BorderRadius.horizontal(right: Radius.circular(18)),
@@ -2119,7 +2552,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
 
                 // Deskripsi Produk
                 Text(
-                  item['description'] ?? 'Menu lezat disiapkan dengan bahan segar pilihan berkualitas khas resto.',
+                  item['description'] ?? (_serviceDomain == 'food' ? 'Menu lezat disiapkan dengan bahan segar pilihan berkualitas khas resto.' : 'Produk pilihan berkualitas langsung dari mitra $_domainLabel Pracimantoro.'),
                   style: TextStyle(
                     fontSize: 13,
                     height: 1.4,

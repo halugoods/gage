@@ -130,7 +130,9 @@ class MerchantDiscountTierService {
 
     for (int i = 0; i < tiers.length; i++) {
       if (subtotal >= tiers[i].minSpend) {
-        currentTier = tiers[i];
+        if (currentTier == null || tiers[i].discountAmount >= currentTier.discountAmount) {
+          currentTier = tiers[i];
+        }
       } else {
         nextTier = tiers[i];
         break;

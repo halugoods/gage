@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:gage_app/core/services/merchant_storefront_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
@@ -8,6 +9,8 @@ import 'package:gage_app/shared/widgets/gage_toast.dart';
 /// Dipicu dari tap bintang di pesanan selesai atau dari invoice sukses.
 class RatingReviewSheet extends StatefulWidget {
   final String orderId;
+  final String? merchantId;
+  final String serviceType;
   final String merchantName;
   final String? merchantAvatar;
   final String driverName;
@@ -19,6 +22,8 @@ class RatingReviewSheet extends StatefulWidget {
   const RatingReviewSheet({
     super.key,
     required this.orderId,
+    this.merchantId,
+    this.serviceType = 'food',
     required this.merchantName,
     this.merchantAvatar,
     required this.driverName,
@@ -31,6 +36,8 @@ class RatingReviewSheet extends StatefulWidget {
   static Future<bool?> show(
     BuildContext context, {
     required String orderId,
+    String? merchantId,
+    String serviceType = 'food',
     required String merchantName,
     String? merchantAvatar,
     required String driverName,
@@ -44,6 +51,8 @@ class RatingReviewSheet extends StatefulWidget {
       title: 'Beri Penilaian',
       child: RatingReviewSheet(
         orderId: orderId,
+        merchantId: merchantId,
+        serviceType: serviceType,
         merchantName: merchantName,
         merchantAvatar: merchantAvatar,
         driverName: driverName,
@@ -379,6 +388,19 @@ class _RatingReviewSheetState extends State<RatingReviewSheet> {
               ),
               onPressed: () {
                 HapticFeedback.mediumImpact();
+                final commentText = _merchantCommentCtrl.text.trim();
+                final chipNotes = _selectedMerchantChips.join(', ');
+                final fullComment = [
+                  if (commentText.isNotEmpty) commentText,
+                  if (chipNotes.isNotEmpty) chipNotes,
+                ].join(' - ');
+                MerchantStorefrontService.submitBuyerReview(
+                  merchantId: widget.merchantId,
+                  merchantName: widget.merchantName,
+                  domain: widget.serviceType,
+                  stars: _merchantStars,
+                  comment: fullComment,
+                );
                 if (widget.onSubmitted != null) {
                   widget.onSubmitted!(_merchantStars, _driverStars);
                 }

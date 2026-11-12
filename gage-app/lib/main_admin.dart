@@ -12,7 +12,13 @@ import 'package:gage_app/providers/driver_wallet_provider.dart';
 import 'package:gage_app/core/services/multi_merchant_cart_service.dart';
 import 'package:gage_app/core/services/banner_manager_service.dart';
 import 'package:gage_app/features/chat/providers/in_app_chat_provider.dart';
+import 'package:gage_app/core/routing/portal_routes.dart';
 import 'package:gage_app/features/admin/presentation/admin_root_screen.dart';
+import 'package:gage_app/features/admin/presentation/admin_order_dispatch_screen.dart';
+import 'package:gage_app/features/admin/presentation/admin_whatsapp_center_screen.dart';
+import 'package:gage_app/features/admin/presentation/admin_curation_screen.dart';
+import 'package:gage_app/features/admin/presentation/admin_settings_screen.dart';
+import 'package:gage_app/features/admin/presentation/portal_interactive_preview_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -60,6 +66,14 @@ class GageAdminApp extends StatelessWidget {
       darkTheme: GageTheme.darkTheme,
       themeMode: ThemeMode.system,
       home: const AdminRootScreen(),
+      routes: {
+        AdminRoutes.root: (context) => const AdminRootScreen(),
+        AdminRoutes.dispatch: (context) => const AdminOrderDispatchScreen(),
+        AdminRoutes.whatsapp: (context) => const AdminWhatsappCenterScreen(),
+        AdminRoutes.curation: (context) => const AdminCurationScreen(),
+        AdminRoutes.settings: (context) => const AdminSettingsScreen(),
+        AdminRoutes.preview: (context) => const PortalInteractivePreviewScreen(),
+      },
     );
   }
 }

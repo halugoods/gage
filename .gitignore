@@ -48,3 +48,16 @@ evidence_gofood_merchant/
 *.iml
 *.ipr
 *.iws
+
+# Local scratch scripts, media dumps, and session logs
+scratch/
+gage-app/scratch/
+.agents/
+anti-slop/
+PROJECT.md
+*.figcraft
+*.mp4
+*.aac
+*.wav
+launch_*.bat
+record_demo.ps1

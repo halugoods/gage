@@ -5,6 +5,7 @@ import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/services/banner_manager_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/food/data/food_categories_data.dart';
+import 'package:gage_app/features/food/data/service_directory_helper.dart';
 import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
 import 'package:gage_app/features/food/presentation/all_categories_screen.dart';
 import 'package:gage_app/features/food/presentation/favorite_resto_screen.dart';
@@ -48,11 +49,15 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
   }
 
   void _showAddressPicker() {
+    final cart = Provider.of<CartProvider?>(context, listen: false);
     LocationPickerSheet.show(
       context,
       title: 'Pilih Lokasi Pengantaran',
+      initialLocation: cart?.deliveryLocation,
       onSelected: (title, fullAddress, latLng) {
+        final resolved = fullAddress.isNotEmpty ? fullAddress : title;
         setState(() => _selectedLocation = title);
+        cart?.setDeliveryAddress(resolved, cart.distanceKm, location: latLng);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Lokasi diatur ke: $title'),
@@ -76,12 +81,22 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
   }
 
   Future<void> _initUserGpsLocation() async {
+    final cart = Provider.of<CartProvider?>(context, listen: false);
+    if (cart != null && cart.hasCustomDeliveryLocation && cart.deliveryAddress.isNotEmpty) {
+      if (!mounted) return;
+      setState(() => _selectedLocation = cart.deliveryAddress.split(',').first.trim());
+      return;
+    }
     final realGps = await LocationService.getCurrentLocation();
     final addr = await OsmGeocodingService.reverseGeocode(realGps);
+    final fullAddr = OsmGeocodingService.formatFullOfficialAddress(realGps);
     if (!mounted) return;
     setState(() {
       _selectedLocation = addr;
     });
+    if (cart != null && !cart.hasCustomDeliveryLocation) {
+      cart.setDeliveryAddress(fullAddr, cart.distanceKm, location: realGps);
+    }
   }
 
   String _formatShortAddress(String addr) {
@@ -97,7 +112,7 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
   }
 
   Future<void> _loadMerchants() async {
-    final list = await GageApiClient.getMerchants();
+    final list = await GageApiClient.getFoodMerchants();
     if (!mounted) return;
 
     // Direktori mitra resmi resto Pracimantoro dengan ongkir realistis
@@ -169,11 +184,36 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
       },
     ];
 
+    final resolvedMerchants = list.isNotEmpty
+        ? list
+        : (GageApiClient.useDevSeedData ? fallback : <Map<String, dynamic>>[]);
     setState(() {
-      _merchants = list.isNotEmpty ? list : fallback;
+      _merchants = resolvedMerchants;
       _isLoading = false;
     });
+    if (resolvedMerchants.isNotEmpty) {
+      GageApiClient.prefetchMerchantMenus(resolvedMerchants).then((_) {
+        if (mounted) setState(() {});
+      });
+    }
   }
+
+  static const Map<String, List<String>> _foodCategoryKeywords = {
+    'Nasi': ['nasi', 'goreng', 'geprek', 'paket rocket', 'penyet'],
+    'Mie & Bakso': ['mie', 'bakso', 'pangsit', 'kwetiau'],
+    'Ayam & Bebek': ['ayam', 'bebek', 'fried chicken', 'rocket', 'geprek'],
+    'Cepat Saji': ['cepat saji', 'burger', 'fries', 'fried chicken', 'rocket'],
+    'Jajanan & Dimsum': ['jajanan', 'dimsum', 'siomay', 'mentai', 'cimol'],
+    'Sate & Bakaran': ['sate', 'tongseng', 'gule', 'bakar'],
+    'Seblak & Pedas': ['seblak', 'pedas', 'cimol', 'bojot'],
+    'Minuman Segar': ['minuman', 'es teh', 'jus', 'boba', 'segar'],
+    'Kopi & Teh': ['kopi', 'teh', 'espresso', 'aren', 'matcha'],
+    'Martabak': ['martabak'],
+    'Roti & Bakery': ['roti', 'bakery', 'gembong', 'cokelat', 'keju'],
+    'Seafood & Ikan': ['seafood', 'ikan', 'cumi', 'udang'],
+    'Soto & Sop': ['soto', 'sop', 'kaldu'],
+    'Masakan Padang': ['padang', 'rendang'],
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -212,10 +252,12 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Kategori Kuliner Bulat ("Kuliner sesuai seleramu")
-                          _buildCulinaryCategoriesSection(),
-
-                          const SizedBox(height: 20),
+                          if (_searchQuery.trim().isEmpty) ...[
+                            // Kategori Kuliner Bulat ("Kuliner sesuai seleramu")
+                            _buildCulinaryCategoriesSection(),
+                            const SizedBox(height: 20),
+                          ] else
+                            _buildSearchResultsHeader(),
 
                           // Horizontal Filter Chips
                           _buildFilterChips(),
@@ -497,6 +539,56 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
     );
   }
 
+  List<Map<String, dynamic>> _computeFilteredMerchants() {
+    final filtered = _merchants.where((m) {
+      final matchesSearch = ServiceDirectoryHelper.matchesMerchantSearch(m, _searchQuery);
+      final matchesCat = ServiceDirectoryHelper.matchesCategoryKeywords(
+        m,
+        _selectedCategory,
+        _foodCategoryKeywords,
+      );
+      final matchesFavorite = !_showFavoritesOnly || _favoriteRestoIds.contains(m['id']);
+
+      return matchesSearch && matchesCat && matchesFavorite;
+    }).toList();
+    return ServiceDirectoryHelper.sortMerchants(filtered, _rankingSwitch);
+  }
+
+  Widget _buildSearchResultsHeader() {
+    final count = _computeFilteredMerchants().length;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Text(
+              'Hasil "$_searchQuery" ($count resto)',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold),
+            ),
+          ),
+          InkWell(
+            onTap: () {
+              setState(() {
+                _searchCtrl.clear();
+                _searchQuery = '';
+              });
+            },
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              child: Text(
+                'Reset',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: GageTheme.primary),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMerchantList() {
     if (_isLoading) {
       return ListView.builder(
@@ -508,60 +600,8 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
       );
     }
 
-    // 1. Filter dasar: Search query, category, favorite
-    List<Map<String, dynamic>> filtered = _merchants.where((m) {
-      final name = (m['name'] ?? '').toString().toLowerCase();
-      final cat = (m['category'] ?? '').toString().toLowerCase();
-      final q = _searchQuery.toLowerCase();
-      final matchesSearch = name.contains(q) || cat.contains(q);
-
-      final matchesCat = _selectedCategory == 'Semua' ||
-          name.contains(_selectedCategory.toLowerCase()) ||
-          cat.contains(_selectedCategory.toLowerCase());
-
-      final matchesFavorite = !_showFavoritesOnly || _favoriteRestoIds.contains(m['id']);
-
-      return matchesSearch && matchesCat && matchesFavorite;
-    }).toList();
-
-    // 2. Terapkan Ranking Switch (_rankingSwitch)
-    switch (_rankingSwitch) {
-      case 'Terlaris':
-        filtered.sort((a, b) {
-          final countA = int.tryParse((a['ratingCount'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-          final countB = int.tryParse((b['ratingCount'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-          return countB.compareTo(countA);
-        });
-        break;
-
-      case 'Top Rating':
-        filtered.sort((a, b) {
-          final ratingA = (a['rating'] is num) ? (a['rating'] as num).toDouble() : double.tryParse(a['rating']?.toString() ?? '') ?? 0.0;
-          final ratingB = (b['rating'] is num) ? (b['rating'] as num).toDouble() : double.tryParse(b['rating']?.toString() ?? '') ?? 0.0;
-          return ratingB.compareTo(ratingA);
-        });
-        break;
-
-      case 'Terdekat':
-        filtered.sort((a, b) {
-          final distA = double.tryParse((a['distance'] ?? '').toString().replaceAll(RegExp(r'[^0-9.]'), '')) ?? 99.0;
-          final distB = double.tryParse((b['distance'] ?? '').toString().replaceAll(RegExp(r'[^0-9.]'), '')) ?? 99.0;
-          return distA.compareTo(distB);
-        });
-        break;
-
-      case 'Rekomendasi':
-      default:
-        filtered.sort((a, b) {
-          final isSponsoredA = a['isSponsored'] == true || a['tier'] == 'exclusive' ? 1 : 0;
-          final isSponsoredB = b['isSponsored'] == true || b['tier'] == 'exclusive' ? 1 : 0;
-          if (isSponsoredB != isSponsoredA) return isSponsoredB.compareTo(isSponsoredA);
-          final ratingA = (a['rating'] is num) ? (a['rating'] as num).toDouble() : double.tryParse(a['rating']?.toString() ?? '') ?? 0.0;
-          final ratingB = (b['rating'] is num) ? (b['rating'] as num).toDouble() : double.tryParse(b['rating']?.toString() ?? '') ?? 0.0;
-          return ratingB.compareTo(ratingA);
-        });
-        break;
-    }
+    // 1. Filter dasar: Search query (toko & katalog menu), category, favorite
+    List<Map<String, dynamic>> filtered = _computeFilteredMerchants();
 
     if (filtered.isEmpty) {
       return Padding(
@@ -644,6 +684,7 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
       isSponsored: tier == 'exclusive',
       campaignBadge: tier == 'exclusive' ? '11.11 RAME RAME' : null,
       promoBadges: promoBadges,
+      matchedProductsLabel: ServiceDirectoryHelper.matchedProductsLabel(m, _searchQuery),
       onTap: () {
         Navigator.push(
           context,

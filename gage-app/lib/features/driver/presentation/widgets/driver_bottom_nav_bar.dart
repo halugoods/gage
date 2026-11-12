@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:gage_app/core/services/notification_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/driver/presentation/driver_screen.dart';
 import 'package:gage_app/features/driver/presentation/driver_activity_screen.dart';
@@ -85,14 +86,20 @@ class DriverBottomNavBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: SafeArea(
         top: false,
-        child: Row(
-          children: [
-            _buildNavItem(context, 0, Icons.navigation_rounded, 'Beranda', isDark: isDark),
-            _buildNavItem(context, 1, Icons.receipt_long_rounded, 'Aktivitas', isDark: isDark),
-            _buildNavItem(context, 2, Icons.account_balance_wallet_rounded, 'Pendapatan', isDark: isDark),
-            _buildNavItem(context, 3, Icons.chat_bubble_rounded, 'Pesan', hasBadge: true, isDark: isDark),
-            _buildNavItem(context, 4, Icons.person_rounded, 'Akun', isDark: isDark),
-          ],
+        child: AnimatedBuilder(
+          animation: NotificationService.instance,
+          builder: (context, _) {
+            final hasUnreadChat = NotificationService.instance.unreadDriverChatCount > 0;
+            return Row(
+              children: [
+                _buildNavItem(context, 0, Icons.navigation_rounded, 'Beranda', isDark: isDark),
+                _buildNavItem(context, 1, Icons.receipt_long_rounded, 'Aktivitas', isDark: isDark),
+                _buildNavItem(context, 2, Icons.account_balance_wallet_rounded, 'Pendapatan', isDark: isDark),
+                _buildNavItem(context, 3, Icons.chat_bubble_rounded, 'Pesan', hasBadge: hasUnreadChat, isDark: isDark),
+                _buildNavItem(context, 4, Icons.person_rounded, 'Akun', isDark: isDark),
+              ],
+            );
+          },
         ),
       ),
     );

@@ -7,7 +7,7 @@ import 'package:intl/intl.dart';
 /// - Sesuai pedoman visual iOS: bersih, modern, proporsional, dan compact
 /// - Background kartu putih dengan rounded corner halus (18 px) dan shadow sangat lembut
 /// - Bagian kiri (Stub):
-///   - Menyatukan background kategori (Diskon, Gratis Ongkir, GAGE Ride, GAGE Car)
+///   - Menyatukan background kategori (Diskon, Gratis Ongkir, GAGE Ride, GAGE Car, GAGE Shop, GAGE Farm, GAGE Build)
 ///   - Efek ticket cutout berupa setengah lingkaran di sisi kiri & takik perforasi atas/bawah
 ///   - Garis perforasi vertikal (dashed divider) pemisah visual stub dan konten
 ///   - HANYA berisi 2 elemen: Icon kategori & Nama kategori tersusun vertikal tepat di tengah
@@ -53,7 +53,12 @@ class GageTicketVoucherCard extends StatelessWidget {
       case 'GAGE Car':
         return isDark ? const Color(0xFF1E1B4B) : const Color(0xFFE0E7FF);
       case 'GAGE Mart':
+      case 'GAGE Shop':
         return isDark ? const Color(0xFF052E16) : const Color(0xFFDCFCE7);
+      case 'GAGE Farm':
+        return isDark ? const Color(0xFF064E3B) : const Color(0xFFD1FAE5);
+      case 'GAGE Build':
+        return isDark ? const Color(0xFF451A03) : const Color(0xFFFEF3C7);
       case 'GAGE Send':
         return isDark ? const Color(0xFF451A03) : const Color(0xFFFFEDD5);
       case 'GAGE Pay':
@@ -70,6 +75,9 @@ class GageTicketVoucherCard extends StatelessWidget {
       'GAGE Ride': Color(0xFF2563EB),
       'GAGE Car': Color(0xFF4F46E5),
       'GAGE Mart': Color(0xFF16A34A),
+      'GAGE Shop': Color(0xFF16A34A),
+      'GAGE Farm': Color(0xFF059669),
+      'GAGE Build': Color(0xFFD97706),
       'GAGE Send': Color(0xFFEA580C),
       'GAGE Pay': Color(0xFFD97706),
     };
@@ -82,13 +90,18 @@ class GageTicketVoucherCard extends StatelessWidget {
     }
     switch (service) {
       case 'GAGE Food':
-        return Icons.percent_rounded;
+        return Icons.restaurant_rounded;
       case 'GAGE Ride':
         return Icons.two_wheeler_rounded;
       case 'GAGE Car':
         return Icons.directions_car_rounded;
       case 'GAGE Mart':
+      case 'GAGE Shop':
         return Icons.storefront_rounded;
+      case 'GAGE Farm':
+        return Icons.agriculture_rounded;
+      case 'GAGE Build':
+        return Icons.handyman_rounded;
       case 'GAGE Send':
         return Icons.inventory_2_rounded;
       case 'GAGE Pay':
@@ -102,13 +115,19 @@ class GageTicketVoucherCard extends StatelessWidget {
     if (type == 'delivery') return 'Gratis\nOngkir';
     switch (service) {
       case 'GAGE Food':
-        return 'Diskon';
+        return 'GAGE\nFood';
       case 'GAGE Ride':
         return 'GAGE\nRide';
       case 'GAGE Car':
         return 'GAGE\nCar';
       case 'GAGE Mart':
         return 'GAGE\nMart';
+      case 'GAGE Shop':
+        return 'GAGE\nShop';
+      case 'GAGE Farm':
+        return 'GAGE\nFarm';
+      case 'GAGE Build':
+        return 'GAGE\nBuild';
       case 'GAGE Send':
         return 'GAGE\nSend';
       case 'GAGE Pay':
@@ -266,15 +285,21 @@ class GageTicketVoucherCard extends StatelessWidget {
                           ),
                         ),
 
-                        // BARIS 2: Informasi Minimum Pembelian
+                        // BARIS 2: Informasi Minimum Pembelian / Status Syarat
                         Text(
-                          minOrderText,
+                          (!isEligible && ineligibilityReason != null && ineligibilityReason!.isNotEmpty)
+                              ? ineligibilityReason!
+                              : minOrderText,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 10.5,
-                            fontWeight: FontWeight.w500,
-                            color: isDark ? Colors.white70 : Colors.grey.shade600,
+                            fontWeight: (!isEligible && ineligibilityReason != null && ineligibilityReason!.isNotEmpty)
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            color: (!isEligible && ineligibilityReason != null && ineligibilityReason!.isNotEmpty)
+                                ? const Color(0xFFB45309)
+                                : (isDark ? Colors.white70 : Colors.grey.shade600),
                           ),
                         ),
 

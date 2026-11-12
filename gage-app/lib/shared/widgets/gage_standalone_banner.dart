@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:gage_app/core/services/banner_manager_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/shared/widgets/gage_tap_scale.dart';
-import 'package:gage_app/features/admin/presentation/widgets/in_place_banner_editor_sheet.dart';
+import 'package:gage_app/shared/widgets/live_app_edit_scope.dart';
 
 /// Widget Standalone Banner Per-Layar untuk Ekosistem GAGE
 /// Terkoneksi langsung ke Cloudflare Edge Cache & D1 melalui [BannerManagerService].
@@ -35,8 +35,7 @@ class GageStandaloneBanner extends StatelessWidget {
         }
 
         final isDark = Theme.of(context).brightness == Brightness.dark;
-        final editScope = LiveAppEditScope.of(context);
-        final isEditMode = editScope != null && editScope.isEditMode;
+        final isEditMode = LiveAppEditScope.isEditModeActive(context);
         final radius = borderRadius ?? BorderRadius.circular(16);
         final isCompact = screenTarget.contains('driver') || screenTarget.contains('merchant');
         final ratio = aspectRatio ?? (isCompact ? (3.0 / 1.0) : (16.0 / 9.0));
@@ -166,7 +165,7 @@ class GageStandaloneBanner extends StatelessWidget {
 
         final effectiveOnTap = isEditMode
             ? () {
-                InPlaceBannerEditorSheet.showConfirmationAndOpen(
+                LiveAppEditScope.triggerEdit(
                   context: context,
                   screenTarget: screenTarget,
                   bannerId: null,

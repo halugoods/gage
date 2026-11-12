@@ -10,6 +10,7 @@ import 'package:gage_app/providers/order_provider.dart';
 import 'package:gage_app/providers/auth_provider.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/core/services/gage_pricing_service.dart';
+import 'package:gage_app/core/services/osrm_routing_service.dart';
 import 'package:gage_app/core/constants/qris_engine.dart';
 import 'package:gage_app/features/orders/presentation/order_tracking_screen.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
@@ -18,6 +19,8 @@ import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 import 'package:gage_app/shared/widgets/mini_location_preview_map.dart';
 import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
 import 'package:gage_app/features/wallet/presentation/gagepay_screen.dart';
+import 'package:gage_app/core/services/merchant_discount_tier_service.dart';
+import 'package:gage_app/data/mock/gage_voucher_data.dart';
 import 'package:gage_app/features/voucher/presentation/voucher_selection_screen.dart';
 
 
@@ -66,6 +69,8 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
   late LatLng _currentDropoffLocation;
   late String _currentPickupAddress;
   late String _currentDropoffAddress;
+  late double _currentDistanceKm;
+  bool _protectShipment = false;
 
   // Selected Payment Method: 'GAGEPAY', 'GAGEPAY_COD', 'GAGEPAY_QRIS', 'QRIS', 'COD'
   String _selectedPaymentMethod = 'GAGEPAY';
@@ -77,6 +82,8 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
   // Voucher Diskon
   String? _appliedVoucherCode;
   int _voucherDiscount = 0;
+  bool _voucherManuallyDismissed = false;
+  bool _isVoucherManualSelection = false;
 
   // Driver notes controller
   final TextEditingController _noteController = TextEditingController();
@@ -91,15 +98,62 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
     _currentDropoffLocation = widget.dropoffLocation;
     _currentPickupAddress = widget.pickupAddress;
     _currentDropoffAddress = widget.dropoffAddress;
+    _currentDistanceKm = widget.distanceKm;
 
-    // Set initial tier
-    if (widget.serviceType == 'send') {
-      _selectedTier = 'INSTANT';
-    } else {
-      _selectedTier = widget.rideOption.toLowerCase().contains('hemat') ? 'HEMAT' : 'REGULER';
-    }
+    // Set initial tier matching REGULER / HEMAT radio options
+    final lowerOpt = widget.rideOption.toLowerCase();
+    _selectedTier = (lowerOpt.contains('hemat') || lowerOpt.contains('sameday')) ? 'HEMAT' : 'REGULER';
 
     _loadPaymentPreference();
+    _syncAutoDeliveryVoucher(notify: false);
+  }
+
+  void _syncAutoDeliveryVoucher({bool notify = true}) {
+    bool changed = false;
+    final currentFare = _tierBaseFare;
+
+    if (_appliedVoucherCode != null) {
+      final current = GageVoucherData.findByCode(_appliedVoucherCode!);
+      if (current != null) {
+        final minOrder = (current['minOrder'] as num?)?.toInt() ?? 0;
+        if (currentFare < minOrder) {
+          _appliedVoucherCode = null;
+          _voucherDiscount = 0;
+          _isVoucherManualSelection = false;
+          changed = true;
+        } else {
+          final clamped = _voucherDiscount.clamp(0, currentFare);
+          if (clamped != _voucherDiscount) {
+            _voucherDiscount = clamped;
+            changed = true;
+          }
+        }
+      }
+    }
+
+    if (widget.serviceType == 'send' && !_voucherManuallyDismissed && !_isVoucherManualSelection) {
+      final best = GageVoucherData.bestEligibleDeliveryVoucher(
+        serviceType: 'send',
+        subtotal: currentFare,
+      );
+      if (best != null) {
+        final nextCode = best['code'] as String;
+        final nextDiscount = ((best['discountAmount'] as num?)?.toInt() ?? 0).clamp(0, currentFare);
+        if (_appliedVoucherCode != nextCode || _voucherDiscount != nextDiscount) {
+          _appliedVoucherCode = nextCode;
+          _voucherDiscount = nextDiscount;
+          changed = true;
+        }
+      } else if (_appliedVoucherCode != null) {
+        _appliedVoucherCode = null;
+        _voucherDiscount = 0;
+        changed = true;
+      }
+    }
+
+    if (notify && changed && mounted) {
+      setState(() {});
+    }
   }
 
   @override
@@ -140,35 +194,29 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
   int _calculateTierFare(String tier) {
     final isCar = widget.serviceType == 'car';
     final isHemat = tier == 'HEMAT';
-    final dist = widget.distanceKm;
-
-    if (isCar) {
-      final base = isHemat ? 14000 : 16000;
-      final perKm = isHemat ? 4000 : 5000;
-      if (dist <= 2.0) return base;
-      final raw = base + ((dist - 2.0) * perKm);
-      return GagePricingService.roundUpTo500(raw.round());
-    } else {
-      // Ride dan Send
-      final base = isHemat ? 8000 : 10000;
-      final perKm = isHemat ? 4000 : 5000;
-      if (dist <= 2.0) return base;
-      final raw = base + ((dist - 2.0) * perKm);
-      return GagePricingService.roundUpTo500(raw.round());
-    }
+    final service = isCar
+        ? (isHemat ? 'car_hemat' : 'car_reguler')
+        : (isHemat ? 'hemat' : 'reguler');
+    return GagePricingService.calculateCustomerRideFare(
+      serviceType: service,
+      distanceKm: _currentDistanceKm,
+    );
   }
 
-  int get _adminFee => 1000;
+  int get _adminFee => GagePricingService.calculateAdminFee(paymentMethod: _selectedPaymentMethod);
+
+  int get _protectionFee => (widget.serviceType == 'send' && _protectShipment) ? 1000 : 0;
 
   int get _totalAmount {
-    final raw = _tierBaseFare - _voucherDiscount + _adminFee + _driverTip;
+    final effectiveDiscount = _voucherDiscount.clamp(0, _tierBaseFare);
+    final raw = _tierBaseFare - effectiveDiscount + _adminFee + _protectionFee + _driverTip;
     return raw.clamp(0, 99999999);
   }
 
   // Realistic estimates for Pracimantoro hills
   Map<String, int> get _realisticEstimates {
     final isCar = widget.serviceType == 'car';
-    final dist = widget.distanceKm;
+    final dist = _currentDistanceKm;
 
     int pickupMins = isCar ? 6 : 4;
     if (_selectedTier == 'PRIORITAS') pickupMins = (pickupMins * 0.6).round().clamp(2, 5);
@@ -199,21 +247,33 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
   }
 
   Future<void> _openVoucherSelection() async {
-    final result = await Navigator.push<Map<String, dynamic>>(
+    await Navigator.push<void>(
       context,
       MaterialPageRoute(
         builder: (ctx) => VoucherSelectionScreen(
           serviceType: widget.serviceType,
           initialTabIndex: 0,
+          initialAppliedCode: _appliedVoucherCode,
+          currentSubtotal: _tierBaseFare,
+          onSelectionChanged: (result) {
+            if (!mounted) return;
+            setState(() {
+              if (result == null) {
+                _appliedVoucherCode = null;
+                _voucherDiscount = 0;
+                _voucherManuallyDismissed = true;
+                _isVoucherManualSelection = false;
+              } else {
+                _appliedVoucherCode = result['code'] as String?;
+                _voucherDiscount = ((result['discount'] as num?)?.toInt() ?? 0).clamp(0, _tierBaseFare);
+                _voucherManuallyDismissed = false;
+                _isVoucherManualSelection = true;
+              }
+            });
+          },
         ),
       ),
     );
-    if (result != null && mounted) {
-      setState(() {
-        _appliedVoucherCode = result['code'] as String?;
-        _voucherDiscount = (result['discount'] as num?)?.toInt() ?? 0;
-      });
-    }
   }
 
   void _showPaymentMethodSheet(BuildContext context, WalletProvider wallet) {
@@ -591,7 +651,7 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
 
     String itemName = 'Layanan Antar Jemput Motor ($_selectedTier)';
     if (isCar) itemName = 'Layanan Mobil Penumpang ($_selectedTier)';
-    if (isSend) itemName = 'Pengiriman Paket Instant ($_selectedTier)';
+    if (isSend) itemName = 'Pengiriman Paket GAGE Send ($_selectedTier)';
 
     final orderData = {
       'id': invoiceNumber,
@@ -605,10 +665,15 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
       'pickup_lng': _currentPickupLocation.longitude,
       'destination_lat': _currentDropoffLocation.latitude,
       'destination_lng': _currentDropoffLocation.longitude,
-      'distance_km': widget.distanceKm,
+      'distance_km': _currentDistanceKm,
       'payment_method': _selectedPaymentMethod,
       'fare_amount': _tierBaseFare,
       'admin_fee': _adminFee,
+      'protection_fee': _protectionFee,
+      if (isSend) 'recipient_name': widget.recipientName,
+      if (isSend) 'recipient_phone': widget.recipientPhone,
+      if (isSend) 'package_type': widget.packageType,
+      if (isSend) 'weight_tier': widget.weightTier,
       'discount_amount': _voucherDiscount,
       'voucher_code': _appliedVoucherCode,
       'tip_amount': _driverTip,
@@ -653,7 +718,12 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
       context,
       title: isDropoff ? 'Ubah Alamat Pengantaran' : 'Ubah Titik Jemput',
       initialLocation: isDropoff ? _currentDropoffLocation : _currentPickupLocation,
-      onSelected: (title, fullAddress, latLng) {
+      onSelected: (title, fullAddress, latLng) async {
+        final fallbackKm = const Distance().as(
+          LengthUnit.Kilometer,
+          isDropoff ? _currentPickupLocation : latLng,
+          isDropoff ? latLng : _currentDropoffLocation,
+        );
         setState(() {
           if (isDropoff) {
             _currentDropoffLocation = latLng;
@@ -662,26 +732,46 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
             _currentPickupLocation = latLng;
             _currentPickupAddress = fullAddress;
           }
+          if (fallbackKm > 0) {
+            _currentDistanceKm = fallbackKm;
+          }
+          _syncAutoDeliveryVoucher(notify: false);
         });
+
+        try {
+          final route = await OsrmRoutingService.getRoute(
+            _currentPickupLocation,
+            _currentDropoffLocation,
+          );
+          if (mounted && route.distanceKm > 0) {
+            setState(() {
+              _currentDistanceKm = route.distanceKm;
+              _syncAutoDeliveryVoucher(notify: false);
+            });
+          }
+        } catch (_) {}
       },
     );
   }
 
   Widget _buildTipChip(int amount, String label) {
     final isSelected = _driverTip == amount;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return InkWell(
       onTap: () {
-        HapticFeedback.lightImpact();
+        HapticFeedback.selectionClick();
         setState(() => _driverTip = amount);
       },
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(999),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
-          color: isSelected ? GageTheme.primary.withValues(alpha: 0.1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
+          color: isSelected ? GageTheme.primary.withValues(alpha: 0.12) : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: isSelected ? GageTheme.primary : const Color(0xFFE2E8F0),
+            color: isSelected
+                ? GageTheme.primary
+                : (isDark ? Colors.white24 : const Color(0xFFE2E8F0)),
             width: isSelected ? 1.5 : 1.0,
           ),
         ),
@@ -690,7 +780,9 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
           style: TextStyle(
             fontSize: 12,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-            color: isSelected ? GageTheme.primary : Colors.black87,
+            color: isSelected
+                ? GageTheme.primary
+                : (isDark ? Colors.white70 : Colors.black87),
           ),
         ),
       ),
@@ -817,12 +909,16 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                                     children: [
                                       Row(
                                         children: [
-                                          Text(
-                                            isSend ? 'Alamat Pengantaran' : 'Titik Tujuan',
-                                            style: TextStyle(
+                                          Flexible(
+                                            child: Text(
+                                              isSend ? 'Alamat Pengantaran' : 'Titik Tujuan',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
                                               fontSize: 14,
                                               fontWeight: FontWeight.bold,
                                               color: isDark ? Colors.white : Colors.black87,
+                                            ),
                                             ),
                                           ),
                                           const SizedBox(width: 8),
@@ -999,7 +1095,7 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                                       Text(
                                         isSend
                                             ? 'Penerima: ${widget.recipientName ?? "Penerima"} (${widget.recipientPhone ?? "-"}) • ${widget.packageType ?? "Barang"} (${widget.weightTier ?? "<1kg"})'
-                                            : 'Jarak ${widget.distanceKm.toStringAsFixed(1)} km • 1 Penumpang • Est. ~${_realisticEstimates["trip"] ?? 10} mnt',
+                                            : 'Jarak ${_currentDistanceKm.toStringAsFixed(1)} km • 1 Penumpang • Est. ~${_realisticEstimates["trip"] ?? 10} mnt',
                                         style: TextStyle(
                                           fontSize: 11,
                                           color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
@@ -1036,85 +1132,56 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                                 ),
                               ],
                             ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 14),
-
-                      // =========================================================
-                      // 4. BERI TIP UNTUK DRIVER (Matching Image 2)
-                      // =========================================================
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: cardColor,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: cardBorder),
-                          boxShadow: cardShadow,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFFEF3C7),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Icon(Icons.favorite_rounded, color: Color(0xFFD97706), size: 16),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Beri Tip untuk Driver?',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                          color: isDark ? Colors.white : Colors.black87,
-                                        ),
-                                      ),
-                                      Text(
-                                        '100% tip apresiasi diserahkan penuh ke driver',
-                                        style: TextStyle(
-                                          fontSize: 10.5,
-                                          color: isDark ? Colors.white60 : Colors.grey.shade600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                if (_driverTip > 0)
-                                  Text(
-                                    currencyFormatter.format(_driverTip),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 13,
-                                      color: GageTheme.primary,
+                            if (isSend) ...[
+                              const Divider(height: 20),
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF0D9488).withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: const Icon(
+                                      Icons.verified_user_rounded,
+                                      color: Color(0xFF0D9488),
+                                      size: 16,
                                     ),
                                   ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: [
-                                  _buildTipChip(0, 'Tanpa Tip'),
-                                  const SizedBox(width: 8),
-                                  _buildTipChip(2000, '+Rp 2.000'),
-                                  const SizedBox(width: 8),
-                                  _buildTipChip(5000, '+Rp 5.000'),
-                                  const SizedBox(width: 8),
-                                  _buildTipChip(10000, '+Rp 10.000'),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Proteksi Pengiriman Barang',
+                                          style: TextStyle(
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.bold,
+                                            color: isDark ? Colors.white : Colors.black87,
+                                          ),
+                                        ),
+                                        Text(
+                                          'Perlindungan barang rusak/hilang (+Rp 1.000)',
+                                          style: TextStyle(
+                                            fontSize: 10.5,
+                                            color: isDark ? Colors.white60 : Colors.grey.shade600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Switch.adaptive(
+                                    value: _protectShipment,
+                                    activeTrackColor: GageTheme.primary,
+                                    onChanged: (val) {
+                                      HapticFeedback.selectionClick();
+                                      setState(() => _protectShipment = val);
+                                    },
+                                  ),
                                 ],
                               ),
-                            ),
+                            ],
                           ],
                         ),
                       ),
@@ -1122,7 +1189,7 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                       const SizedBox(height: 14),
 
                       // =========================================================
-                      // 5. VOUCHER & DISKON PROMO CARD (1:1 with Food / Shop / Farm / Build)
+                      // 4. VOUCHER & DISKON PROMO CARD (1:1 with Food / Shop / Farm / Build)
                       // =========================================================
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -1155,7 +1222,10 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                               ),
                               const SizedBox(width: 10),
                               Expanded(
-                                child: Row(
+                                child: Wrap(
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  spacing: 6,
+                                  runSpacing: 4,
                                   children: [
                                     Text(
                                       'Voucher',
@@ -1165,24 +1235,53 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                                         color: isDark ? Colors.white : Colors.black87,
                                       ),
                                     ),
-                                    const SizedBox(width: 8),
-                                    if (_appliedVoucherCode != null && _voucherDiscount > 0) ...[
+                                    if (_appliedVoucherCode != null && _voucherDiscount > 0)
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                         decoration: BoxDecoration(
                                           color: const Color(0xFF0D9488).withValues(alpha: 0.12),
                                           borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          '$_appliedVoucherCode (-${currencyFormatter.format(_voucherDiscount)})',
-                                          style: const TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
-                                            color: Color(0xFF0D9488),
+                                          border: Border.all(
+                                            color: const Color(0xFF0D9488).withValues(alpha: 0.35),
+                                            width: 1.0,
                                           ),
                                         ),
-                                      ),
-                                    ] else ...[
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Flexible(
+                                              child: Text(
+                                                '-${MerchantDiscountTierService.formatRb(_voucherDiscount.clamp(0, _tierBaseFare))}',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Color(0xFF0D9488),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            GestureDetector(
+                                              behavior: HitTestBehavior.opaque,
+                                              onTap: () {
+                                                setState(() {
+                                                  _appliedVoucherCode = null;
+                                                  _voucherDiscount = 0;
+                                                  _voucherManuallyDismissed = true;
+                                                  _isVoucherManualSelection = false;
+                                                });
+                                              },
+                                              child: const Icon(
+                                                Icons.close_rounded,
+                                                size: 13,
+                                                color: Color(0xFF0D9488),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      )
+                                    else
                                       Text(
                                         'Gunakan / masukkan kode',
                                         style: TextStyle(
@@ -1190,26 +1289,12 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                                           color: isDark ? Colors.white60 : Colors.grey.shade500,
                                         ),
                                       ),
-                                    ],
                                   ],
                                 ),
                               ),
-                              if (_appliedVoucherCode != null)
-                                GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      _appliedVoucherCode = null;
-                                      _voucherDiscount = 0;
-                                    });
-                                  },
-                                  child: const Padding(
-                                    padding: EdgeInsets.symmetric(horizontal: 4),
-                                    child: Icon(Icons.close_rounded, size: 18, color: Colors.grey),
-                                  ),
-                                ),
-                              const Icon(
+                              Icon(
                                 Icons.chevron_right_rounded,
-                                color: Colors.black45,
+                                color: isDark ? Colors.white38 : Colors.black45,
                                 size: 20,
                               ),
                             ],
@@ -1220,7 +1305,7 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                       const SizedBox(height: 14),
 
                       // =========================================================
-                      // 6. METODE PEMBAYARAN CARD (In-Page Tile + Deficit Box Image 3)
+                      // 5. METODE PEMBAYARAN CARD (In-Page Tile + Deficit Box Image 3)
                       // =========================================================
                       Container(
                         padding: const EdgeInsets.all(14),
@@ -1364,9 +1449,11 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                               Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFFEF2F2),
+                                  color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEF2F2),
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: const Color(0xFFFECACA)),
+                                  border: Border.all(
+                                    color: isDark ? const Color(0xFF991B1B) : const Color(0xFFFECACA),
+                                  ),
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1374,15 +1461,24 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                                     Row(
                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       children: [
-                                        Row(
-                                          children: [
-                                            const Icon(Icons.info_outline_rounded, color: Color(0xFFDC2626), size: 16),
-                                            const SizedBox(width: 6),
-                                            Text(
-                                              'Saldo GAGEPay kurang ${currencyFormatter.format(_totalAmount - wallet.balance)}',
-                                              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF991B1B)),
-                                            ),
-                                          ],
+                                        Flexible(
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.info_outline_rounded, color: Color(0xFFDC2626), size: 16),
+                                              const SizedBox(width: 6),
+                                              Flexible(
+                                                child: Text(
+                                                  'Saldo GAGEPay kurang ${currencyFormatter.format(_totalAmount - wallet.balance)}',
+                                                  style: TextStyle(
+                                                    fontSize: 11.5,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                         InkWell(
                                           onTap: () async {
@@ -1461,7 +1557,7 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                       const SizedBox(height: 14),
 
                       // =========================================================
-                      // 7. RINGKASAN PEMBAYARAN (Matching Image 2)
+                      // 6. RINGKASAN PEMBAYARAN (Matching Image 2)
                       // =========================================================
                       Padding(
                         padding: const EdgeInsets.only(top: 8, bottom: 8),
@@ -1495,6 +1591,14 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                               currencyFormatter.format(_adminFee),
                               isDark: isDark,
                             ),
+                            if (_protectionFee > 0) ...[
+                              const SizedBox(height: 8),
+                              _buildSummaryRow(
+                                'Proteksi Pengiriman Barang',
+                                currencyFormatter.format(_protectionFee),
+                                isDark: isDark,
+                              ),
+                            ],
                             if (_voucherDiscount > 0) ...[
                               const SizedBox(height: 8),
                               _buildSummaryRow(
@@ -1541,6 +1645,86 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                           ],
                         ),
                       ),
+
+                      const SizedBox(height: 14),
+
+                      // =========================================================
+                      // 7. BERI TIP UNTUK DRIVER (Matching Image 2)
+                      // =========================================================
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: cardColor,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: cardBorder),
+                          boxShadow: cardShadow,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFEF3C7),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Icon(Icons.favorite_rounded, color: Color(0xFFD97706), size: 16),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Beri Tip untuk Driver?',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                          color: isDark ? Colors.white : Colors.black87,
+                                        ),
+                                      ),
+                                      Text(
+                                        '100% tip apresiasi diserahkan penuh ke driver',
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          color: isDark ? Colors.white60 : Colors.grey.shade600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (_driverTip > 0)
+                                  Text(
+                                    currencyFormatter.format(_driverTip),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 13,
+                                      color: GageTheme.primary,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  _buildTipChip(0, 'Tanpa Tip'),
+                                  const SizedBox(width: 8),
+                                  _buildTipChip(2000, '+Rp 2.000'),
+                                  const SizedBox(width: 8),
+                                  _buildTipChip(5000, '+Rp 5.000'),
+                                  const SizedBox(width: 8),
+                                  _buildTipChip(10000, '+Rp 10.000'),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
 
                       const SizedBox(height: 20),
                     ],
@@ -1599,7 +1783,10 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
     return InkWell(
       onTap: () {
         HapticFeedback.lightImpact();
-        setState(() => _selectedTier = id);
+        setState(() {
+          _selectedTier = id;
+          _syncAutoDeliveryVoucher(notify: false);
+        });
       },
       borderRadius: BorderRadius.circular(12),
       child: Padding(

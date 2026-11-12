@@ -20,6 +20,19 @@ class NotificationScreen extends StatefulWidget {
 
 class _NotificationScreenState extends State<NotificationScreen> {
   final Set<String> _expandedNotifIds = {};
+  final Set<String> _sessionUnreadIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _sessionUnreadIds.addAll(
+      NotificationService.instance.items.where((n) => !n.isRead).map((n) => n.id),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      NotificationService.instance.markAllAsRead();
+    });
+  }
 
   String _formatTime(DateTime time) {
     final now = DateTime.now();
@@ -95,10 +108,11 @@ class _NotificationScreenState extends State<NotificationScreen> {
               ),
             ),
             actions: [
-              if (notifService.hasUnread)
+              if (notifService.hasUnread || _sessionUnreadIds.isNotEmpty)
                 TextButton.icon(
                   onPressed: () {
                     notifService.markAllAsRead();
+                    setState(() => _sessionUnreadIds.clear());
                     GageToast.show(context, 'Semua notifikasi ditandai telah dibaca', type: GageToastType.success);
                   },
                   icon: const Icon(Icons.done_all_rounded, size: 16, color: GageTheme.primary),
@@ -151,6 +165,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
       separatorBuilder: (context, index) => const SizedBox(height: 10),
       itemBuilder: (context, idx) {
         final notif = allNotifs[idx];
+        final isUnread = !notif.isRead || _sessionUnreadIds.contains(notif.id);
         final isExpanded = _expandedNotifIds.contains(notif.id);
         final color = _getTypeColor(notif.type);
         final icon = _getTypeIcon(notif.type);
@@ -174,14 +189,14 @@ class _NotificationScreenState extends State<NotificationScreen> {
           child: Container(
             decoration: BoxDecoration(
               color: isDark
-                  ? (notif.isRead ? GageTheme.darkSurface : const Color(0xFF1E293B))
-                  : (notif.isRead ? Colors.white : const Color(0xFFFFF7ED)),
+                  ? (!isUnread ? GageTheme.darkSurface : const Color(0xFF1E293B))
+                  : (!isUnread ? Colors.white : const Color(0xFFFFF7ED)),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: notif.isRead
+                color: !isUnread
                     ? (isDark ? Colors.white10 : Colors.grey.shade200)
                     : GageTheme.primary.withValues(alpha: 0.35),
-                width: notif.isRead ? 0.8 : 1.2,
+                width: !isUnread ? 0.8 : 1.2,
               ),
               boxShadow: [
                 BoxShadow(
@@ -200,6 +215,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     notifService.markAsRead(notif.id);
                   }
                   setState(() {
+                    _sessionUnreadIds.remove(notif.id);
                     if (isExpanded) {
                       _expandedNotifIds.remove(notif.id);
                     } else {
@@ -233,7 +249,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                   child: Text(
                                     notif.title,
                                     style: TextStyle(
-                                      fontWeight: notif.isRead ? FontWeight.bold : FontWeight.w900,
+                                      fontWeight: !isUnread ? FontWeight.bold : FontWeight.w900,
                                       fontSize: 13.5,
                                       color: isDark ? Colors.white : const Color(0xFF0F172A),
                                     ),
@@ -263,7 +279,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                               maxLines: isExpanded ? 10 : 2,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            if (!notif.isRead) ...[
+                            if (isUnread) ...[
                               const SizedBox(height: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),

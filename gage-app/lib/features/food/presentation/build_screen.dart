@@ -9,9 +9,12 @@ import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
 import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
 import 'package:gage_app/shared/widgets/seamless_floating_cart_bar.dart';
 import 'package:gage_app/shared/widgets/gage_cart_sheet.dart';
+import 'package:gage_app/core/network/gage_api_client.dart';
+import 'package:gage_app/core/services/banner_manager_service.dart';
+import 'package:gage_app/features/food/data/service_directory_helper.dart';
+import 'package:gage_app/features/food/presentation/shop_favorite_screen.dart';
 import 'package:gage_app/providers/cart_provider.dart';
 import 'package:gage_app/shared/widgets/gage_service_header.dart';
-import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 import 'package:gage_app/shared/widgets/gage_merchant_card.dart';
 
@@ -36,17 +39,30 @@ class _BuildScreenState extends State<BuildScreen> {
   bool _isLoading = true;
   String _deliveryLocation = 'Mendeteksi titik GPS Anda...';
   final Set<String> _favoriteStoreIds = {'build-sumber-bangunan'};
+  List<Map<String, dynamic>> _stores = [];
+
+  static const Map<String, List<String>> _categoryKeywords = {
+    'Semen & Pasir': ['semen', 'pasir', 'bata', 'gresik', 'tiga roda', 'muntilan'],
+    'Cat & Thinner': ['cat', 'thinner', 'dulux', 'avian', 'nippon', 'finish'],
+    'Besi & Baja': ['besi', 'baja', 'beton', 'bendrat', 'canal', 'reng', 'sni'],
+    'Pipa & Keran': ['pipa', 'keran', 'kran', 'pvc', 'wavin', 'rucika', 'sanitasi', 'sanitari', 'onda'],
+    'Alat Tukang': ['alat', 'tukang', 'pertukangan', 'palu', 'gergaji', 'bor', 'kuas', 'meteran', 'paku'],
+    'Keramik Lantai': ['keramik', 'granit', 'lantai', 'roman', 'marmer'],
+    'Kayu & Triplek': ['kayu', 'triplek', 'multiplek', 'kaso', 'usuk', 'meranti'],
+    'Kelistrikan': ['listrik', 'kelistrikan', 'kabel', 'eterna', 'saklar', 'stop kontak', 'panasonic'],
+    'Atap & Genteng': ['atap', 'genteng', 'spandek', 'galvalum', 'baja ringan'],
+  };
 
   final List<Map<String, dynamic>> _categoriesData = [
-    {'name': 'Semen & Pasir', 'image': 'assets/images/prod_beras.png', 'icon': Icons.foundation_rounded},
-    {'name': 'Cat & Thinner', 'image': 'assets/images/hero_promo_1.png', 'icon': Icons.format_paint_rounded},
-    {'name': 'Besi & Baja', 'image': 'assets/images/prod_traktor.png', 'icon': Icons.hardware_rounded},
-    {'name': 'Pipa & Keran', 'image': 'assets/images/hero_promo_2.png', 'icon': Icons.plumbing_rounded},
-    {'name': 'Alat Tukang', 'image': 'assets/images/prod_traktor.png', 'icon': Icons.construction_rounded},
-    {'name': 'Keramik Lantai', 'image': 'assets/images/hero_promo_1.png', 'icon': Icons.grid_view_rounded},
-    {'name': 'Kayu & Triplek', 'image': 'assets/images/hero_header_clean_16x9.png', 'icon': Icons.carpenter_rounded},
-    {'name': 'Kelistrikan', 'image': 'assets/images/banner_gagepay_promo.png', 'icon': Icons.electrical_services_rounded},
-    {'name': 'Atap & Genteng', 'image': 'assets/images/babe_hero_banner.png', 'icon': Icons.roofing_rounded},
+    {'name': 'Semen & Pasir', 'image': 'assets/images/prod_semen.png', 'icon': Icons.foundation_rounded},
+    {'name': 'Cat & Thinner', 'image': 'assets/images/prod_cat.png', 'icon': Icons.format_paint_rounded},
+    {'name': 'Besi & Baja', 'image': 'assets/images/prod_besi.png', 'icon': Icons.hardware_rounded},
+    {'name': 'Pipa & Keran', 'image': '', 'icon': Icons.plumbing_rounded},
+    {'name': 'Alat Tukang', 'image': '', 'icon': Icons.construction_rounded},
+    {'name': 'Keramik Lantai', 'image': '', 'icon': Icons.grid_view_rounded},
+    {'name': 'Kayu & Triplek', 'image': '', 'icon': Icons.carpenter_rounded},
+    {'name': 'Kelistrikan', 'image': '', 'icon': Icons.electrical_services_rounded},
+    {'name': 'Atap & Genteng', 'image': '', 'icon': Icons.roofing_rounded},
   ];
 
   String _formatShortAddress(String addr) {
@@ -123,15 +139,46 @@ class _BuildScreenState extends State<BuildScreen> {
   @override
   void initState() {
     super.initState();
+    _stores = GageApiClient.useDevSeedData
+        ? List<Map<String, dynamic>>.from(_buildStores)
+        : [];
     _initDeliveryLocation();
     _loadStores();
   }
 
   Future<void> _loadStores() async {
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 280));
+    final apiStores = await GageApiClient.getBuildMerchants();
+    final effectiveStores = apiStores.isNotEmpty
+        ? apiStores
+        : (GageApiClient.useDevSeedData ? _buildStores : <Map<String, dynamic>>[]);
+    await _syncFavoriteStatuses(effectiveStores);
     if (mounted) {
-      setState(() => _isLoading = false);
+      setState(() {
+        _stores = effectiveStores;
+        _isLoading = false;
+      });
+      if (effectiveStores.isNotEmpty) {
+        GageApiClient.prefetchMerchantMenus(effectiveStores).then((_) {
+          if (mounted) setState(() {});
+        });
+      }
+    }
+  }
+
+  Future<void> _syncFavoriteStatuses(List<Map<String, dynamic>> stores) async {
+    final nextFavs = await ServiceDirectoryHelper.loadFavoriteIds(
+      stores,
+      defaultSeedIds: GageApiClient.useDevSeedData
+          ? const {'build-sumber-bangunan', 'build-sumber-abadi'}
+          : const {},
+    );
+    if (mounted) {
+      setState(() {
+        _favoriteStoreIds
+          ..clear()
+          ..addAll(nextFavs);
+      });
     }
   }
 
@@ -144,30 +191,44 @@ class _BuildScreenState extends State<BuildScreen> {
 
   Future<void> _initDeliveryLocation() async {
     try {
+      final cart = Provider.of<CartProvider?>(context, listen: false);
+      if (cart != null && cart.hasCustomDeliveryLocation && cart.deliveryAddress.isNotEmpty) {
+        if (!mounted) return;
+        setState(() => _deliveryLocation = cart.deliveryAddress);
+        return;
+      }
       final gps = await LocationService.getCurrentLocation();
       final addr = await OsmGeocodingService.reverseGeocode(gps);
-      if (mounted && addr.isNotEmpty) {
-        setState(() {
-          _deliveryLocation = addr;
-        });
+      final fullAddr = OsmGeocodingService.formatFullOfficialAddress(gps);
+      if (!mounted) return;
+      if (addr.isNotEmpty) {
+        setState(() => _deliveryLocation = addr);
+      }
+      if (cart != null && !cart.hasCustomDeliveryLocation) {
+        cart.setDeliveryAddress(fullAddr, cart.distanceKm, location: gps);
       }
     } catch (_) {}
   }
 
   void _showDeliveryLocationPicker() {
+    final cart = Provider.of<CartProvider?>(context, listen: false);
     LocationPickerSheet.show(
       context,
       title: 'Pilih Lokasi Pengantaran Bahan Bangunan',
+      initialLocation: cart?.deliveryLocation,
       onSelected: (title, fullAddress, latLng) {
+        final resolved = fullAddress.isNotEmpty ? fullAddress : title;
         setState(() {
           _deliveryLocation = '$title - $fullAddress';
         });
+        cart?.setDeliveryAddress(resolved, cart.distanceKm, location: latLng);
       },
     );
   }
 
-  void _toggleFavorite(String storeId, [String? storeName]) {
+  Future<void> _toggleFavorite(String storeId, [String? storeName]) async {
     final isFav = _favoriteStoreIds.contains(storeId);
+    final nextVal = !isFav;
     setState(() {
       if (isFav) {
         _favoriteStoreIds.remove(storeId);
@@ -175,62 +236,30 @@ class _BuildScreenState extends State<BuildScreen> {
         _favoriteStoreIds.add(storeId);
       }
     });
-    GageToast.show(
-      context,
-      !isFav
-          ? '${storeName ?? "Toko"} ditambahkan ke favorit!'
-          : '${storeName ?? "Toko"} dihapus dari favorit',
-      type: !isFav ? GageToastType.success : GageToastType.info,
-    );
+    await ServiceDirectoryHelper.persistFavoriteStatus(storeId, nextVal);
   }
 
   List<Map<String, dynamic>> get _filteredStores {
-    final filtered = _buildStores.where((s) {
-      final name = s['name'].toString().toLowerCase();
-      final cat = s['category'].toString().toLowerCase();
-      final q = _searchQuery.toLowerCase();
-      final matchesQuery = q.isEmpty || name.contains(q) || cat.contains(q);
-
-      if (!matchesQuery) return false;
-
-      if (_selectedCategory == 'Semua') return true;
-      return cat.toLowerCase().contains(_selectedCategory.toLowerCase());
+    final source = _stores.isNotEmpty
+        ? _stores
+        : (GageApiClient.useDevSeedData ? _buildStores : <Map<String, dynamic>>[]);
+    final filtered = source.where((s) {
+      if (!ServiceDirectoryHelper.matchesMerchantSearch(s, _searchQuery)) {
+        return false;
+      }
+      return ServiceDirectoryHelper.matchesCategoryKeywords(
+        s,
+        _selectedCategory,
+        _categoryKeywords,
+      );
     }).toList();
 
-    // Terapkan Ranking Switch
-    switch (_rankingSwitch) {
-      case 'Terlaris':
-        filtered.sort((a, b) {
-          final countA = int.tryParse((a['ratingCount'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-          final countB = int.tryParse((b['ratingCount'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-          return countB.compareTo(countA);
-        });
-        break;
-      case 'Top Rating':
-        filtered.sort((a, b) {
-          final rA = (a['rating'] is num) ? (a['rating'] as num).toDouble() : (double.tryParse(a['rating']?.toString() ?? '') ?? 0.0);
-          final rB = (b['rating'] is num) ? (b['rating'] as num).toDouble() : (double.tryParse(b['rating']?.toString() ?? '') ?? 0.0);
-          return rB.compareTo(rA);
-        });
-        break;
-      case 'Terdekat':
-      case 'Toko Terdekat':
-        filtered.sort((a, b) {
-          final distA = double.tryParse((a['distance'] ?? '').toString().replaceAll(RegExp(r'[^0-9.]'), '')) ?? 99.0;
-          final distB = double.tryParse((b['distance'] ?? '').toString().replaceAll(RegExp(r'[^0-9.]'), '')) ?? 99.0;
-          return distA.compareTo(distB);
-        });
-        break;
-      case 'Rekomendasi':
-      default:
-        break;
-    }
-
-    return filtered;
+    return ServiceDirectoryHelper.sortMerchants(filtered, _rankingSwitch);
   }
 
   @override
   Widget build(BuildContext context) {
+    final buildBanner = context.watch<BannerManagerService>().getBanner('customer_build');
     final cart = context.watch<CartProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final screenWidth = MediaQuery.of(context).size.width;
@@ -253,8 +282,10 @@ class _BuildScreenState extends State<BuildScreen> {
                 children: [
                   // Full-bleed Banner 16:9
                   GageServiceHeroBanner(
-                    screenTarget: 'build',
-                    imageAsset: 'assets/icons/ic_build.png',
+                    screenTarget: 'customer_build',
+                    imageAsset: buildBanner.imagePath.isNotEmpty
+                        ? buildBanner.imagePath
+                        : 'assets/images/prod_semen.png',
                     fallbackTitle: 'GAGE BUILD',
                     scrollController: _scrollController,
                   ),
@@ -267,8 +298,42 @@ class _BuildScreenState extends State<BuildScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Categories Horizontal Bar
-                          _buildCategoriesBar(isDark),
+                          if (_searchQuery.trim().isNotEmpty) ...[
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      'Hasil "$_searchQuery" (${_filteredStores.length} toko)',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                  InkWell(
+                                    onTap: () {
+                                      setState(() {
+                                        _searchController.clear();
+                                        _searchQuery = '';
+                                      });
+                                    },
+                                    child: const Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                      child: Text(
+                                        'Reset',
+                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: GageTheme.primary),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            _buildRankingSwitch(isDark),
+                          ] else
+                            // Categories Horizontal Bar + RankingSwitch
+                            _buildCategoriesBar(isDark),
 
                           const SizedBox(height: 14),
 
@@ -313,7 +378,15 @@ class _BuildScreenState extends State<BuildScreen> {
               locationText: _formatShortAddress(_deliveryLocation),
               onLocationTap: _showDeliveryLocationPicker,
               onBackTap: () => Navigator.pop(context),
-              onFavoriteTap: () {},
+              onFavoriteTap: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (ctx) => const ShopFavoriteScreen(domain: 'build')),
+                );
+                if (mounted) {
+                  _syncFavoriteStatuses(_stores);
+                }
+              },
               onHistoryTap: () {
                 GageCartSheet.show(context);
               },
@@ -423,18 +496,27 @@ class _BuildScreenState extends State<BuildScreen> {
                         ],
                       ),
                       child: ClipOval(
-                        child: Image.asset(
-                          cat['image'] as String,
-                          fit: BoxFit.cover,
-                          errorBuilder: (c, e, s) => Container(
-                            color: GageTheme.primaryLight,
-                            child: Icon(
-                              cat['icon'] as IconData? ?? Icons.construction_rounded,
-                              color: GageTheme.primary,
-                              size: 26,
-                            ),
-                          ),
-                        ),
+                        child: (cat['image'] as String).isEmpty
+                            ? Container(
+                                color: GageTheme.primaryLight,
+                                child: Icon(
+                                  cat['icon'] as IconData? ?? Icons.construction_rounded,
+                                  color: GageTheme.primary,
+                                  size: 26,
+                                ),
+                              )
+                            : Image.asset(
+                                cat['image'] as String,
+                                fit: BoxFit.cover,
+                                errorBuilder: (c, e, s) => Container(
+                                  color: GageTheme.primaryLight,
+                                  child: Icon(
+                                    cat['icon'] as IconData? ?? Icons.construction_rounded,
+                                    color: GageTheme.primary,
+                                    size: 26,
+                                  ),
+                                ),
+                              ),
                       ),
                     ),
                     const SizedBox(height: 5),
@@ -520,39 +602,54 @@ class _BuildScreenState extends State<BuildScreen> {
   }
 
   Widget _buildStoreCard(Map<String, dynamic> store) {
-    final storeId = store['id'] as String;
-    String? tier;
-    if (storeId == 'build-sumber-bangunan') {
+    final storeId = (store['id'] ?? '').toString();
+    String? tier = store['tier']?.toString();
+    if (tier == null && (storeId == 'build-sumber-bangunan' || storeId == 'build-sumber-abadi')) {
       tier = 'exclusive';
-    } else if (storeId == 'build-mega-jaya' || storeId == 'build-griya-indah') {
+    } else if (tier == null && (storeId == 'build-mega-jaya' || storeId == 'build-griya-indah')) {
       tier = 'star';
     }
+
+    final rawBadges = store['promoBadges'];
+    final promoBadges = (rawBadges is List && rawBadges.isNotEmpty)
+        ? rawBadges.map((e) => e.toString()).toList()
+        : const ['Diskon 15RB', 'Gratis Ongkir'];
 
     final rating = (store['rating'] is num)
         ? (store['rating'] as num).toDouble()
         : double.tryParse(store['rating']?.toString() ?? '') ?? 4.9;
 
+    final buildMerchant = <String, dynamic>{
+      'domain': 'build',
+      'serviceType': 'build',
+      ...store,
+    };
+
     return GageMerchantCard(
       id: storeId,
-      name: store['name'] ?? '',
-      category: store['category'] ?? 'Bahan Bangunan & Material',
+      name: (store['name'] ?? '').toString(),
+      category: (store['category'] ?? 'Bahan Bangunan & Material').toString(),
       rating: rating,
       ratingCount: (store['ratingCount'] ?? '50+').toString(),
       distance: (store['distance'] ?? '1.0 km').toString(),
       eta: (store['eta'] ?? '15-20 min').toString(),
-      image: (store['image'] ?? 'assets/icons/ic_build.png').toString(),
+      image: (store['image'] ?? 'assets/images/prod_semen.png').toString(),
       tier: tier,
       campaignBadge: tier == 'exclusive' ? 'PROMO PROYEK' : null,
-      promoBadges: const ['Diskon 10%', 'Diskon Ongkir'],
+      promoBadges: promoBadges,
+      matchedProductsLabel: ServiceDirectoryHelper.matchedProductsLabel(store, _searchQuery),
       isFavorite: _favoriteStoreIds.contains(storeId),
-      onFavoriteTap: () => _toggleFavorite(storeId, store['name']),
-      onTap: () {
-        Navigator.push(
+      onFavoriteTap: () => _toggleFavorite(storeId, store['name']?.toString()),
+      onTap: () async {
+        await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (c) => RestoDetailScreen(merchant: store),
+            builder: (c) => MerchantDetailScreen(merchant: buildMerchant),
           ),
         );
+        if (mounted) {
+          _syncFavoriteStatuses(_stores);
+        }
       },
     );
   }

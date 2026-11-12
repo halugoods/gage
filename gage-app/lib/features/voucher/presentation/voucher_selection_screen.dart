@@ -15,11 +15,17 @@ import 'package:gage_app/features/home/presentation/widgets/gage_ticket_voucher_
 class VoucherSelectionScreen extends StatefulWidget {
   final int initialTabIndex;
   final String? serviceType; // 'ride', 'car', 'send', 'food' atau null
+  final String? initialAppliedCode;
+  final int? currentSubtotal;
+  final ValueChanged<Map<String, dynamic>?>? onSelectionChanged;
 
   const VoucherSelectionScreen({
     super.key,
     this.initialTabIndex = 0,
     this.serviceType,
+    this.initialAppliedCode,
+    this.currentSubtotal,
+    this.onSelectionChanged,
   });
 
   @override
@@ -30,12 +36,14 @@ class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with Si
   late TabController _tabController;
   final TextEditingController _codeCtrl = TextEditingController();
   int _selectedTabIndex = 0;
+  String? _transportAppliedCode;
 
   final List<String> _tabs = ['Semua', 'Diskon', 'Gratis Ongkir'];
 
   @override
   void initState() {
     super.initState();
+    _transportAppliedCode = widget.initialAppliedCode;
     _selectedTabIndex = widget.initialTabIndex.clamp(0, 2);
     _tabController = TabController(
       length: _tabs.length,
@@ -56,19 +64,21 @@ class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with Si
     super.dispose();
   }
 
+  String _resolveServiceType() {
+    if (widget.serviceType != null && widget.serviceType!.trim().isNotEmpty) {
+      return widget.serviceType!.trim().toLowerCase();
+    }
+    try {
+      final cart = context.read<CartProvider>();
+      return cart.primaryServiceType.toLowerCase();
+    } catch (_) {
+      return 'food';
+    }
+  }
+
   /// Filter voucher berdasarkan layanan yang sedang melakukan checkout
   List<Map<String, dynamic>> get _scopedVouchers {
-    final st = widget.serviceType?.toLowerCase();
-    if (st == 'ride') {
-      return GageVoucherData.allVouchers.where((v) => v['service'] == 'GAGE Ride').toList();
-    } else if (st == 'car') {
-      return GageVoucherData.allVouchers.where((v) => v['service'] == 'GAGE Car').toList();
-    } else if (st == 'send') {
-      return GageVoucherData.allVouchers.where((v) => v['service'] == 'GAGE Send').toList();
-    } else if (st == 'food' || st == 'mart' || st == 'shop' || st == 'farm' || st == 'build') {
-      return GageVoucherData.allVouchers.where((v) => v['service'] == 'GAGE Food' || v['service'] == 'GAGE Mart').toList();
-    }
-    return GageVoucherData.allVouchers;
+    return GageVoucherData.vouchersForService(_resolveServiceType());
   }
 
   List<Map<String, dynamic>> _getVouchersForTab(int tabIndex) {
@@ -83,17 +93,61 @@ class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with Si
     }
   }
 
+  bool _isTransportService(String serviceType) {
+    return serviceType == 'ride' || serviceType == 'car' || serviceType == 'send';
+  }
+
+  int _resolveOrderAmount(CartProvider cart) {
+    if (widget.currentSubtotal != null) {
+      return widget.currentSubtotal!;
+    }
+    return _isTransportService(_resolveServiceType()) ? 0 : cart.subtotal;
+  }
+
   void _onApplyVoucher(Map<String, dynamic> voucher, CartProvider cart) {
     final code = voucher['code'] as String;
-    final discount = (voucher['discountAmount'] as num?)?.toInt() ?? 4000;
+    final effectiveType = _resolveServiceType();
+    final isTransport = _isTransportService(effectiveType);
     final isDelivery = voucher['type'] == 'delivery';
+    final isCurrentlyApplied = isTransport
+        ? _transportAppliedCode == code
+        : (isDelivery ? cart.deliveryPromoCode == code : cart.foodPromoCode == code);
 
+    // Jika sedang melepas voucher yang terpasang, izinkan langsung
+    if (isCurrentlyApplied) {
+      HapticFeedback.lightImpact();
+      if (isTransport) {
+        setState(() => _transportAppliedCode = null);
+        widget.onSelectionChanged?.call(null);
+      } else if (isDelivery) {
+        cart.removeDeliveryPromo();
+      } else {
+        cart.removeFoodPromo();
+      }
+      GageToast.show(context, 'Voucher $code dilepas', type: GageToastType.info);
+      return;
+    }
+
+    // Validasi ketat syarat minimal transaksi sebelum memasang voucher
+    final activeAmount = _resolveOrderAmount(cart);
+    if (!GageVoucherData.isVoucherEligible(voucher, activeAmount)) {
+      HapticFeedback.heavyImpact();
+      GageToast.show(
+        context,
+        GageVoucherData.ineligibilityReason(voucher, activeAmount) ??
+            'Minimal transaksi untuk voucher $code belum terpenuhi.',
+        type: GageToastType.error,
+      );
+      return;
+    }
+
+    final discount = GageVoucherData.calculateDiscount(voucher, activeAmount);
     HapticFeedback.lightImpact();
 
-    // Jika checkout ride / car / send
-    final st = widget.serviceType?.toLowerCase();
-    if (st == 'ride' || st == 'car' || st == 'send') {
-      Navigator.pop(context, {
+    // Jika checkout ride / car / send: update state & tetap berada di screen ini
+    if (isTransport) {
+      setState(() => _transportAppliedCode = code);
+      widget.onSelectionChanged?.call({
         'code': code,
         'discount': discount,
         'service': voucher['service'],
@@ -103,7 +157,7 @@ class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with Si
       return;
     }
 
-    // Default: Food / Mart / Shop
+    // Default: Food / Shop / Farm / Build (tetap stay di screen agar user bebas atur)
     if (isDelivery) {
       cart.setDeliveryPromo(code, discount);
     } else {
@@ -111,12 +165,6 @@ class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with Si
     }
 
     GageToast.show(context, '✓ Voucher $code berhasil dipasang!', type: GageToastType.success);
-    Navigator.pop(context, {
-      'code': code,
-      'discount': discount,
-      'service': voucher['service'],
-      'title': voucher['title'],
-    });
   }
 
   void _showClaimPromoSheet(BuildContext context, CartProvider cart) {
@@ -260,10 +308,14 @@ class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with Si
   }
 
   String get _appBarTitle {
-    final st = widget.serviceType?.toLowerCase();
-    if (st == 'ride') return 'Pilih Voucher GAGE Ride';
-    if (st == 'car') return 'Pilih Voucher GAGE Car';
-    if (st == 'send') return 'Pilih Voucher GAGE Send';
+    final effectiveType = _resolveServiceType();
+    if (effectiveType == 'ride') return 'Pilih Voucher GAGE Ride';
+    if (effectiveType == 'car') return 'Pilih Voucher GAGE Car';
+    if (effectiveType == 'send') return 'Pilih Voucher GAGE Send';
+    if (effectiveType == 'shop' || effectiveType == 'mart') return 'Pilih Voucher GAGE Shop';
+    if (effectiveType == 'farm') return 'Pilih Voucher GAGE Farm';
+    if (effectiveType == 'build') return 'Pilih Voucher GAGE Build';
+    if (effectiveType == 'food') return 'Pilih Voucher GAGE Food';
     return 'Pilih Voucher Promo';
   }
 
@@ -396,7 +448,7 @@ class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with Si
                         Icon(Icons.confirmation_number_outlined, size: 48, color: Colors.grey.withValues(alpha: 0.35)),
                         const SizedBox(height: 10),
                         Text(
-                          'Tidak ada voucher ${widget.serviceType ?? ""} untuk kategori ini.',
+                          'Tidak ada voucher ${_resolveServiceType()} untuk kategori ini.',
                           style: TextStyle(color: isDark ? Colors.white60 : Colors.grey.shade600, fontSize: 13),
                         ),
                       ],
@@ -409,11 +461,19 @@ class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with Si
                   itemCount: list.length,
                   itemBuilder: (ctx, idx) {
                     final v = list[idx];
-                    final isApplied = cart.deliveryPromoCode == v['code'] || cart.foodPromoCode == v['code'];
+                    final isTransport = _isTransportService(_resolveServiceType());
+                    final isApplied = isTransport
+                        ? _transportAppliedCode == v['code']
+                        : (cart.deliveryPromoCode == v['code'] || cart.foodPromoCode == v['code']);
+                    final activeAmount = _resolveOrderAmount(cart);
+                    final isEligible = isApplied || GageVoucherData.isVoucherEligible(v, activeAmount);
+                    final reason = isApplied ? null : GageVoucherData.ineligibilityReason(v, activeAmount);
 
                     return GageTicketVoucherCard(
                       voucher: v,
                       isApplied: isApplied,
+                      isEligible: isEligible,
+                      ineligibilityReason: reason,
                       onApply: () => _onApplyVoucher(v, cart),
                       onTermsTap: () => _showVoucherTerms(context, v),
                     );

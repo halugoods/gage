@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:gage_app/core/services/notification_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_menu_screen.dart';
@@ -78,14 +79,20 @@ class MerchantBottomNavBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: SafeArea(
         top: false,
-        child: Row(
-          children: [
-            _buildNavItem(context, 0, Icons.receipt_long_rounded, 'Pesanan', isDark: isDark),
-            _buildNavItem(context, 1, Icons.restaurant_menu_rounded, 'Katalog', isDark: isDark),
-            _buildNavItem(context, 2, Icons.account_balance_wallet_rounded, 'Transaksi', isDark: isDark),
-            _buildNavItem(context, 3, Icons.chat_bubble_rounded, 'Pesan', hasBadge: true, isDark: isDark),
-            _buildNavItem(context, 4, Icons.storefront_rounded, 'Kios', isDark: isDark),
-          ],
+        child: AnimatedBuilder(
+          animation: NotificationService.instance,
+          builder: (context, _) {
+            final hasUnreadChat = NotificationService.instance.unreadMerchantChatCount > 0;
+            return Row(
+              children: [
+                _buildNavItem(context, 0, Icons.receipt_long_rounded, 'Pesanan', isDark: isDark),
+                _buildNavItem(context, 1, Icons.restaurant_menu_rounded, 'Katalog', isDark: isDark),
+                _buildNavItem(context, 2, Icons.account_balance_wallet_rounded, 'Transaksi', isDark: isDark),
+                _buildNavItem(context, 3, Icons.chat_bubble_rounded, 'Pesan', hasBadge: hasUnreadChat, isDark: isDark),
+                _buildNavItem(context, 4, Icons.storefront_rounded, 'Kios', isDark: isDark),
+              ],
+            );
+          },
         ),
       ),
     );

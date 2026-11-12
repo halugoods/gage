@@ -118,54 +118,58 @@ class GageBottomNavBar extends StatelessWidget {
                       width: 1.0,
                     ),
                   ),
-                  child: Row(
-                  children: [
-                    _buildNavItem(
-                      context,
-                      0,
-                      'assets/images/nav_home_active.png',
-                      'assets/images/nav_home_inactive.png',
-                      lang?.tr('nav_home') ?? 'Beranda',
-                      isDark: effectiveDark,
-                    ),
-                    _buildNavItem(
-                      context,
-                      1,
-                      'assets/images/nav_orders_active.png',
-                      'assets/images/nav_orders_inactive.png',
-                      lang?.tr('nav_orders') ?? 'Pesanan',
-                      badgeText: activeOrdersCount > 0 ? '$activeOrdersCount' : null,
-                      isDark: effectiveDark,
-                    ),
-                    _buildNavItem(
-                      context,
-                      2,
-                      'assets/images/nav_promo_active.png',
-                      'assets/images/nav_promo_inactive.png',
-                      lang?.tr('nav_promo') ?? 'Promo',
-                      badgeText: NotificationService.instance.unreadPromoCount > 0
-                          ? '${NotificationService.instance.unreadPromoCount}'
-                          : null,
-                      isDark: effectiveDark,
-                    ),
-                    _buildNavItem(
-                      context,
-                      3,
-                      'assets/images/nav_video_active.png',
-                      'assets/images/nav_video_inactive.png',
-                      lang?.tr('nav_video') ?? 'Video',
-                      isDark: effectiveDark,
-                    ),
-                    _buildNavItem(
-                      context,
-                      4,
-                      'assets/images/nav_profile_active.png',
-                      'assets/images/nav_profile_inactive.png',
-                      lang?.tr('nav_profile') ?? 'Profil',
-                      isDark: effectiveDark,
-                    ),
-                  ],
-                ),
+                  child: AnimatedBuilder(
+                    animation: NotificationService.instance,
+                    builder: (context, _) {
+                      final promoUnread = NotificationService.instance.unreadPromoCount;
+                      return Row(
+                        children: [
+                          _buildNavItem(
+                            context,
+                            0,
+                            'assets/images/nav_home_active.png',
+                            'assets/images/nav_home_inactive.png',
+                            lang?.tr('nav_home') ?? 'Beranda',
+                            isDark: effectiveDark,
+                          ),
+                          _buildNavItem(
+                            context,
+                            1,
+                            'assets/images/nav_orders_active.png',
+                            'assets/images/nav_orders_inactive.png',
+                            lang?.tr('nav_orders') ?? 'Pesanan',
+                            badgeText: activeOrdersCount > 0 ? '$activeOrdersCount' : null,
+                            isDark: effectiveDark,
+                          ),
+                          _buildNavItem(
+                            context,
+                            2,
+                            'assets/images/nav_promo_active.png',
+                            'assets/images/nav_promo_inactive.png',
+                            lang?.tr('nav_promo') ?? 'Promo',
+                            badgeText: promoUnread > 0 ? '$promoUnread' : null,
+                            isDark: effectiveDark,
+                          ),
+                          _buildNavItem(
+                            context,
+                            3,
+                            'assets/images/nav_video_active.png',
+                            'assets/images/nav_video_inactive.png',
+                            lang?.tr('nav_video') ?? 'Video',
+                            isDark: effectiveDark,
+                          ),
+                          _buildNavItem(
+                            context,
+                            4,
+                            'assets/images/nav_profile_active.png',
+                            'assets/images/nav_profile_inactive.png',
+                            lang?.tr('nav_profile') ?? 'Profil',
+                            isDark: effectiveDark,
+                          ),
+                        ],
+                      );
+                    },
+                  ),
               ),
             ),
           ),
@@ -287,10 +291,8 @@ class GageBottomNavBar extends StatelessWidget {
       case 2:
         return Icons.local_offer_rounded;
       case 3:
-        return Icons.chat_bubble_rounded;
-      case 4:
         return Icons.play_circle_filled_rounded;
-      case 5:
+      case 4:
         return Icons.person_rounded;
       default:
         return Icons.circle;

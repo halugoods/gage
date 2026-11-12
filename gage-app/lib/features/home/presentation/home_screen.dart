@@ -58,8 +58,8 @@ class _HomeScreenState extends State<HomeScreen> {
     // Fetch wallet dari backend D1
     wallet.fetchWallet(userId);
 
-    // Fetch merchants
-    final list = await GageApiClient.getMerchants();
+    // Fetch kuliner merchants khusus GAGE Food
+    final list = await GageApiClient.getFoodMerchants();
     if (!mounted) return;
     setState(() {
       _merchants = list;

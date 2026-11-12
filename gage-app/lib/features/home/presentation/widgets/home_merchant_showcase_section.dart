@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/shared/widgets/gage_merchant_slider_card.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
@@ -322,7 +323,7 @@ class HomeMerchantShowcaseSection extends StatelessWidget {
 
   // 1. Food Horizontal Slider (Kanan-Kiri)
   Widget _buildFoodList(BuildContext context) {
-    final items = foodMerchants.take(4).toList();
+    final items = GageApiClient.filterFoodMerchants(foodMerchants).take(4).toList();
     return SizedBox(
       height: 236,
       child: ListView.separated(

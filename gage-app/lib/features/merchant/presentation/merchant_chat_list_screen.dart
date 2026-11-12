@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:gage_app/core/services/notification_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_bottom_nav_bar.dart';
@@ -81,7 +82,7 @@ class _MerchantChatListScreenState extends State<MerchantChatListScreen> {
           itemBuilder: (ctx, idx) {
             final room = _chatRooms[idx];
             final role = room['role'] as String;
-            final unread = room['unread'] as int;
+            final roomKey = 'mch-${room['orderId']}-$role';
 
             Color avatarBg;
             IconData avatarIcon;
@@ -96,9 +97,14 @@ class _MerchantChatListScreenState extends State<MerchantChatListScreen> {
               avatarIcon = Icons.campaign_rounded;
             }
 
-            return InkWell(
+            return AnimatedBuilder(
+              animation: NotificationService.instance,
+              builder: (ctx, _) {
+                final unread = NotificationService.instance.unreadCountForMerchantChat(roomKey);
+                return InkWell(
               onTap: () {
                 HapticFeedback.lightImpact();
+                NotificationService.instance.markMerchantChatAsRead(roomKey);
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -202,6 +208,8 @@ class _MerchantChatListScreenState extends State<MerchantChatListScreen> {
                   ],
                 ),
               ),
+                );
+              },
             );
           },
         ),

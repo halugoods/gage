@@ -1,16 +1,19 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gage_app/data/models/cart_item_model.dart';
 import 'package:gage_app/core/services/gage_pricing_service.dart';
 import 'package:gage_app/core/services/multi_merchant_cart_service.dart';
+import 'package:gage_app/data/mock/gage_voucher_data.dart';
 
 class CartProvider extends ChangeNotifier {
   final List<CartItemModel> _items = [];
   String? _merchantId;
   String? _merchantName;
   double _distanceKm = 1.8;
-  String _deliveryAddress = 'Jl. Wates Km 3, Kadipiro, Kasihan';
+  String _deliveryAddress = '';
+  LatLng? _deliveryLocation;
   String _addressNotes = '';
   String? _promoCode;
   String _paymentMethod = 'GAGEPAY'; // 'GAGEPAY', 'QRIS', 'CASH_COD'
@@ -32,6 +35,8 @@ class CartProvider extends ChangeNotifier {
   }
   double get distanceKm => _distanceKm;
   String get deliveryAddress => _isPickup ? 'Ambil di Toko / Resto Mitra' : _deliveryAddress;
+  LatLng? get deliveryLocation => _deliveryLocation;
+  bool get hasCustomDeliveryLocation => _deliveryLocation != null;
   String get addressNotes => _addressNotes;
   String? get promoCode => _promoCode;
   String get paymentMethod => _paymentMethod;
@@ -42,6 +47,12 @@ class CartProvider extends ChangeNotifier {
 
   void setIsPickup(bool value) {
     _isPickup = value;
+    if (_autoDeliverySyncActive) {
+      syncAutoDeliveryPromo(serviceType: _autoDeliveryServiceOverride, notify: false);
+    }
+    if (_autoOrderSyncActive) {
+      syncAutoOrderPromo(serviceType: _autoDeliveryServiceOverride, notify: false);
+    }
     notifyListeners();
   }
 
@@ -124,7 +135,14 @@ class CartProvider extends ChangeNotifier {
         _merchantId = data['merchant_id'];
         _merchantName = data['merchant_name'];
         _distanceKm = (data['distance_km'] ?? 1.8).toDouble();
-        _deliveryAddress = data['delivery_address'] ?? 'Jl. Wates Km 3, Kadipiro';
+        final savedLat = (data['delivery_lat'] as num?)?.toDouble();
+        final savedLng = (data['delivery_lng'] as num?)?.toDouble();
+        if (savedLat != null && savedLng != null) {
+          _deliveryLocation = LatLng(savedLat, savedLng);
+        }
+        final rawAddr = data['delivery_address']?.toString() ?? '';
+        // Clear legacy Yogyakarta placeholder when no coordinate was stored.
+        _deliveryAddress = (savedLat == null && rawAddr.contains('Jl. Wates')) ? '' : rawAddr;
         _promoCode = data['promo_code'];
         final rawList = data['items'];
         if (rawList is List) {
@@ -150,6 +168,8 @@ class CartProvider extends ChangeNotifier {
         'merchant_name': _merchantName,
         'distance_km': _distanceKm,
         'delivery_address': _deliveryAddress,
+        if (_deliveryLocation != null) 'delivery_lat': _deliveryLocation!.latitude,
+        if (_deliveryLocation != null) 'delivery_lng': _deliveryLocation!.longitude,
         'promo_code': _promoCode,
         'items': _items.map((i) => i.toJson()).toList(),
       };
@@ -219,6 +239,18 @@ class CartProvider extends ChangeNotifier {
       _items.add(newItem);
     }
 
+    if (forceReplace || _items.length == 1) {
+      _deliveryPromoManuallyDismissed = false;
+      _isDeliveryPromoManual = false;
+      _foodPromoManuallyDismissed = false;
+      _isFoodPromoManual = false;
+    }
+    if (_autoDeliverySyncActive) {
+      syncAutoDeliveryPromo(serviceType: _autoDeliveryServiceOverride, notify: false);
+    }
+    if (_autoOrderSyncActive) {
+      syncAutoOrderPromo(serviceType: _autoDeliveryServiceOverride, notify: false);
+    }
     _syncToMultiMerchantCartService();
     _saveCart();
     notifyListeners();
@@ -234,9 +266,26 @@ class CartProvider extends ChangeNotifier {
         if (_items.isEmpty) {
           _merchantId = null;
           _merchantName = null;
+          _foodPromoCode = null;
+          _foodPromoDiscount = 0;
+          _foodPromoManuallyDismissed = false;
+          _isFoodPromoManual = false;
+          _autoOrderSyncActive = false;
+          _deliveryPromoCode = null;
+          _deliveryPromoDiscount = 0;
+          _deliveryPromoManuallyDismissed = false;
+          _isDeliveryPromoManual = false;
+          _autoDeliverySyncActive = false;
+          _autoDeliveryServiceOverride = null;
         }
       } else {
         _items[idx].quantity = newQty;
+      }
+      if (_items.isNotEmpty && _autoDeliverySyncActive) {
+        syncAutoDeliveryPromo(serviceType: _autoDeliveryServiceOverride, notify: false);
+      }
+      if (_items.isNotEmpty && _autoOrderSyncActive) {
+        syncAutoOrderPromo(serviceType: _autoDeliveryServiceOverride, notify: false);
       }
       _syncToMultiMerchantCartService();
       _saveCart();
@@ -282,17 +331,27 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setDeliveryAddress(String address, double distance) {
+  void setDeliveryAddress(String address, double distance, {LatLng? location}) {
     _deliveryAddress = address;
     _distanceKm = distance;
+    if (location != null) {
+      _deliveryLocation = location;
+    }
     _saveCart();
     notifyListeners();
   }
 
   String? _foodPromoCode;
   int _foodPromoDiscount = 0;
+  bool _foodPromoManuallyDismissed = false;
+  bool _isFoodPromoManual = false;
+  bool _autoOrderSyncActive = false;
   String? _deliveryPromoCode;
   int _deliveryPromoDiscount = 0;
+  bool _deliveryPromoManuallyDismissed = false;
+  bool _isDeliveryPromoManual = false;
+  bool _autoDeliverySyncActive = false;
+  String? _autoDeliveryServiceOverride;
 
   String? get foodPromoCode => _foodPromoCode;
   int get foodPromoDiscount => _foodPromoDiscount;
@@ -305,34 +364,215 @@ class CartProvider extends ChangeNotifier {
   String get primaryServiceType => _items.isNotEmpty ? _items.first.serviceType : 'food';
   String get itemQuantityLabel => isFoodCart ? 'Menu' : 'Produk';
 
-  void setFoodPromo(String? code, int discount) {
-    _foodPromoCode = code?.trim().toUpperCase();
+  void setFoodPromo(String? code, int discount, {bool isManual = true}) {
+    final normalized = code?.trim().toUpperCase();
+    if (normalized == null || normalized.isEmpty) {
+      removeFoodPromo(manual: isManual);
+      return;
+    }
+    _foodPromoCode = normalized;
     _foodPromoDiscount = discount;
+    _foodPromoManuallyDismissed = false;
+    _isFoodPromoManual = isManual;
     _saveCart();
     notifyListeners();
   }
 
   void setMerchantDiscount(String? code, int discount) => setFoodPromo(code, discount);
 
-  void setDeliveryPromo(String? code, int discount) {
-    _deliveryPromoCode = code?.trim().toUpperCase();
+  void setDeliveryPromo(String? code, int discount, {bool isManual = true}) {
+    final normalized = code?.trim().toUpperCase();
+    if (normalized == null || normalized.isEmpty) {
+      removeDeliveryPromo(manual: isManual);
+      return;
+    }
+    _deliveryPromoCode = normalized;
     _deliveryPromoDiscount = discount;
+    _deliveryPromoManuallyDismissed = false;
+    _isDeliveryPromoManual = isManual;
     _saveCart();
     notifyListeners();
   }
 
-  void removeFoodPromo() {
+  /// Auto-applies the best eligible delivery ("gratis ongkir") voucher when order
+  /// conditions are met, and clears ineligible promos when below minOrder or pickup.
+  void syncAutoDeliveryPromo({String? serviceType, bool notify = true}) {
+    _autoDeliverySyncActive = true;
+    if (serviceType != null && serviceType.trim().isNotEmpty) {
+      _autoDeliveryServiceOverride = serviceType.trim().toLowerCase();
+    }
+    final activeService = _autoDeliveryServiceOverride ?? primaryServiceType;
+    bool changed = false;
+
+    if (_items.isEmpty) {
+      if (_deliveryPromoCode != null || _deliveryPromoDiscount != 0) {
+        _deliveryPromoCode = null;
+        _deliveryPromoDiscount = 0;
+        changed = true;
+      }
+      _deliveryPromoManuallyDismissed = false;
+      _isDeliveryPromoManual = false;
+    } else if (_isPickup) {
+      if (_deliveryPromoCode != null || _deliveryPromoDiscount != 0) {
+        _deliveryPromoCode = null;
+        _deliveryPromoDiscount = 0;
+        _isDeliveryPromoManual = false;
+        changed = true;
+      }
+    } else {
+      if (_deliveryPromoCode != null) {
+        final existingVoucher = GageVoucherData.findByCode(_deliveryPromoCode!);
+        final expectedService = GageVoucherData.serviceNameForType(activeService);
+        final invalidExisting = existingVoucher == null ||
+            existingVoucher['type'] != 'delivery' ||
+            existingVoucher['service'] != expectedService ||
+            !GageVoucherData.isVoucherEligible(existingVoucher, subtotal);
+        if (invalidExisting) {
+          _deliveryPromoCode = null;
+          _deliveryPromoDiscount = 0;
+          _isDeliveryPromoManual = false;
+          changed = true;
+        }
+      }
+
+      if (!_deliveryPromoManuallyDismissed && !_isDeliveryPromoManual) {
+        final best = GageVoucherData.bestEligibleDeliveryVoucher(
+          serviceType: activeService,
+          subtotal: subtotal,
+        );
+        if (best != null) {
+          final nextCode = best['code'] as String;
+          final nextDiscount = (best['discountAmount'] as num?)?.toInt() ?? 0;
+          if (_deliveryPromoCode != nextCode || _deliveryPromoDiscount != nextDiscount) {
+            _deliveryPromoCode = nextCode;
+            _deliveryPromoDiscount = nextDiscount;
+            changed = true;
+          }
+        } else if (_deliveryPromoCode != null) {
+          _deliveryPromoCode = null;
+          _deliveryPromoDiscount = 0;
+          changed = true;
+        }
+      }
+    }
+
+    if (changed) {
+      _saveCart();
+      if (notify) {
+        notifyListeners();
+      }
+    }
+  }
+
+  /// Auto-applies the best eligible order discount voucher from [GageVoucherData]
+  /// and removes stale, cross-service, or ineligible order promo codes.
+  void syncAutoOrderPromo({String? serviceType, bool notify = true}) {
+    _autoOrderSyncActive = true;
+    if (serviceType != null && serviceType.trim().isNotEmpty) {
+      _autoDeliveryServiceOverride = serviceType.trim().toLowerCase();
+    }
+    final activeService = _autoDeliveryServiceOverride ?? primaryServiceType;
+    bool changed = false;
+
+    if (_items.isEmpty) {
+      if (_foodPromoCode != null || _foodPromoDiscount != 0) {
+        _foodPromoCode = null;
+        _foodPromoDiscount = 0;
+        changed = true;
+      }
+      _foodPromoManuallyDismissed = false;
+      _isFoodPromoManual = false;
+    } else {
+      if (_foodPromoCode != null) {
+        final existingVoucher = GageVoucherData.findByCode(_foodPromoCode!);
+        final expectedService = GageVoucherData.serviceNameForType(activeService);
+        final invalidExisting = existingVoucher == null ||
+            existingVoucher['type'] != 'order' ||
+            existingVoucher['service'] != expectedService ||
+            !GageVoucherData.isVoucherEligible(existingVoucher, subtotal);
+        if (invalidExisting) {
+          _foodPromoCode = null;
+          _foodPromoDiscount = 0;
+          _isFoodPromoManual = false;
+          changed = true;
+        } else if (_isFoodPromoManual) {
+          final updatedDiscount = GageVoucherData.calculateDiscount(existingVoucher, subtotal);
+          if (_foodPromoDiscount != updatedDiscount) {
+            _foodPromoDiscount = updatedDiscount;
+            changed = true;
+          }
+        }
+      }
+
+      if (!_foodPromoManuallyDismissed && !_isFoodPromoManual) {
+        final best = GageVoucherData.bestEligibleOrderVoucher(
+          serviceType: activeService,
+          subtotal: subtotal,
+        );
+        if (best != null) {
+          final nextCode = best['code'] as String;
+          final nextDiscount = GageVoucherData.calculateDiscount(best, subtotal);
+          if (_foodPromoCode != nextCode || _foodPromoDiscount != nextDiscount) {
+            _foodPromoCode = nextCode;
+            _foodPromoDiscount = nextDiscount;
+            changed = true;
+          }
+        } else if (_foodPromoCode != null) {
+          _foodPromoCode = null;
+          _foodPromoDiscount = 0;
+          changed = true;
+        }
+      }
+    }
+
+    if (changed) {
+      _saveCart();
+      if (notify) {
+        notifyListeners();
+      }
+    }
+  }
+
+  /// Synchronizes both order discount and delivery discount promos with
+  /// [GageVoucherData] eligibility rules in a single notification pass.
+  void syncAutoPromos({String? serviceType, bool notify = true}) {
+    final prevFoodCode = _foodPromoCode;
+    final prevFoodDisc = _foodPromoDiscount;
+    final prevDelCode = _deliveryPromoCode;
+    final prevDelDisc = _deliveryPromoDiscount;
+
+    syncAutoOrderPromo(serviceType: serviceType, notify: false);
+    syncAutoDeliveryPromo(serviceType: serviceType, notify: false);
+
+    final anyChanged = prevFoodCode != _foodPromoCode ||
+        prevFoodDisc != _foodPromoDiscount ||
+        prevDelCode != _deliveryPromoCode ||
+        prevDelDisc != _deliveryPromoDiscount;
+    if (anyChanged && notify) {
+      notifyListeners();
+    }
+  }
+
+  void removeFoodPromo({bool manual = true}) {
     _foodPromoCode = null;
     _foodPromoDiscount = 0;
+    if (manual) {
+      _foodPromoManuallyDismissed = true;
+      _isFoodPromoManual = false;
+    }
     _saveCart();
     notifyListeners();
   }
 
   void removeMerchantDiscount() => removeFoodPromo();
 
-  void removeDeliveryPromo() {
+  void removeDeliveryPromo({bool manual = true}) {
     _deliveryPromoCode = null;
     _deliveryPromoDiscount = 0;
+    if (manual) {
+      _deliveryPromoManuallyDismissed = true;
+      _isDeliveryPromoManual = false;
+    }
     _saveCart();
     notifyListeners();
   }
@@ -340,10 +580,20 @@ class CartProvider extends ChangeNotifier {
   void setPromoCode(String? code) {
     final c = code?.trim().toUpperCase();
     _promoCode = c;
-    if (c == 'DISKON50' || c == 'HEMATAJI' || c == 'KULINER10') {
-      setFoodPromo(c, c == 'DISKON50' ? (subtotal * 0.5).round().clamp(0, 15000) : (c == 'HEMATAJI' ? 8000 : 10000));
-    } else if (c == 'ONGKIRGRATIS' || c == 'ONGKIR5RB' || c == 'GAGERATIH') {
-      setDeliveryPromo(c, c == 'ONGKIRGRATIS' ? 7000 : (c == 'ONGKIR5RB' ? 5000 : 2000));
+    if (c != null && c.isNotEmpty) {
+      final voucher = GageVoucherData.findByCode(c);
+      final expectedService = GageVoucherData.serviceNameForType(primaryServiceType);
+      if (voucher != null &&
+          voucher['service'] == expectedService &&
+          GageVoucherData.isVoucherEligible(voucher, subtotal)) {
+        final disc = GageVoucherData.calculateDiscount(voucher, subtotal);
+        if (voucher['type'] == 'delivery') {
+          setDeliveryPromo(c, disc);
+        } else {
+          setFoodPromo(c, disc);
+        }
+        return;
+      }
     }
     _saveCart();
     notifyListeners();
@@ -356,8 +606,15 @@ class CartProvider extends ChangeNotifier {
     _promoCode = null;
     _foodPromoCode = null;
     _foodPromoDiscount = 0;
+    _foodPromoManuallyDismissed = false;
+    _isFoodPromoManual = false;
+    _autoOrderSyncActive = false;
     _deliveryPromoCode = null;
     _deliveryPromoDiscount = 0;
+    _deliveryPromoManuallyDismissed = false;
+    _isDeliveryPromoManual = false;
+    _autoDeliverySyncActive = false;
+    _autoDeliveryServiceOverride = null;
     _scheduledDeliveryTime = null;
     _groupOrderId = null;
     MultiMerchantCartService.instance.clearCart();

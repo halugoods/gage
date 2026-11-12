@@ -2,6 +2,8 @@ import 'package:gage_app/features/food/presentation/all_categories_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/core/services/location_service.dart';
 import 'package:gage_app/core/services/osm_geocoding_service.dart';
@@ -11,6 +13,7 @@ import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
 import 'package:gage_app/shared/widgets/seamless_floating_cart_bar.dart';
 import 'package:gage_app/shared/widgets/gage_cart_sheet.dart';
 import 'package:gage_app/providers/cart_provider.dart';
+import 'package:gage_app/features/food/data/service_directory_helper.dart';
 import 'package:gage_app/features/food/presentation/shop_favorite_screen.dart';
 import 'package:gage_app/shared/widgets/gage_service_header.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
@@ -50,18 +53,51 @@ class _ShopScreenState extends State<ShopScreen> {
     return addr.trim();
   }
 
+  List<Map<String, dynamic>> _stores = [];
+
   @override
   void initState() {
     super.initState();
+    _stores = GageApiClient.useDevSeedData
+        ? List<Map<String, dynamic>>.from(_retailStores)
+        : [];
     _initDeliveryLocation();
     _loadStores();
   }
 
   Future<void> _loadStores() async {
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 300));
+    final apiStores = await GageApiClient.getShopMerchants();
+    final effectiveStores = apiStores.isNotEmpty
+        ? apiStores
+        : (GageApiClient.useDevSeedData ? _retailStores : <Map<String, dynamic>>[]);
+    await _syncFavoriteStatuses(effectiveStores);
     if (mounted) {
-      setState(() => _isLoading = false);
+      setState(() {
+        _stores = effectiveStores;
+        _isLoading = false;
+      });
+      if (effectiveStores.isNotEmpty) {
+        GageApiClient.prefetchMerchantMenus(effectiveStores).then((_) {
+          if (mounted) setState(() {});
+        });
+      }
+    }
+  }
+
+  Future<void> _syncFavoriteStatuses(List<Map<String, dynamic>> stores) async {
+    final nextFavs = await ServiceDirectoryHelper.loadFavoriteIds(
+      stores,
+      defaultSeedIds: GageApiClient.useDevSeedData
+          ? const {'shop-berkah-fajar', 'shop-sayur-bu-marti'}
+          : const {},
+    );
+    if (mounted) {
+      setState(() {
+        _favoriteStoreIds
+          ..clear()
+          ..addAll(nextFavs);
+      });
     }
   }
 
@@ -73,29 +109,45 @@ class _ShopScreenState extends State<ShopScreen> {
   }
 
   Future<void> _initDeliveryLocation() async {
-    final gps = await LocationService.getCurrentLocation();
-    final addr = await OsmGeocodingService.reverseGeocode(gps);
-    if (mounted) {
-      setState(() {
-        _deliveryLocation = addr;
-      });
-    }
+    try {
+      final cart = Provider.of<CartProvider?>(context, listen: false);
+      if (cart != null && cart.hasCustomDeliveryLocation && cart.deliveryAddress.isNotEmpty) {
+        if (!mounted) return;
+        setState(() => _deliveryLocation = cart.deliveryAddress);
+        return;
+      }
+      final gps = await LocationService.getCurrentLocation();
+      final addr = await OsmGeocodingService.reverseGeocode(gps);
+      final fullAddr = OsmGeocodingService.formatFullOfficialAddress(gps);
+      if (!mounted) return;
+      if (addr.isNotEmpty) {
+        setState(() => _deliveryLocation = addr);
+      }
+      if (cart != null && !cart.hasCustomDeliveryLocation) {
+        cart.setDeliveryAddress(fullAddr, cart.distanceKm, location: gps);
+      }
+    } catch (_) {}
   }
 
   void _showDeliveryLocationPicker() {
+    final cart = Provider.of<CartProvider?>(context, listen: false);
     LocationPickerSheet.show(
       context,
       title: 'Pilih Lokasi Pengantaran Belanja',
+      initialLocation: cart?.deliveryLocation,
       onSelected: (title, fullAddress, latLng) {
+        final resolved = fullAddress.isNotEmpty ? fullAddress : title;
         setState(() {
           _deliveryLocation = '$title - $fullAddress';
         });
+        cart?.setDeliveryAddress(resolved, cart.distanceKm, location: latLng);
       },
     );
   }
 
-  void _toggleFavorite(String storeId, [String? storeName]) {
+  Future<void> _toggleFavorite(String storeId, [String? storeName]) async {
     final isFav = _favoriteStoreIds.contains(storeId);
+    final nextVal = !isFav;
     setState(() {
       if (isFav) {
         _favoriteStoreIds.remove(storeId);
@@ -103,6 +155,11 @@ class _ShopScreenState extends State<ShopScreen> {
         _favoriteStoreIds.add(storeId);
       }
     });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('fav_resto_$storeId', nextVal);
+    } catch (_) {}
+    if (!mounted) return;
     GageToast.show(
       context,
       !isFav
@@ -148,17 +205,17 @@ class _ShopScreenState extends State<ShopScreen> {
     },
     {
       'name': 'Sabun & Kebersihan',
-      'image': 'assets/images/hero_promo_1.png',
+      'image': '',
       'icon': Icons.cleaning_services_rounded,
     },
     {
       'name': 'Makanan Ringan',
-      'image': 'assets/images/hero_promo_2.png',
+      'image': 'assets/images/cat_jajanan.png',
       'icon': Icons.fastfood_rounded,
     },
     {
       'name': 'Minuman Dingin',
-      'image': 'assets/images/banner_gagepay_promo.png',
+      'image': 'assets/images/cat_minuman.png',
       'icon': Icons.local_drink_rounded,
     },
   ];
@@ -171,8 +228,10 @@ class _ShopScreenState extends State<ShopScreen> {
   final List<Map<String, dynamic>> _retailStores = [
     {
       'id': 'shop-berkah-fajar',
+      'domain': 'shop',
+      'serviceType': 'shop',
       'name': 'Toko Sembako Berkah Fajar',
-      'category': 'Sembako & Beras, Minyak & Bumbu',
+      'category': 'Sembako & Beras, Minyak & Bumbu, Gula & Terigu, Telur Segar',
       'address': 'Jl. Raya Pracimantoro No. 12, Wonogiri',
       'distance': '0.5 km',
       'eta': '10-15 min',
@@ -181,13 +240,17 @@ class _ShopScreenState extends State<ShopScreen> {
       'openHours': '06:30 - 21:00',
       'isOpen': true,
       'image': 'assets/images/shop_hero_banner.png',
-      'phone_wa': '081234567801',
+      'phone_wa': '081226001011',
+      'tier': 'star',
+      'promoBadges': ['Diskon 8RB', 'Gratis Ongkir'],
       'description': 'Sedia aneka beras C4 pulen Wonogiri, minyak Bimoli, gula kristal, telur ayam segar, dan terigu segitiga biru.',
     },
     {
       'id': 'shop-kelontong-bu-sri',
+      'domain': 'shop',
+      'serviceType': 'shop',
       'name': 'Toko Kelontong Bu Sri',
-      'category': 'Sembako & Beras, Makanan Ringan, Sabun & Kebersihan',
+      'category': 'Sembako & Beras, Gula & Terigu, Mie & Makanan Instan, Makanan Ringan, Sabun & Kebersihan',
       'address': 'Simpang Empat Pasar Pracimantoro Blok A',
       'distance': '0.8 km',
       'eta': '15-20 min',
@@ -196,13 +259,16 @@ class _ShopScreenState extends State<ShopScreen> {
       'openHours': '06:00 - 20:30',
       'isOpen': true,
       'image': 'assets/images/shop_hero_banner.png',
-      'phone_wa': '081234567802',
-      'description': 'Toko kelontong komplit kebutuhan harian rumah tangga, camilan rengginang, kerupuk, kopi sachet, dan detergen.',
+      'phone_wa': '081226001012',
+      'promoBadges': ['Diskon 8RB', 'Gratis Ongkir'],
+      'description': 'Toko kelontong komplit kebutuhan harian rumah tangga, mie instan, camilan rengginang, kerupuk, kopi sachet, dan detergen.',
     },
     {
       'id': 'shop-minimarket-losari',
+      'domain': 'shop',
+      'serviceType': 'shop',
       'name': 'Minimarket Warga Losari',
-      'category': 'Makanan Ringan, Sabun & Kebersihan, Minyak & Bumbu',
+      'category': 'Makanan Ringan, Minuman Dingin, Sabun & Kebersihan, Mie & Makanan Instan, Minyak & Bumbu',
       'address': 'Jl. Sedayu - Losari KM 1, Pracimantoro',
       'distance': '1.1 km',
       'eta': '15-25 min',
@@ -211,13 +277,17 @@ class _ShopScreenState extends State<ShopScreen> {
       'openHours': '07:00 - 22:00',
       'isOpen': true,
       'image': 'assets/images/shop_hero_banner.png',
-      'phone_wa': '081234567803',
+      'phone_wa': '081226001013',
+      'tier': 'star',
+      'promoBadges': ['Diskon 10RB', 'Gratis Ongkir'],
       'description': 'Minimarket serba ada, aneka snack biskuit, susu UHT, minuman dingin, sabun mandi, shampo, dan perlengkapan dapur.',
     },
     {
       'id': 'shop-grosir-sentosa',
+      'domain': 'shop',
+      'serviceType': 'shop',
       'name': 'Grosir Pangan Sentosa',
-      'category': 'Sembako & Beras, Minyak & Bumbu, Makanan Ringan',
+      'category': 'Sembako & Beras, Minyak & Bumbu, Gula & Terigu, Mie & Makanan Instan, Makanan Ringan',
       'address': 'Kawasan Terminal Pracimantoro No. 45',
       'distance': '1.4 km',
       'eta': '20-25 min',
@@ -226,13 +296,16 @@ class _ShopScreenState extends State<ShopScreen> {
       'openHours': '07:00 - 18:00',
       'isOpen': true,
       'image': 'assets/images/shop_hero_banner.png',
-      'phone_wa': '081234567804',
-      'description': 'Pusat grosir pangan, sembako karungan, mie instan per dus karton, minyak jerigen/karton, dan aneka bumbu dapur.',
+      'phone_wa': '081226001014',
+      'promoBadges': ['Diskon 10RB', 'Gratis Ongkir'],
+      'description': 'Pusat grosir pangan, sembako karungan, mie instan per dus karton, minyak jerigen, gula terigu, dan aneka bumbu dapur.',
     },
     {
       'id': 'shop-sayur-bu-marti',
+      'domain': 'shop',
+      'serviceType': 'shop',
       'name': 'Pasar Sayur Segar Bu Marti',
-      'category': 'Sembako & Beras, Minyak & Bumbu',
+      'category': 'Sayur & Cabai, Minyak & Bumbu, Sembako & Beras',
       'address': 'Pasar Tradisional Pracimantoro Los Sayur No. 8',
       'distance': '0.7 km',
       'eta': '10-20 min',
@@ -241,13 +314,16 @@ class _ShopScreenState extends State<ShopScreen> {
       'openHours': '05:30 - 13:00',
       'isOpen': true,
       'image': 'assets/images/promo_banner_3.png',
-      'phone_wa': '081234567805',
+      'phone_wa': '081226001015',
+      'promoBadges': ['Diskon 8RB', 'Gratis Ongkir'],
       'description': 'Sayur mayur hijau segar langsung panen, cabai rawit merah pedas, bawang merah brebes, tomat, dan bumbu racik.',
     },
     {
       'id': 'shop-sumber-lancar',
+      'domain': 'shop',
+      'serviceType': 'shop',
       'name': 'Depot Galon & Gas LPG Sumber Lancar',
-      'category': 'Sabun & Kebersihan, Sembako & Beras',
+      'category': 'Minuman Dingin, Sabun & Kebersihan, Sembako & Beras',
       'address': 'Jl. Ahmad Yani No. 8, Pracimantoro',
       'distance': '1.2 km',
       'eta': '15-20 min',
@@ -256,86 +332,43 @@ class _ShopScreenState extends State<ShopScreen> {
       'openHours': '06:00 - 21:00',
       'isOpen': true,
       'image': 'assets/images/hero_promo_1.png',
-      'phone_wa': '081234567806',
-      'description': 'Isi ulang galon Aqua 19L, gas melon LPG 3kg bersubsidi, dan sabun cuci piring Sunlight.',
+      'phone_wa': '081226001016',
+      'promoBadges': ['Diskon 8RB', 'Gratis Ongkir'],
+      'description': 'Isi ulang galon Aqua 19L, minuman kemasan dingin, gas melon LPG 3kg bersubsidi, dan sabun cuci piring Sunlight.',
     },
   ];
 
+  static const Map<String, List<String>> _categoryKeywords = {
+    'Sembako & Beras': ['sembako', 'beras'],
+    'Minyak & Bumbu': ['minyak', 'bumbu'],
+    'Telur Segar': ['telur'],
+    'Gula & Terigu': ['gula', 'terigu', 'tepung'],
+    'Mie & Makanan Instan': ['mie', 'instan', 'pangan'],
+    'Sayur & Cabai': ['sayur', 'cabai'],
+    'Sabun & Kebersihan': ['sabun', 'kebersihan'],
+    'Makanan Ringan': ['makanan ringan', 'ringan', 'snack'],
+    'Minuman Dingin': ['minuman', 'galon'],
+  };
 
-  // Filter Merchant
+  // Filter Merchant (Toko & Katalog Produk)
   List<Map<String, dynamic>> get _filteredStores {
-    final filtered = _retailStores.where((s) {
-      final name = s['name'].toString().toLowerCase();
-      final cat = s['category'].toString().toLowerCase();
-      final q = _searchQuery.toLowerCase();
-      final matchesQuery = q.isEmpty || name.contains(q) || cat.contains(q);
-
-      if (!matchesQuery) return false;
-
-      final matchesFav = !_showFavoritesOnly || _favoriteStoreIds.contains(s['id'] as String);
+    final source = _stores.isNotEmpty
+        ? _stores
+        : (GageApiClient.useDevSeedData ? _retailStores : <Map<String, dynamic>>[]);
+    final filtered = source.where((s) {
+      if (!ServiceDirectoryHelper.matchesMerchantSearch(s, _searchQuery)) {
+        return false;
+      }
+      final matchesFav = !_showFavoritesOnly || _favoriteStoreIds.contains(s['id'].toString());
       if (!matchesFav) return false;
-
-      if (_selectedCategory == 'Semua') return true;
-      if (_selectedCategory == 'Sembako & Beras') {
-        return cat.contains('sembako') || cat.contains('beras');
-      }
-      if (_selectedCategory == 'Minyak & Bumbu') {
-        return cat.contains('minyak') || cat.contains('bumbu');
-      }
-      if (_selectedCategory == 'Makanan Ringan') {
-        return cat.contains('makanan') || cat.contains('ringan') || cat.contains('snack');
-      }
-      if (_selectedCategory == 'Sabun & Kebersihan') {
-        return cat.contains('sabun') || cat.contains('kebersihan');
-      }
-      if (_selectedCategory == 'Telur Segar') {
-        return cat.contains('telur') || name.contains('telur');
-      }
-      if (_selectedCategory == 'Gula & Terigu') {
-        return cat.contains('gula') || cat.contains('terigu');
-      }
-      if (_selectedCategory == 'Mie & Makanan Instan') {
-        return cat.contains('mie') || cat.contains('pangan');
-      }
-      if (_selectedCategory == 'Sayur & Cabai') {
-        return cat.contains('sayur') || cat.contains('cabai');
-      }
-      if (_selectedCategory == 'Minuman Dingin') {
-        return cat.contains('galon') || cat.contains('minuman');
-      }
-      return true;
+      return ServiceDirectoryHelper.matchesCategoryKeywords(
+        s,
+        _selectedCategory,
+        _categoryKeywords,
+      );
     }).toList();
 
-    // Terapkan Ranking Switch
-    switch (_rankingSwitch) {
-      case 'Terlaris':
-        filtered.sort((a, b) {
-          final countA = int.tryParse((a['ratingCount'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-          final countB = int.tryParse((b['ratingCount'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-          return countB.compareTo(countA);
-        });
-        break;
-      case 'Top Rating':
-        filtered.sort((a, b) {
-          final rA = (a['rating'] is num) ? (a['rating'] as num).toDouble() : (double.tryParse(a['rating']?.toString() ?? '') ?? 0.0);
-          final rB = (b['rating'] is num) ? (b['rating'] as num).toDouble() : (double.tryParse(b['rating']?.toString() ?? '') ?? 0.0);
-          return rB.compareTo(rA);
-        });
-        break;
-      case 'Terdekat':
-      case 'Toko Terdekat':
-        filtered.sort((a, b) {
-          final distA = double.tryParse((a['distance'] ?? '').toString().replaceAll(RegExp(r'[^0-9.]'), '')) ?? 99.0;
-          final distB = double.tryParse((b['distance'] ?? '').toString().replaceAll(RegExp(r'[^0-9.]'), '')) ?? 99.0;
-          return distA.compareTo(distB);
-        });
-        break;
-      case 'Rekomendasi':
-      default:
-        break;
-    }
-
-    return filtered;
+    return ServiceDirectoryHelper.sortMerchants(filtered, _rankingSwitch);
   }
 
   Widget _buildRankingSwitch(bool isDark) {
@@ -404,36 +437,51 @@ class _ShopScreenState extends State<ShopScreen> {
   // WIDGET KARTU MERCHANT RESMI
   // ===========================================================================
   Widget _buildStoreCard(Map<String, dynamic> store) {
-    final storeId = store['id'] as String;
-    String? tier;
-    if (storeId == 'shop-berkah-fajar' || storeId.contains('telur')) {
+    final storeId = (store['id'] ?? '').toString();
+    String? tier = store['tier']?.toString();
+    if (tier == null && (storeId == 'shop-berkah-fajar' || storeId.contains('telur'))) {
       tier = 'star';
     }
+
+    final rawBadges = store['promoBadges'];
+    final promoBadges = (rawBadges is List && rawBadges.isNotEmpty)
+        ? rawBadges.map((e) => e.toString()).toList()
+        : const ['Diskon 8RB', 'Gratis Ongkir'];
 
     final rating = (store['rating'] is num)
         ? (store['rating'] as num).toDouble()
         : double.tryParse(store['rating']?.toString() ?? '') ?? 4.9;
 
+    final shopMerchant = <String, dynamic>{
+      'domain': 'shop',
+      'serviceType': 'shop',
+      ...store,
+    };
+
     return GageMerchantCard(
       id: storeId,
-      name: store['name'] ?? '',
-      category: store['category'] ?? 'Sembako',
+      name: (store['name'] ?? '').toString(),
+      category: (store['category'] ?? 'Sembako').toString(),
       rating: rating,
       ratingCount: (store['ratingCount'] ?? '50+').toString(),
       distance: (store['distance'] ?? '1.0 km').toString(),
       eta: (store['eta'] ?? '15-20 min').toString(),
-      image: (store['image'] ?? 'assets/images/hero_banner_1.png').toString(),
+      image: (store['image'] ?? 'assets/images/shop_hero_banner.png').toString(),
       tier: tier,
-      promoBadges: const ['Diskon 20%', 'Diskon Ongkir'],
+      promoBadges: promoBadges,
+      matchedProductsLabel: ServiceDirectoryHelper.matchedProductsLabel(store, _searchQuery),
       isFavorite: _favoriteStoreIds.contains(storeId),
-      onFavoriteTap: () => _toggleFavorite(storeId, store['name']),
-      onTap: () {
-        Navigator.push(
+      onFavoriteTap: () => _toggleFavorite(storeId, store['name']?.toString()),
+      onTap: () async {
+        await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (c) => RestoDetailScreen(merchant: store),
+            builder: (c) => MerchantDetailScreen(merchant: shopMerchant),
           ),
         );
+        if (mounted) {
+          _syncFavoriteStatuses(_stores);
+        }
       },
     );
   }
@@ -488,6 +536,39 @@ class _ShopScreenState extends State<ShopScreen> {
                       children: [
 
 
+                        if (_searchQuery.trim().isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    'Hasil "$_searchQuery" (${_filteredStores.length} toko)',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                InkWell(
+                                  onTap: () {
+                                    setState(() {
+                                      _searchController.clear();
+                                      _searchQuery = '';
+                                    });
+                                  },
+                                  child: const Padding(
+                                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                    child: Text(
+                                      'Reset',
+                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: GageTheme.primary),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else ...[
                         // 2. Kategori Belanja Sembako (Circular Avatar Matching GAGE Food)
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -580,18 +661,27 @@ class _ShopScreenState extends State<ShopScreen> {
                                           ],
                                         ),
                                         child: ClipOval(
-                                          child: Image.asset(
-                                            cat['image'] as String,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (c, e, s) => Container(
-                                              color: GageTheme.primaryLight,
-                                              child: Icon(
-                                                cat['icon'] as IconData? ?? Icons.shopping_basket_rounded,
-                                                color: GageTheme.primary,
-                                                size: 26,
-                                              ),
-                                            ),
-                                          ),
+                                          child: (cat['image'] as String).isEmpty
+                                              ? Container(
+                                                  color: GageTheme.primaryLight,
+                                                  child: Icon(
+                                                    cat['icon'] as IconData? ?? Icons.shopping_basket_rounded,
+                                                    color: GageTheme.primary,
+                                                    size: 26,
+                                                  ),
+                                                )
+                                              : Image.asset(
+                                                  cat['image'] as String,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (c, e, s) => Container(
+                                                    color: GageTheme.primaryLight,
+                                                    child: Icon(
+                                                      cat['icon'] as IconData? ?? Icons.shopping_basket_rounded,
+                                                      color: GageTheme.primary,
+                                                      size: 26,
+                                                    ),
+                                                  ),
+                                                ),
                                         ),
                                       ),
                                       const SizedBox(height: 5),
@@ -613,6 +703,7 @@ class _ShopScreenState extends State<ShopScreen> {
                             ),
                           ),
                         const SizedBox(height: 16),
+                        ],
                         _buildRankingSwitch(isDark),
 
                         const SizedBox(height: 14),
@@ -686,11 +777,14 @@ class _ShopScreenState extends State<ShopScreen> {
             locationText: _formatShortAddress(_deliveryLocation),
             onLocationTap: _showDeliveryLocationPicker,
             onBackTap: () => Navigator.pop(context),
-            onFavoriteTap: () {
-              Navigator.push(
+            onFavoriteTap: () async {
+              await Navigator.push(
                 context,
                 MaterialPageRoute(builder: (ctx) => const ShopFavoriteScreen()),
               );
+              if (mounted) {
+                _syncFavoriteStatuses(_stores.isNotEmpty ? _stores : _retailStores);
+              }
             },
             onHistoryTap: () {
               GageCartSheet.show(context);

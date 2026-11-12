@@ -5,7 +5,10 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/core/network/gage_api_client.dart';
+import 'package:gage_app/core/services/merchant_storefront_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/features/merchant/presentation/merchant_profile_screen.dart';
+import 'package:gage_app/features/merchant/presentation/widgets/operating_schedule_editor_sheet.dart';
 import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
 import 'package:gage_app/features/chat/providers/in_app_chat_provider.dart';
 import 'package:gage_app/providers/merchant_order_provider.dart';
@@ -2929,7 +2932,24 @@ class _MerchantSettingsTab extends StatelessWidget {
               const SizedBox(height: 10),
               _buildInfoRow('Nama Lapak', 'Dimsum Sewu Pracimantoro'),
               _buildInfoRow('Alamat', 'Jl. Raya Pracimantoro No. 14, Depan Pasar'),
-              _buildInfoRow('Jam Operasional', '09:00 - 21:00 WIB (Senin - Minggu)'),
+              const _LiveMerchantScheduleInfoRow(),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: GageTheme.primary,
+                  side: const BorderSide(color: GageTheme.primary),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  minimumSize: const Size(double.infinity, 40),
+                ),
+                icon: const Icon(Icons.storefront_rounded, size: 17),
+                label: const Text('Kelola Jam Buka, Foto Lapak & Pin Peta', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const MerchantProfileScreen()),
+                  );
+                },
+              ),
               _buildInfoRow('Unit Wilayah', 'GAGE Pracimantoro - Wonogiri Selatan'),
               const SizedBox(height: 12),
               SizedBox(
@@ -3005,6 +3025,80 @@ class _MerchantSettingsTab extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+
+class _LiveMerchantScheduleInfoRow extends StatefulWidget {
+  const _LiveMerchantScheduleInfoRow();
+
+  @override
+  State<_LiveMerchantScheduleInfoRow> createState() => _LiveMerchantScheduleInfoRowState();
+}
+
+class _LiveMerchantScheduleInfoRowState extends State<_LiveMerchantScheduleInfoRow> {
+  MerchantOperatingSchedule _schedule = MerchantOperatingSchedule.defaults();
+  MerchantStorefrontData? _stored;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final stored = await MerchantStorefrontService.loadStorefront(
+      MerchantStorefrontService.defaultPortalMerchantId,
+    );
+    if (!mounted) return;
+    setState(() {
+      _stored = stored;
+      if (stored?.schedule != null) _schedule = stored!.schedule!;
+    });
+  }
+
+  Future<void> _edit() async {
+    final updated = await showOperatingScheduleEditorSheet(
+      context: context,
+      initialSchedule: _schedule,
+    );
+    if (updated != null && mounted) {
+      setState(() => _schedule = updated);
+      await MerchantStorefrontService.saveStorefront(
+        (_stored ?? const MerchantStorefrontData(merchantId: MerchantStorefrontService.defaultPortalMerchantId))
+            .copyWith(schedule: updated),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: _edit,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(
+              width: 110,
+              child: Text(
+                'Jam Operasional',
+                style: TextStyle(fontSize: 11.5, color: GageTheme.textSecondary),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                _schedule.portalSubtitle(),
+                style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: GageTheme.primary),
+              ),
+            ),
+            const Icon(Icons.edit_rounded, size: 14, color: GageTheme.primary),
+          ],
+        ),
       ),
     );
   }

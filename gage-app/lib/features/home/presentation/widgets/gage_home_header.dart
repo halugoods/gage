@@ -15,13 +15,12 @@ import 'package:gage_app/features/affiliate/presentation/affiliate_hub_screen.da
 import 'package:gage_app/features/food/presentation/food_explore_screen.dart';
 import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
 import 'package:gage_app/features/food/presentation/shop_screen.dart';
-import 'package:gage_app/features/food/presentation/shop_store_detail_screen.dart';
 import 'package:gage_app/features/food/presentation/farm_screen.dart';
 import 'package:gage_app/features/food/presentation/build_screen.dart';
 import 'package:gage_app/features/ride/presentation/ride_booking_screen.dart';
 import 'package:gage_app/features/ride/presentation/send_booking_screen.dart';
 import 'package:gage_app/core/services/banner_manager_service.dart';
-import 'package:gage_app/features/admin/presentation/widgets/in_place_banner_editor_sheet.dart';
+import 'package:gage_app/shared/widgets/live_app_edit_scope.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 
 /// 1. Banner Hero Beranda: 1 banner tunggal 16:9 statis tanpa slide/PageView dan tanpa dots indicator.
@@ -97,7 +96,7 @@ class GageHomeHeroBanner extends StatelessWidget {
       return GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () {
-          InPlaceBannerEditorSheet.showConfirmationAndOpen(
+          LiveAppEditScope.triggerEdit(
             context: context,
             screenTarget: 'customer_home_hero',
             title: banner.title,
@@ -169,6 +168,16 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
   // Terpusat di GageMockRegistry [DUMMY_PRODUCTION_TARGET]
   List<Map<String, dynamic>> get _searchDirectory => GageMockRegistry.getUnifiedSearchDirectory();
 
+  String _inferDomainFromStore(Map<String, dynamic> store) {
+    final explicit = (store['domain'] ?? store['serviceType'] ?? '').toString().trim().toLowerCase();
+    if (explicit.isNotEmpty) return explicit;
+    final id = (store['id'] ?? '').toString().toLowerCase();
+    if (id.startsWith('farm') || id.contains('tani')) return 'farm';
+    if (id.startsWith('build') || id.contains('tb-') || id.contains('depo')) return 'build';
+    if (id.startsWith('shop') || id.contains('sembako')) return 'shop';
+    return 'food';
+  }
+
   void _onSelectSearchResult(Map<String, dynamic> item) {
     HapticFeedback.lightImpact();
     setState(() {
@@ -206,20 +215,24 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
         break;
       case 'menu_item':
         if (item.containsKey('merchant')) {
-          destination = RestoDetailScreen(merchant: item['merchant'] as Map<String, dynamic>);
+          destination = MerchantDetailScreen(merchant: item['merchant'] as Map<String, dynamic>);
         } else if (item.containsKey('store')) {
-          destination = ShopStoreDetailScreen(store: item['store'] as Map<String, dynamic>);
+          final store = item['store'] as Map<String, dynamic>;
+          final domain = _inferDomainFromStore(store);
+          destination = MerchantDetailScreen(merchant: {'domain': domain, 'serviceType': domain, ...store});
         } else {
           destination = const FoodExploreScreen();
         }
         break;
       case 'merchant_food':
-        destination = RestoDetailScreen(merchant: item['merchant'] as Map<String, dynamic>);
+        destination = MerchantDetailScreen(merchant: item['merchant'] as Map<String, dynamic>);
         break;
       case 'merchant_shop':
       case 'merchant_farm':
       case 'merchant_build':
-        destination = ShopStoreDetailScreen(store: item['store'] as Map<String, dynamic>);
+        final domain = target.replaceFirst('merchant_', '');
+        final store = item['store'] as Map<String, dynamic>;
+        destination = MerchantDetailScreen(merchant: {'domain': domain, 'serviceType': domain, ...store});
         break;
       default:
         destination = const FoodExploreScreen();
@@ -413,64 +426,70 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
 
                   // 1. Tombol Chat/Pesan Mandiri (Di sebelah kiri Lonceng Notifikasi)
                   // Badge Angka Unread Chat
-                  InkWell(
-                    onTap: () {
-                      HapticFeedback.lightImpact();
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const ChatHubScreen()),
-                      );
-                    },
-                    borderRadius: BorderRadius.circular(20),
-                    child: SizedBox(
-                      width: 36,
-                      height: 38,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Icon(
-                            Icons.chat_rounded,
-                            size: 22,
-                            color: isDark
-                                ? Colors.white
-                                : (fade > 0.4 ? GageTheme.textPrimary : Colors.white),
-                            shadows: fade <= 0.4
-                                ? [
-                                    Shadow(
-                                      color: Colors.black.withValues(alpha: 0.55),
-                                      blurRadius: 5,
-                                      offset: const Offset(0, 1.5),
+                  AnimatedBuilder(
+                    animation: NotificationService.instance,
+                    builder: (context, _) {
+                      final unreadChats = NotificationService.instance.unreadChatCount;
+                      return InkWell(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const ChatHubScreen()),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(20),
+                        child: SizedBox(
+                          width: 36,
+                          height: 38,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Icon(
+                                Icons.chat_rounded,
+                                size: 22,
+                                color: isDark
+                                    ? Colors.white
+                                    : (fade > 0.4 ? GageTheme.textPrimary : Colors.white),
+                                shadows: fade <= 0.4
+                                    ? [
+                                        Shadow(
+                                          color: Colors.black.withValues(alpha: 0.55),
+                                          blurRadius: 5,
+                                          offset: const Offset(0, 1.5),
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                              if (unreadChats > 0)
+                                Positioned(
+                                  top: 4,
+                                  right: 1,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF16A34A),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: Colors.white, width: 1.2),
                                     ),
-                                  ]
-                                : null,
-                          ),
-                          if (NotificationService.instance.unreadChatCount > 0)
-                            Positioned(
-                              top: 4,
-                              right: 1,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF16A34A),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.white, width: 1.2),
-                                ),
-                                constraints: const BoxConstraints(minWidth: 15, minHeight: 14),
-                                child: Text(
-                                  '${NotificationService.instance.unreadChatCount.clamp(1, 99)}',
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 8.5,
-                                    fontWeight: FontWeight.w900,
-                                    height: 1.05,
+                                    constraints: const BoxConstraints(minWidth: 15, minHeight: 14),
+                                    child: Text(
+                                      '${unreadChats.clamp(1, 99)}',
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 8.5,
+                                        fontWeight: FontWeight.w900,
+                                        height: 1.05,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
 
                   const SizedBox(width: 4),

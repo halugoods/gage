@@ -10,9 +10,11 @@ import 'package:gage_app/core/services/banner_manager_service.dart';
 import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
 import 'package:gage_app/shared/widgets/seamless_floating_cart_bar.dart';
 import 'package:gage_app/shared/widgets/gage_cart_sheet.dart';
+import 'package:gage_app/core/network/gage_api_client.dart';
+import 'package:gage_app/features/food/data/service_directory_helper.dart';
+import 'package:gage_app/features/food/presentation/shop_favorite_screen.dart';
 import 'package:gage_app/providers/cart_provider.dart';
 import 'package:gage_app/shared/widgets/gage_service_header.dart';
-import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 import 'package:gage_app/shared/widgets/gage_merchant_card.dart';
 
@@ -45,6 +47,7 @@ class _FarmScreenState extends State<FarmScreen> {
   bool _isLoading = true;
   String _deliveryLocation = 'Mendeteksi titik GPS Anda...';
   final Set<String> _favoriteStoreIds = {'farm-kios-subur'};
+  List<Map<String, dynamic>> _stores = [];
 
   String _formatShortAddress(String addr) {
     if (addr.isEmpty) return 'Pilih Lokasi';
@@ -62,15 +65,48 @@ class _FarmScreenState extends State<FarmScreen> {
   void initState() {
     super.initState();
     _activeTab = widget.initialTab;
+    _stores = GageApiClient.useDevSeedData
+        ? [..._pertanianStores, ..._peternakanStores]
+        : [];
     _initDeliveryLocation();
     _loadStores();
   }
 
   Future<void> _loadStores() async {
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 280));
+    final apiStores = await GageApiClient.getFarmMerchants();
+    final effectiveStores = apiStores.isNotEmpty
+        ? apiStores
+        : (GageApiClient.useDevSeedData
+            ? [..._pertanianStores, ..._peternakanStores]
+            : <Map<String, dynamic>>[]);
+    await _syncFavoriteStatuses(effectiveStores);
     if (mounted) {
-      setState(() => _isLoading = false);
+      setState(() {
+        _stores = effectiveStores;
+        _isLoading = false;
+      });
+      if (effectiveStores.isNotEmpty) {
+        GageApiClient.prefetchMerchantMenus(effectiveStores).then((_) {
+          if (mounted) setState(() {});
+        });
+      }
+    }
+  }
+
+  Future<void> _syncFavoriteStatuses(List<Map<String, dynamic>> stores) async {
+    final nextFavs = await ServiceDirectoryHelper.loadFavoriteIds(
+      stores,
+      defaultSeedIds: GageApiClient.useDevSeedData
+          ? const {'farm-kios-subur'}
+          : const {},
+    );
+    if (mounted) {
+      setState(() {
+        _favoriteStoreIds
+          ..clear()
+          ..addAll(nextFavs);
+      });
     }
   }
 
@@ -83,30 +119,44 @@ class _FarmScreenState extends State<FarmScreen> {
 
   Future<void> _initDeliveryLocation() async {
     try {
+      final cart = Provider.of<CartProvider?>(context, listen: false);
+      if (cart != null && cart.hasCustomDeliveryLocation && cart.deliveryAddress.isNotEmpty) {
+        if (!mounted) return;
+        setState(() => _deliveryLocation = cart.deliveryAddress);
+        return;
+      }
       final gps = await LocationService.getCurrentLocation();
       final addr = await OsmGeocodingService.reverseGeocode(gps);
-      if (mounted && addr.isNotEmpty) {
-        setState(() {
-          _deliveryLocation = addr;
-        });
+      final fullAddr = OsmGeocodingService.formatFullOfficialAddress(gps);
+      if (!mounted) return;
+      if (addr.isNotEmpty) {
+        setState(() => _deliveryLocation = addr);
+      }
+      if (cart != null && !cart.hasCustomDeliveryLocation) {
+        cart.setDeliveryAddress(fullAddr, cart.distanceKm, location: gps);
       }
     } catch (_) {}
   }
 
   void _showDeliveryLocationPicker() {
+    final cart = Provider.of<CartProvider?>(context, listen: false);
     LocationPickerSheet.show(
       context,
       title: 'Pilih Lokasi Pengantaran Kebutuhan Tani & Ternak',
+      initialLocation: cart?.deliveryLocation,
       onSelected: (title, fullAddress, latLng) {
+        final resolved = fullAddress.isNotEmpty ? fullAddress : title;
         setState(() {
           _deliveryLocation = '$title - $fullAddress';
         });
+        cart?.setDeliveryAddress(resolved, cart.distanceKm, location: latLng);
       },
     );
   }
 
-  void _toggleFavorite(String storeId, [String? storeName]) {
+  Future<void> _toggleFavorite(String storeId, [String? storeName]) async {
     final isFav = _favoriteStoreIds.contains(storeId);
+    final nextVal = !isFav;
     setState(() {
       if (isFav) {
         _favoriteStoreIds.remove(storeId);
@@ -114,35 +164,52 @@ class _FarmScreenState extends State<FarmScreen> {
         _favoriteStoreIds.add(storeId);
       }
     });
-    GageToast.show(
-      context,
-      !isFav
-          ? '${storeName ?? "Toko"} ditambahkan ke favorit!'
-          : '${storeName ?? "Toko"} dihapus dari favorit',
-      type: !isFav ? GageToastType.success : GageToastType.info,
-    );
+    await ServiceDirectoryHelper.persistFavoriteStatus(storeId, nextVal);
   }
+
+  static const Map<String, List<String>> _pertanianCategoryKeywords = {
+    'Pupuk & Nutrisi': ['pupuk', 'nutrisi', 'urea', 'npk', 'phonska', 'dolomit', 'kompos', 'organik'],
+    'Benih & Bibit': ['benih', 'bibit', 'padi', 'cabai', 'tomat', 'terong', 'sayur'],
+    'Obat & Pestisida': ['obat', 'pestisida', 'hama', 'insektisida', 'fungisida', 'regent'],
+    'Alat Pertanian': ['alat', 'semprot', 'sprayer', 'cangkul', 'arit', 'mulsa', 'paranet'],
+    'Padi & Palawija': ['padi', 'palawija', 'inpari', 'ciherang', 'jagung'],
+    'Cabai & Sayuran': ['cabai', 'sayur', 'tomat', 'ori 212', 'kangkung'],
+    'Pipa Irigasi': ['pipa', 'irigasi', 'selang', 'drip', 'pompa'],
+  };
+
+  static const Map<String, List<String>> _peternakanCategoryKeywords = {
+    'Pakan Unggas': ['unggas', 'ayam', 'bebek', 'broiler', 'layer', 'br-1', 'poultry'],
+    'Pakan Sapi': ['sapi', 'kambing', 'domba', 'penggemuk', 'konsentrat'],
+    'Konsentrat Pakan': ['konsentrat', 'dedak', 'bekatul', 'polar', 'bungkil', 'jagung giling', 'tetes tebu'],
+    'Vitamin & Obat Hewan': ['vitamin', 'obat hewan', 'antibiotik', 'vitachick', 'medoxy', 'probiotik', 'mineral'],
+    'Telur & DOC': ['telur', 'doc', 'bibit ayam', 'anak ayam'],
+    'Peralatan Kandang': ['kandang', 'tempat minum', 'tali', 'terpal', 'wadah'],
+    'Desinfektan': ['desinfektan', 'rodalon', 'antisep', 'sanitasi'],
+  };
+
+  Map<String, List<String>> get _activeCategoryKeywords =>
+      _activeTab == 'pertanian' ? _pertanianCategoryKeywords : _peternakanCategoryKeywords;
 
   List<Map<String, dynamic>> get _categoriesData {
     if (_activeTab == 'pertanian') {
       return [
         {'name': 'Pupuk & Nutrisi', 'image': 'assets/images/prod_pupuk.png', 'icon': Icons.grain_rounded},
         {'name': 'Benih & Bibit', 'image': 'assets/images/prod_benih.png', 'icon': Icons.spa_rounded},
-        {'name': 'Obat & Pestisida', 'image': 'assets/images/hero_promo_1.png', 'icon': Icons.medical_services_rounded},
+        {'name': 'Obat & Pestisida', 'image': '', 'icon': Icons.medical_services_rounded},
         {'name': 'Alat Pertanian', 'image': 'assets/images/prod_traktor.png', 'icon': Icons.agriculture_rounded},
         {'name': 'Padi & Palawija', 'image': 'assets/images/prod_beras.png', 'icon': Icons.rice_bowl_rounded},
         {'name': 'Cabai & Sayuran', 'image': 'assets/images/prod_cabai.png', 'icon': Icons.eco_rounded},
-        {'name': 'Pipa Irigasi', 'image': 'assets/images/hero_promo_2.png', 'icon': Icons.water_drop_rounded},
+        {'name': 'Pipa Irigasi', 'image': '', 'icon': Icons.water_drop_rounded},
       ];
     } else {
       return [
         {'name': 'Pakan Unggas', 'image': 'assets/images/prod_pakan.png', 'icon': Icons.pets_rounded},
         {'name': 'Pakan Sapi', 'image': 'assets/images/prod_pakan.png', 'icon': Icons.cruelty_free_rounded},
         {'name': 'Konsentrat Pakan', 'image': 'assets/images/prod_beras.png', 'icon': Icons.grain_rounded},
-        {'name': 'Vitamin & Obat Hewan', 'image': 'assets/images/hero_promo_1.png', 'icon': Icons.medication_rounded},
+        {'name': 'Vitamin & Obat Hewan', 'image': '', 'icon': Icons.medication_rounded},
         {'name': 'Telur & DOC', 'image': 'assets/images/prod_telur.png', 'icon': Icons.egg_rounded},
         {'name': 'Peralatan Kandang', 'image': 'assets/images/prod_traktor.png', 'icon': Icons.fence_rounded},
-        {'name': 'Desinfektan', 'image': 'assets/images/hero_promo_2.png', 'icon': Icons.sanitizer_rounded},
+        {'name': 'Desinfektan', 'image': '', 'icon': Icons.sanitizer_rounded},
       ];
     }
   }
@@ -274,56 +341,30 @@ class _FarmScreenState extends State<FarmScreen> {
   ];
 
   List<Map<String, dynamic>> get _currentStores {
-    final list = _activeTab == 'pertanian' ? _pertanianStores : _peternakanStores;
-    final filtered = list.where((s) {
-      final name = s['name'].toString().toLowerCase();
-      final cat = s['category'].toString().toLowerCase();
-      final q = _searchQuery.toLowerCase();
-      final matchesQuery = q.isEmpty || name.contains(q) || cat.contains(q);
-
-      if (!matchesQuery) return false;
-
-      if (_selectedCategory == 'Semua') return true;
-      return cat.toLowerCase().contains(_selectedCategory.toLowerCase());
+    final source = _stores.where((s) {
+      final tab = (s['tab'] ?? 'pertanian').toString().trim().toLowerCase();
+      return tab == _activeTab;
+    });
+    final filtered = source.where((s) {
+      if (!ServiceDirectoryHelper.matchesMerchantSearch(s, _searchQuery)) {
+        return false;
+      }
+      return ServiceDirectoryHelper.matchesCategoryKeywords(
+        s,
+        _selectedCategory,
+        _activeCategoryKeywords,
+      );
     }).toList();
 
-    // Terapkan Ranking Switch
-    switch (_rankingSwitch) {
-      case 'Terlaris':
-        filtered.sort((a, b) {
-          final countA = int.tryParse((a['ratingCount'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-          final countB = int.tryParse((b['ratingCount'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-          return countB.compareTo(countA);
-        });
-        break;
-      case 'Top Rating':
-        filtered.sort((a, b) {
-          final rA = (a['rating'] is num) ? (a['rating'] as num).toDouble() : (double.tryParse(a['rating']?.toString() ?? '') ?? 0.0);
-          final rB = (b['rating'] is num) ? (b['rating'] as num).toDouble() : (double.tryParse(b['rating']?.toString() ?? '') ?? 0.0);
-          return rB.compareTo(rA);
-        });
-        break;
-      case 'Terdekat':
-      case 'Kios Terdekat':
-        filtered.sort((a, b) {
-          final distA = double.tryParse((a['distance'] ?? '').toString().replaceAll(RegExp(r'[^0-9.]'), '')) ?? 99.0;
-          final distB = double.tryParse((b['distance'] ?? '').toString().replaceAll(RegExp(r'[^0-9.]'), '')) ?? 99.0;
-          return distA.compareTo(distB);
-        });
-        break;
-      case 'Rekomendasi':
-      default:
-        break;
-    }
-
-    return filtered;
+    return ServiceDirectoryHelper.sortMerchants(filtered, _rankingSwitch);
   }
 
   @override
   Widget build(BuildContext context) {
     final bannerManager = context.watch<BannerManagerService>();
     final cart = context.watch<CartProvider>();
-    final farmBanner = bannerManager.getBanner('farm');
+    final bannerKey = _activeTab == 'peternakan' ? 'ternak' : 'customer_tani';
+    final farmBanner = bannerManager.getBanner(bannerKey);
     final screenWidth = MediaQuery.of(context).size.width;
     final isTablet = screenWidth >= 600;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -343,10 +384,12 @@ class _FarmScreenState extends State<FarmScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Full-bleed Banner 16:9 ke batas atas status bar
+                  // Full-bleed Banner 16:9 ke batas atas status bar dengan smooth fading out
                   GageServiceHeroBanner(
-                    screenTarget: 'farm',
-                    imageAsset: farmBanner.imagePath.isNotEmpty ? farmBanner.imagePath : 'assets/icons/ic_farm.png',
+                    screenTarget: bannerKey,
+                    imageAsset: farmBanner.imagePath.isNotEmpty
+                        ? farmBanner.imagePath
+                        : 'assets/images/tani_hero_banner.png',
                     fallbackTitle: 'GAGE FARM',
                     scrollController: _scrollController,
                   ),
@@ -359,8 +402,41 @@ class _FarmScreenState extends State<FarmScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Horizontal Categories Filter Chips
-                          _buildCategoriesBar(isDark),
+                          if (_searchQuery.trim().isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      'Hasil "$_searchQuery" (${_currentStores.length} kios)',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                  InkWell(
+                                    onTap: () {
+                                      setState(() {
+                                        _searchController.clear();
+                                        _searchQuery = '';
+                                      });
+                                    },
+                                    child: const Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                      child: Text(
+                                        'Reset',
+                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: GageTheme.primary),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          else
+                            // Horizontal Categories Filter Chips
+                            _buildCategoriesBar(isDark),
 
                           const SizedBox(height: 14),
 
@@ -416,7 +492,15 @@ class _FarmScreenState extends State<FarmScreen> {
               locationText: _formatShortAddress(_deliveryLocation),
               onLocationTap: _showDeliveryLocationPicker,
               onBackTap: () => Navigator.pop(context),
-              onFavoriteTap: () {},
+              onFavoriteTap: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (ctx) => const ShopFavoriteScreen(domain: 'farm')),
+                );
+                if (mounted) {
+                  _syncFavoriteStatuses(_stores);
+                }
+              },
               onHistoryTap: () {
                 GageCartSheet.show(context);
               },
@@ -625,18 +709,27 @@ class _FarmScreenState extends State<FarmScreen> {
                         ],
                       ),
                       child: ClipOval(
-                        child: Image.asset(
-                          cat['image'] as String,
-                          fit: BoxFit.cover,
-                          errorBuilder: (c, e, s) => Container(
-                            color: GageTheme.primaryLight,
-                            child: Icon(
-                              cat['icon'] as IconData? ?? Icons.agriculture_rounded,
-                              color: GageTheme.primary,
-                              size: 26,
-                            ),
-                          ),
-                        ),
+                        child: (cat['image'] as String).isEmpty
+                            ? Container(
+                                color: GageTheme.primaryLight,
+                                child: Icon(
+                                  cat['icon'] as IconData? ?? Icons.agriculture_rounded,
+                                  color: GageTheme.primary,
+                                  size: 26,
+                                ),
+                              )
+                            : Image.asset(
+                                cat['image'] as String,
+                                fit: BoxFit.cover,
+                                errorBuilder: (c, e, s) => Container(
+                                  color: GageTheme.primaryLight,
+                                  child: Icon(
+                                    cat['icon'] as IconData? ?? Icons.agriculture_rounded,
+                                    color: GageTheme.primary,
+                                    size: 26,
+                                  ),
+                                ),
+                              ),
                       ),
                     ),
                     const SizedBox(height: 5),
@@ -720,22 +813,33 @@ class _FarmScreenState extends State<FarmScreen> {
   }
 
   Widget _buildStoreCard(Map<String, dynamic> store) {
-    final storeId = store['id'] as String;
-    String? tier;
-    if (storeId == 'farm-kios-subur') {
+    final storeId = (store['id'] ?? '').toString();
+    String? tier = store['tier']?.toString();
+    if (tier == null && storeId == 'farm-kios-subur') {
       tier = 'exclusive';
-    } else if (storeId == 'farm-sentra-mandiri') {
+    } else if (tier == null && storeId == 'farm-sentra-mandiri') {
       tier = 'star';
     }
+
+    final rawBadges = store['promoBadges'];
+    final promoBadges = (rawBadges is List && rawBadges.isNotEmpty)
+        ? rawBadges.map((e) => e.toString()).toList()
+        : const ['Diskon 10RB', 'Gratis Ongkir'];
 
     final rating = (store['rating'] is num)
         ? (store['rating'] as num).toDouble()
         : double.tryParse(store['rating']?.toString() ?? '') ?? 4.9;
 
+    final farmMerchant = <String, dynamic>{
+      'domain': 'farm',
+      'serviceType': 'farm',
+      ...store,
+    };
+
     return GageMerchantCard(
       id: storeId,
-      name: store['name'] ?? '',
-      category: store['category'] ?? 'Pertanian & Peternakan',
+      name: (store['name'] ?? '').toString(),
+      category: (store['category'] ?? 'Pertanian & Peternakan').toString(),
       rating: rating,
       ratingCount: (store['ratingCount'] ?? '50+').toString(),
       distance: (store['distance'] ?? '1.0 km').toString(),
@@ -743,16 +847,20 @@ class _FarmScreenState extends State<FarmScreen> {
       image: (store['image'] ?? 'assets/images/prod_pupuk.png').toString(),
       tier: tier,
       campaignBadge: tier == 'exclusive' ? 'SUBSIDI TANI' : null,
-      promoBadges: const ['Diskon 15%', 'Diskon Ongkir'],
+      promoBadges: promoBadges,
+      matchedProductsLabel: ServiceDirectoryHelper.matchedProductsLabel(store, _searchQuery),
       isFavorite: _favoriteStoreIds.contains(storeId),
-      onFavoriteTap: () => _toggleFavorite(storeId, store['name']),
-      onTap: () {
-        Navigator.push(
+      onFavoriteTap: () => _toggleFavorite(storeId, store['name']?.toString()),
+      onTap: () async {
+        await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (c) => RestoDetailScreen(merchant: store),
+            builder: (c) => MerchantDetailScreen(merchant: farmMerchant),
           ),
         );
+        if (mounted) {
+          _syncFavoriteStatuses(_stores);
+        }
       },
     );
   }

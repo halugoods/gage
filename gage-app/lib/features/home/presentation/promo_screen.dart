@@ -2,10 +2,13 @@ import 'package:gage_app/data/mock/gage_voucher_data.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:gage_app/core/services/notification_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/providers/cart_provider.dart';
 import 'package:gage_app/features/food/presentation/food_explore_screen.dart';
 import 'package:gage_app/features/food/presentation/shop_screen.dart';
+import 'package:gage_app/features/food/presentation/farm_screen.dart';
+import 'package:gage_app/features/food/presentation/build_screen.dart';
 import 'package:gage_app/features/ride/presentation/ride_booking_screen.dart';
 import 'package:gage_app/features/ride/presentation/send_booking_screen.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
@@ -27,15 +30,18 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
   final TextEditingController _codeCtrl = TextEditingController();
   int _selectedTabIndex = 0;
   final Map<String, bool> _expandedSections = {
+    'ongkir': true,
     'food': true,
-    'mart': true,
+    'shop': true,
+    'farm': true,
+    'build': true,
     'transport': true,
     'send': true,
   };
 
   final List<String> _tabs = ['Semua', 'Diskon', 'Gratis Ongkir'];
 
-  // Master Database Voucher Kupon GAGE (Urutan Terstruktur: Food -> Mart -> Transport -> Logistik)
+  // Master Database Voucher Kupon GAGE (Ongkir -> Food -> Shop -> Farm -> Build -> Transport -> Send)
   List<Map<String, dynamic>> get _allVouchers => GageVoucherData.allVouchers;
 
   @override
@@ -46,6 +52,10 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
       if (!_tabController.indexIsChanging && _selectedTabIndex != _tabController.index) {
         setState(() => _selectedTabIndex = _tabController.index);
       }
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      NotificationService.instance.markPromosAsRead();
     });
   }
 
@@ -72,19 +82,31 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
     final code = voucher['code'] as String;
     final service = voucher['service'] as String;
     final isOrder = voucher['type'] == 'order';
+    final isTransport = service == 'GAGE Ride' || service == 'GAGE Car' || service == 'GAGE Send';
 
-    if (isOrder) {
-      final disc = code == 'DISKON50'
-          ? 15000
-          : (code == 'KULINER20'
-              ? 20000
-              : (code == 'GAGECAR15'
-                  ? 15000
-                  : (code == 'RIDEHEMAT' ? 4000 : 10000)));
-      cart.setFoodPromo(code, disc);
-    } else {
-      final disc = code == 'ONGKIRGRATIS' ? 7000 : 5000;
-      cart.setDeliveryPromo(code, disc);
+    if (!isTransport) {
+      final hasMatchingCart =
+          cart.items.isNotEmpty && GageVoucherData.serviceNameForType(cart.primaryServiceType) == service;
+      if (hasMatchingCart && !GageVoucherData.isVoucherEligible(voucher, cart.subtotal)) {
+        HapticFeedback.heavyImpact();
+        GageToast.show(
+          context,
+          GageVoucherData.ineligibilityReason(voucher, cart.subtotal) ??
+              'Minimal transaksi untuk voucher $code belum terpenuhi.',
+          type: GageToastType.error,
+        );
+        return;
+      }
+      final evalAmount = hasMatchingCart ? cart.subtotal : GageVoucherData.minOrderFor(voucher);
+      final disc = GageVoucherData.calculateDiscount(
+        voucher,
+        evalAmount > 0 ? evalAmount : ((voucher['discountAmount'] as num?)?.toInt() ?? 10000),
+      );
+      if (isOrder) {
+        cart.setFoodPromo(code, disc);
+      } else {
+        cart.setDeliveryPromo(code, disc);
+      }
     }
 
     GageToast.show(
@@ -103,8 +125,14 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
       case 'GAGE Car':
         Navigator.push(context, MaterialPageRoute(builder: (_) => const RideBookingScreen(initialTab: 'car')));
         break;
-      case 'GAGE Mart':
+      case 'GAGE Shop':
         Navigator.push(context, MaterialPageRoute(builder: (_) => const ShopScreen()));
+        break;
+      case 'GAGE Farm':
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const FarmScreen()));
+        break;
+      case 'GAGE Build':
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const BuildScreen()));
         break;
       case 'GAGE Send':
         Navigator.push(context, MaterialPageRoute(builder: (_) => const SendBookingScreen()));
@@ -284,7 +312,6 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
     required BuildContext context,
     required String sectionKey,
     required String title,
-    required IconData icon,
     required List<Map<String, dynamic>> vouchers,
     required bool isDark,
   }) {
@@ -301,38 +328,26 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
               _expandedSections[sectionKey] = !isExpanded;
             });
           },
-          borderRadius: BorderRadius.circular(14),
-          child: Container(
-            margin: const EdgeInsets.only(top: 8, bottom: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-              ),
-            ),
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 2),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Icon(icon, size: 18, color: GageTheme.primary),
-                    const SizedBox(width: 8),
-                    Text(
-                      '$title (${vouchers.length})',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                        color: isDark ? Colors.white : Colors.black87,
-                      ),
+                Expanded(
+                  child: Text(
+                    '$title (${vouchers.length})',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: isDark ? Colors.white : const Color(0xFF1E293B),
                     ),
-                  ],
+                  ),
                 ),
                 Icon(
                   isExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
                   size: 20,
-                  color: isDark ? Colors.white70 : Colors.black54,
+                  color: isDark ? Colors.white70 : const Color(0xFF64748B),
                 ),
               ],
             ),
@@ -346,49 +361,83 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
               onTermsTap: () => _showVoucherTerms(context, v),
             ),
           ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
       ],
     );
   }
 
   Widget _buildAllTabAccordion(BuildContext context, bool isDark) {
-    final foodVouchers = _allVouchers.where((v) => v['service'] == 'GAGE Food').toList();
-    final martVouchers = _allVouchers.where((v) => v['service'] == 'GAGE Mart').toList();
-    final transportVouchers = _allVouchers.where((v) => v['service'] == 'GAGE Ride' || v['service'] == 'GAGE Car').toList();
-    final sendVouchers = _allVouchers.where((v) => v['service'] == 'GAGE Send').toList();
+    final ongkirVouchers = _allVouchers
+        .where((v) => v['type'] == 'delivery' && v['service'] != 'GAGE Send')
+        .toList();
+    final foodVouchers = _allVouchers
+        .where((v) => v['service'] == 'GAGE Food' && v['type'] == 'order')
+        .toList();
+    final shopVouchers = _allVouchers
+        .where((v) => v['service'] == 'GAGE Shop' && v['type'] == 'order')
+        .toList();
+    final farmVouchers = _allVouchers
+        .where((v) => v['service'] == 'GAGE Farm' && v['type'] == 'order')
+        .toList();
+    final buildVouchers = _allVouchers
+        .where((v) => v['service'] == 'GAGE Build' && v['type'] == 'order')
+        .toList();
+    final transportVouchers = _allVouchers
+        .where((v) => v['service'] == 'GAGE Ride' || v['service'] == 'GAGE Car')
+        .toList();
+    final sendVouchers = _allVouchers
+        .where((v) => v['service'] == 'GAGE Send')
+        .toList();
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 85),
       children: [
         _buildAccordionSection(
           context: context,
+          sectionKey: 'ongkir',
+          title: 'Voucher Diskon Ongkir',
+          vouchers: ongkirVouchers,
+          isDark: isDark,
+        ),
+        _buildAccordionSection(
+          context: context,
           sectionKey: 'food',
-          title: 'Kuliner & Resto Mitra',
-          icon: Icons.restaurant_rounded,
+          title: 'Voucher GAGE Food',
           vouchers: foodVouchers,
           isDark: isDark,
         ),
         _buildAccordionSection(
           context: context,
-          sectionKey: 'mart',
-          title: 'Belanja & Toko Sembako',
-          icon: Icons.storefront_rounded,
-          vouchers: martVouchers,
+          sectionKey: 'shop',
+          title: 'Voucher GAGE Shop',
+          vouchers: shopVouchers,
+          isDark: isDark,
+        ),
+        _buildAccordionSection(
+          context: context,
+          sectionKey: 'farm',
+          title: 'Voucher GAGE Farm',
+          vouchers: farmVouchers,
+          isDark: isDark,
+        ),
+        _buildAccordionSection(
+          context: context,
+          sectionKey: 'build',
+          title: 'Voucher GAGE Build',
+          vouchers: buildVouchers,
           isDark: isDark,
         ),
         _buildAccordionSection(
           context: context,
           sectionKey: 'transport',
-          title: 'Transportasi Motor & Mobil',
-          icon: Icons.two_wheeler_rounded,
+          title: 'Voucher Transportasi (Ride & Car)',
           vouchers: transportVouchers,
           isDark: isDark,
         ),
         _buildAccordionSection(
           context: context,
           sectionKey: 'send',
-          title: 'Pengiriman & Logistik Paket',
-          icon: Icons.local_shipping_rounded,
+          title: 'Voucher GAGE Send',
           vouchers: sendVouchers,
           isDark: isDark,
         ),

@@ -16,7 +16,17 @@ import 'package:gage_app/features/chat/providers/in_app_chat_provider.dart';
 import 'package:gage_app/providers/merchant_order_provider.dart';
 import 'package:gage_app/providers/theme_provider.dart';
 import 'package:gage_app/providers/language_provider.dart';
+import 'package:gage_app/core/routing/portal_routes.dart';
+import 'package:gage_app/providers/driver_order_provider.dart';
+import 'package:gage_app/providers/driver_wallet_provider.dart';
+import 'package:gage_app/features/orders/presentation/orders_screen.dart';
+import 'package:gage_app/features/home/presentation/promo_screen.dart';
+import 'package:gage_app/features/video/presentation/video_feed_screen.dart';
+import 'package:gage_app/features/profile/presentation/profile_screen.dart';
+import 'package:gage_app/features/checkout/presentation/checkout_screen.dart';
+import 'package:gage_app/features/merchant/presentation/merchant_profile_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_root_screen.dart';
+import 'package:gage_app/features/driver/presentation/driver_root_screen.dart';
 import 'package:gage_app/features/admin/presentation/admin_root_screen.dart';
 
 
@@ -77,8 +87,16 @@ class GageApp extends StatelessWidget {
             themeMode: themeProvider.themeMode,
             home: const AuthGate(),
             routes: {
-              '/merchant': (context) => const MerchantRootScreen(),
-              '/admin': (context) => const AdminRootScreen(),
+              CustomerRoutes.home: (context) => const HomeScreen(),
+              CustomerRoutes.orders: (context) => const OrdersScreen(),
+              CustomerRoutes.promo: (context) => const PromoScreen(),
+              CustomerRoutes.video: (context) => const VideoFeedScreen(),
+              CustomerRoutes.profile: (context) => const ProfileScreen(),
+              CustomerRoutes.checkout: (context) => const CheckoutScreen(),
+              MerchantRoutes.root: (context) => const MerchantRootScreen(),
+              MerchantRoutes.profile: (context) => const MerchantProfileScreen(),
+              DriverRoutes.root: (context) => const _DriverPortalGuard(),
+              AdminRoutes.root: (context) => const AdminRootScreen(),
             },
           );
         },
@@ -134,6 +152,21 @@ class AuthGate extends StatelessWidget {
     }
 
     return const HomeScreen();
+  }
+}
+
+class _DriverPortalGuard extends StatelessWidget {
+  const _DriverPortalGuard();
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => DriverOrderProvider()),
+        ChangeNotifierProvider(create: (_) => DriverWalletProvider()),
+      ],
+      child: const DriverRootScreen(),
+    );
   }
 }
 

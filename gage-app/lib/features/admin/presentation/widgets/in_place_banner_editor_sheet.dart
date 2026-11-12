@@ -7,32 +7,7 @@ import 'package:gage_app/core/services/banner_manager_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 
-/// Scope penanda bahwa aplikasi sedang dijalankan di dalam Live App Sandbox (Admin Mode)
-class LiveAppEditScope extends InheritedWidget {
-  final bool isEditMode;
-
-  /// Global flag agar tetap aktif meskipun layar dipush lewat Navigator.push
-  static bool globalEditMode = false;
-
-  const LiveAppEditScope({
-    super.key,
-    this.isEditMode = true,
-    required super.child,
-  });
-
-  static LiveAppEditScope? of(BuildContext context) {
-    return context.dependOnInheritedWidgetOfExactType<LiveAppEditScope>();
-  }
-
-  static bool isEditModeActive(BuildContext context) {
-    final scope = context.dependOnInheritedWidgetOfExactType<LiveAppEditScope>();
-    return (scope != null && scope.isEditMode) || globalEditMode;
-  }
-
-  @override
-  bool updateShouldNotify(LiveAppEditScope oldWidget) =>
-      isEditMode != oldWidget.isEditMode;
-}
+export 'package:gage_app/shared/widgets/live_app_edit_scope.dart';
 
 /// Modal In-Place Banner CRUD Editor (WYSIWYG)
 /// Dipanggil langsung ketika admin mengetuk banner apapun di dalam Live App Sandbox.

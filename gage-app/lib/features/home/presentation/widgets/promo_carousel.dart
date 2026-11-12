@@ -7,14 +7,17 @@ import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/core/services/banner_manager_service.dart';
 import 'package:gage_app/features/food/presentation/food_explore_screen.dart';
 import 'package:gage_app/features/food/presentation/shop_screen.dart';
+import 'package:gage_app/features/food/presentation/farm_screen.dart';
+import 'package:gage_app/features/food/presentation/build_screen.dart';
 import 'package:gage_app/features/ride/presentation/ride_booking_screen.dart';
 import 'package:gage_app/features/ride/presentation/send_booking_screen.dart';
+import 'package:gage_app/features/affiliate/presentation/affiliate_hub_screen.dart';
 import 'package:gage_app/features/membership/presentation/membership_screen.dart';
 import 'package:gage_app/features/home/presentation/promo_screen.dart';
 import 'package:gage_app/providers/wallet_provider.dart';
 import 'package:gage_app/features/wallet/presentation/gagepay_screen.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
-import 'package:gage_app/features/admin/presentation/widgets/in_place_banner_editor_sheet.dart';
+import 'package:gage_app/shared/widgets/live_app_edit_scope.dart';
 
 class PromoCarousel extends StatefulWidget {
   const PromoCarousel({super.key});
@@ -104,7 +107,7 @@ class _PromoCarouselState extends State<PromoCarousel> {
       final initialTitle = liveBanner.title.isNotEmpty ? liveBanner.title : _promoBanners[index]['title']!;
       final initialDesc = liveBanner.subtitle.isNotEmpty ? liveBanner.subtitle : _promoBanners[index]['desc']!;
 
-      InPlaceBannerEditorSheet.showConfirmationAndOpen(
+      LiveAppEditScope.triggerEdit(
         context: context,
         screenTarget: targetKey,
         title: initialTitle,
@@ -135,7 +138,15 @@ class _PromoCarouselState extends State<PromoCarousel> {
       return;
     }
 
-    if (lowerRoute.startsWith('service:') || lowerRoute == 'send' || lowerRoute == 'ride' || lowerRoute == 'car' || lowerRoute == 'food' || lowerRoute == 'shop') {
+    if (lowerRoute.startsWith('service:') ||
+        lowerRoute == 'send' ||
+        lowerRoute == 'ride' ||
+        lowerRoute == 'car' ||
+        lowerRoute == 'food' ||
+        lowerRoute == 'shop' ||
+        lowerRoute == 'farm' ||
+        lowerRoute == 'build' ||
+        lowerRoute == 'cuan') {
       final serviceType = lowerRoute.replaceAll('service:', '').trim();
       if (serviceType == 'send') {
         Navigator.push(context, MaterialPageRoute(builder: (ctx) => const SendBookingScreen()));
@@ -145,6 +156,12 @@ class _PromoCarouselState extends State<PromoCarousel> {
         Navigator.push(context, MaterialPageRoute(builder: (ctx) => const RideBookingScreen(initialTab: 'car')));
       } else if (serviceType == 'shop') {
         Navigator.push(context, MaterialPageRoute(builder: (ctx) => const ShopScreen()));
+      } else if (serviceType == 'farm') {
+        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const FarmScreen()));
+      } else if (serviceType == 'build') {
+        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const BuildScreen()));
+      } else if (serviceType == 'cuan') {
+        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const AffiliateHubScreen()));
       } else {
         Navigator.push(context, MaterialPageRoute(builder: (ctx) => const FoodExploreScreen()));
       }
