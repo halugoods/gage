@@ -914,220 +914,33 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                       const SizedBox(height: 14),
 
                       // =========================================================
-                      // 2. ALAMAT PENGANTARAN / TUJUAN (with Mini Map Preview 1:1 Food/Shop/Farm/Build)
+                      // 2. DUAL LOKASI CARD (Atas: Titik Jemput / Pengirim, Bawah: Alamat Pengantaran / Tujuan)
                       // =========================================================
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: cardColor,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: cardBorder),
-                          boxShadow: cardShadow,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                MiniLocationPreviewMap(
-                                  location: _currentDropoffLocation,
-                                  size: 68,
-                                  borderRadius: 14,
-                                  onTap: () => _openLocationPicker(isDropoff: true),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Flexible(
-                                            child: Text(
-                                              isSend ? 'Alamat Pengantaran' : 'Titik Tujuan',
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.bold,
-                                              color: isDark ? Colors.white : Colors.black87,
-                                            ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Builder(
-                                            builder: (context) {
-                                              final favName = _matchedDropoffFavorite?.name;
-                                              final isFav = favName != null && favName.isNotEmpty;
-                                              return Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                                decoration: BoxDecoration(
-                                                  color: isFav
-                                                      ? (isDark
-                                                          ? GageTheme.primary.withValues(alpha: 0.22)
-                                                          : const Color(0xFFFFEBEE))
-                                                      : (isDark ? Colors.white10 : const Color(0xFFF1F5F9)),
-                                                  borderRadius: BorderRadius.circular(999),
-                                                  border: isFav
-                                                      ? Border.all(color: GageTheme.primary.withValues(alpha: 0.35))
-                                                      : null,
-                                                ),
-                                                child: Row(
-                                                  mainAxisSize: MainAxisSize.min,
-                                                  children: [
-                                                    if (isFav) ...[
-                                                      const Icon(Icons.bookmark_rounded, size: 11, color: GageTheme.primary),
-                                                      const SizedBox(width: 3),
-                                                    ],
-                                                    Text(
-                                                      isFav ? 'Favorit • $favName' : 'Utama',
-                                                      style: TextStyle(
-                                                        fontSize: 10,
-                                                        fontWeight: FontWeight.bold,
-                                                        color: isFav
-                                                            ? (isDark ? Colors.white : GageTheme.primary)
-                                                            : const Color(0xFF64748B),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        _currentDropoffAddress,
-                                        style: TextStyle(
-                                          fontSize: 12.5,
-                                          color: isDark ? Colors.grey.shade300 : Colors.black87,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 8),
-                                      // Catatan Driver Dinamis Button (1:1 with Food / Shop / Farm / Build)
-                                      InkWell(
-                                        onTap: _editAddressNote,
-                                        borderRadius: BorderRadius.circular(14),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                          decoration: BoxDecoration(
-                                            color: isDark ? const Color(0xFF27272A) : const Color(0xFFF8FAFC),
-                                            borderRadius: BorderRadius.circular(14),
-                                            border: Border.all(
-                                              color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-                                            ),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(
-                                                _noteController.text.isNotEmpty
-                                                    ? Icons.edit_note_rounded
-                                                    : Icons.add_comment_outlined,
-                                                size: 14,
-                                                color: GageTheme.primary,
-                                              ),
-                                              const SizedBox(width: 6),
-                                              Flexible(
-                                                child: Text(
-                                                  _noteController.text.isNotEmpty
-                                                      ? 'Catatan: "${_noteController.text}"'
-                                                      : '+ Tambah catatan / patokan driver',
-                                                  style: TextStyle(
-                                                    fontSize: 11,
-                                                    color: _noteController.text.isNotEmpty
-                                                        ? (isDark ? Colors.white : Colors.black87)
-                                                        : (isDark ? Colors.white60 : Colors.grey.shade600),
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                OutlinedButton(
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: GageTheme.primary,
-                                    side: const BorderSide(color: GageTheme.primary, width: 1.2),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                                    visualDensity: VisualDensity.compact,
-                                  ),
-                                  onPressed: () => _openLocationPicker(isDropoff: true),
-                                  child: const Text('Ganti', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                                ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 10),
-
-                            // Titik Jemput Info Row
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.radio_button_checked, size: 16, color: Color(0xFF16A34A)),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: RichText(
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      text: TextSpan(
-                                        style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white70 : Colors.black87),
-                                        children: [
-                                          const TextSpan(text: 'Titik Jemput: ', style: TextStyle(fontWeight: FontWeight.bold)),
-                                          TextSpan(text: _currentPickupAddress),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  if (_matchedPickupFavorite != null) ...[
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFFFEBEE),
-                                        borderRadius: BorderRadius.circular(999),
-                                      ),
-                                      child: Text(
-                                        'Favorit • ${_matchedPickupFavorite!.name}',
-                                        style: const TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
-                                          color: GageTheme.primary,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                  const SizedBox(width: 8),
-                                  InkWell(
-                                    onTap: () => _openLocationPicker(isDropoff: false),
-                                    child: const Text(
-                                      'Ubah',
-                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: GageTheme.primary),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
+                      _buildCheckoutLocationCard(
+                        isDark: isDark,
+                        cardColor: cardColor,
+                        cardBorder: cardBorder,
+                        cardShadow: cardShadow,
+                        title: isSend ? 'Alamat Pengirim' : 'Titik Jemput',
+                        defaultBadgeLabel: isSend ? 'Pengirim' : 'Jemput',
+                        address: _currentPickupAddress,
+                        location: _currentPickupLocation,
+                        matchedFavorite: _matchedPickupFavorite,
+                        onPickLocation: () => _openLocationPicker(isDropoff: false),
+                      ),
+                      const SizedBox(height: 10),
+                      _buildCheckoutLocationCard(
+                        isDark: isDark,
+                        cardColor: cardColor,
+                        cardBorder: cardBorder,
+                        cardShadow: cardShadow,
+                        title: isSend ? 'Alamat Pengantaran' : 'Titik Tujuan',
+                        defaultBadgeLabel: 'Utama',
+                        address: _currentDropoffAddress,
+                        location: _currentDropoffLocation,
+                        matchedFavorite: _matchedDropoffFavorite,
+                        onPickLocation: () => _openLocationPicker(isDropoff: true),
+                        showDriverNoteButton: true,
                       ),
 
                       const SizedBox(height: 14),
@@ -1683,8 +1496,11 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                             if (_voucherDiscount > 0) ...[
                               const SizedBox(height: 8),
                               _buildSummaryRow(
-                                'Diskon Voucher ($_appliedVoucherCode)',
-                                '-${currencyFormatter.format(_voucherDiscount)}',
+                                'Diskon Voucher',
+                                '- ${currencyFormatter.format(_voucherDiscount)}',
+                                badgeText: (_appliedVoucherCode != null && _appliedVoucherCode!.trim().isNotEmpty)
+                                    ? _appliedVoucherCode!.trim().toUpperCase()
+                                    : 'VOUCHER',
                                 isDark: isDark,
                                 isDiscount: true,
                               ),
@@ -1939,28 +1755,234 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
     );
   }
 
+  Widget _buildCheckoutLocationCard({
+    required bool isDark,
+    required Color cardColor,
+    required Color cardBorder,
+    required List<BoxShadow> cardShadow,
+    required String title,
+    required String defaultBadgeLabel,
+    required String address,
+    required LatLng location,
+    required UserSavedAddress? matchedFavorite,
+    required VoidCallback onPickLocation,
+    bool showDriverNoteButton = false,
+  }) {
+    final favName = matchedFavorite?.name;
+    final isFav = favName != null && favName.isNotEmpty;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cardBorder),
+        boxShadow: cardShadow,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          MiniLocationPreviewMap(
+            location: location,
+            size: 68,
+            borderRadius: 14,
+            onTap: onPickLocation,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isFav
+                            ? (isDark
+                                ? GageTheme.primary.withValues(alpha: 0.22)
+                                : const Color(0xFFFFEBEE))
+                            : (isDark ? Colors.white10 : const Color(0xFFF1F5F9)),
+                        borderRadius: BorderRadius.circular(999),
+                        border: isFav
+                            ? Border.all(color: GageTheme.primary.withValues(alpha: 0.35))
+                            : null,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (isFav) ...[
+                            const Icon(Icons.bookmark_rounded, size: 11, color: GageTheme.primary),
+                            const SizedBox(width: 3),
+                          ],
+                          Text(
+                            isFav ? 'Favorit • $favName' : defaultBadgeLabel,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: isFav
+                                  ? (isDark ? Colors.white : GageTheme.primary)
+                                  : (isDark ? Colors.white70 : const Color(0xFF64748B)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  address,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: isDark ? Colors.grey.shade300 : Colors.black87,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (showDriverNoteButton) ...[
+                  const SizedBox(height: 8),
+                  InkWell(
+                    onTap: _editAddressNote,
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF27272A) : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _noteController.text.isNotEmpty
+                                ? Icons.edit_note_rounded
+                                : Icons.add_comment_outlined,
+                            size: 14,
+                            color: GageTheme.primary,
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              _noteController.text.isNotEmpty
+                                  ? 'Catatan: "${_noteController.text}"'
+                                  : '+ Tambah catatan / patokan driver',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: _noteController.text.isNotEmpty
+                                    ? (isDark ? Colors.white : Colors.black87)
+                                    : (isDark ? Colors.white60 : Colors.grey.shade600),
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: GageTheme.primary,
+              side: const BorderSide(color: GageTheme.primary, width: 1.2),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+              visualDensity: VisualDensity.compact,
+            ),
+            onPressed: onPickLocation,
+            child: const Text('Ganti', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSummaryRow(
     String label,
     String value, {
     required bool isDark,
+    String? badgeText,
     bool isDiscount = false,
     bool isTip = false,
   }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12.5,
-            color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+        Expanded(
+          child: Row(
+            children: [
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: badgeText != null ? 13 : 12.5,
+                    fontWeight: isDiscount ? FontWeight.w600 : FontWeight.normal,
+                    color: isDiscount
+                        ? const Color(0xFF16A34A)
+                        : (isDark ? Colors.grey.shade400 : Colors.grey.shade700),
+                  ),
+                ),
+              ),
+              if (badgeText != null && badgeText.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? const Color(0xFF16A34A).withValues(alpha: 0.18)
+                        : const Color(0xFFDCFCE7),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: isDark
+                          ? const Color(0xFF22C55E).withValues(alpha: 0.45)
+                          : const Color(0xFF86EFAC),
+                    ),
+                  ),
+                  child: Text(
+                    badgeText,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? const Color(0xFF86EFAC) : const Color(0xFF15803D),
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
+        const SizedBox(width: 8),
         Text(
           value,
           style: TextStyle(
             fontSize: 12.5,
-            fontWeight: FontWeight.w600,
+            fontWeight: isDiscount ? FontWeight.bold : FontWeight.w600,
             color: isDiscount
                 ? const Color(0xFF16A34A)
                 : (isTip ? GageTheme.primary : (isDark ? Colors.white : Colors.black87)),

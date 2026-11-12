@@ -17,6 +17,7 @@ import 'package:gage_app/providers/cart_provider.dart';
 import 'package:gage_app/providers/order_provider.dart';
 import 'package:gage_app/providers/wallet_provider.dart';
 import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
+import 'package:gage_app/shared/widgets/mini_location_preview_map.dart';
 
 Widget _wrapWithProviders(Widget child, {CartProvider? cartProvider}) {
   return MultiProvider(
@@ -269,7 +270,7 @@ void main() {
       });
     });
 
-    testWidgets('LocationPickerSheet shows active favorite banner, Terpilih badge, and capsule switcher', (tester) async {
+    testWidgets('LocationPickerSheet places in-card Ganti action with Terpilih badge and omits top banner', (tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 2.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -290,8 +291,10 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.text('Dipilih dari Alamat Favorit: Toko Maju'), findsOneWidget);
+      expect(find.textContaining('Dipilih dari Alamat Favorit'), findsNothing);
       expect(find.text('Terpilih'), findsOneWidget);
+      expect(find.byIcon(Icons.swap_horiz_rounded), findsOneWidget);
+      expect(find.text('Ganti'), findsOneWidget);
       expect(find.text('Toko Maju'), findsAtLeastNWidgets(1));
 
       // Verify Personal/Bisnis switcher uses capsule 999 geometry
@@ -302,6 +305,12 @@ void main() {
             dec.color == GageTheme.primary;
       }).toList();
       expect(capsuleThumbs.length, equals(1));
+
+      // Tapping in-card Ganti clears selection highlight to let user pick another address
+      await tester.tap(find.byIcon(Icons.swap_horiz_rounded));
+      await tester.pump();
+      expect(find.text('Terpilih'), findsNothing);
+      await tester.pump(const Duration(seconds: 3));
     });
 
     testWidgets('CheckoutScreen shows Favorit badge when active location matches favorite', (tester) async {
@@ -338,10 +347,12 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(find.text('Dipilih dari Alamat Favorit: Toko Maju'), findsOneWidget);
+      expect(find.textContaining('Dipilih dari Alamat Favorit'), findsNothing);
+      expect(find.text('Terpilih'), findsOneWidget);
+      expect(find.byIcon(Icons.swap_horiz_rounded), findsOneWidget);
     });
 
-    testWidgets('RideCheckoutScreen shows Favorit badge on dropoff & pickup cards', (tester) async {
+    testWidgets('RideCheckoutScreen shows dual minimaps and Favorit badge on dropoff & pickup cards', (tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 2.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -362,7 +373,56 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 350));
 
+      expect(find.text('Titik Jemput'), findsOneWidget);
+      expect(find.text('Titik Tujuan'), findsOneWidget);
       expect(find.text('Favorit • Toko Maju'), findsOneWidget);
+
+      final minimapFinders = find.byType(MiniLocationPreviewMap);
+      expect(minimapFinders, findsNWidgets(2));
+      expect(
+        tester.getTopLeft(minimapFinders.at(0)).dy <
+            tester.getTopLeft(minimapFinders.at(1)).dy,
+        isTrue,
+      );
+    });
+
+    testWidgets('RideCheckoutScreen Send shows dual minimaps and bordered voucher badge without parentheses', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(
+        _wrapWithProviders(
+          RideCheckoutScreen(
+            serviceType: 'send',
+            rideOption: 'sameday',
+            pickupLocation: const LatLng(-8.05517, 110.80889),
+            dropoffLocation: savedBusinessFav.location,
+            pickupAddress: 'Alun-Alun Pracimantoro',
+            dropoffAddress: savedBusinessFav.address,
+            distanceKm: 3.0,
+            baseFare: 15000,
+            recipientName: 'Budi',
+            recipientPhone: '081234567890',
+            packageType: 'Elektronik',
+            weightTier: '<5kg',
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 350));
+
+      expect(find.text('Alamat Pengirim'), findsOneWidget);
+      expect(find.text('Alamat Pengantaran'), findsOneWidget);
+      expect(find.text('Pengirim'), findsOneWidget);
+      expect(find.text('Favorit • Toko Maju'), findsOneWidget);
+      expect(find.byType(MiniLocationPreviewMap), findsNWidgets(2));
+
+      await tester.drag(find.byType(SingleChildScrollView).first, const Offset(0, -600));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(find.text('Ringkasan pembayaran'), findsOneWidget);
+      expect(find.text('Diskon Voucher'), findsOneWidget);
+      expect(find.textContaining('Diskon Voucher ('), findsNothing);
     });
   });
 }

@@ -1253,12 +1253,6 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
           ),
           const SizedBox(height: 12),
 
-          // Interactive Banner saat lokasi aktif berasal dari Alamat Favorit
-          if (!_isAddingNewAddress && _matchedFavorite != null) ...[
-            _buildActiveFavoriteBanner(isDark, _matchedFavorite!),
-            const SizedBox(height: 10),
-          ],
-
           // Realtime Pin Mini Preview Map Terkini (Disembunyikan saat tambah alamat baru agar lapang)
           if (!_isAddingNewAddress && widget.showMiniMap) ...[
             _buildMiniMapWidget(
@@ -1680,6 +1674,23 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                 widget.onFavoriteSelected?.call(fav);
                 widget.onSelected(fav.name, fav.address, fav.location);
               },
+              onChange: _matchedFavorite?.id == fav.id
+                  ? () {
+                      HapticFeedback.selectionClick();
+                      setState(() {
+                        _matchedFavorite = null;
+                        _searchCtrl.clear();
+                        _searchFilter = '';
+                        _searchResults = [];
+                      });
+                      widget.onFavoriteSelected?.call(null);
+                      GageToast.show(
+                        context,
+                        'Pilih alamat lain, cari lokasi, atau geser pin untuk mengganti "${fav.name}"',
+                        type: GageToastType.info,
+                      );
+                    }
+                  : null,
               onDelete: () async {
                 await UserAddressService.deleteFavorite(fav.id);
                 _loadAddressData();
@@ -1710,104 +1721,12 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
     );
   }
 
-  Widget _buildActiveFavoriteBanner(bool isDark, UserSavedAddress fav) {
-    final categoryLabel = fav.category == 'business' ? 'Bisnis' : 'Personal';
-    return InkWell(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        setState(() {
-          _isAddingNewAddress = false;
-          _searchCtrl.clear();
-          _searchFilter = '';
-          _searchResults = [];
-          _favoriteCategory = fav.category;
-        });
-        GageToast.show(
-          context,
-          'Alamat favorit "${fav.name}" sedang terpilih. Pilih alamat lain atau geser peta untuk mengganti.',
-          type: GageToastType.info,
-        );
-      },
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-        decoration: BoxDecoration(
-          color: isDark
-              ? GageTheme.primary.withValues(alpha: 0.16)
-              : const Color(0xFFFFF5F5),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: GageTheme.primary.withValues(alpha: 0.35),
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: const BoxDecoration(
-                color: GageTheme.primary,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.bookmark_rounded, size: 14, color: Colors.white),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Dipilih dari Alamat Favorit: ${fav.name}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : const Color(0xFF991B1B),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 1),
-                  Text(
-                    'Kategori $categoryLabel - pilih favorit lain atau geser pin untuk ubah',
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      color: isDark ? Colors.white70 : const Color(0xFF7F1D1D),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: GageTheme.primary.withValues(alpha: 0.35)),
-              ),
-              child: const Text(
-                'Ganti',
-                style: TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.bold,
-                  color: GageTheme.primary,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildAddressCard({
     required UserSavedAddress address,
     bool isRecent = false,
     bool isSelected = false,
     required VoidCallback onTap,
+    VoidCallback? onChange,
     VoidCallback? onDelete,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -1947,12 +1866,56 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
               Text('Patokan: ${address.notes!}', style: TextStyle(fontSize: 10.5, color: Colors.orange.shade800)),
           ],
         ),
-        trailing: onDelete != null
-            ? IconButton(
-                icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.black38),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isSelected && onChange != null) ...[
+              InkWell(
+                onTap: onChange,
+                borderRadius: BorderRadius.circular(999),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF3F3F46) : Colors.white,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: GageTheme.primary.withValues(alpha: 0.4),
+                    ),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.swap_horiz_rounded, size: 14, color: GageTheme.primary),
+                      SizedBox(width: 4),
+                      Text(
+                        'Ganti',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.bold,
+                          color: GageTheme.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 2),
+            ],
+            if (onDelete != null)
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                icon: Icon(
+                  Icons.delete_outline_rounded,
+                  size: 18,
+                  color: isDark ? Colors.white54 : Colors.black38,
+                ),
                 onPressed: onDelete,
               )
-            : const Icon(Icons.chevron_right_rounded, size: 20, color: Colors.black26),
+            else if (!isSelected)
+              const Icon(Icons.chevron_right_rounded, size: 20, color: Colors.black26),
+          ],
+        ),
         ),
       ),
     );
