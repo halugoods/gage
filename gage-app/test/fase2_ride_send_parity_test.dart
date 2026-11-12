@@ -147,7 +147,8 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
 
       // Send sameday initializes Hemat radio checked (color GageTheme.primary, aside from green pickup dot)
       final activeRadioIcons = tester
@@ -169,7 +170,8 @@ void main() {
       final proteksiSwitch = find.byType(Switch);
       await tester.ensureVisible(proteksiSwitch);
       await tester.tap(proteksiSwitch);
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
 
       // Proteksi appears as a second row in Ringkasan pembayaran
       expect(find.text('Proteksi Pengiriman Barang'), findsNWidgets(2));
@@ -195,7 +197,8 @@ void main() {
           themeMode: ThemeMode.dark,
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
 
       expect(find.text('Proteksi Pengiriman Barang'), findsNothing);
       expect(find.text('Beri Tip untuk Driver?'), findsOneWidget);

@@ -273,7 +273,8 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
 
       // Send Instant at 2.5 km = Rp 12.500 >= 12.000 -> auto-applied KIRIMKILAT with simplified '-5RB' badge
       expect(find.textContaining('KIRIMKILAT'), findsWidgets);
@@ -285,7 +286,8 @@ void main() {
       final hematTier = find.text('Hemat').first;
       await tester.ensureVisible(hematTier);
       await tester.tap(hematTier);
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
 
       expect(find.textContaining('GAGERATIH'), findsWidgets);
       expect(find.text('-2RB'), findsOneWidget);
@@ -294,14 +296,16 @@ void main() {
       final rideCloseBadge = find.byIcon(Icons.close_rounded).first;
       await tester.ensureVisible(rideCloseBadge);
       await tester.tap(rideCloseBadge);
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
       expect(find.textContaining('GAGERATIH'), findsNothing);
 
       // Open VoucherSelectionScreen at Hemat Rp 10.000:
       // - KIRIMKILAT (min 12.000) must be disabled and NOT selectable
       // - GAGERATIH (min 5.000) must be enabled and selectable while staying on screen
       await tester.tap(find.text('Gunakan / masukkan kode'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
       expect(find.byType(VoucherSelectionScreen), findsOneWidget);
 
       final pakaiButtons = find.widgetWithText(ElevatedButton, 'Pakai');
@@ -310,14 +314,17 @@ void main() {
       expect(firstBtn.onPressed, isNull); // KIRIMKILAT disabled below minOrder 12.000
 
       await tester.tap(pakaiButtons.last); // GAGERATIH enabled (>= 5.000)
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
       await tester.pump(const Duration(seconds: 3));
       expect(find.byType(VoucherSelectionScreen), findsOneWidget);
       expect(find.text('Terpasang'), findsOneWidget);
 
       // Navigate back and confirm RideCheckoutScreen shows simplified '-2RB' badge
       await tester.pageBack();
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.pump();
       expect(find.byType(VoucherSelectionScreen), findsNothing);
       expect(find.textContaining('GAGERATIH'), findsWidgets);
       expect(find.text('-2RB'), findsOneWidget);
@@ -726,10 +733,12 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
 
       await tester.tap(find.text('Gunakan / masukkan kode'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
 
       final carPakaiButtons = find.widgetWithText(ElevatedButton, 'Pakai');
       expect(carPakaiButtons, findsNWidgets(2));
@@ -737,12 +746,15 @@ void main() {
       expect(tester.widget<ElevatedButton>(carPakaiButtons.last).onPressed, isNotNull); // PRACICAR enabled
 
       await tester.tap(carPakaiButtons.last);
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
       await tester.pump(const Duration(seconds: 3));
       expect(find.text('Terpasang'), findsOneWidget);
 
       await tester.pageBack();
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.pump();
       expect(find.text('-3RB'), findsOneWidget);
       expect(find.textContaining('PRACICAR (-Rp'), findsNothing);
     });

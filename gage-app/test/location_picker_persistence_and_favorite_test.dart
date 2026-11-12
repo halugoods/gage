@@ -377,13 +377,26 @@ void main() {
       expect(find.text('Titik Tujuan'), findsOneWidget);
       expect(find.text('Favorit • Toko Maju'), findsOneWidget);
 
-      final minimapFinders = find.byType(MiniLocationPreviewMap);
-      expect(minimapFinders, findsNWidgets(2));
-      expect(
-        tester.getTopLeft(minimapFinders.at(0)).dy <
-            tester.getTopLeft(minimapFinders.at(1)).dy,
-        isTrue,
+      final combinedCard = find.byKey(const ValueKey('checkout_combined_route_card'));
+      expect(combinedCard, findsOneWidget);
+
+      final minimapFinders = find.descendant(
+        of: combinedCard,
+        matching: find.byType(MiniLocationPreviewMap),
       );
+      expect(minimapFinders, findsNWidgets(2));
+      final topMapRect = tester.getRect(minimapFinders.at(0));
+      final bottomMapRect = tester.getRect(minimapFinders.at(1));
+      expect(topMapRect.top < bottomMapRect.top, isTrue);
+
+      final dotsFinder = find.descendant(
+        of: combinedCard,
+        matching: find.byKey(const ValueKey('checkout_route_dots_connector')),
+      );
+      expect(dotsFinder, findsOneWidget);
+      final dotsRect = tester.getRect(dotsFinder);
+      expect(dotsRect.top >= topMapRect.bottom - 4, isTrue);
+      expect(dotsRect.bottom <= bottomMapRect.top + 4, isTrue);
     });
 
     testWidgets('RideCheckoutScreen Send shows dual minimaps and bordered voucher badge without parentheses', (tester) async {

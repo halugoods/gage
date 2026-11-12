@@ -914,33 +914,64 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                       const SizedBox(height: 14),
 
                       // =========================================================
-                      // 2. DUAL LOKASI CARD (Atas: Titik Jemput / Pengirim, Bawah: Alamat Pengantaran / Tujuan)
+                      // 2. COMBINED LOKASI CARD (Titik Jemput / Pengirim -> Titik Tujuan / Pengantaran)
                       // =========================================================
-                      _buildCheckoutLocationCard(
-                        isDark: isDark,
-                        cardColor: cardColor,
-                        cardBorder: cardBorder,
-                        cardShadow: cardShadow,
-                        title: isSend ? 'Alamat Pengirim' : 'Titik Jemput',
-                        defaultBadgeLabel: isSend ? 'Pengirim' : 'Jemput',
-                        address: _currentPickupAddress,
-                        location: _currentPickupLocation,
-                        matchedFavorite: _matchedPickupFavorite,
-                        onPickLocation: () => _openLocationPicker(isDropoff: false),
-                      ),
-                      const SizedBox(height: 10),
-                      _buildCheckoutLocationCard(
-                        isDark: isDark,
-                        cardColor: cardColor,
-                        cardBorder: cardBorder,
-                        cardShadow: cardShadow,
-                        title: isSend ? 'Alamat Pengantaran' : 'Titik Tujuan',
-                        defaultBadgeLabel: 'Utama',
-                        address: _currentDropoffAddress,
-                        location: _currentDropoffLocation,
-                        matchedFavorite: _matchedDropoffFavorite,
-                        onPickLocation: () => _openLocationPicker(isDropoff: true),
-                        showDriverNoteButton: true,
+                      Container(
+                        key: const ValueKey('checkout_combined_route_card'),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: cardColor,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: cardBorder),
+                          boxShadow: cardShadow,
+                        ),
+                        child: Column(
+                          children: [
+                            _buildCheckoutLocationRow(
+                              isDark: isDark,
+                              title: isSend ? 'Alamat Pengirim' : 'Titik Jemput',
+                              defaultBadgeLabel: isSend ? 'Pengirim' : 'Jemput',
+                              address: _currentPickupAddress,
+                              location: _currentPickupLocation,
+                              matchedFavorite: _matchedPickupFavorite,
+                              onPickLocation: () => _openLocationPicker(isDropoff: false),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              child: Row(
+                                children: [
+                                  SizedBox(
+                                    width: 68,
+                                    child: Center(
+                                      child: _RouteDotsConnector(
+                                        key: const ValueKey('checkout_route_dots_connector'),
+                                        isDark: isDark,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Divider(
+                                      height: 1,
+                                      thickness: 0.8,
+                                      color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            _buildCheckoutLocationRow(
+                              isDark: isDark,
+                              title: isSend ? 'Alamat Pengantaran' : 'Titik Tujuan',
+                              defaultBadgeLabel: 'Utama',
+                              address: _currentDropoffAddress,
+                              location: _currentDropoffLocation,
+                              matchedFavorite: _matchedDropoffFavorite,
+                              onPickLocation: () => _openLocationPicker(isDropoff: true),
+                              showDriverNoteButton: true,
+                            ),
+                          ],
+                        ),
                       ),
 
                       const SizedBox(height: 14),
@@ -1755,11 +1786,8 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
     );
   }
 
-  Widget _buildCheckoutLocationCard({
+  Widget _buildCheckoutLocationRow({
     required bool isDark,
-    required Color cardColor,
-    required Color cardBorder,
-    required List<BoxShadow> cardShadow,
     required String title,
     required String defaultBadgeLabel,
     required String address,
@@ -1771,152 +1799,143 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
     final favName = matchedFavorite?.name;
     final isFav = favName != null && favName.isNotEmpty;
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: cardBorder),
-        boxShadow: cardShadow,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          MiniLocationPreviewMap(
-            location: location,
-            size: 68,
-            borderRadius: 14,
-            onTap: onPickLocation,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : Colors.black87,
-                        ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        MiniLocationPreviewMap(
+          location: location,
+          size: 68,
+          borderRadius: 14,
+          onTap: onPickLocation,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black87,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: isFav
-                            ? (isDark
-                                ? GageTheme.primary.withValues(alpha: 0.22)
-                                : const Color(0xFFFFEBEE))
-                            : (isDark ? Colors.white10 : const Color(0xFFF1F5F9)),
-                        borderRadius: BorderRadius.circular(999),
-                        border: isFav
-                            ? Border.all(color: GageTheme.primary.withValues(alpha: 0.35))
-                            : null,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (isFav) ...[
-                            const Icon(Icons.bookmark_rounded, size: 11, color: GageTheme.primary),
-                            const SizedBox(width: 3),
-                          ],
-                          Text(
-                            isFav ? 'Favorit • $favName' : defaultBadgeLabel,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: isFav
-                                  ? (isDark ? Colors.white : GageTheme.primary)
-                                  : (isDark ? Colors.white70 : const Color(0xFF64748B)),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  address,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    color: isDark ? Colors.grey.shade300 : Colors.black87,
-                    fontWeight: FontWeight.w500,
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (showDriverNoteButton) ...[
-                  const SizedBox(height: 8),
-                  InkWell(
-                    onTap: _editAddressNote,
-                    borderRadius: BorderRadius.circular(14),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF27272A) : const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            _noteController.text.isNotEmpty
-                                ? Icons.edit_note_rounded
-                                : Icons.add_comment_outlined,
-                            size: 14,
-                            color: GageTheme.primary,
-                          ),
-                          const SizedBox(width: 6),
-                          Flexible(
-                            child: Text(
-                              _noteController.text.isNotEmpty
-                                  ? 'Catatan: "${_noteController.text}"'
-                                  : '+ Tambah catatan / patokan driver',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: _noteController.text.isNotEmpty
-                                    ? (isDark ? Colors.white : Colors.black87)
-                                    : (isDark ? Colors.white60 : Colors.grey.shade600),
-                                fontWeight: FontWeight.w600,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: isFav
+                          ? (isDark
+                              ? GageTheme.primary.withValues(alpha: 0.22)
+                              : const Color(0xFFFFEBEE))
+                          : (isDark ? Colors.white10 : const Color(0xFFF1F5F9)),
+                      borderRadius: BorderRadius.circular(999),
+                      border: isFav
+                          ? Border.all(color: GageTheme.primary.withValues(alpha: 0.35))
+                          : null,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isFav) ...[
+                          const Icon(Icons.bookmark_rounded, size: 11, color: GageTheme.primary),
+                          const SizedBox(width: 3),
                         ],
-                      ),
+                        Text(
+                          isFav ? 'Favorit • $favName' : defaultBadgeLabel,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: isFav
+                                ? (isDark ? Colors.white : GageTheme.primary)
+                                : (isDark ? Colors.white70 : const Color(0xFF64748B)),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                address,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: isDark ? Colors.grey.shade300 : Colors.black87,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (showDriverNoteButton) ...[
+                const SizedBox(height: 8),
+                InkWell(
+                  onTap: _editAddressNote,
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF27272A) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _noteController.text.isNotEmpty
+                              ? Icons.edit_note_rounded
+                              : Icons.add_comment_outlined,
+                          size: 14,
+                          color: GageTheme.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            _noteController.text.isNotEmpty
+                                ? 'Catatan: "${_noteController.text}"'
+                                : '+ Tambah catatan / patokan driver',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: _noteController.text.isNotEmpty
+                                  ? (isDark ? Colors.white : Colors.black87)
+                                  : (isDark ? Colors.white60 : Colors.grey.shade600),
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
-            ),
+            ],
           ),
-          const SizedBox(width: 10),
-          OutlinedButton(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: GageTheme.primary,
-              side: const BorderSide(color: GageTheme.primary, width: 1.2),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-              visualDensity: VisualDensity.compact,
-            ),
-            onPressed: onPickLocation,
-            child: const Text('Ganti', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+        ),
+        const SizedBox(width: 10),
+        OutlinedButton(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: GageTheme.primary,
+            side: const BorderSide(color: GageTheme.primary, width: 1.2),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+            visualDensity: VisualDensity.compact,
           ),
-        ],
-      ),
+          onPressed: onPickLocation,
+          child: const Text('Ganti', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+        ),
+      ],
     );
   }
 
@@ -1989,6 +2008,111 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _RouteDotsConnector extends StatefulWidget {
+  final bool isDark;
+
+  const _RouteDotsConnector({
+    super.key,
+    required this.isDark,
+  });
+
+  @override
+  State<_RouteDotsConnector> createState() => _RouteDotsConnectorState();
+}
+
+class _RouteDotsConnectorState extends State<_RouteDotsConnector>
+    with SingleTickerProviderStateMixin {
+  static const int _dotCount = 4;
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    if (disableAnimations) {
+      _controller.stop();
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          final phase = disableAnimations ? 1.5 : _controller.value * _dotCount;
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(_dotCount, (i) {
+              var dist = phase - i;
+              if (dist < 0) dist += _dotCount;
+              final pulse = disableAnimations
+                  ? (1.0 - (i / (_dotCount * 1.5)))
+                  : (1.0 - (dist / 1.4).clamp(0.0, 1.0));
+              final routeColor = Color.lerp(
+                const Color(0xFF16A34A),
+                GageTheme.primary,
+                i / (_dotCount - 1),
+              )!;
+              final idleColor = widget.isDark
+                  ? Colors.white24
+                  : const Color(0xFFCBD5E1);
+              final dotColor = Color.lerp(idleColor, routeColor, 0.35 + (0.65 * pulse))!;
+              final size = 4.0 + (1.8 * pulse);
+
+              return Padding(
+                padding: EdgeInsets.only(bottom: i < _dotCount - 1 ? 3.5 : 0),
+                child: SizedBox(
+                  width: 8,
+                  height: 6,
+                  child: Center(
+                    child: Container(
+                      width: size,
+                      height: size,
+                      decoration: BoxDecoration(
+                        color: dotColor,
+                        shape: BoxShape.circle,
+                        boxShadow: pulse > 0.45
+                            ? [
+                                BoxShadow(
+                                  color: routeColor.withValues(alpha: 0.35 * pulse),
+                                  blurRadius: 4,
+                                  spreadRadius: 0.5,
+                                ),
+                              ]
+                            : null,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          );
+        },
+      ),
     );
   }
 }
