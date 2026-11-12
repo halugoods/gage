@@ -1803,9 +1803,9 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                           child: Text(
                             _serviceDomain == 'food' ? 'Daftar Menu' : 'Katalog Produk',
                             style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
                             ),
                           ),
                         ),
@@ -1900,12 +1900,13 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                 )) ...[
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 2),
+                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
                       child: Text(
                         section.key,
                         style: TextStyle(
-                          fontSize: 15.5,
+                          fontSize: 18,
                           fontWeight: FontWeight.w800,
+                          letterSpacing: -0.3,
                           color: isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
                       ),
@@ -2020,8 +2021,8 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                   Text(
                     (item['name'] ?? '').toString(),
                     style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
                       color: isDark ? Colors.white : const Color(0xFF0F172A),
                     ),
                   ),

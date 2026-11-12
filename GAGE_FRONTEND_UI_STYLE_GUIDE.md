@@ -42,8 +42,9 @@ Ekosistem GAGE memadukan kepraktisan superapp transaksi harian (Gojek/Grab/Shope
 ## 3. Hierarki Tipografi (`Poppins` + Fallback Sistem)
 
 * **Screen Title**: `fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -0.5`
-* **Section / Category Header (Plain Unboxed Text)**: `fontSize: 15.5 - 16, fontWeight: FontWeight.w800`, tanpa container/card pembungkus.
-* **Nama Produk / Item Katalog**: `fontSize: 14 - 15, fontWeight: FontWeight.w700`
+* **Section / Category Header (Plain Unboxed Text)**: `fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.3`, tanpa container/card pembungkus (harus jelas lebih besar & lebih tebal daripada nama produk di bawahnya).
+* **Sub-header Toolbar Katalog (`Daftar Menu` / `Katalog Produk`)**: `fontSize: 13.5, fontWeight: FontWeight.w600`, warna sekunder slate (`#64748B` Light / `Colors.grey.shade400` Dark).
+* **Nama Produk / Item Katalog**: `fontSize: 14, fontWeight: FontWeight.w600`
 * **Harga Produk / Transaksi**: `fontSize: 14.5 - 15, fontWeight: FontWeight.w700` (merah `#E52320` jika sedang promo Harga Coret)
 * **Harga Asli Coret**: `fontSize: 12, decoration: TextDecoration.lineThrough, color: Colors.grey.shade500`
 * **Teks `terjual` & Metadata**: `fontSize: 11.5, fontWeight: FontWeight.w500`, warna abu-abu polos (`Colors.grey.shade600` Light / `Colors.grey.shade400` Dark), **tanpa kotak/badge** dan **tersembunyi saat `0 terjual`**.
