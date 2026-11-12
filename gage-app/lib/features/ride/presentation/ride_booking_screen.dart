@@ -990,16 +990,23 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
 
   Future<void> _callDriver(String phone) async {
     HapticFeedback.lightImpact();
-    final uri = Uri.parse('tel:$phone');
+    final trimmed = phone.trim();
+    if (trimmed.isEmpty || trimmed == '-') {
+      if (mounted) {
+        GageToast.show(context, 'Nomor telepon driver belum tersedia, gunakan fitur Chat.', type: GageToastType.info);
+      }
+      return;
+    }
+    final uri = Uri.parse('tel:$trimmed');
     try {
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri);
         return;
       }
     } catch (_) {}
-    await Clipboard.setData(ClipboardData(text: phone));
+    await Clipboard.setData(ClipboardData(text: trimmed));
     if (mounted) {
-      GageToast.show(context, 'Nomor driver disalin: $phone', type: GageToastType.info);
+      GageToast.show(context, 'Nomor driver disalin: $trimmed', type: GageToastType.info);
     }
   }
 
@@ -1013,7 +1020,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
     final driverVehicle = useSeed
         ? (isCar ? 'Toyota Avanza Silver • AD 1842 PK' : 'Honda Vario Merah • AD 4518 JK')
         : (isCar ? 'Armada GAGE Car Terdekat' : 'Armada GAGE Ride Terdekat');
-    const driverPhone = '081226001000';
+    final driverPhone = useSeed ? '081226001000' : '';
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),

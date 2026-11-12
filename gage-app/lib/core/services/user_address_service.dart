@@ -104,14 +104,16 @@ class UserAddressService {
     // Asinkron simpan ke akun cloud user (Cloudflare D1)
     try {
       final sessionStr = prefs.getString('gage_user_session');
-      String userId = 'usr-cust-01';
+      String userId = GageApiClient.useDevSeedData ? 'usr-cust-01' : '';
       if (sessionStr != null) {
         final decoded = json.decode(sessionStr);
         if (decoded is Map && decoded['id'] != null) {
           userId = decoded['id'].toString();
         }
       }
-      GageApiClient.saveUserAddress(userId, address.toJson());
+      if (userId.isNotEmpty) {
+        GageApiClient.saveUserAddress(userId, address.toJson());
+      }
     } catch (_) {}
   }
 

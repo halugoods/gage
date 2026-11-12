@@ -71,3 +71,20 @@ Portal Customer ([`resto_detail_screen.dart`](../../gage-app/lib/features/food/p
 1. **`merchant_screen.dart` (`L315-L348`, `_buildCustomTabBar`)**: Masih memakai underline `TabBar` (`indicatorColor: GageTheme.primary, indicatorWeight: 3`). **Wajib migrasi** ke segmented pill `BorderRadius.circular(999)` dengan active thumb `#E52320` + teks putih + `HapticFeedback.selectionClick()`.
 2. **`merchant_menu_screen.dart` (`L379-L410`, Category Chips Bar)**: Ubah `BorderRadius.circular(20)` ke `999` + `HapticFeedback.selectionClick()` sesuai [`GAGE_FRONTEND_UI_STYLE_GUIDE.md`](../../GAGE_FRONTEND_UI_STYLE_GUIDE.md).
 3. **`merchant_order_provider.dart` (`L64-L65`)**: `_initDefaultOrders()` wajib diguard dengan `if (!GageApiClient.useDevSeedData) return;` agar mock order tidak pernah bocor ke mode produksi.
+
+---
+
+## 5. Kontrak Wave 1 & Wave 2 Terbaru (Sinkronisasi Customer + Cloud D1)
+
+1. **Alur Status Order Berurutan (`OrderModel` & `OrderDetailScreen` Customer)**:
+   - Status pesanan sekarang diparse apa adanya (tidak dipaksa default ke tahap menyiapkan/lacak).
+   - Urutan status layanan niaga (`food` / `shop` / `farm` / `build`): `PAID` (menunggu konfirmasi merchant) -> `COOKING` / `PREPARING` (sedang disiapkan) -> `READY_FOR_PICKUP` -> `ON_THE_WAY` -> `COMPLETED` (atau `CANCELLED` / `PAYMENT_PENDING`).
+   - Merchant wajib memproses `accept` (`COOKING`) secara eksplisit sebelum status `READY_FOR_PICKUP`, dan untuk `order_type == 'PICKUP'`, merchant langsung menuntaskan status ke `COMPLETED` saat pelanggan mengambil pesanan di toko.
+2. **Handoff Auth & Endpoint Keamanan Wave 2 (`gage-cloud/src/index.ts`)**:
+   - Token HMAC `Authorization: Bearer <token>` kini dikirim otomatis oleh `GageApiClient` dari session login (`authToken`). Pastikan portal Merchant menyimpan `authToken` setelah login dan menghindari akses tulis tanpa header Bearer.
+   - Endpoint toko/menu baru belum diimplementasikan penuh di Worker bila belum ada di Wave 2; koordinasikan dengan sesi Admin saat menambah endpoint tulis Merchant agar melewati guard kepemilikan `merchant_id`.
+3. **Integrasi Chat & Penghapusan WhatsApp Customer**:
+   - Customer telah menghapus tombol WhatsApp pada alur transaksi dan melompat langsung ke `InAppChatScreen` (`recipientRole: 'merchant'`). Pastikan Merchant merespons thread pesan per `orderId` melalui in-app chat (bukan redirect `wa.me`).
+4. **Tier Pengiriman `Hemat` & Kartu Rincian Produk Customer**:
+   - Syarat opsi ongkir `Hemat` diubah dari jarak menjadi minimal belanja subtotal (default **Rp 50.000**, dapat disinkronkan via `GagePricingService`), tanpa mengubah hak bersih harga produk merchant.
+   - `CheckoutScreen` Customer kini menampilkan slider rekomendasi produk lain milik merchant; pastikan katalog produk aktif (`isAvailable`, `imageUrl`, `sold_count`, dan `promo_price`) tetap terawat rapi.

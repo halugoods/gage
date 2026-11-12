@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 typedef MerchantOrder = OrderModel;
 typedef MerchantOrderItem = OrderItemModel;
 
@@ -28,10 +30,13 @@ class OrderModel {
   final String? merchantAvatar;
   final String? customerName;
   final String? customerPhone;
+  final String? customerAvatar;
   final String? driverName;
   final String? driverPlate;
   final String? driverPhone;
   final String? driverAvatar;
+  final String? driverVehicle;
+  final double? driverRating;
   final String status;
   final String paymentMethod;
   final String paymentStatus;
@@ -42,6 +47,11 @@ class OrderModel {
   final int adminFee;
   final int driverTip;
   final String deliveryAddress;
+  final String? pickupAddress;
+  final double? pickupLat;
+  final double? pickupLng;
+  final double? deliveryLat;
+  final double? deliveryLng;
   final double distanceKm;
   final String trackingToken;
   final String? qrisString;
@@ -53,6 +63,10 @@ class OrderModel {
   final int codAdjustment;
   final int refundAmount;
   final String channel; // 'food' | 'shop'
+  final String serviceType; // 'food' | 'shop' | 'farm' | 'build' | 'ride' | 'car' | 'send'
+  final bool isPickup;
+  final String deliveryOption;
+  final Map<String, dynamic>? packageDetails;
   final int autoAcceptSecondsRemaining;
 
   const OrderModel({
@@ -66,10 +80,13 @@ class OrderModel {
     this.merchantAvatar,
     this.customerName,
     this.customerPhone,
+    this.customerAvatar,
     this.driverName,
     this.driverPlate,
     this.driverPhone,
     this.driverAvatar,
+    this.driverVehicle,
+    this.driverRating,
     required this.status,
     required this.paymentMethod,
     required this.paymentStatus,
@@ -80,6 +97,11 @@ class OrderModel {
     required this.adminFee,
     this.driverTip = 0,
     required this.deliveryAddress,
+    this.pickupAddress,
+    this.pickupLat,
+    this.pickupLng,
+    this.deliveryLat,
+    this.deliveryLng,
     required this.distanceKm,
     required this.trackingToken,
     this.qrisString,
@@ -91,35 +113,64 @@ class OrderModel {
     this.codAdjustment = 0,
     this.refundAmount = 0,
     this.channel = 'food',
+    this.serviceType = 'food',
+    this.isPickup = false,
+    this.deliveryOption = 'REGULER',
+    this.packageDetails,
     this.autoAcceptSecondsRemaining = 180,
   });
 
   bool get isActive => !['COMPLETED', 'CANCELLED'].contains(status);
 
+  bool get hasAssignedDriver => driverName != null && driverName!.trim().isNotEmpty;
+
+  bool get isTransportService =>
+      const {'ride', 'car', 'send'}.contains(serviceType.toLowerCase());
+
   String get stage => status;
   String? get kitchenNote => notes;
 
-  MerchantDriverInfo? get driver => (driverName != null && driverName!.isNotEmpty)
+  MerchantDriverInfo? get driver => hasAssignedDriver
       ? MerchantDriverInfo(
           name: driverName!,
-          phone: driverPhone ?? '081226001000',
-          plateNumber: driverPlate ?? 'AD 4120 U',
+          phone: (driverPhone != null && driverPhone!.trim().isNotEmpty)
+              ? driverPhone!.trim()
+              : '-',
+          plateNumber: (driverPlate != null && driverPlate!.trim().isNotEmpty)
+              ? driverPlate!.trim()
+              : '-',
           pin: orderNumber.replaceAll(RegExp(r'[^0-9]'), '').padLeft(4, '0').substring(0, 4),
+          avatarUrl: driverAvatar,
         )
       : null;
 
   String get statusLabel {
     switch (status) {
       case 'PAYMENT_PENDING':
+      case 'PENDING':
         return 'Menunggu Pembayaran';
       case 'NEW':
       case 'PAID':
-        return 'Pesanan Baru';
+        return isTransportService
+            ? 'Mencari Driver Terdekat'
+            : 'Menunggu Konfirmasi Merchant';
+      case 'SEARCHING_DRIVER':
+        return 'Mencari Driver Terdekat';
+      case 'DRIVER_ASSIGNED':
+        return isTransportService ? 'Driver Menuju Lokasi Jemput' : 'Driver Menuju Merchant';
+      case 'AT_MERCHANT':
+        return isTransportService ? 'Driver Tiba di Titik Jemput' : 'Driver di Lokasi Merchant';
       case 'COOKING':
-        return 'Sedang Disiapkan';
+        return serviceType.toLowerCase() == 'food'
+            ? 'Sedang Disiapkan Dapur'
+            : 'Sedang Disiapkan Toko';
       case 'READY_FOR_PICKUP':
-        return 'Siap Dijemput';
+        return isPickup ? 'Siap Diambil di Lokasi' : 'Siap Diambil Driver';
+      case 'PICKED_UP':
       case 'ON_DELIVERY':
+        if (serviceType.toLowerCase() == 'ride' || serviceType.toLowerCase() == 'car') {
+          return 'Dalam Perjalanan';
+        }
         return 'Sedang Diantar';
       case 'COMPLETED':
         return 'Pesanan Selesai';
@@ -140,17 +191,31 @@ class OrderModel {
     int? adminFee,
     int? driverTip,
     List<OrderItemModel>? items,
+    String? merchantAvatar,
     String? driverName,
     String? driverPlate,
     String? driverPhone,
+    String? driverAvatar,
+    String? driverVehicle,
+    double? driverRating,
     String? customerName,
     String? customerPhone,
+    String? customerAvatar,
     String? notes,
     String? cancellationReason,
     int? codAdjustment,
     int? refundAmount,
     int? autoAcceptSecondsRemaining,
     String? channel,
+    String? serviceType,
+    bool? isPickup,
+    String? deliveryOption,
+    String? pickupAddress,
+    double? pickupLat,
+    double? pickupLng,
+    double? deliveryLat,
+    double? deliveryLng,
+    Map<String, dynamic>? packageDetails,
     int? qrisUniqueCode,
   }) {
     return OrderModel(
@@ -161,13 +226,16 @@ class OrderModel {
       merchantName: merchantName,
       merchantAddress: merchantAddress,
       merchantPhone: merchantPhone,
-      merchantAvatar: merchantAvatar,
+      merchantAvatar: merchantAvatar ?? this.merchantAvatar,
       customerName: customerName ?? this.customerName,
       customerPhone: customerPhone ?? this.customerPhone,
+      customerAvatar: customerAvatar ?? this.customerAvatar,
       driverName: driverName ?? this.driverName,
       driverPlate: driverPlate ?? this.driverPlate,
       driverPhone: driverPhone ?? this.driverPhone,
-      driverAvatar: driverAvatar,
+      driverAvatar: driverAvatar ?? this.driverAvatar,
+      driverVehicle: driverVehicle ?? this.driverVehicle,
+      driverRating: driverRating ?? this.driverRating,
       status: status ?? this.status,
       paymentMethod: paymentMethod,
       paymentStatus: paymentStatus ?? this.paymentStatus,
@@ -178,6 +246,11 @@ class OrderModel {
       adminFee: adminFee ?? this.adminFee,
       driverTip: driverTip ?? this.driverTip,
       deliveryAddress: deliveryAddress,
+      pickupAddress: pickupAddress ?? this.pickupAddress,
+      pickupLat: pickupLat ?? this.pickupLat,
+      pickupLng: pickupLng ?? this.pickupLng,
+      deliveryLat: deliveryLat ?? this.deliveryLat,
+      deliveryLng: deliveryLng ?? this.deliveryLng,
       distanceKm: distanceKm,
       trackingToken: trackingToken,
       qrisString: qrisString,
@@ -189,6 +262,10 @@ class OrderModel {
       codAdjustment: codAdjustment ?? this.codAdjustment,
       refundAmount: refundAmount ?? this.refundAmount,
       channel: channel ?? this.channel,
+      serviceType: serviceType ?? this.serviceType,
+      isPickup: isPickup ?? this.isPickup,
+      deliveryOption: deliveryOption ?? this.deliveryOption,
+      packageDetails: packageDetails ?? this.packageDetails,
       autoAcceptSecondsRemaining: autoAcceptSecondsRemaining ?? this.autoAcceptSecondsRemaining,
     );
   }
@@ -245,58 +322,143 @@ class OrderModel {
       ordNum = 'INV/GG/$dStr/FD/$userTag-$hashSuffix';
     }
 
-    final rawStatus = (json['status'] ?? json['stage'] ?? 'PAID').toString().toUpperCase();
-    String normalizedStatus = 'NEW';
-    if (rawStatus == 'PAID' || rawStatus == 'NEW' || rawStatus == 'PENDING') {
-      normalizedStatus = 'NEW';
-    } else if (rawStatus == 'COOKING' || rawStatus == 'PREPARING') {
-      normalizedStatus = 'COOKING';
-    } else if (rawStatus == 'READY_FOR_PICKUP' || rawStatus == 'READY') {
-      normalizedStatus = 'READY_FOR_PICKUP';
-    } else if (rawStatus == 'ON_DELIVERY') {
-      normalizedStatus = 'ON_DELIVERY';
-    } else if (rawStatus == 'COMPLETED' || rawStatus == 'DELIVERED') {
-      normalizedStatus = 'COMPLETED';
-    } else if (rawStatus == 'CANCELLED' || rawStatus == 'REJECTED') {
-      normalizedStatus = 'CANCELLED';
+    final rawStatus = (json['status'] ?? json['stage'] ?? 'PAID').toString().trim().toUpperCase();
+    String normalizedStatus;
+    switch (rawStatus) {
+      case 'PAYMENT_PENDING':
+        normalizedStatus = 'PAYMENT_PENDING';
+        break;
+      case 'PENDING':
+        normalizedStatus = 'PENDING';
+        break;
+      case 'PAID':
+        normalizedStatus = 'PAID';
+        break;
+      case 'NEW':
+        normalizedStatus = 'NEW';
+        break;
+      case 'SEARCHING_DRIVER':
+        normalizedStatus = 'SEARCHING_DRIVER';
+        break;
+      case 'DRIVER_ASSIGNED':
+        normalizedStatus = 'DRIVER_ASSIGNED';
+        break;
+      case 'AT_MERCHANT':
+        normalizedStatus = 'AT_MERCHANT';
+        break;
+      case 'COOKING':
+      case 'PREPARING':
+        normalizedStatus = 'COOKING';
+        break;
+      case 'READY_FOR_PICKUP':
+      case 'READY':
+        normalizedStatus = 'READY_FOR_PICKUP';
+        break;
+      case 'PICKED_UP':
+        normalizedStatus = 'PICKED_UP';
+        break;
+      case 'ON_DELIVERY':
+        normalizedStatus = 'ON_DELIVERY';
+        break;
+      case 'COMPLETED':
+      case 'DELIVERED':
+        normalizedStatus = 'COMPLETED';
+        break;
+      case 'CANCELLED':
+      case 'REJECTED':
+        normalizedStatus = 'CANCELLED';
+        break;
+      default:
+        normalizedStatus = rawStatus.isEmpty ? 'PAID' : rawStatus;
     }
 
-    final channelStr = (json['service_type'] ?? json['channel'] ?? 'food').toString().toLowerCase();
+    final rawService = (json['service_type'] ?? json['channel'] ?? 'food').toString().trim().toLowerCase();
+    final orderTypeStr = (json['order_type'] ?? '').toString().trim().toUpperCase();
+    final bool isPickupVal = json['is_pickup'] == true ||
+        json['is_pickup'] == 1 ||
+        orderTypeStr == 'PICKUP' ||
+        (json['delivery_option']?.toString().toUpperCase() == 'PICKUP');
+
+    int toInt(dynamic v, [int fallback = 0]) =>
+        v is num ? v.toInt() : int.tryParse(v?.toString() ?? '') ?? fallback;
+    double? toDouble(dynamic v) =>
+        v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '');
+
+    final int fareAmt = toInt(json['fare_amount']);
+    final int parsedTotal = toInt(json['total_amount']) > 0
+        ? toInt(json['total_amount'])
+        : fareAmt;
+    final int parsedSubtotal = toInt(json['items_subtotal'] ?? json['subtotal']) > 0
+        ? toInt(json['items_subtotal'] ?? json['subtotal'])
+        : (const {'ride', 'car', 'send'}.contains(rawService) ? fareAmt : 0);
+
+    Map<String, dynamic>? parsedPkg;
+    final rawPkg = json['package_details'] ?? json['package_details_json'];
+    if (rawPkg is Map) {
+      parsedPkg = Map<String, dynamic>.from(rawPkg);
+    } else if (rawPkg is String && rawPkg.trim().startsWith('{')) {
+      try {
+        final decoded = jsonDecode(rawPkg);
+        if (decoded is Map) parsedPkg = Map<String, dynamic>.from(decoded);
+      } catch (_) {}
+    }
 
     return OrderModel(
       id: json['id']?.toString() ?? '',
       orderNumber: ordNum,
       userId: json['user_id']?.toString() ?? '',
       merchantId: json['merchant_id']?.toString() ?? '',
-      merchantName: json['merchant_name']?.toString() ?? 'Dimsum Sewu Pracimantoro',
-      merchantAddress: json['merchant_address']?.toString() ?? 'Pracimantoro, Wonogiri',
+      merchantName: (json['merchant_name'] ?? '').toString().trim().isNotEmpty
+          ? json['merchant_name'].toString()
+          : (parsedItems.isNotEmpty && (parsedItems.first.merchantName ?? '').isNotEmpty
+              ? parsedItems.first.merchantName!
+              : 'Mitra GAGE'),
+      merchantAddress: json['merchant_address']?.toString() ?? '',
       merchantPhone: json['merchant_phone']?.toString(),
-      customerName: json['customer_name']?.toString() ?? 'Pelanggan GAGE',
-      customerPhone: json['customer_phone']?.toString() ?? '081226001000',
+      merchantAvatar: (json['merchant_avatar'] ?? json['merchantAvatar'])?.toString(),
+      customerName: json['customer_name']?.toString(),
+      customerPhone: json['customer_phone']?.toString(),
+      customerAvatar: (json['customer_avatar'] ?? json['customerAvatar'])?.toString(),
       driverName: json['driver_name']?.toString(),
       driverPlate: json['driver_plate']?.toString(),
       driverPhone: json['driver_phone']?.toString(),
+      driverAvatar: (json['driver_avatar'] ?? json['driverAvatar'])?.toString(),
+      driverVehicle: (json['driver_vehicle'] ?? json['driverVehicle'])?.toString(),
+      driverRating: toDouble(json['driver_rating'] ?? json['driverRating']),
       status: normalizedStatus,
       paymentMethod: json['payment_method']?.toString() ?? 'GAGEPAY',
       paymentStatus: json['payment_status']?.toString() ?? 'PAID',
-      totalAmount: (json['total_amount'] ?? 0) is num ? (json['total_amount'] ?? 0).toInt() : int.tryParse(json['total_amount'].toString()) ?? 0,
-      itemsSubtotal: (json['items_subtotal'] ?? json['subtotal'] ?? 0) is num ? (json['items_subtotal'] ?? json['subtotal'] ?? 0).toInt() : int.tryParse((json['items_subtotal'] ?? json['subtotal'] ?? 0).toString()) ?? 0,
-      shippingFee: (json['shipping_fee'] ?? 0) is num ? (json['shipping_fee'] ?? 0).toInt() : int.tryParse(json['shipping_fee'].toString()) ?? 0,
-      shippingDiscount: (json['shipping_discount'] ?? 0) is num ? (json['shipping_discount'] ?? 0).toInt() : int.tryParse(json['shipping_discount'].toString()) ?? 0,
-      adminFee: (json['admin_fee'] ?? 1000) is num ? (json['admin_fee'] ?? 1000).toInt() : int.tryParse(json['admin_fee'].toString()) ?? 1000,
-      driverTip: (json['driver_tip'] ?? 0) is num ? (json['driver_tip'] ?? 0).toInt() : int.tryParse(json['driver_tip'].toString()) ?? 0,
-      deliveryAddress: json['delivery_address']?.toString() ?? 'Alamat Antar',
+      totalAmount: parsedTotal,
+      itemsSubtotal: parsedSubtotal,
+      shippingFee: toInt(json['shipping_fee']),
+      shippingDiscount: toInt(json['shipping_discount']),
+      adminFee: json['admin_fee'] != null ? toInt(json['admin_fee'], 1000) : 1000,
+      driverTip: toInt(json['driver_tip']),
+      deliveryAddress: (json['delivery_address'] ?? json['destination_address'] ?? '').toString(),
+      pickupAddress: json['pickup_address']?.toString(),
+      pickupLat: toDouble(json['pickup_lat']),
+      pickupLng: toDouble(json['pickup_lng']),
+      deliveryLat: toDouble(json['delivery_lat'] ?? json['dest_lat']),
+      deliveryLng: toDouble(json['delivery_lng'] ?? json['dest_lng']),
       distanceKm: ((json['distance_km'] ?? 1.5) as num).toDouble(),
       trackingToken: json['tracking_token']?.toString() ?? '',
       qrisString: json['qris_string']?.toString(),
       qrisUniqueCode: (json['qris_unique_code'] as num?)?.toInt(),
       items: parsedItems,
-      createdAt: (json['created_at'] ?? 0) is num ? (json['created_at'] ?? 0).toInt() : int.tryParse(json['created_at'].toString()) ?? 0,
+      createdAt: toInt(json['created_at']),
       notes: json['notes']?.toString() ?? json['kitchen_note']?.toString(),
       cancellationReason: json['cancellation_reason']?.toString(),
-      codAdjustment: (json['cod_adjustment'] ?? 0) is num ? (json['cod_adjustment'] ?? 0).toInt() : int.tryParse(json['cod_adjustment'].toString()) ?? 0,
-      refundAmount: (json['refund_amount'] ?? 0) is num ? (json['refund_amount'] ?? 0).toInt() : int.tryParse(json['refund_amount'].toString()) ?? 0,
-      channel: channelStr.contains('shop') || channelStr.contains('mart') ? 'shop' : 'food',
+      codAdjustment: toInt(json['cod_adjustment']),
+      refundAmount: toInt(json['refund_amount']),
+      channel: (rawService.contains('shop') || rawService.contains('mart') || rawService == 'farm' || rawService == 'build')
+          ? 'shop'
+          : 'food',
+      serviceType: rawService.isEmpty ? 'food' : rawService,
+      isPickup: isPickupVal,
+      deliveryOption: (json['delivery_option'] ?? (isPickupVal ? 'PICKUP' : 'REGULER'))
+          .toString()
+          .toUpperCase(),
+      packageDetails: parsedPkg,
       autoAcceptSecondsRemaining: (json['auto_accept_seconds'] ?? 180) is num ? (json['auto_accept_seconds'] ?? 180).toInt() : 180,
     );
   }

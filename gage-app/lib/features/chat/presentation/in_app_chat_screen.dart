@@ -12,6 +12,8 @@ import 'package:gage_app/features/chat/domain/chat_message.dart';
 import 'package:gage_app/features/chat/presentation/widgets/gage_product_catalog_sheet.dart';
 import 'package:gage_app/features/chat/presentation/widgets/gage_chat_input_bar.dart';
 import 'package:gage_app/features/chat/providers/in_app_chat_provider.dart';
+import 'package:gage_app/providers/auth_provider.dart';
+import 'package:gage_app/shared/widgets/gage_avatar.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 
 class InAppChatScreen extends StatefulWidget {
@@ -95,25 +97,41 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
     });
   }
 
-  Future<void> _openWhatsApp() async {
-    var phone = widget.recipientPhone.replaceAll(RegExp(r'\D'), '');
-    if (phone.startsWith('0')) {
-      phone = '62${phone.substring(1)}';
-    }
-    final text = Uri.encodeComponent(
-      'Halo ${widget.recipientName}, ini komunikasi terkait pesanan GAGE #${widget.orderId}.',
-    );
-    final uri = Uri.parse('https://wa.me/$phone?text=$text');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-  }
-
   Future<void> _callPhone() async {
-    final uri = Uri.parse('tel:${widget.recipientPhone}');
+    final trimmed = widget.recipientPhone.trim();
+    if (trimmed.isEmpty || trimmed == '-') {
+      GageToast.show(context, 'Nomor telepon belum tersedia', type: GageToastType.warning);
+      return;
+    }
+    final uri = Uri.parse('tel:$trimmed');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     }
+  }
+
+  String _resolveSenderName() {
+    if (widget.currentRole == 'customer') {
+      try {
+        final name = context.read<AuthProvider>().currentUser?.name;
+        if (name != null && name.trim().isNotEmpty) return name.trim();
+      } on ProviderNotFoundException {
+        // Fallback aman saat widget test tanpa AuthProvider
+      }
+      return 'Pelanggan GAGE';
+    }
+    if (widget.currentRole == 'driver') return 'Mitra Driver GAGE';
+    if (widget.currentRole == 'merchant') return 'Mitra Merchant GAGE';
+    return 'Pengguna GAGE';
+  }
+
+  String _resolveSenderId() {
+    try {
+      final id = context.read<AuthProvider>().currentUser?.id;
+      if (id != null && id.trim().isNotEmpty) return id.trim();
+    } on ProviderNotFoundException {
+      // Abaikan
+    }
+    return 'current-user-id';
   }
 
   void _sendMessage([String? textToSend]) {
@@ -121,15 +139,11 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
     if (text.trim().isEmpty) return;
 
     final chatProv = context.read<InAppChatProvider>();
-    final senderName = widget.currentRole == 'driver'
-        ? 'Syamsul Maarif (Driver)'
-        : (widget.currentRole == 'merchant' ? 'Dimsum Sewu' : 'Siti Rahmawati');
-
     chatProv.sendMessage(
       orderId: widget.orderId,
-      senderId: 'current-user-id',
+      senderId: _resolveSenderId(),
       senderRole: widget.currentRole,
-      senderName: senderName,
+      senderName: _resolveSenderName(),
       text: text,
     );
 
@@ -141,15 +155,11 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
 
   void _sendVoiceMessage(int durationSeconds, [String? audioFilePath]) {
     final chatProv = context.read<InAppChatProvider>();
-    final senderName = widget.currentRole == 'driver'
-        ? 'Syamsul Maarif (Driver)'
-        : (widget.currentRole == 'merchant' ? 'Dimsum Sewu' : 'Siti Rahmawati');
-
     chatProv.sendVoiceMessage(
       orderId: widget.orderId,
-      senderId: 'current-user-id',
+      senderId: _resolveSenderId(),
       senderRole: widget.currentRole,
-      senderName: senderName,
+      senderName: _resolveSenderName(),
       durationSeconds: durationSeconds,
       audioFilePath: audioFilePath,
     );
@@ -159,15 +169,11 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
 
   void _sendMediaMessage({required String filePath, String? caption}) {
     final chatProv = context.read<InAppChatProvider>();
-    final senderName = widget.currentRole == 'driver'
-        ? 'Syamsul Maarif (Driver)'
-        : (widget.currentRole == 'merchant' ? 'Dimsum Sewu' : 'Siti Rahmawati');
-
     chatProv.sendMediaMessage(
       orderId: widget.orderId,
-      senderId: 'current-user-id',
+      senderId: _resolveSenderId(),
       senderRole: widget.currentRole,
-      senderName: senderName,
+      senderName: _resolveSenderName(),
       filePath: filePath,
       caption: caption,
     );
@@ -180,15 +186,11 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
     required String image,
   }) {
     final chatProv = context.read<InAppChatProvider>();
-    final senderName = widget.currentRole == 'driver'
-        ? 'Syamsul Maarif (Driver)'
-        : (widget.currentRole == 'merchant' ? 'Dimsum Sewu' : 'Siti Rahmawati');
-
     chatProv.sendProductMessage(
       orderId: widget.orderId,
-      senderId: 'current-user-id',
+      senderId: _resolveSenderId(),
       senderRole: widget.currentRole,
-      senderName: senderName,
+      senderName: _resolveSenderName(),
       productName: productName,
       productPrice: price,
       productImage: image,
@@ -328,13 +330,10 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
         titleSpacing: 0,
         title: Row(
           children: [
-            CircleAvatar(
+            GageAvatar(
+              imageUrl: null,
+              fallbackName: widget.recipientName,
               radius: 18,
-              backgroundColor: GageTheme.primary.withValues(alpha: 0.12),
-              child: Text(
-                widget.recipientName.isNotEmpty ? widget.recipientName[0].toUpperCase() : 'U',
-                style: const TextStyle(fontWeight: FontWeight.w800, color: GageTheme.primary, fontSize: 15),
-              ),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -384,16 +383,12 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.phone_rounded, color: GageTheme.accentGreen, size: 22),
-            tooltip: 'Telepon Seluler',
-            onPressed: _callPhone,
-          ),
-          IconButton(
-            icon: const Icon(Icons.chat_bubble_outline_rounded, color: Color(0xFF25D366), size: 22),
-            tooltip: 'Chat via WhatsApp Resmi',
-            onPressed: _openWhatsApp,
-          ),
+          if (widget.recipientPhone.trim().isNotEmpty && widget.recipientPhone.trim() != '-')
+            IconButton(
+              icon: const Icon(Icons.phone_rounded, color: GageTheme.accentGreen, size: 22),
+              tooltip: 'Telepon Seluler',
+              onPressed: _callPhone,
+            ),
           const SizedBox(width: 4),
         ],
       ),

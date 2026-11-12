@@ -5,7 +5,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
+import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/providers/auth_provider.dart';
 import 'package:gage_app/providers/wallet_provider.dart';
 import 'package:gage_app/features/wallet/presentation/topup_qris_dialog.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
@@ -321,7 +323,7 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
                     style: ElevatedButton.styleFrom(
                       backgroundColor: GageTheme.primary,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                      shape: const StadiumBorder(),
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
@@ -330,7 +332,11 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
                       TopupQrisDialog.showAsSheet(
                         context,
                         onTopupSuccess: (amt) {
-                          wallet.fetchWallet('usr-cust-01');
+                          final uid = context.read<AuthProvider>().currentUser?.id ??
+                              (GageApiClient.useDevSeedData ? 'usr-cust-01' : '');
+                          if (uid.isNotEmpty) {
+                            wallet.fetchWallet(uid);
+                          }
                         },
                       );
                     },
@@ -657,14 +663,15 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
                       padding: const EdgeInsets.only(right: 6),
                       child: InkWell(
                         onTap: () {
+                          HapticFeedback.selectionClick();
                           setModalState(() => _selectedAmount = amt);
                         },
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(999),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: isSelected ? const Color(0xFFFFEBEE) : const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(20),
+                            color: isSelected ? GageTheme.primary : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(999),
                             border: Border.all(
                               color: isSelected ? GageTheme.primary : const Color(0xFFE2E8F0),
                             ),
@@ -674,7 +681,7 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                              color: isSelected ? GageTheme.primary : Colors.black87,
+                              color: isSelected ? Colors.white : Colors.black87,
                             ),
                           ),
                         ),
@@ -730,7 +737,11 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
                           TopupQrisDialog.showAsSheet(
                             context,
                             onTopupSuccess: (amt) {
-                              wallet.fetchWallet('usr-cust-01');
+                              final uid = context.read<AuthProvider>().currentUser?.id ??
+                                  (GageApiClient.useDevSeedData ? 'usr-cust-01' : '');
+                              if (uid.isNotEmpty) {
+                                wallet.fetchWallet(uid);
+                              }
                             },
                           );
                         },
@@ -738,7 +749,7 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
                             color: GageTheme.primary,
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(999),
                           ),
                           child: const Text(
                             '+ Top Up',
@@ -1074,7 +1085,11 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
                             TopupQrisDialog.showAsSheet(
                               context,
                               onTopupSuccess: (amt) {
-                                wallet.fetchWallet('usr-cust-01');
+                                final uid = context.read<AuthProvider>().currentUser?.id ??
+                                    (GageApiClient.useDevSeedData ? 'usr-cust-01' : '');
+                                if (uid.isNotEmpty) {
+                                  wallet.fetchWallet(uid);
+                                }
                               },
                             );
                           },

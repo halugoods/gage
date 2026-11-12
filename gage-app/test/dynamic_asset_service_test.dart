@@ -31,7 +31,8 @@ void main() {
     test('Grid menu slots are correctly registered', () {
       final slots = DynamicAssetService.instance.allSlots;
       final gridSlots = slots.where((s) => s.category == 'Menu Grid Beranda').toList();
-      expect(gridSlots.length, equals(8));
+      expect(gridSlots.length, equals(7));
+      expect(gridSlots.any((s) => s.key == 'grid_menu_babe'), isFalse);
 
       final rideCarMenu = gridSlots.firstWhere((s) => s.key == 'grid_menu_ride_car');
       expect(rideCarMenu.defaultPath, equals('assets/icons/ic_ride.png'));

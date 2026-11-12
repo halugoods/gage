@@ -251,7 +251,7 @@ class GageFloatingSheet {
                 ),
                 const SizedBox(height: 10),
 
-                // Kontainer 2: No WhatsApp
+                // Kontainer 2: Nomor HP Penerima
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                   decoration: BoxDecoration(
@@ -271,7 +271,7 @@ class GageFloatingSheet {
                           keyboardType: TextInputType.phone,
                           style: const TextStyle(fontSize: 13.5),
                           decoration: const InputDecoration(
-                            hintText: 'No. WhatsApp (contoh: 081234567890)',
+                            hintText: 'Nomor HP penerima',
                             hintStyle: TextStyle(fontSize: 12.5, color: Colors.grey),
                             border: InputBorder.none,
                             isDense: true,
@@ -333,7 +333,7 @@ class GageFloatingSheet {
                       return ActionChip(
                         label: Text(chip['label']!, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                         backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.grey.shade100,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        shape: const StadiumBorder(),
                         side: BorderSide(color: isDark ? const Color(0xFF334155) : Colors.grey.shade300, width: 0.8),
                         padding: const EdgeInsets.symmetric(horizontal: 4),
                         visualDensity: VisualDensity.compact,

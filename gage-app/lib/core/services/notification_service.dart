@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/data/mock/gage_voucher_data.dart';
 
 class GageNotification {
@@ -162,7 +163,13 @@ class NotificationService extends ChangeNotifier {
       } catch (_) {}
     }
 
-    // Default notifications jika belum ada di storage
+    if (!GageApiClient.useDevSeedData) {
+      _items = [];
+      notifyListeners();
+      return;
+    }
+
+    // Default notifications untuk mode dev seed
     final now = DateTime.now();
     _items = [
       GageNotification(

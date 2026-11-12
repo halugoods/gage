@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/services/merchant_storefront_service.dart';
@@ -234,25 +235,23 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildShareAction(
-                  icon: Icons.chat_bubble_rounded,
-                  label: 'WhatsApp',
-                  color: const Color(0xFF25D366),
+                  icon: Icons.share_rounded,
+                  label: 'Bagikan',
+                  color: GageTheme.primary,
                   onTap: () async {
                     Navigator.pop(ctx);
-                    final text = Uri.encodeComponent(
-                      'Yuk pesan $_domainItemTerm di $restoName lewat $_domainLabel!\n📍 Alamat: $restoAddress\n🔗 https://gage.app/m/${widget.merchant['id'] ?? 'resto'}'
-                    );
-                    final waUri = Uri.parse('whatsapp://send?text=$text');
-                    final webUri = Uri.parse('https://wa.me/?text=$text');
+                    final text = 'Yuk pesan $_domainItemTerm di $restoName lewat $_domainLabel!\nAlamat: $restoAddress\nhttps://gage.app/m/${widget.merchant['id'] ?? 'resto'}';
                     try {
-                      if (await canLaunchUrl(waUri)) {
-                        await launchUrl(waUri);
-                      } else {
-                        await launchUrl(webUri, mode: LaunchMode.externalApplication);
-                      }
+                      await SharePlus.instance.share(
+                        ShareParams(
+                          text: text,
+                          subject: '$restoName di $_domainLabel',
+                        ),
+                      );
                     } catch (_) {
+                      await Clipboard.setData(ClipboardData(text: text));
                       if (context.mounted) {
-                        GageToast.show(context, 'Membuka WhatsApp...', type: GageToastType.info);
+                        GageToast.show(context, 'Info $restoName disalin ke clipboard', type: GageToastType.info);
                       }
                     }
                   },
@@ -695,19 +694,32 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: GageTheme.primary,
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          shape: const StadiumBorder(),
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           visualDensity: VisualDensity.compact,
                           elevation: 0,
                         ),
                         icon: const Icon(Icons.share_rounded, size: 14),
-                        label: const Text('Bagi ke WA', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
-                        onPressed: () {
-                          GageToast.show(
-                            context,
-                            'Tautan Pesan Bareng $roomId disalin ke WhatsApp!',
-                            type: GageToastType.success,
-                          );
+                        label: const Text('Bagikan Tautan', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
+                        onPressed: () async {
+                          final invite = 'Gabung Pesan Bareng di $restoName dengan kode ruang $roomId lewat aplikasi GAGE!';
+                          try {
+                            await SharePlus.instance.share(
+                              ShareParams(
+                                text: invite,
+                                subject: 'Pesan Bareng GAGE ($roomId)',
+                              ),
+                            );
+                          } catch (_) {
+                            await Clipboard.setData(ClipboardData(text: invite));
+                            if (context.mounted) {
+                              GageToast.show(
+                                context,
+                                'Tautan Pesan Bareng $roomId disalin ke clipboard!',
+                                type: GageToastType.success,
+                              );
+                            }
+                          }
                         },
                       ),
                     ],
@@ -786,7 +798,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: isGroupActive ? Colors.grey.shade700 : GageTheme.primary,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                      shape: const StadiumBorder(),
                       elevation: 0,
                     ),
                     onPressed: () {
@@ -948,7 +960,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: GageTheme.primary,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                      shape: const StadiumBorder(),
                       elevation: 0,
                     ),
                     onPressed: () {
@@ -983,7 +995,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(999),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -991,7 +1003,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
           color: isSelected
               ? (isDark ? const Color(0xFF2C1E1E) : const Color(0xFFFFF1F0))
               : (isDark ? const Color(0xFF1E293B) : Colors.white),
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: isSelected ? GageTheme.primary : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
             width: isSelected ? 1.5 : 1.0,
@@ -2234,7 +2246,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: GageTheme.primary,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                        shape: const StadiumBorder(),
                         padding: const EdgeInsets.symmetric(horizontal: 14),
                         elevation: 0,
                       ),

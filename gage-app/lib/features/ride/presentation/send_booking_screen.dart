@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/services/location_service.dart';
+import 'package:gage_app/core/services/osm_geocoding_service.dart';
 import 'package:gage_app/core/services/osrm_routing_service.dart';
 import 'package:gage_app/core/services/gage_pricing_service.dart';
 import 'package:gage_app/features/ride/presentation/ride_checkout_screen.dart';
@@ -100,7 +101,6 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
       if (mounted && !_hasExplicitSender) {
         setState(() {
           _senderLatLng = gps;
-          // Alamat pengirim dibiarkan kosong di awal sesuai instruksi user
         });
         if (_recipientLatLng != null) {
           _updateRoute();
@@ -109,6 +109,36 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
         }
       }
     } catch (_) {}
+  }
+
+  Future<void> _recenterSenderToCurrentGps() async {
+    HapticFeedback.selectionClick();
+    try {
+      final gps = await LocationService.getCurrentLocation(forceFresh: true);
+      final title = await OsmGeocodingService.reverseGeocode(gps);
+      if (!mounted) return;
+      setState(() {
+        _hasExplicitSender = true;
+        _senderLatLng = gps;
+        _senderFavoriteId = null;
+        _senderFavoriteName = null;
+        _senderAddressCtrl.text = title.trim().isNotEmpty
+            ? title.trim()
+            : 'Lokasi GPS (${gps.latitude.toStringAsFixed(4)}, ${gps.longitude.toStringAsFixed(4)})';
+      });
+      if (_recipientLatLng != null) {
+        await _updateRoute();
+      } else {
+        _mapController.move(gps, 16.5);
+      }
+      if (mounted) {
+        GageToast.show(context, 'Titik jemput diarahkan ke GPS Anda', type: GageToastType.success);
+      }
+    } catch (_) {
+      if (mounted) {
+        GageToast.show(context, 'Gagal mengambil lokasi GPS saat ini', type: GageToastType.warning);
+      }
+    }
   }
 
   Future<void> _updateRoute() async {
@@ -224,11 +254,6 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
           _recipientFavoriteName = matched?.name;
         });
         _updateRoute();
-        Future.delayed(const Duration(milliseconds: 350), () {
-          if (mounted) {
-            _showPackageDetailsFloatingSheet();
-          }
-        });
       },
     );
   }
@@ -268,18 +293,6 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
       return;
     }
 
-    final recipientName = _recipientNameCtrl.text.trim();
-    final recipientPhone = _recipientPhoneCtrl.text.trim();
-    if (recipientName.isEmpty || recipientPhone.isEmpty) {
-      GageToast.show(
-        context,
-        'Lengkapi nama dan nomor WhatsApp penerima dahulu',
-        type: GageToastType.warning,
-      );
-      _showPackageDetailsFloatingSheet();
-      return;
-    }
-
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -292,8 +305,8 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
           dropoffAddress: _recipientAddressCtrl.text,
           distanceKm: _distanceKm,
           baseFare: _calculateShippingFee(),
-          recipientName: recipientName,
-          recipientPhone: recipientPhone,
+          recipientName: _recipientNameCtrl.text.trim(),
+          recipientPhone: _recipientPhoneCtrl.text.trim(),
           packageType: _selectedPackageType,
           weightTier: _selectedWeight,
           itemDescription: _packageDescCtrl.text.trim(),
@@ -615,7 +628,7 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                           backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
                           foregroundColor: GageTheme.primary,
                           elevation: 3,
-                          onPressed: _initSenderGps,
+                          onPressed: _recenterSenderToCurrentGps,
                           child: const Icon(Icons.my_location_rounded, size: 20),
                         ),
                       ],
@@ -1004,7 +1017,7 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87),
                     decoration: const InputDecoration(
                       icon: Icon(Icons.phone_outlined, size: 16, color: Colors.grey),
-                      hintText: 'No. WhatsApp',
+                      hintText: 'No. HP Penerima',
                       hintStyle: TextStyle(fontSize: 11, color: Colors.grey),
                       border: InputBorder.none,
                       isDense: true,

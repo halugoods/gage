@@ -189,14 +189,14 @@ class _GageDigitalScheduleSheetState extends State<GageDigitalScheduleSheet> {
                   HapticFeedback.selectionClick();
                   setState(() => _selectedDayOffset = 0);
                 },
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(999),
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   decoration: BoxDecoration(
                     color: _selectedDayOffset == 0
                         ? GageTheme.primary
                         : cardBg,
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(999),
                     border: Border.all(
                       color: _selectedDayOffset == 0 ? GageTheme.primary : borderColor,
                     ),
@@ -221,14 +221,14 @@ class _GageDigitalScheduleSheetState extends State<GageDigitalScheduleSheet> {
                   HapticFeedback.selectionClick();
                   setState(() => _selectedDayOffset = 1);
                 },
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(999),
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   decoration: BoxDecoration(
                     color: _selectedDayOffset == 1
                         ? GageTheme.primary
                         : cardBg,
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(999),
                     border: Border.all(
                       color: _selectedDayOffset == 1 ? GageTheme.primary : borderColor,
                     ),

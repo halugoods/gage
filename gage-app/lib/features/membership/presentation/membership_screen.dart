@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 /// MembershipScreen - Desain Redesain Mewah Berbasis Model Bisnis Riil
@@ -443,7 +444,7 @@ class _MembershipScreenState extends State<MembershipScreen> {
                         padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
                           color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
-                          borderRadius: BorderRadius.circular(28),
+                          borderRadius: BorderRadius.circular(999),
                         ),
                         child: Row(
                           children: [
@@ -451,22 +452,22 @@ class _MembershipScreenState extends State<MembershipScreen> {
                             Expanded(
                               child: InkWell(
                                 onTap: () {
-                                  HapticFeedback.lightImpact();
+                                  HapticFeedback.selectionClick();
                                   setState(() => _selectedTier = 'plus');
                                 },
-                                borderRadius: BorderRadius.circular(24),
+                                borderRadius: BorderRadius.circular(999),
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 200),
                                   padding: const EdgeInsets.symmetric(vertical: 9),
                                   decoration: BoxDecoration(
                                     color: _selectedTier == 'plus'
-                                        ? const Color(0xFFE52320)
+                                        ? GageTheme.primary
                                         : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(24),
+                                    borderRadius: BorderRadius.circular(999),
                                     boxShadow: _selectedTier == 'plus'
                                         ? [
                                             BoxShadow(
-                                              color: const Color(0xFFE52320).withValues(alpha: 0.35),
+                                              color: GageTheme.primary.withValues(alpha: 0.35),
                                               blurRadius: 8,
                                               offset: const Offset(0, 2),
                                             ),
@@ -504,22 +505,22 @@ class _MembershipScreenState extends State<MembershipScreen> {
                             Expanded(
                               child: InkWell(
                                 onTap: () {
-                                  HapticFeedback.lightImpact();
+                                  HapticFeedback.selectionClick();
                                   setState(() => _selectedTier = 'max');
                                 },
-                                borderRadius: BorderRadius.circular(24),
+                                borderRadius: BorderRadius.circular(999),
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 200),
                                   padding: const EdgeInsets.symmetric(vertical: 9),
                                   decoration: BoxDecoration(
                                     color: _selectedTier == 'max'
-                                        ? const Color(0xFF991B1B)
+                                        ? GageTheme.primary
                                         : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(24),
+                                    borderRadius: BorderRadius.circular(999),
                                     boxShadow: _selectedTier == 'max'
                                         ? [
                                             BoxShadow(
-                                              color: const Color(0xFF991B1B).withValues(alpha: 0.35),
+                                              color: GageTheme.primary.withValues(alpha: 0.35),
                                               blurRadius: 8,
                                               offset: const Offset(0, 2),
                                             ),
@@ -600,7 +601,7 @@ class _MembershipScreenState extends State<MembershipScreen> {
                           const SizedBox(height: 6),
                           Text(
                             _selectedTier == 'max'
-                                ? 'Paket terlengkap untuk Power User & UMKM: 2.000 voucher, 2x poin cuan & WhatsApp VIP 24/7.'
+                                ? 'Paket terlengkap untuk Power User & UMKM: 2.000 voucher, 2x poin cuan & Layanan CS Prioritas 24/7.'
                                 : 'Paket hemat untuk komuter harian: 900 voucher, 1.2x poin cuan & diskon 50% admin fee.',
                             textAlign: TextAlign.center,
                             style: TextStyle(
@@ -821,7 +822,7 @@ class _MembershipScreenState extends State<MembershipScreen> {
                                 ? [
                                     'Double cashback koin Star di setiap transaksi makanan, mart & ojek.',
                                     'Bebas biaya penanganan aplikasi (Rp 0 Admin Fee) selamanya!',
-                                    'Dedicated WhatsApp Priority Support 24/7 untuk bantuan instan.',
+                                    'Layanan CS Prioritas 24/7 di dalam aplikasi untuk bantuan instan.',
                                   ]
                                 : [
                                     'Kumpulkan poin loyalty 1.2x lebih cepat di setiap orderan.',

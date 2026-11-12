@@ -5,7 +5,9 @@ import 'package:intl/intl.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/providers/auth_provider.dart';
 import 'package:gage_app/providers/wallet_provider.dart';
 import 'package:gage_app/features/wallet/presentation/topup_qris_dialog.dart';
 import 'package:gage_app/features/wallet/presentation/qris_pay_screen.dart';
@@ -483,7 +485,11 @@ class _OfflineQrisPaySheetState extends State<OfflineQrisPaySheet>
                     context: context,
                     builder: (dCtx) => TopupQrisDialog(
                       onTopupSuccess: (amt) {
-                        wallet.fetchWallet('usr-cust-01');
+                        final uid = context.read<AuthProvider>().currentUser?.id ??
+                            (GageApiClient.useDevSeedData ? 'usr-cust-01' : '');
+                        if (uid.isNotEmpty) {
+                          wallet.fetchWallet(uid);
+                        }
                       },
                     ),
                   );
@@ -1108,15 +1114,18 @@ class _OfflineQrisPaySheetState extends State<OfflineQrisPaySheet>
                                 return Padding(
                                   padding: const EdgeInsets.only(right: 8.0),
                                   child: InkWell(
-                                    onTap: () => setState(() => _selectedAmount = amt),
-                                    borderRadius: BorderRadius.circular(10),
+                                    onTap: () {
+                                      HapticFeedback.selectionClick();
+                                      setState(() => _selectedAmount = amt);
+                                    },
+                                    borderRadius: BorderRadius.circular(999),
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                                       decoration: BoxDecoration(
                                         color: isSelected
                                             ? GageTheme.primary
                                             : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
-                                        borderRadius: BorderRadius.circular(10),
+                                        borderRadius: BorderRadius.circular(999),
                                         border: Border.all(
                                           color: isSelected ? GageTheme.primary : Colors.transparent,
                                         ),

@@ -1,5 +1,6 @@
 // ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 
 /// Halaman Resmi Syarat & Ketentuan Layanan dan Kebijakan Privasi GAGE
@@ -40,28 +41,49 @@ class _TermsAndPrivacyScreenState extends State<TermsAndPrivacyScreen> with Sing
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: isDark ? GageTheme.darkBackground : Colors.grey.shade50,
       appBar: AppBar(
         title: const Text(
           'Syarat & Ketentuan Layanan',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: GageTheme.textPrimary,
+        backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
+        foregroundColor: isDark ? Colors.white : GageTheme.textPrimary,
         elevation: 0.5,
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: GageTheme.primary,
-          unselectedLabelColor: GageTheme.textSecondary,
-          indicatorColor: GageTheme.primary,
-          indicatorWeight: 3,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-          tabs: const [
-            Tab(text: 'Ketentuan Tarif'),
-            Tab(text: 'Syarat & Ketentuan'),
-            Tab(text: 'Kebijakan Privasi'),
-          ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(54),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+            child: Container(
+              height: 40,
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: TabBar(
+                controller: _tabController,
+                onTap: (_) => HapticFeedback.selectionClick(),
+                indicator: BoxDecoration(
+                  color: GageTheme.primary,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                indicatorSize: TabBarIndicatorSize.tab,
+                dividerColor: Colors.transparent,
+                labelColor: Colors.white,
+                unselectedLabelColor: isDark ? Colors.white60 : GageTheme.textSecondary,
+                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5),
+                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11.5),
+                tabs: const [
+                  Tab(text: 'Tarif'),
+                  Tab(text: 'Syarat & Ketentuan'),
+                  Tab(text: 'Privasi'),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
       body: TabBarView(
@@ -252,7 +274,7 @@ class _TermsAndPrivacyScreenState extends State<TermsAndPrivacyScreen> with Sing
           _buildSectionTitle('2. Pendaftaran dan Akun Pengguna'),
           _buildBulletItem(
             'Kebenaran Data',
-            'Pengguna wajib memberikan data yang benar, akurat, dan dapat dihubungi (nama lengkap, nomor telepon WhatsApp aktif, dan alamat pengiriman).',
+            'Pengguna wajib memberikan data yang benar, akurat, dan dapat dihubungi (nama lengkap, nomor HP aktif, dan alamat pengiriman).',
           ),
           _buildBulletItem(
             'Kerahasiaan Akun',
@@ -302,7 +324,7 @@ class _TermsAndPrivacyScreenState extends State<TermsAndPrivacyScreen> with Sing
           _buildSectionTitle('2. Data yang Dikumpulkan'),
           _buildBulletItem(
             'Data Identitas & Kontak',
-            'Nama, alamat email Google Sign-In, nomor telepon/WhatsApp, dan alamat pengantaran yang diinput oleh pengguna.',
+            'Nama, alamat email Google Sign-In, nomor HP / telepon, dan alamat pengantaran yang diinput oleh pengguna.',
           ),
           _buildBulletItem(
             'Data Lokasi Geografis (GPS)',

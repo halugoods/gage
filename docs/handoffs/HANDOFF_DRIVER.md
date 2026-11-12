@@ -56,3 +56,21 @@ Hasil audit menunjukkan beberapa field penting dari Customer belum tersedia di `
 
 ### D. Kepatuhan Seed Data Produksi (`GageApiClient.useDevSeedData`)
 * Audit `DriverOrderProvider`, `DriverWalletProvider`, dan `driver_screen.dart` untuk memastikan bid order contoh dan saldo/riwayat simulasi **hanya** dimuat jika `GageApiClient.useDevSeedData == true`.
+
+---
+
+## 4. Kontrak Wave 1 & Wave 2 Terbaru (Sinkronisasi Customer + Transport + Cloud D1)
+
+1. **Ketersediaan Data Driver Real-Time ke Portal Customer**:
+   - `OrderDetailScreen`, `OrdersScreen`, dan `OrderTrackingScreen` di Portal Customer kini menyembunyikan kartu driver dan tidak lagi menampilkan nama/plat/nomor HP fallback (`useDevSeedData == false`) selama `order.hasAssignedDriver` bernilai `false` (`driverId`/`driverName` kosong).
+   - Saat Driver menerima order (`POST /api/driver/orders/:id/accept`), backend/D1 wajib mengisi `driver_id`, `driver_name`, `driver_vehicle`/`driver_plate`, dan `driver_phone` agar kartu pengemudi langsung muncul real-time di Customer.
+2. **Transisi Status Berurutan & Akses In-App Chat**:
+   - Customer tidak lagi membuka peta tracking secara otomatis segera setelah checkout (`OrderDetailScreen` menjadi layar utama, tombol lacak bersifat opsional selama status aktif bukan `PAYMENT_PENDING` atau `PICKUP`).
+   - Pastikan Driver memperbarui status berurutan: `PAID` (tunggu merchant) -> `COOKING` -> `READY_FOR_PICKUP` -> `DRIVER_ASSIGNED` -> `ON_THE_WAY` -> `COMPLETED`.
+   - Seluruh tombol WhatsApp Customer ke Driver telah diganti ke `InAppChatScreen` (`recipientRole: 'driver'`) dan `tel:` (hanya aktif bila `driverPhone` valid). Pastikan Driver mengandalkan chat in-app dan pembaruan foto/status valid.
+3. **Kontrak Layanan Transport (`Ride`, `Car`, `Send`) & Paket Berat (`weightKg`)**:
+   - Customer `SendBookingScreen` dan `RideCheckoutScreen` kini mendukung pengisian rincian paket yang dapat diedit (`package_details_json`: jenis, estimasi berat `weight_kg`, catatan kurir, dan penyesuaian tarif berat).
+   - Driver `DriverOrderOffer` / trip screen wajib menampilkan `packageDetails` / `weight_kg`, koordinat lengkap `pickupLat`/`pickupLng` & `deliveryLat`/`deliveryLng`, serta `driverTip` agar kurir siap membawa kapasitas barang yang sesuai.
+4. **Pembersihan Referensi Lama**:
+   - Hapus referensi lama non-aktif di `driver_screen.dart` (`Lapak BaBe & Kios Sedayu` di L63) pada gelombang kerja Portal Driver agar selaras dengan penghapusan GAGE BaBe di Customer.
+   - `driver_order_provider.dart` saat ini belum mengimpor/memeriksa `GageApiClient.useDevSeedData`; wajib ditambahkan guard sebelum rilis produksi Driver.

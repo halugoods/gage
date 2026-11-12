@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/features/chat/domain/chat_message.dart';
 
 class InAppChatProvider with ChangeNotifier {
   final Map<String, List<ChatMessage>> _messagesByOrder = {};
 
   InAppChatProvider() {
-    _seedInitialConversations();
+    if (GageApiClient.useDevSeedData) {
+      _seedInitialConversations();
+    }
   }
 
   void _seedInitialConversations() {

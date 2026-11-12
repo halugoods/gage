@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/providers/auth_provider.dart';
 import 'package:gage_app/providers/wallet_provider.dart';
 import 'package:gage_app/features/wallet/presentation/topup_qris_dialog.dart';
 import 'package:gage_app/features/wallet/presentation/qris_pay_screen.dart';
@@ -165,7 +167,11 @@ class FloatingWalletCard extends StatelessWidget {
                         TopupQrisDialog.showAsSheet(
                           context,
                           onTopupSuccess: (amt) {
-                            wallet.fetchWallet('usr-cust-01');
+                            final auth = context.read<AuthProvider>();
+                            final uid = auth.currentUser?.id ?? (GageApiClient.useDevSeedData ? 'usr-cust-01' : '');
+                            if (uid.isNotEmpty) {
+                              wallet.fetchWallet(uid);
+                            }
                           },
                         );
                       },

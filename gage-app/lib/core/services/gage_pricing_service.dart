@@ -21,6 +21,7 @@ class GagePricingService {
 
   static int deliveryBase = 9000; // Flat 0-3 km Rp 9.000
   static int deliveryPerKm = 3000; // km ke-4
+  static int deliveryHematMinSubtotal = 50000; // Minimum belanja untuk opsi Hemat (Food/Shop/Farm/Build)
   static int multiMerchantStopBonus = 2500; // Komisi tambahan driver per merchant ekstra
 
   // Biaya Layanan: Cashless Rp 1.000 | COD Rp 3.000
@@ -62,21 +63,21 @@ class GagePricingService {
     }
 
     // km ke-4 (3.0 < km <= 4.0)
-    final double km4Rate = isReguler ? 4000.0 : 3000.0;
+    final double km4Rate = isReguler ? rideRegulerPerKm.toDouble() : rideHematPerKm.toDouble();
     if (distanceKm <= 4.0) {
       return baseFare + ((distanceKm - baseKm) * km4Rate);
     }
 
     // km ke-5 (4.0 < km <= 5.0)
     final double km4Total = (4.0 - baseKm) * km4Rate;
-    final double km5Rate = isReguler ? 3500.0 : 2500.0;
+    final double km5Rate = (km4Rate - 500.0).clamp(1000.0, 20000.0);
     if (distanceKm <= 5.0) {
       return baseFare + km4Total + ((distanceKm - 4.0) * km5Rate);
     }
 
     // km ke-6+ (> 5.0 km)
     final double km5Total = 1.0 * km5Rate;
-    final double km6Rate = isReguler ? 3000.0 : 2000.0;
+    final double km6Rate = (km4Rate - 1000.0).clamp(1000.0, 20000.0);
     return baseFare + km4Total + km5Total + ((distanceKm - 5.0) * km6Rate);
   }
 
@@ -246,6 +247,8 @@ class GagePricingService {
       deliveryBaseKm = prefs.getDouble('price_delivery_base_km') ?? deliveryBaseKm;
       deliveryBase = prefs.getInt('price_delivery_base') ?? deliveryBase;
       deliveryPerKm = prefs.getInt('price_delivery_per_km') ?? deliveryPerKm;
+      deliveryHematMinSubtotal =
+          prefs.getInt('price_delivery_hemat_min_subtotal') ?? deliveryHematMinSubtotal;
 
       multiMerchantStopBonus = prefs.getInt('price_multi_merchant_bonus') ?? multiMerchantStopBonus;
       driverCommissionRatio = prefs.getDouble('price_driver_commission_ratio') ?? driverCommissionRatio;
@@ -255,6 +258,32 @@ class GagePricingService {
     } catch (e) {
       debugPrint('GagePricingService load error: $e');
     }
+  }
+
+  /// Sinkronkan konfigurasi tarif yang diterima dari backend (`/api/pricing-config`)
+  static Future<void> applyRemoteConfig(Map<String, dynamic> data) async {
+    int? asInt(dynamic v) => v is num ? v.toInt() : int.tryParse(v?.toString() ?? '');
+    double? asDouble(dynamic v) => v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '');
+    await saveAdminPricingConfig(
+      newRideHematBaseKm: asDouble(data['ride_hemat_base_km']),
+      newRideHematBase: asInt(data['ride_hemat_base']),
+      newRideHematPerKm: asInt(data['ride_hemat_per_km']),
+      newRideRegulerBaseKm: asDouble(data['ride_reguler_base_km']),
+      newRideRegulerBase: asInt(data['ride_reguler_base']),
+      newRideRegulerPerKm: asInt(data['ride_reguler_per_km']),
+      newCarBaseKm: asDouble(data['car_base_km']),
+      newCarBase: asInt(data['car_base']),
+      newCarPerKm: asInt(data['car_per_km']),
+      newDeliveryBaseKm: asDouble(data['delivery_base_km']),
+      newDeliveryBase: asInt(data['delivery_base']),
+      newDeliveryPerKm: asInt(data['delivery_per_km']),
+      newDeliveryHematMinSubtotal: asInt(data['delivery_hemat_min_subtotal']),
+      newMultiMerchantBonus: asInt(data['multi_merchant_bonus']),
+      newDriverCommissionRatio: asDouble(data['driver_commission_ratio']),
+      newAdminFeeCashless: asInt(data['admin_cashless']),
+      newAdminFeeCodBase: asInt(data['admin_cod_base']),
+      newAdminFeeCodExtra: asInt(data['admin_cod_extra']),
+    );
   }
 
   /// Simpan konfigurasi tarif baru dari Portal Admin
@@ -271,6 +300,7 @@ class GagePricingService {
     double? newDeliveryBaseKm,
     int? newDeliveryBase,
     int? newDeliveryPerKm,
+    int? newDeliveryHematMinSubtotal,
     int? newMultiMerchantBonus,
     double? newDriverCommissionRatio,
     int? newAdminFeeCashless,
@@ -330,6 +360,10 @@ class GagePricingService {
         deliveryPerKm = newDeliveryPerKm;
         await prefs.setInt('price_delivery_per_km', newDeliveryPerKm);
       }
+      if (newDeliveryHematMinSubtotal != null) {
+        deliveryHematMinSubtotal = newDeliveryHematMinSubtotal;
+        await prefs.setInt('price_delivery_hemat_min_subtotal', newDeliveryHematMinSubtotal);
+      }
 
       if (newMultiMerchantBonus != null) {
         multiMerchantStopBonus = newMultiMerchantBonus;
@@ -368,6 +402,7 @@ class GagePricingService {
     carPerKm = 5000;
     deliveryBase = 9000;
     deliveryPerKm = 3000;
+    deliveryHematMinSubtotal = 50000;
     multiMerchantStopBonus = 2500;
     adminFeeCashlessPerMerchant = 1000;
     adminFeeCashCodBase = 3000;

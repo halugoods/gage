@@ -386,7 +386,7 @@ class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with Si
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(999),
               ),
               child: Row(
                 children: List.generate(_tabs.length, (idx) {
@@ -403,7 +403,7 @@ class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with Si
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         decoration: BoxDecoration(
                           color: isSel ? GageTheme.primary : Colors.transparent,
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(999),
                           boxShadow: isSel
                               ? [
                                   BoxShadow(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/data/models/order_model.dart';
 import 'package:gage_app/providers/auth_provider.dart';
@@ -36,7 +37,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
   Future<void> _refresh() async {
     final auth = context.read<AuthProvider>();
-    final userId = auth.currentUser?.id ?? 'usr-cust-01';
+    final userId = auth.currentUser?.id ??
+        (GageApiClient.useDevSeedData ? 'usr-cust-01' : '');
+    if (userId.isEmpty) return;
     await context.read<OrderProvider>().fetchUserOrders(userId);
   }
 
@@ -87,16 +90,17 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   padding: const EdgeInsets.all(3),
                   decoration: BoxDecoration(
                     color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(999),
                     border: Border.all(
                       color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
                       width: 1,
                     ),
                   ),
                   child: TabBar(
+                    onTap: (_) => HapticFeedback.selectionClick(),
                     indicator: BoxDecoration(
                       color: GageTheme.primary,
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(999),
                       boxShadow: [
                         BoxShadow(
                           color: GageTheme.primary.withValues(alpha: 0.35),
@@ -248,18 +252,37 @@ class _OrdersScreenState extends State<OrdersScreen> {
     }
     // Fallback jika item tidak ada gambar
     if (imageList.isEmpty) {
-      if (order.merchantName.toLowerCase().contains('rocket')) {
+      final svc = order.serviceType.toLowerCase();
+      if (svc == 'ride') {
+        imageList.add('assets/icons/ic_ride.png');
+      } else if (svc == 'car') {
+        imageList.add('assets/icons/ic_car.png');
+      } else if (svc == 'send') {
+        imageList.add('assets/icons/ic_send.png');
+      } else if (order.merchantName.toLowerCase().contains('rocket')) {
         imageList.add('assets/images/resto_rocket_chicken.png');
       } else if (order.merchantName.toLowerCase().contains('dimsum')) {
         imageList.add('assets/images/resto_dimsum_sewu.png');
-      } else if (order.merchantName.toLowerCase().contains('ride') || order.merchantName.toLowerCase().contains('car')) {
-        imageList.add('assets/icons/ic_ride.png');
       } else {
         imageList.add('assets/images/dish_bakso_urat.png');
       }
     }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isCancelled = order.status == 'CANCELLED';
+    final badgeBg = isCancelled
+        ? (isDark ? Colors.red.withValues(alpha: 0.2) : const Color(0xFFFEE2E2))
+        : isActive
+            ? (isDark ? Colors.amber.withValues(alpha: 0.2) : const Color(0xFFFEF3C7))
+            : (isDark ? Colors.green.withValues(alpha: 0.2) : const Color(0xFFDCFCE7));
+    final badgeFg = isCancelled
+        ? (isDark ? Colors.red.shade300 : const Color(0xFFB91C1C))
+        : isActive
+            ? (isDark ? Colors.amber.shade300 : const Color(0xFFB45309))
+            : (isDark ? Colors.green.shade300 : const Color(0xFF15803D));
+    final badgeIcon = isCancelled
+        ? Icons.cancel_rounded
+        : (isActive ? Icons.access_time_rounded : Icons.check_circle_rounded);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -299,23 +322,19 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: isActive ? const Color(0xFFFEF3C7) : const Color(0xFFDCFCE7),
-                        borderRadius: BorderRadius.circular(20),
+                        color: badgeBg,
+                        borderRadius: BorderRadius.circular(999),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            isActive ? Icons.access_time_rounded : Icons.check_circle_rounded,
-                            size: 13,
-                            color: isActive ? const Color(0xFFB45309) : const Color(0xFF15803D),
-                          ),
+                          Icon(badgeIcon, size: 13, color: badgeFg),
                           const SizedBox(width: 4),
                           Flexible(
                             child: Text(
                               order.statusLabel,
                               style: TextStyle(
-                                color: isActive ? const Color(0xFFB45309) : const Color(0xFF15803D),
+                                color: badgeFg,
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -381,11 +400,13 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 _buildThumbnailGalleryWithVignette(imageList),
                 const SizedBox(height: 10),
 
-                // Rincian Singkat Menu
+                // Rincian Singkat Menu / Rute
                 Text(
                   order.items.isNotEmpty
                       ? '${order.items.first.quantity}x ${order.items.first.name}${order.items.length > 1 ? " dan ${order.items.length - 1} item lainnya" : ""}'
-                      : 'Pesanan Layanan GAGE',
+                      : (order.deliveryAddress.trim().isNotEmpty
+                          ? 'Tujuan: ${order.deliveryAddress}'
+                          : 'Pesanan Layanan GAGE'),
                   style: TextStyle(color: isDark ? Colors.white70 : GageTheme.textSecondary, fontSize: 12.5),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -434,8 +455,10 @@ class _OrdersScreenState extends State<OrdersScreen> {
                           },
                           child: const Text('Rincian', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                         ),
-                        const SizedBox(width: 8),
-                        if (isActive)
+                        if (isActive &&
+                            !order.isPickup &&
+                            !const {'PAYMENT_PENDING', 'PENDING'}.contains(order.status)) ...[
+                          const SizedBox(width: 8),
                           ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: GageTheme.primary,
@@ -457,8 +480,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
                             },
                             icon: const Icon(Icons.navigation_rounded, size: 14),
                             label: const Text('Lacak', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                          )
-                        else
+                          ),
+                        ] else if (!isActive && order.items.isNotEmpty && !order.isTransportService) ...[
+                          const SizedBox(width: 8),
                           ElevatedButton(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: GageTheme.primary,
@@ -472,29 +496,36 @@ class _OrdersScreenState extends State<OrdersScreen> {
                             },
                             child: const Text('Pesan Lagi', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                           ),
+                        ],
                       ],
                     ),
                   ],
                 ),
 
                 // Baris Penilaian Toko & Driver untuk Pesanan Selesai (Interactive 5 Stars)
-                if (!isActive) ...[
+                if (!isActive && order.status == 'COMPLETED') ...[
                   const SizedBox(height: 12),
                   if (_ratedOrders.containsKey(order.id))
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF0FDF4),
+                        color: isDark ? Colors.green.withValues(alpha: 0.15) : const Color(0xFFF0FDF4),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFBBF7D0)),
+                        border: Border.all(color: isDark ? Colors.green.shade800 : const Color(0xFFBBF7D0)),
                       ),
                       child: Row(
                         children: [
                           const Icon(Icons.star_rounded, size: 16, color: Color(0xFFF59E0B)),
                           const SizedBox(width: 5),
-                          Text(
-                            '★ ${_ratedOrders[order.id]!['merchantRating']}.0 • Penilaian Anda telah terkirim',
-                            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF15803D)),
+                          Expanded(
+                            child: Text(
+                              '★ ${_ratedOrders[order.id]!['merchantRating']}.0 • Penilaian Anda telah terkirim',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.green.shade200 : const Color(0xFF15803D),
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -505,7 +536,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                       decoration: BoxDecoration(
                         color: isDark ? const Color(0xFF1E293B) : const Color(0xFFFEF3C7).withValues(alpha: 0.55),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFFFDE68A)),
+                        border: Border.all(color: isDark ? Colors.amber.shade800 : const Color(0xFFFDE68A)),
                       ),
                       child: Row(
                         children: [
@@ -513,9 +544,13 @@ class _OrdersScreenState extends State<OrdersScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
+                                Text(
                                   'Selesaikan Penilaian',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF92400E)),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 11,
+                                    color: isDark ? Colors.amber.shade200 : const Color(0xFF92400E),
+                                  ),
                                 ),
                                 Text(
                                   'Ketuk bintang untuk menilai:',
@@ -535,12 +570,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                     context,
                                     orderId: order.orderNumber,
                                     merchantId: order.merchantId,
-                                    serviceType: order.channel,
+                                    serviceType: order.serviceType,
                                     merchantName: merchantTitle,
                                     merchantAvatar: order.merchantAvatar,
-                                    driverName: 'Syamsul Maarif',
+                                    driverName: order.driverName ?? '',
                                     driverAvatar: order.driverAvatar,
-                                    driverVehicle: 'Honda Vario • AD 4921 HG',
+                                    driverVehicle: order.driverVehicle ?? order.driverPlate,
                                     initialStar: starNum,
                                     onSubmitted: (mRating, dRating) {
                                       setState(() {

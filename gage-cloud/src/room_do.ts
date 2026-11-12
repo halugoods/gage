@@ -1,5 +1,5 @@
 /**
- * GAGE Tracking Room — Cloudflare Durable Object
+ * GAGE Tracking Room - Cloudflare Durable Object
  * Mengelola siaran lokasi GPS Driver secara ephemeral via WebSocket.
  * 100% Zero-Write ke Cloudflare D1 untuk menjaga batas gratisan (Free Tier).
  */

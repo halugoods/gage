@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/providers/auth_provider.dart';
 import 'package:gage_app/providers/wallet_provider.dart';
 import 'package:gage_app/features/wallet/presentation/topup_qris_dialog.dart';
 import 'package:gage_app/features/wallet/presentation/qris_pay_screen.dart';
@@ -158,14 +160,24 @@ class _GagePayScreenState extends State<GagePayScreen> {
             icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Segarkan Saldo',
             onPressed: () {
-              wallet.fetchWallet('usr-cust-01');
+              final uid = context.read<AuthProvider>().currentUser?.id ??
+                  (GageApiClient.useDevSeedData ? 'usr-cust-01' : '');
+              if (uid.isNotEmpty) {
+                wallet.fetchWallet(uid);
+              }
               GageToast.show(context, 'Saldo GAGEPay diperbarui', type: GageToastType.info);
             },
           ),
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () async => wallet.fetchWallet('usr-cust-01'),
+        onRefresh: () async {
+          final uid = context.read<AuthProvider>().currentUser?.id ??
+              (GageApiClient.useDevSeedData ? 'usr-cust-01' : '');
+          if (uid.isNotEmpty) {
+            await wallet.fetchWallet(uid);
+          }
+        },
         color: GageTheme.primary,
         child: SingleChildScrollView(
           controller: _scrollController,
@@ -209,7 +221,11 @@ class _GagePayScreenState extends State<GagePayScreen> {
                   TopupQrisDialog.showAsSheet(
                     context,
                     onTopupSuccess: (amt) {
-                      wallet.fetchWallet('usr-cust-01');
+                      final uid = context.read<AuthProvider>().currentUser?.id ??
+                          (GageApiClient.useDevSeedData ? 'usr-cust-01' : '');
+                      if (uid.isNotEmpty) {
+                        wallet.fetchWallet(uid);
+                      }
                     },
                   );
                 },
@@ -956,12 +972,12 @@ class _GagePayScreenState extends State<GagePayScreen> {
                 ),
                 decoration: InputDecoration(
                   hintText: selectedBank == 'BRI'
-                      ? '15 digit angka (cth: 001201000123500)'
+                      ? 'Masukkan 15 digit nomor rekening BRI'
                       : selectedBank == 'Mandiri'
-                          ? '13 digit angka (cth: 1370012345678)'
+                          ? 'Masukkan 13 digit nomor rekening Mandiri'
                           : selectedBank == 'BCA'
-                              ? '10 digit angka (cth: 8210394812)'
-                              : 'Nomor HP e-wallet (cth: 081234567890)',
+                              ? 'Masukkan 10 digit nomor rekening BCA'
+                              : 'Masukkan nomor HP akun e-wallet terdaftar',
                   hintStyle: TextStyle(
                     fontSize: 12,
                     color: isDark ? Colors.white30 : Colors.black38,
@@ -1090,12 +1106,12 @@ class _GagePayScreenState extends State<GagePayScreen> {
           HapticFeedback.selectionClick();
           setState(() => _activeFilter = key);
         },
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(999),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
           decoration: BoxDecoration(
             color: isSelected ? GageTheme.primary : (isDark ? const Color(0xFF1E293B) : Colors.white),
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(999),
             border: Border.all(
               color: isSelected ? GageTheme.primary : (isDark ? Colors.white12 : Colors.grey.shade300),
             ),

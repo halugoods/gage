@@ -1,16 +1,16 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/data/models/cart_item_model.dart';
 import 'package:gage_app/providers/cart_provider.dart';
 import 'package:gage_app/features/checkout/presentation/checkout_screen.dart';
+import 'package:gage_app/shared/widgets/gage_avatar.dart';
 import 'package:gage_app/shared/widgets/gage_bottom_nav_bar.dart';
-import 'package:gage_app/features/home/presentation/home_screen.dart';
 import 'package:gage_app/features/affiliate/presentation/affiliate_hub_screen.dart';
 
 enum VideoPlayMode {
@@ -264,13 +264,12 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> {
                                   child: Row(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      CircleAvatar(
+                                      GageAvatar(
+                                        imageUrl: null,
+                                        fallbackName: (item['user'] ?? 'U').toString(),
                                         radius: 16,
                                         backgroundColor: GageTheme.primary,
-                                        child: Text(
-                                          (item['user'] ?? 'U')[0].toUpperCase(),
-                                          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                                        ),
+                                        foregroundColor: Colors.white,
                                       ),
                                       const SizedBox(width: 10),
                                       Expanded(
@@ -396,11 +395,25 @@ class _VideoFeedScreenState extends State<VideoFeedScreen> {
                       SnackBar(content: Text('Link video disalin: $vtUrl')),
                     );
                   }),
-                  _buildShareOption(Icons.chat_bubble_outline_rounded, 'WhatsApp', () {
+                  _buildShareOption(Icons.share_rounded, 'Bagikan', () async {
                     Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Membuka WhatsApp untuk berbagi link...')),
-                    );
+                    final vtUrl = 'https://vt.tiktok.com/${video['tiktok_id']}';
+                    final text = 'Cek promo ${video['product_name']} di GAGE Video: $vtUrl';
+                    try {
+                      await SharePlus.instance.share(
+                        ShareParams(
+                          text: text,
+                          subject: '${video['product_name']} di GAGE Video',
+                        ),
+                      );
+                    } catch (_) {
+                      await Clipboard.setData(ClipboardData(text: text));
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Link disalin ke clipboard: $vtUrl')),
+                        );
+                      }
+                    }
                   }),
                   _buildShareOption(Icons.download_rounded, 'Unduh Video', () {
                     setState(() {
@@ -777,7 +790,6 @@ class _VideoFeedItem extends StatefulWidget {
 class _VideoFeedItemState extends State<_VideoFeedItem> {
   VideoPlayerController? _videoPlayerController;
   WebViewController? _webViewController;
-  bool _isPlayerInitialized = false;
 
   @override
   void initState() {
@@ -813,9 +825,7 @@ class _VideoFeedItemState extends State<_VideoFeedItem> {
     _videoPlayerController = VideoPlayerController.asset(assetPath)
       ..initialize().then((_) {
         if (mounted) {
-          setState(() {
-            _isPlayerInitialized = true;
-          });
+          setState(() {});
           _videoPlayerController?.setLooping(true);
           _videoPlayerController?.setVolume(1.0); // Full audio per user requirement
           if (widget.isActive) {
@@ -824,7 +834,7 @@ class _VideoFeedItemState extends State<_VideoFeedItem> {
         }
       }).catchError((err) {
         // Fallback gracefully
-        if (mounted) setState(() => _isPlayerInitialized = false);
+        if (mounted) setState(() {});
       });
   }
 
@@ -837,9 +847,7 @@ class _VideoFeedItemState extends State<_VideoFeedItem> {
       ..setBackgroundColor(Colors.black)
       ..loadRequest(Uri.parse(embedUrl));
     
-    setState(() {
-      _isPlayerInitialized = true;
-    });
+    if (mounted) setState(() {});
   }
 
   @override
@@ -909,10 +917,12 @@ class _VideoFeedItemState extends State<_VideoFeedItem> {
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 2),
                     ),
-                    child: CircleAvatar(
+                    child: GageAvatar(
                       radius: 22,
+                      imageUrl: video['avatar']?.toString(),
+                      fallbackName: video['creator']?.toString() ?? 'GAGE',
                       backgroundColor: GageTheme.primary,
-                      backgroundImage: AssetImage(video['avatar'] as String),
+                      foregroundColor: Colors.white,
                     ),
                   ),
                   Positioned(

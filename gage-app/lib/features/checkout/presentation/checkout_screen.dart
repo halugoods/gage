@@ -8,12 +8,15 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:gage_app/core/network/gage_api_client.dart';
+import 'package:gage_app/core/services/gage_pricing_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/providers/auth_provider.dart';
 import 'package:gage_app/providers/cart_provider.dart';
 import 'package:gage_app/providers/wallet_provider.dart';
 import 'package:gage_app/providers/order_provider.dart';
-import 'package:gage_app/features/orders/presentation/order_tracking_screen.dart';
+import 'package:gage_app/features/food/data/merchant_catalog_helper.dart';
+import 'package:gage_app/features/orders/presentation/order_detail_screen.dart';
 import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
 import 'package:gage_app/features/food/presentation/food_explore_screen.dart';
 import 'package:gage_app/features/food/presentation/shop_screen.dart';
@@ -60,6 +63,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   bool _sendAsGift = false;
   int _driverTip = 0;
   bool _isLoading = false;
+  List<Map<String, dynamic>> _recommendedProducts = [];
+  bool _isLoadingRecommendations = false;
+
+  String _activeServiceType(CartProvider cart) {
+    if (widget.serviceType != null && widget.serviceType!.trim().isNotEmpty) {
+      return widget.serviceType!.trim().toLowerCase();
+    }
+    return cart.primaryServiceType.toLowerCase();
+  }
 
   LatLng get _merchantLocation {
     final merchantName = context.read<CartProvider>().merchantName;
@@ -104,9 +116,32 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final cart = context.read<CartProvider>();
-      final activeService = widget.serviceType ?? cart.primaryServiceType;
+      final activeService = _activeServiceType(cart);
       cart.syncAutoPromos(serviceType: activeService);
+      _loadMerchantRecommendations(cart.merchantId);
     });
+  }
+
+  Future<void> _loadMerchantRecommendations(String? merchantId) async {
+    final mId = merchantId?.trim() ?? '';
+    if (mId.isEmpty) return;
+    if (mounted) setState(() => _isLoadingRecommendations = true);
+    try {
+      final menu = await GageApiClient.getMerchantMenu(mId);
+      if (!mounted) return;
+      final normalized = menu.map((raw) {
+        final item = MerchantCatalogHelper.withResolvedPrice(raw);
+        item['_sold'] = MerchantCatalogHelper.resolveSoldCount(raw);
+        return item;
+      }).toList();
+      normalized.sort((a, b) => (b['_sold'] as int).compareTo(a['_sold'] as int));
+      setState(() {
+        _recommendedProducts = normalized.take(8).toList();
+        _isLoadingRecommendations = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingRecommendations = false);
+    }
   }
 
   Future<void> _syncInitialGpsLocation() async {
@@ -245,7 +280,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           ),
                           backgroundColor: GageTheme.primary.withValues(alpha: 0.08),
                           side: BorderSide(color: GageTheme.primary.withValues(alpha: 0.3)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          shape: const StadiumBorder(),
                           onPressed: () {
                             HapticFeedback.lightImpact();
                             final next = currentNominal + inc;
@@ -354,17 +389,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final isSelected = _driverTip == amount;
     return InkWell(
       onTap: () {
+        HapticFeedback.selectionClick();
         setState(() {
           _driverTip = amount;
         });
       },
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(999),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? GageTheme.primary.withValues(alpha: 0.12) : const Color(0xFFF1F5F9),
-          borderRadius: BorderRadius.circular(20),
+          color: isSelected ? GageTheme.primary : const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: isSelected ? GageTheme.primary : Colors.transparent,
             width: 1.5,
@@ -375,7 +411,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           style: TextStyle(
             fontSize: 12,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-            color: isSelected ? GageTheme.primary : Colors.black87,
+            color: isSelected ? Colors.white : Colors.black87,
           ),
         ),
       ),
@@ -385,14 +421,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Widget _buildCustomTipChip() {
     final isCustom = _driverTip > 0 && _driverTip != 2000 && _driverTip != 5000 && _driverTip != 10000;
     return InkWell(
-      onTap: _showCustomTipDialog,
-      borderRadius: BorderRadius.circular(20),
+      onTap: () {
+        HapticFeedback.selectionClick();
+        _showCustomTipDialog();
+      },
+      borderRadius: BorderRadius.circular(999),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isCustom ? GageTheme.primary.withValues(alpha: 0.12) : const Color(0xFFF1F5F9),
-          borderRadius: BorderRadius.circular(20),
+          color: isCustom ? GageTheme.primary : const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: isCustom ? GageTheme.primary : Colors.transparent,
             width: 1.5,
@@ -577,7 +616,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       title: 'Catatan Patokan Driver',
       subtitle: 'Beri petunjuk lokasi agar driver mudah menemukan alamat',
       initialValue: _notePatokanController.text,
-      hintText: 'Contoh: surya tani, depan warung...',
+      hintText: 'Contoh: pagar hitam depan balai desa, sebelah masjid...',
     );
     if (text != null) {
       setState(() {
@@ -591,12 +630,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   void _editItemNote(CartItemModel item) async {
+    final activeService = _activeServiceType(context.read<CartProvider>());
+    final isFood = activeService == 'food';
     final text = await GageFloatingSheet.showNoteInput(
       context: context,
       title: 'Catatan untuk ${item.name}',
-      subtitle: 'Instruksi khusus memasak atau penyajian menu',
+      subtitle: isFood
+          ? 'Instruksi khusus memasak atau penyajian menu'
+          : 'Spesifikasi, ukuran, warna, atau catatan produk untuk toko',
       initialValue: item.notes ?? '',
-      hintText: 'Contoh: Pedas sedang, kuah dipisah...',
+      hintText: isFood
+          ? 'Contoh: Pedas sedang, sambal dipisah...'
+          : 'Contoh: Pilih stok terbaru atau ukuran standar...',
     );
     if (text != null && mounted) {
       context.read<CartProvider>().setNotes(item.menuId, text);
@@ -619,7 +664,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       return;
     }
 
-    final userId = auth.currentUser?.id ?? 'usr-cust-01';
+    final userId = auth.currentUser?.id ?? (GageApiClient.useDevSeedData ? 'usr-cust-01' : '');
     final effectiveTip = cart.isPickup ? 0 : _driverTip;
     final totalPay = cart.grandTotal + effectiveTip;
     final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
@@ -784,6 +829,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             : _addressController.text.trim());
 
     final effectivePaymentMethod = cart.paymentMethod;
+    final activeService = _activeServiceType(cart);
 
     final newOrder = await orderProvider.placeOrder(
       userId: userId,
@@ -793,8 +839,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       paymentMethod: effectivePaymentMethod,
       affiliatorId: cart.promoCode == 'GAGERATIH' ? 'usr-aff-01' : null,
       promoCode: cart.promoCode,
+      orderPromoCode: cart.foodPromoCode,
+      deliveryPromoCode: cart.deliveryPromoCode,
       deliveryAddress: effectiveAddress,
       merchantName: allMerchantNames.isNotEmpty ? allMerchantNames : cart.merchantName,
+      serviceType: activeService,
+      isPickup: cart.isPickup,
+      deliveryOption: cart.deliveryOption,
+      deliveryLat: _selectedDeliveryLocation.latitude,
+      deliveryLng: _selectedDeliveryLocation.longitude,
+      notes: _notePatokanController.text.trim(),
       driverTip: effectiveTip,
     );
 
@@ -839,9 +893,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (ctx) => OrderTrackingScreen(
-            orderId: newOrder.id,
-            initialOrder: newOrder,
+          builder: (ctx) => OrderDetailScreen(
+            order: newOrder,
           ),
         ),
       );
@@ -1443,85 +1496,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 ),
                                 child: Column(
                                   children: [
-                                    // 1. Prioritas (Express Direct)
-                                    InkWell(
-                                      onTap: () => cart.setDeliveryOption('PRIORITAS'),
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: 4),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              children: [
-                                                const Text('Prioritas', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: Colors.black87)),
-                                                const SizedBox(width: 8),
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                                  decoration: BoxDecoration(color: const Color(0xFFFEF3C7), borderRadius: BorderRadius.circular(10)),
-                                                  child: const Text('15-25 min', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFD97706))),
-                                                ),
-                                                const Spacer(),
-                                                Text(
-                                                  currencyFormatter.format(cart.prioritasShippingFee),
-                                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
-                                                ),
-                                                const SizedBox(width: 8),
-                                                Icon(
-                                                  cart.deliveryOption == 'PRIORITAS' ? Icons.radio_button_checked : Icons.radio_button_off,
-                                                  color: cart.deliveryOption == 'PRIORITAS' ? GageTheme.primary : Colors.grey,
-                                                  size: 20,
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 4),
-                                            const Text('⚡ Kurir langsung jalan, jaminan makanan hangat & cepat', style: TextStyle(fontSize: 11.5, color: Color(0xFFD97706))),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                    const Divider(height: 16),
-                                    // 2. Reguler (Paling Populer)
-                                    InkWell(
-                                      onTap: () => cart.setDeliveryOption('REGULER'),
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: 4),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              children: [
-                                                const Text('Reguler', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: Colors.black87)),
-                                                const SizedBox(width: 8),
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                                  decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(10)),
-                                                  child: const Text('25-35 min', style: TextStyle(fontSize: 11, color: Colors.black54)),
-                                                ),
-                                                const Spacer(),
-                                                Text(
-                                                  currencyFormatter.format(cart.regulerShippingFee),
-                                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
-                                                ),
-                                                const SizedBox(width: 8),
-                                                Icon(
-                                                  cart.deliveryOption == 'REGULER' ? Icons.radio_button_checked : Icons.radio_button_off,
-                                                  color: cart.deliveryOption == 'REGULER' ? GageTheme.primary : Colors.grey,
-                                                  size: 20,
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 4),
-                                            const Text('Langsung ke kamu, pasti tepat waktu', style: TextStyle(fontSize: 11.5, color: Color(0xFF16A34A))),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                    const Divider(height: 16),
-                                    // 3. Hemat (Saver Batch)
-                                    InkWell(
-                                      onTap: cart.isHematAvailable ? () => cart.setDeliveryOption('HEMAT') : null,
-                                      child: Opacity(
-                                        opacity: cart.isHematAvailable ? 1.0 : 0.45,
+                                      // 1. Prioritas (Express Direct)
+                                      InkWell(
+                                        onTap: () => cart.setDeliveryOption('PRIORITAS'),
                                         child: Padding(
                                           padding: const EdgeInsets.symmetric(vertical: 4),
                                           child: Column(
@@ -1529,41 +1506,147 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                             children: [
                                               Row(
                                                 children: [
-                                                  const Text('Hemat', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: Colors.black87)),
+                                                  Text('Prioritas', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
                                                   const SizedBox(width: 8),
                                                   Container(
                                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                                    decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(10)),
-                                                    child: const Text('45-55 min', style: TextStyle(fontSize: 11, color: Colors.black54)),
+                                                    decoration: BoxDecoration(
+                                                      color: isDark ? const Color(0xFFD97706).withValues(alpha: 0.2) : const Color(0xFFFEF3C7),
+                                                      borderRadius: BorderRadius.circular(999),
+                                                    ),
+                                                    child: Text(
+                                                      '15-25 min',
+                                                      style: TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: isDark ? const Color(0xFFFBBF24) : const Color(0xFFD97706),
+                                                      ),
+                                                    ),
                                                   ),
                                                   const Spacer(),
                                                   Text(
-                                                    currencyFormatter.format(cart.hematShippingFee),
-                                                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
+                                                    currencyFormatter.format(cart.prioritasShippingFee),
+                                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87),
                                                   ),
                                                   const SizedBox(width: 8),
                                                   Icon(
-                                                    cart.deliveryOption == 'HEMAT' ? Icons.radio_button_checked : Icons.radio_button_off,
-                                                    color: cart.deliveryOption == 'HEMAT' ? GageTheme.primary : Colors.grey,
+                                                    cart.deliveryOption == 'PRIORITAS' ? Icons.radio_button_checked : Icons.radio_button_off,
+                                                    color: cart.deliveryOption == 'PRIORITAS' ? GageTheme.primary : Colors.grey,
                                                     size: 20,
                                                   ),
                                                 ],
                                               ),
                                               const SizedBox(height: 4),
                                               Text(
-                                                cart.isHematAvailable
-                                                    ? '🍃 Rute pengantaran gabungan kurir, ongkir lebih hemat'
-                                                    : '🍃 Khusus pengantaran jarak jauh (> 2.5 km)',
-                                                style: TextStyle(
-                                                  fontSize: 11.5,
-                                                  color: cart.isHematAvailable ? const Color(0xFFEA580C) : Colors.grey,
-                                                ),
+                                                'Pengantaran langsung tanpa antrean rute lain',
+                                                style: TextStyle(fontSize: 11.5, color: isDark ? const Color(0xFFFBBF24) : const Color(0xFFD97706)),
                                               ),
                                             ],
                                           ),
                                         ),
                                       ),
-                                    ),
+                                      const Divider(height: 16),
+                                      // 2. Reguler (Standar)
+                                      InkWell(
+                                        onTap: () => cart.setDeliveryOption('REGULER'),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 4),
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Text('Reguler', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
+                                                  const SizedBox(width: 8),
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                    decoration: BoxDecoration(
+                                                      color: isDark ? const Color(0xFF334155) : Colors.grey.shade100,
+                                                      borderRadius: BorderRadius.circular(999),
+                                                    ),
+                                                    child: Text(
+                                                      '25-35 min',
+                                                      style: TextStyle(fontSize: 11, color: isDark ? Colors.white70 : Colors.black54),
+                                                    ),
+                                                  ),
+                                                  const Spacer(),
+                                                  Text(
+                                                    currencyFormatter.format(cart.regulerShippingFee),
+                                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87),
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Icon(
+                                                    cart.deliveryOption == 'REGULER' ? Icons.radio_button_checked : Icons.radio_button_off,
+                                                    color: cart.deliveryOption == 'REGULER' ? GageTheme.primary : Colors.grey,
+                                                    size: 20,
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 4),
+                                              const Text(
+                                                'Pengantaran standar dengan estimasi waktu reguler',
+                                                style: TextStyle(fontSize: 11.5, color: Color(0xFF16A34A)),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      const Divider(height: 16),
+                                      // 3. Hemat (Minimum Belanja Rp 50.000)
+                                      InkWell(
+                                        onTap: cart.isHematAvailable ? () => cart.setDeliveryOption('HEMAT') : null,
+                                        child: Opacity(
+                                          opacity: cart.isHematAvailable ? 1.0 : 0.45,
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(vertical: 4),
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Row(
+                                                  children: [
+                                                    Text('Hemat', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
+                                                    const SizedBox(width: 8),
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                      decoration: BoxDecoration(
+                                                        color: isDark ? const Color(0xFF334155) : Colors.grey.shade100,
+                                                        borderRadius: BorderRadius.circular(999),
+                                                      ),
+                                                      child: Text(
+                                                        '45-55 min',
+                                                        style: TextStyle(fontSize: 11, color: isDark ? Colors.white70 : Colors.black54),
+                                                      ),
+                                                    ),
+                                                    const Spacer(),
+                                                    Text(
+                                                      currencyFormatter.format(cart.hematShippingFee),
+                                                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87),
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    Icon(
+                                                      cart.deliveryOption == 'HEMAT' ? Icons.radio_button_checked : Icons.radio_button_off,
+                                                      color: cart.deliveryOption == 'HEMAT' ? GageTheme.primary : Colors.grey,
+                                                      size: 20,
+                                                    ),
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  cart.isHematAvailable
+                                                      ? 'Rute pengantaran gabungan dengan ongkos kirim lebih hemat'
+                                                      : 'Tersedia untuk minimal belanja ${currencyFormatter.format(GagePricingService.deliveryHematMinSubtotal)}',
+                                                  style: TextStyle(
+                                                    fontSize: 11.5,
+                                                    color: cart.isHematAvailable
+                                                        ? (isDark ? const Color(0xFFFB923C) : const Color(0xFFEA580C))
+                                                        : (isDark ? Colors.white54 : Colors.grey),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
                                   ],
                                 ),
                               ),
@@ -1948,13 +2031,28 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                   const SizedBox(height: 12),
                                   Row(
                                     children: [
-                                      const Expanded(
+                                      Expanded(
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
-                                            Text('Ada lagi yang mau dibeli?', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87)),
-                                            SizedBox(height: 2),
-                                            Text('Masih bisa nambah menu lain, ya.', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                                            Text(
+                                              'Ada lagi yang mau dibeli?',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14,
+                                                color: isDark ? Colors.white : Colors.black87,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              _activeServiceType(cart) == 'food'
+                                                  ? 'Tambah menu lain dari merchant ini sebelum pesan.'
+                                                  : 'Tambah produk lain dari toko ini sebelum pesan.',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: isDark ? Colors.white60 : Colors.black54,
+                                              ),
+                                            ),
                                           ],
                                         ),
                                       ),
@@ -1963,14 +2061,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                         style: OutlinedButton.styleFrom(
                                           foregroundColor: GageTheme.primary,
                                           side: const BorderSide(color: GageTheme.primary, width: 1.2),
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                          shape: const StadiumBorder(),
                                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                                           visualDensity: VisualDensity.compact,
                                         ),
                                         onPressed: () {
-                                          final effectiveService = (widget.serviceType != null && widget.serviceType!.trim().isNotEmpty)
-                                              ? widget.serviceType!.trim().toLowerCase()
-                                              : cart.primaryServiceType.toLowerCase();
+                                          final effectiveService = _activeServiceType(cart);
                                           if (cart.merchantId != null && cart.merchantId!.isNotEmpty) {
                                             Navigator.push(
                                               context,
@@ -2011,6 +2107,32 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                       ),
                                     ],
                                   ),
+                                  if (_recommendedProducts.isNotEmpty) ...[
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      _activeServiceType(cart) == 'food'
+                                          ? 'Rekomendasi dari merchant'
+                                          : 'Rekomendasi produk lainnya',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: isDark ? Colors.white70 : const Color(0xFF475569),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    _buildMerchantRecommendationSlider(
+                                      cart: cart,
+                                      currencyFormatter: currencyFormatter,
+                                      isDark: isDark,
+                                    ),
+                                  ] else if (_isLoadingRecommendations)
+                                    const Padding(
+                                      padding: EdgeInsets.only(top: 12),
+                                      child: SizedBox(
+                                        height: 2,
+                                        child: LinearProgressIndicator(color: GageTheme.primary),
+                                      ),
+                                    ),
                                 ],
                               ),
                             ),
@@ -2021,9 +2143,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Padding(
-                                  padding: EdgeInsets.only(top: 20, bottom: 10),
-                                  child: Text('Ringkasan pembayaran', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black87)),
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 20, bottom: 10),
+                                  child: Text(
+                                    'Ringkasan pembayaran',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                      color: isDark ? Colors.white : Colors.black87,
+                                    ),
+                                  ),
                                 ),
                                 Container(
                                   padding: const EdgeInsets.all(16),
@@ -2034,16 +2163,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                   ),
                                   child: Column(
                                     children: [
-                                      // Subtotal Makanan
+                                      // Subtotal Pesanan
                                       Row(
                                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
-                                          const Text('Subtotal Pesanan', style: TextStyle(fontSize: 13.5, color: Colors.black87)),
-                                          Text(currencyFormatter.format(cart.subtotal), style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Colors.black87)),
+                                          Text('Subtotal Pesanan', style: TextStyle(fontSize: 13.5, color: isDark ? Colors.white : Colors.black87)),
+                                          Text(currencyFormatter.format(cart.subtotal), style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87)),
                                         ],
                                       ),
-                                      // Diskon Makanan (jika ada)
-                                      // Diskon Makanan (jika ada)
+                                      // Diskon Produk / Menu (jika ada)
                                       if (cart.totalFoodDiscount > 0) ...[
                                         const SizedBox(height: 8),
                                         Row(
@@ -2052,12 +2180,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                             Expanded(
                                               child: Row(
                                                 children: [
-                                                  const Flexible(
+                                                  Flexible(
                                                     child: Text(
-                                                      'Diskon Makanan',
+                                                      _activeServiceType(cart) == 'food' ? 'Diskon Menu' : 'Diskon Produk',
                                                       maxLines: 1,
                                                       overflow: TextOverflow.ellipsis,
-                                                      style: TextStyle(fontSize: 13.5, color: Color(0xFF16A34A), fontWeight: FontWeight.w600),
+                                                      style: const TextStyle(fontSize: 13.5, color: Color(0xFF16A34A), fontWeight: FontWeight.w600),
                                                     ),
                                                   ),
                                                   const SizedBox(width: 8),
@@ -2599,11 +2727,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                           const SizedBox(height: 2),
                                           Text(
                                             _sendAsGift
-                                                ? 'Penerima:  • Pesan tersimpan'
-                                                : 'Kirimkan makanan kejutan dengan kartu ucapan virtual.',
+                                                ? 'Penerima: ${_giftRecipientNameCtrl.text.trim().isEmpty ? "-" : _giftRecipientNameCtrl.text.trim()} • Pesan tersimpan'
+                                                : 'Kirimkan pesanan sebagai hadiah dengan kartu ucapan.',
                                             style: TextStyle(
                                               fontSize: 11.5,
-                                              color: _sendAsGift ? const Color(0xFF16A34A) : Colors.black54,
+                                              color: _sendAsGift
+                                                  ? const Color(0xFF16A34A)
+                                                  : (isDark ? Colors.white60 : Colors.black54),
                                               fontWeight: _sendAsGift ? FontWeight.w600 : FontWeight.normal,
                                             ),
                                           ),
@@ -2614,7 +2744,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                       style: OutlinedButton.styleFrom(
                                         foregroundColor: _sendAsGift ? const Color(0xFF16A34A) : GageTheme.primary,
                                         side: BorderSide(color: _sendAsGift ? const Color(0xFF16A34A) : GageTheme.primary, width: 1.2),
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                        shape: const StadiumBorder(),
                                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                                         visualDensity: VisualDensity.compact,
                                       ),
@@ -2652,18 +2782,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                           child: const Icon(Icons.favorite_rounded, color: Color(0xFFD97706), size: 16),
                                         ),
                                         const SizedBox(width: 10),
-                                        const Expanded(
+                                        Expanded(
                                           child: Column(
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
                                               Text(
                                                 'Beri Tip untuk Driver?',
-                                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Colors.black87),
+                                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: isDark ? Colors.white : Colors.black87),
                                               ),
-                                              SizedBox(height: 2),
+                                              const SizedBox(height: 2),
                                               Text(
                                                 '100% tip apresiasi diserahkan penuh ke driver',
-                                                style: TextStyle(fontSize: 11, color: Colors.black54),
+                                                style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.black54),
                                               ),
                                             ],
                                           ),
@@ -2742,6 +2872,144 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 ),
               ],
             ),
+    );
+  }
+
+  Widget _buildMerchantRecommendationSlider({
+    required CartProvider cart,
+    required NumberFormat currencyFormatter,
+    required bool isDark,
+  }) {
+    final activeService = _activeServiceType(cart);
+    final mId = cart.merchantId ?? '';
+    final mName = cart.merchantName ?? 'Mitra GAGE';
+    final cardBg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+    final cardBorder = isDark ? Colors.white12 : const Color(0xFFE2E8F0);
+    final titleColor = isDark ? Colors.white : Colors.black87;
+    final subColor = isDark ? Colors.white60 : Colors.black54;
+
+    return SizedBox(
+      height: 182,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _recommendedProducts.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (ctx, i) {
+          final item = _recommendedProducts[i];
+          final menuId = (item['id'] ?? 'rec-$i').toString();
+          final name = (item['name'] ?? 'Produk').toString();
+          final price = (item['price'] as num?)?.toInt() ??
+              (item['gage_price'] as num?)?.toInt() ??
+              (item['offline_price'] as num?)?.toInt() ??
+              0;
+          final imageUrl = item['image']?.toString();
+          final category = (item['category'] ?? 'Umum').toString();
+          final sold = (item['_sold'] as num?)?.toInt() ?? 0;
+          final inCartQty = cart.getItemQuantity(menuId);
+
+          return Container(
+            width: 138,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: cardBg,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: cardBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 76,
+                        child: _buildProductThumbnail(imageUrl, name),
+                      ),
+                    ),
+                    if (sold > 0)
+                      Positioned(
+                        top: 5,
+                        left: 5,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.65),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            '$sold+ terjual',
+                            style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  name,
+                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: titleColor),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const Spacer(),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        currencyFormatter.format(price),
+                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: GageTheme.primary),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        cart.addItem(
+                          CartItemModel(
+                            menuId: menuId,
+                            merchantId: mId,
+                            merchantName: mName,
+                            name: name,
+                            price: price,
+                            quantity: 1,
+                            category: category,
+                            imageUrl: imageUrl,
+                            serviceType: activeService,
+                          ),
+                        );
+                        cart.syncAutoPromos(serviceType: activeService);
+                      },
+                      borderRadius: BorderRadius.circular(999),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: inCartQty > 0 ? const Color(0xFF16A34A) : GageTheme.primary,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          inCartQty > 0 ? '+$inCartQty' : '+ Tambah',
+                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (inCartQty > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      'Di keranjang: $inCartQty',
+                      style: TextStyle(fontSize: 9.5, color: subColor),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 

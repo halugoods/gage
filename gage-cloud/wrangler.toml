@@ -1,11 +1,11 @@
-# GAGE Cloud — Cloudflare Worker Configuration
+# GAGE Cloud - Cloudflare Worker Configuration
 name = "gage-cloud"
 main = "src/index.ts"
 compatibility_date = "2024-12-01"
 compatibility_flags = ["nodejs_compat"]
 account_id = "549886f0843ce8d0069a2742dded1310"
 
-# ── Durable Object (Realtime GPS Tracking: Zero D1 Write) ─────
+# Durable Object (Realtime GPS Tracking: Zero D1 Write)
 [[durable_objects.bindings]]
 name = "TRACKING_ROOM"
 class_name = "TrackingRoomDO"
@@ -14,22 +14,20 @@ class_name = "TrackingRoomDO"
 tag = "v1"
 new_sqlite_classes = ["TrackingRoomDO"]
 
-# ── D1 SQLite Database ─────────────────────────────────────────
+# D1 SQLite Database
 [[d1_databases]]
 binding = "DB"
 database_name = "gage-db"
 database_id = "95067e5c-bff5-41fb-b4ea-e5170412caf9"
 
-# ── Cloudflare R2 Bucket for Chat Media & Uploads ────────────────
+# Cloudflare R2 Bucket for Chat Media & Uploads (uncomment after bucket provisioning)
 # [[r2_buckets]]
 # binding = "MEDIA_BUCKET"
 # bucket_name = "gage-chat-media"
 
-# ── Environment Variables ──────────────────────────────────────
+# Environment Variables (Secrets such as ADMIN_API_KEY and AUTH_JWT_SECRET MUST be configured via `wrangler secret put`)
 [vars]
 GAGE_ENV = "production"
 DEFAULT_STATIC_QRIS = "00020101021126510013ID.SHOPEE.WWW01189360091800216174620208151234565204549953033605802ID5914GAGE INDONESIA6007YOGYAKARTA61055512262070703A016304ED41"
-ADMIN_API_KEY = "gage280303"
 GOOGLE_DRIVE_CLIENT_ID = ""
 GOOGLE_DRIVE_CLIENT_SECRET = ""
-

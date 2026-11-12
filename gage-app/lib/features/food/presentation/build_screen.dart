@@ -566,7 +566,7 @@ class _BuildScreenState extends State<BuildScreen> {
         padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(999),
           border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
         ),
         child: Row(
@@ -578,11 +578,11 @@ class _BuildScreenState extends State<BuildScreen> {
                   HapticFeedback.selectionClick();
                   setState(() => _rankingSwitch = opt);
                 },
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(999),
                 child: Container(
                   decoration: BoxDecoration(
                     color: isSelected ? GageTheme.primary : Colors.transparent,
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(999),
                     boxShadow: isSelected
                         ? [
                             BoxShadow(

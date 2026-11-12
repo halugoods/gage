@@ -11,6 +11,7 @@ import 'package:gage_app/core/services/user_address_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
+import 'package:gage_app/shared/widgets/full_screen_map_picker.dart';
 
 /// Sheet terpadu pemilihan titik lokasi untuk seluruh layanan Gage (Ride, Car, Food, Shop, Send).
 class LocationPickerSheet extends StatefulWidget {
@@ -358,29 +359,38 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
     }
   }
 
-  void _openMapPicker() {
-    final initialPin = _activePreviewLocation;
-    Navigator.pop(context);
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _RetinaMapPickerModal(
-        initialLocation: initialPin,
-        onConfirmed: (title, fullAddr, latLng) async {
-          await UserAddressService.addRecent(UserSavedAddress(
-            id: 'rec_${DateTime.now().millisecondsSinceEpoch}',
-            name: title,
-            address: fullAddr,
-            category: 'personal',
-            latitude: latLng.latitude,
-            longitude: latLng.longitude,
-          ));
-          widget.onFavoriteSelected?.call(null);
-          widget.onSelected(title, fullAddr, latLng);
-        },
+  Future<void> _openMapPicker({
+    LatLng? overrideInitialLocation,
+    String? overrideInitialTitle,
+    String? overrideInitialFullAddr,
+  }) async {
+    final initialPin = overrideInitialLocation ?? _activePreviewLocation;
+    final initialTitle = overrideInitialTitle ?? _activePreviewTitle;
+    final initialFullAddr = overrideInitialFullAddr ?? _activePreviewFullAddr;
+    final nav = Navigator.of(context);
+    nav.pop();
+    final picked = await nav.push<FullScreenMapResult>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => FullScreenMapPicker(
+          title: widget.title,
+          initialLocation: initialPin,
+          initialTitle: initialTitle,
+          initialFullAddress: initialFullAddr,
+        ),
       ),
     );
+    if (picked == null) return;
+    await UserAddressService.addRecent(UserSavedAddress(
+      id: 'rec_${DateTime.now().millisecondsSinceEpoch}',
+      name: picked.title,
+      address: picked.fullAddress,
+      category: 'personal',
+      latitude: picked.location.latitude,
+      longitude: picked.location.longitude,
+    ));
+    widget.onFavoriteSelected?.call(null);
+    widget.onSelected(picked.title, picked.fullAddress, picked.location);
   }
 
   void _openAddAddressForm() {
@@ -415,25 +425,23 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
     }
   }
 
-  void _openMapPickerForNewAddress() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _RetinaMapPickerModal(
-        initialLocation: _draftPin,
-        onConfirmed: (title, fullAddr, latLng) {
-          _updateDraftPin(
-            latLng,
-            title: title,
-            fullAddr: fullAddr,
-            markMoved: false,
-            locked: true,
-          );
-          _safeMoveMap(_accordionMapController, latLng, 17.0);
-        },
-      ),
+  Future<void> _openMapPickerForNewAddress() async {
+    final picked = await FullScreenMapPicker.open(
+      context,
+      title: 'Tambah Titik Alamat',
+      initialLocation: _draftPin,
+      initialTitle: _draftAddr,
+      initialFullAddress: _draftFullAddr,
     );
+    if (picked == null || !mounted) return;
+    _updateDraftPin(
+      picked.location,
+      title: picked.title,
+      fullAddr: picked.fullAddress,
+      markMoved: false,
+      locked: true,
+    );
+    _safeMoveMap(_accordionMapController, picked.location, 17.5);
   }
 
   Future<void> _updateMainPreviewPin(LatLng pin) async {
@@ -1677,17 +1685,10 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
               onChange: _matchedFavorite?.id == fav.id
                   ? () {
                       HapticFeedback.selectionClick();
-                      setState(() {
-                        _matchedFavorite = null;
-                        _searchCtrl.clear();
-                        _searchFilter = '';
-                        _searchResults = [];
-                      });
-                      widget.onFavoriteSelected?.call(null);
-                      GageToast.show(
-                        context,
-                        'Pilih alamat lain, cari lokasi, atau geser pin untuk mengganti "${fav.name}"',
-                        type: GageToastType.info,
+                      _openMapPicker(
+                        overrideInitialLocation: fav.location,
+                        overrideInitialTitle: fav.name,
+                        overrideInitialFullAddr: fav.address,
                       );
                     }
                   : null,
@@ -1917,252 +1918,6 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
           ],
         ),
         ),
-      ),
-    );
-  }
-}
-
-/// Modal Peta Retina HD Interaktif dengan Draggable Pin & Live Reverse Geocoding
-class _RetinaMapPickerModal extends StatefulWidget {
-  final LatLng? initialLocation;
-  final Function(String title, String fullAddress, LatLng latLng) onConfirmed;
-
-  const _RetinaMapPickerModal({
-    this.initialLocation,
-    required this.onConfirmed,
-  });
-
-  @override
-  State<_RetinaMapPickerModal> createState() => _RetinaMapPickerModalState();
-}
-
-class _RetinaMapPickerModalState extends State<_RetinaMapPickerModal> {
-  final MapController _mapController = MapController();
-  late LatLng _currentCenter;
-  String _detectedTitle = 'Mendeteksi titik koordinat...';
-  String _detectedDetail = '';
-  bool _isGeocoding = false;
-  Timer? _debounce;
-
-  @override
-  void initState() {
-    super.initState();
-    _currentCenter = widget.initialLocation ?? const LatLng(-8.05517, 110.80889);
-    _reverseGeocodeCenter(_currentCenter);
-  }
-
-  void _onPositionChanged(MapCamera camera, bool hasGesture) {
-    if (!hasGesture) return;
-    _currentCenter = camera.center;
-    _debounce?.cancel();
-    setState(() => _isGeocoding = true);
-    _debounce = Timer(const Duration(milliseconds: 400), () {
-      _reverseGeocodeCenter(_currentCenter);
-    });
-  }
-
-  Future<void> _reverseGeocodeCenter(LatLng point) async {
-    final title = await OsmGeocodingService.reverseGeocode(point);
-    final detail = OsmGeocodingService.formatFullOfficialAddress(point);
-    if (!mounted) return;
-    setState(() {
-      _detectedTitle = title;
-      _detectedDetail = detail;
-      _isGeocoding = false;
-    });
-  }
-
-  Future<void> _recenterGps() async {
-    final gps = await LocationService.getCurrentLocation();
-    if (!mounted) return;
-    setState(() {
-      _currentCenter = gps;
-      _isGeocoding = true;
-    });
-    try {
-      _mapController.move(gps, 17.5);
-    } catch (_) {}
-    _reverseGeocodeCenter(gps);
-  }
-
-  @override
-  void dispose() {
-    _debounce?.cancel();
-    _mapController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.92,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          // Google Maps Retina HD (scale=2, hl=id, maxZoom=21.0)
-          FlutterMap(
-            mapController: _mapController,
-            options: MapOptions(
-              initialCenter: _currentCenter,
-              initialZoom: 17.0,
-              minZoom: 11.0,
-              maxZoom: 21.0,
-              onPositionChanged: _onPositionChanged,
-            ),
-            children: [
-              TileLayer(
-                urlTemplate: 'https://mt{s}.google.com/vt/lyrs=m&scale=2&hl=id&x={x}&y={y}&z={z}',
-                subdomains: const ['0', '1', '2', '3'],
-                tileDimension: 256,
-                maxZoom: 21.0,
-                userAgentPackageName: 'com.gage.customer',
-                fallbackUrl: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              ),
-            ],
-          ),
-
-          // Pin Tengah Tetap (Center Indicator)
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 36),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(7),
-                    decoration: const BoxDecoration(
-                      color: GageTheme.primary,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 3)),
-                      ],
-                    ),
-                    child: const Icon(Icons.location_on_rounded, color: Colors.white, size: 24),
-                  ),
-                  Container(
-                    width: 4,
-                    height: 12,
-                    color: GageTheme.primary,
-                  ),
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: Colors.black38,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Top Header Bar
-          Positioned(
-            top: 12,
-            left: 12,
-            right: 12,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 2))],
-              ),
-              child: Row(
-                children: [
-                  const Text('Geser Peta ke Titik Lokasi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Floating Recenter Button
-          Positioned(
-            right: 16,
-            bottom: 180,
-            child: FloatingActionButton.small(
-              heroTag: 'recenter_gps_picker',
-              backgroundColor: Colors.white,
-              foregroundColor: GageTheme.primary,
-              elevation: 4,
-              onPressed: _recenterGps,
-              child: const Icon(Icons.my_location_rounded),
-            ),
-          ),
-
-          // Bottom Confirmation Panel
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 16, offset: Offset(0, -3))],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.pin_drop_rounded, color: GageTheme.primary, size: 22),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _detectedTitle,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (_isGeocoding)
-                        const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: GageTheme.primary)),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _detectedDetail,
-                    style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 14),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        widget.onConfirmed(_detectedTitle, _detectedDetail, _currentCenter);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: GageTheme.primary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                      child: const Text('Konfirmasi Titik Ini', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

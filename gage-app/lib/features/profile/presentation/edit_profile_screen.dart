@@ -549,16 +549,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
                     const SizedBox(height: 16),
 
-                    // Nomor WhatsApp
+                    // Nomor HP / Telepon
                     _buildInputField(
                       controller: _phoneController,
-                      label: 'Nomor WhatsApp',
-                      hint: 'Contoh: +628123456789',
+                      label: 'Nomor HP / Telepon',
+                      hint: 'Contoh: 081234567890',
                       icon: Icons.phone_android_rounded,
                       keyboardType: TextInputType.phone,
                       validator: (val) {
                         if (val == null || val.trim().isEmpty) {
-                          return 'Nomor WhatsApp tidak boleh kosong';
+                          return 'Nomor HP tidak boleh kosong';
                         }
                         return null;
                       },

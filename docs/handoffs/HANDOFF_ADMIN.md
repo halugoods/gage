@@ -130,3 +130,26 @@ Berdasarkan inspeksi langsung terhadap [`0001_initial_schema.sql`](../../gage-cl
    - `PUT /api/merchants/:id/menu/:menuId/promo` (`promo_price`, `original_price`, `promo_active`).
    - `GET /api/vouchers`, `POST /api/admin/vouchers`, `PUT /api/admin/vouchers/:id`.
    - `GET /api/pricing-config`, `PUT /api/admin/pricing-config`.
+
+---
+
+## 5. Update Wave 1 & Wave 2 (Customer Portal & Backend Sync)
+
+### A. Migrasi D1, Auth JWT & Deployment Worker (`gage-cloud/`)
+1. **Migrasi D1 `0006_security_and_order_sync.sql`**:
+   - Menambahkan kolom `package_details_json` pada tabel `orders` untuk sinkronisasi paket GAGE Send.
+   - Menambahkan kolom `password_hash`, `role`, dan `is_verified` pada tabel `users`, serta tabel `user_sessions` / `otp_codes` sesuai kontrak auth baru.
+   - Jalankan migrasi pada D1 remote/local sebelum deploy Worker baru.
+2. **Environment & Secrets (`wrangler.toml` / Worker Secrets)**:
+   - Pastikan secret `AUTH_JWT_SECRET` dan `ADMIN_API_KEY` diset di environment produksi Cloudflare Worker.
+   - Endpoint admin/voucher/pricing wajib memverifikasi header `X-Admin-Key` / bearer JWT admin sesuai `src/security.ts` dan `src/index.ts`.
+3. **Sinkronisasi Pengaturan Pricing (`GagePricingService` / `/api/pricing-config`)**:
+   - Customer Portal kini memicu tier **Hemat** (Food, Shop, Farm, Build) berbasis minimal belanja **`hematMinSubtotal`** dengan default **`Rp 50.000`** (menggantikan syarat jarak >= 2.5 km) demi menjaga margin komisi.
+   - Portal Admin perlu menyediakan form konfigurasi `hematMinSubtotal` (dan tarif dasar/ongkir per service) agar dapat diubah sewaktu-waktu via `PUT /api/admin/pricing-config` tanpa rebuild aplikasi.
+
+### B. Cleanup Wave 3 untuk Portal Admin (`lib/features/admin/` & `main_admin.dart`)
+- Sesuai isolasi portal, file di `lib/features/admin/` belum disentuh pada Wave 1. Saat eksekusi Wave 3 Portal Admin:
+  - Hapus seluruh tab, menu, KPI, moderasi, atau filter yang masih merujuk ke modul **GAGE BaBe** dan **GAGE Clean** yang sudah dihentikan.
+  - Pastikan admin dashboard / WA center tidak lagi memakai tautan eksternal WhatsApp (`wa.me` / `whatsapp://`) untuk alur chat pelanggan dan mengarahkannya ke sistem chat in-app (`InAppChatProvider`).
+  - Terapkan kapsul penuh (`BorderRadius.circular(999)` / `StadiumBorder()`) pada seluruh segmented switch dan tab di Portal Admin.
+

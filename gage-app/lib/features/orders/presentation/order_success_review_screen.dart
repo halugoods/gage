@@ -19,8 +19,8 @@ class OrderSuccessReviewScreen extends StatefulWidget {
     super.key,
     required this.order,
     this.proofImageUrl,
-    this.driverName = 'Syamsul Maarif',
-    this.driverVehicle = 'Honda Vario • AD 4921 HG',
+    this.driverName = '',
+    this.driverVehicle = '',
   });
 
   @override
@@ -316,10 +316,12 @@ class _OrderSuccessReviewScreenState extends State<OrderSuccessReviewScreen> {
                       children: _merchantChipOptions.map((c) {
                         final isSel = _selectedMerchantChips.contains(c);
                         return FilterChip(
+                          shape: const StadiumBorder(),
                           label: Text(c, style: TextStyle(fontSize: 10.5, color: isSel ? GageTheme.primary : (isDark ? Colors.white70 : Colors.black87))),
                           selected: isSel,
                           selectedColor: GageTheme.primaryLight,
                           onSelected: (val) {
+                            HapticFeedback.selectionClick();
                             setState(() {
                               if (val) {
                                 _selectedMerchantChips.add(c);
@@ -332,36 +334,40 @@ class _OrderSuccessReviewScreenState extends State<OrderSuccessReviewScreen> {
                       }).toList(),
                     ),
 
-                    const SizedBox(height: 14),
-                    Divider(height: 1, color: isDark ? GageTheme.darkBorder : Colors.grey.shade200),
-                    const SizedBox(height: 14),
+                    if (widget.driverName.trim().isNotEmpty) ...[
+                      const SizedBox(height: 14),
+                      Divider(height: 1, color: isDark ? GageTheme.darkBorder : Colors.grey.shade200),
+                      const SizedBox(height: 14),
 
-                    // Rating Driver
-                    Text('2. Mitra Driver: ${widget.driverName}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
-                    const SizedBox(height: 6),
-                    _buildStarRow(_driverStars, (val) => setState(() => _driverStars = val)),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: _driverChipOptions.map((c) {
-                        final isSel = _selectedDriverChips.contains(c);
-                        return FilterChip(
-                          label: Text(c, style: TextStyle(fontSize: 10.5, color: isSel ? const Color(0xFF2563EB) : (isDark ? Colors.white70 : Colors.black87))),
-                          selected: isSel,
-                          selectedColor: const Color(0xFFDBEAFE),
-                          onSelected: (val) {
-                            setState(() {
-                              if (val) {
-                                _selectedDriverChips.add(c);
-                              } else {
-                                _selectedDriverChips.remove(c);
-                              }
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
+                      // Rating Driver
+                      Text('2. Mitra Driver: ${widget.driverName}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+                      const SizedBox(height: 6),
+                      _buildStarRow(_driverStars, (val) => setState(() => _driverStars = val)),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: _driverChipOptions.map((c) {
+                          final isSel = _selectedDriverChips.contains(c);
+                          return FilterChip(
+                            shape: const StadiumBorder(),
+                            label: Text(c, style: TextStyle(fontSize: 10.5, color: isSel ? const Color(0xFF2563EB) : (isDark ? Colors.white70 : Colors.black87))),
+                            selected: isSel,
+                            selectedColor: const Color(0xFFDBEAFE),
+                            onSelected: (val) {
+                              HapticFeedback.selectionClick();
+                              setState(() {
+                                if (val) {
+                                  _selectedDriverChips.add(c);
+                                } else {
+                                  _selectedDriverChips.remove(c);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ],
 
                     const SizedBox(height: 12),
                     TextField(

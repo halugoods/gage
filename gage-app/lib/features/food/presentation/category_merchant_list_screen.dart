@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
@@ -306,14 +307,19 @@ class _CategoryMerchantListScreenState extends State<CategoryMerchantListScreen>
                       return ChoiceChip(
                         label: Text(chip),
                         selected: isSel,
-                        onSelected: (_) => setState(() => _activeChip = chip),
-                        selectedColor: GageTheme.primaryLight,
+                        onSelected: (_) {
+                          HapticFeedback.selectionClick();
+                          setState(() => _activeChip = chip);
+                        },
+                        selectedColor: GageTheme.primary,
+                        checkmarkColor: Colors.white,
                         backgroundColor: Colors.grey.shade50,
+                        shape: const StadiumBorder(),
                         side: BorderSide(color: isSel ? GageTheme.primary : Colors.grey.shade300),
                         labelStyle: TextStyle(
                           fontSize: 11.5,
                           fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
-                          color: isSel ? GageTheme.primary : GageTheme.textPrimary,
+                          color: isSel ? Colors.white : GageTheme.textPrimary,
                         ),
                       );
                     },

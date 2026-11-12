@@ -2,10 +2,10 @@ import 'dart:io';
 import 'package:gage_app/core/services/notification_service.dart';
 import 'package:gage_app/features/notification/presentation/notification_screen.dart';
 import 'package:gage_app/features/chat/presentation/chat_hub_screen.dart';
+import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/providers/auth_provider.dart';
 import 'package:gage_app/features/profile/presentation/edit_profile_screen.dart';
@@ -1033,14 +1033,21 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
                         ),
                         _buildDropdownItem(
                           dialogCtx,
-                          icon: Icons.chat_outlined,
-                          title: 'Pusat Bantuan CS WA',
-                          onTap: () async {
+                          icon: Icons.support_agent_rounded,
+                          title: 'Pusat Bantuan GAGE',
+                          onTap: () {
                             Navigator.pop(dialogCtx);
-                            final uri = Uri.parse('https://wa.me/6281226001000?text=Halo%20Admin%20GAGE%2C%20saya%20butuh%20bantuan');
-                            if (await canLaunchUrl(uri)) {
-                              await launchUrl(uri, mode: LaunchMode.externalApplication);
-                            }
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const InAppChatScreen(
+                                  orderId: 'cs-gage-support',
+                                  recipientName: 'Pusat Bantuan GAGE',
+                                  recipientRole: 'ai',
+                                  recipientPhone: '',
+                                ),
+                              ),
+                            );
                           },
                           isDark: isDark,
                         ),

@@ -34,7 +34,7 @@ void main() {
 
     // Verify Form Labels
     expect(find.text('Nama Lengkap'), findsOneWidget);
-    expect(find.text('Nomor WhatsApp'), findsOneWidget);
+    expect(find.text('Nomor HP / Telepon'), findsOneWidget);
     expect(find.text('Alamat Email'), findsOneWidget);
     expect(find.text('Alamat Pengantaran Utama'), findsOneWidget);
 

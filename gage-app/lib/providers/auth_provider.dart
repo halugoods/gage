@@ -37,8 +37,9 @@ class AuthProvider extends ChangeNotifier {
         if (savedAvatar != null && savedAvatar.isNotEmpty) {
           _currentUser = _currentUser!.copyWith(avatarUrl: savedAvatar);
         }
-      } else {
-        // Fallback default dev customer session agar saat install ulang langsung masuk Beranda tanpa tertahan login
+        GageApiClient.authToken = _currentUser?.token;
+      } else if (GageApiClient.useDevSeedData) {
+        // Fallback default dev customer session hanya saat mode dev-seed aktif
         final savedAvatar = prefs.getString('gage_user_avatar');
         _currentUser = UserModel(
           id: 'usr-cust-01',
@@ -49,6 +50,8 @@ class AuthProvider extends ChangeNotifier {
           avatarUrl: savedAvatar,
         );
         await prefs.setString('gage_user_session', jsonEncode(_currentUser!.toJson()));
+      } else {
+        GageApiClient.authToken = null;
       }
     } catch (e) {
       debugPrint('Error loading saved session: $e');
@@ -83,20 +86,26 @@ class AuthProvider extends ChangeNotifier {
       final String? idToken = googleAuth.idToken;
 
       if (idToken == null) {
-        // Fallback jika idToken null di platform tertentu, gunakan dev login dengan info profil Google
-        return await signInDev(
-          email: googleUser.email,
-          name: googleUser.displayName ?? 'Pengguna Gage',
-          userId: 'usr-g-${googleUser.id.substring(0, 10)}',
-        );
+        if (GageApiClient.useDevSeedData) {
+          return await signInDev(
+            email: googleUser.email,
+            name: googleUser.displayName ?? 'Pengguna Gage',
+            userId: 'usr-g-${googleUser.id.substring(0, 10)}',
+          );
+        }
+        _errorMessage = 'Token autentikasi Google tidak tersedia';
+        _isLoading = false;
+        notifyListeners();
+        return false;
       }
 
       // Kirim ID Token ke Cloudflare Worker untuk validasi & D1 sync
       final res = await GageApiClient.loginWithGoogle(idToken);
       if (res != null && res['success'] == true) {
         final userData = res['data']['user'];
-        final token = res['token'];
+        final token = res['token']?.toString();
         _currentUser = UserModel.fromJson(userData, token: token);
+        GageApiClient.authToken = token;
         await _saveSession(_currentUser!);
         _isLoading = false;
         notifyListeners();
@@ -138,8 +147,9 @@ class AuthProvider extends ChangeNotifier {
 
       if (res != null && res['success'] == true) {
         final userData = res['data']['user'];
-        final token = res['token'];
+        final token = res['token']?.toString();
         _currentUser = UserModel.fromJson(userData, token: token);
+        GageApiClient.authToken = token;
         await _saveSession(_currentUser!);
         _isLoading = false;
         notifyListeners();
@@ -204,7 +214,13 @@ class AuthProvider extends ChangeNotifier {
   }) async {
     if (_currentUser == null) return false;
     try {
-      await GageApiClient.updateUserProfile(_currentUser!.id, name: name, phone: phone);
+      await GageApiClient.updateUserProfile(
+        _currentUser!.id,
+        name: name,
+        phone: phone,
+        email: email,
+        avatarUrl: avatarUrl,
+      );
     } catch (e) {
       debugPrint('Cloud profile sync notice: $e');
     }
@@ -226,6 +242,7 @@ class AuthProvider extends ChangeNotifier {
     } catch (_) {}
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('gage_user_session');
+    GageApiClient.authToken = null;
     _currentUser = null;
     notifyListeners();
   }

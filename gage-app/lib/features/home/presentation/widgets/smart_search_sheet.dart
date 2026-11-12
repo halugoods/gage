@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/food/presentation/food_explore_screen.dart';
 import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
 import 'package:gage_app/features/food/presentation/shop_screen.dart';
 import 'package:gage_app/features/food/presentation/farm_screen.dart';
 import 'package:gage_app/features/food/presentation/build_screen.dart';
-import 'package:gage_app/features/babe/presentation/babe_screen.dart';
 import 'package:gage_app/features/ride/presentation/ride_booking_screen.dart';
 import 'package:gage_app/features/ride/presentation/send_booking_screen.dart';
 import 'package:gage_app/features/affiliate/presentation/affiliate_hub_screen.dart';
@@ -17,7 +17,6 @@ enum SearchDomainCategory {
   shop,
   farm,
   build,
-  babe,
 }
 
 class SearchSuggestionItem {
@@ -182,20 +181,6 @@ class _SmartSearchSheetState extends State<SmartSearchSheet> {
         onSelect: () {
           Navigator.pop(context);
           Navigator.push(context, MaterialPageRoute(builder: (_) => const BuildScreen()));
-        },
-      ),
-      SearchSuggestionItem(
-        id: 'svc-babe',
-        title: 'GAGE BaBe',
-        subtitle: 'Lapak terkurasi jual-beli barang bekas berkualitas di Wonogiri',
-        category: SearchDomainCategory.service,
-        categoryLabel: 'Layanan',
-        icon: Icons.recycling_rounded,
-        themeColor: const Color(0xFF7C3AED),
-        keywords: ['babe', 'barang bekas', 'preloved', 'second', 'seken', 'bekas', 'lapak', 'jual beli'],
-        onSelect: () {
-          Navigator.pop(context);
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const BabeScreen()));
         },
       ),
       SearchSuggestionItem(
@@ -430,50 +415,6 @@ class _SmartSearchSheetState extends State<SmartSearchSheet> {
           Navigator.push(context, MaterialPageRoute(builder: (_) => const FarmScreen()));
         },
       ),
-
-      // ── BARANG BEKAS (BABE) ──
-      SearchSuggestionItem(
-        id: 'bb-sepeda-gunung',
-        title: 'Sepeda Gunung Polygon Bekas Mulus',
-        subtitle: 'Rp 850.000 • Ban tebal, rem cakram aktif siap pakai • Pracimantoro',
-        category: SearchDomainCategory.babe,
-        categoryLabel: 'GAGE BaBe',
-        icon: Icons.pedal_bike_rounded,
-        themeColor: const Color(0xFF7C3AED),
-        keywords: ['sepeda', 'polygon', 'gunung', 'babe', 'barang bekas', 'gowes', 'bekas', 'second'],
-        onSelect: () {
-          Navigator.pop(context);
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const BabeScreen()));
-        },
-      ),
-      SearchSuggestionItem(
-        id: 'bb-helm-bogo',
-        title: 'Helm Bogo Retro Klasik Seken',
-        subtitle: 'Rp 75.000 • Busa tebal wangi, kaca bogo cembung bening • Giritontro',
-        category: SearchDomainCategory.babe,
-        categoryLabel: 'GAGE BaBe',
-        icon: Icons.sports_motorsports_rounded,
-        themeColor: const Color(0xFF7C3AED),
-        keywords: ['helm', 'bogo', 'retro', 'klasik', 'seken', 'bekas', 'motor'],
-        onSelect: () {
-          Navigator.pop(context);
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const BabeScreen()));
-        },
-      ),
-      SearchSuggestionItem(
-        id: 'bb-hp-second',
-        title: 'HP Android Redmi 9A 3/32 Bekas Normal',
-        subtitle: 'Rp 550.000 • Baterai awet, segel utuh kelengkapan fullset • Pracimantoro',
-        category: SearchDomainCategory.babe,
-        categoryLabel: 'GAGE BaBe',
-        icon: Icons.smartphone_rounded,
-        themeColor: const Color(0xFF7C3AED),
-        keywords: ['hp', 'android', 'redmi', 'handphone', 'smartphone', 'bekas', 'second'],
-        onSelect: () {
-          Navigator.pop(context);
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const BabeScreen()));
-        },
-      ),
     ];
   }
 
@@ -612,7 +553,7 @@ class _SmartSearchSheetState extends State<SmartSearchSheet> {
                 _buildCategoryChip('Kuliner (Food)', SearchDomainCategory.food, isDark),
                 _buildCategoryChip('Sembako (Shop)', SearchDomainCategory.shop, isDark),
                 _buildCategoryChip('Tani & Ternak', SearchDomainCategory.farm, isDark),
-                _buildCategoryChip('BaBe (Bekas)', SearchDomainCategory.babe, isDark),
+                _buildCategoryChip('Bangunan (Build)', SearchDomainCategory.build, isDark),
               ],
             ),
           ),
@@ -643,13 +584,17 @@ class _SmartSearchSheetState extends State<SmartSearchSheet> {
           color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
         ),
         selectedColor: GageTheme.primary,
+        checkmarkColor: Colors.white,
         backgroundColor: isDark ? GageTheme.darkSurface : Colors.grey.shade100,
         side: BorderSide(
           color: isSelected ? GageTheme.primary : (isDark ? Colors.white12 : Colors.grey.shade300),
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: const StadiumBorder(),
         onSelected: (val) {
-          if (val) setState(() => _selectedCategory = cat);
+          if (val) {
+            HapticFeedback.selectionClick();
+            setState(() => _selectedCategory = cat);
+          }
         },
       ),
     );
@@ -665,7 +610,7 @@ class _SmartSearchSheetState extends State<SmartSearchSheet> {
       'Seblak Prasmanan',
       'Minyak Goreng',
       'Pakan Ayam BR1',
-      'Helm Bogo Seken',
+      'Semen Tiga Roda',
     ];
 
     return ListView(
@@ -699,8 +644,11 @@ class _SmartSearchSheetState extends State<SmartSearchSheet> {
               ),
               backgroundColor: isDark ? GageTheme.darkSurface : Colors.grey.shade100,
               side: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade200),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              onPressed: () => _applyQuickQuery(tag),
+              shape: const StadiumBorder(),
+              onPressed: () {
+                HapticFeedback.selectionClick();
+                _applyQuickQuery(tag);
+              },
             );
           }).toList(),
         ),
@@ -754,13 +702,13 @@ class _SmartSearchSheetState extends State<SmartSearchSheet> {
           isDark: isDark,
         ),
         _buildQuickShortcutTile(
-          icon: Icons.recycling_rounded,
-          color: const Color(0xFF7C3AED),
-          title: 'Jual Beli Barang Bekas (GAGE BaBe)',
-          subtitle: 'Lapak terverifikasi second berkualitas lokal',
+          icon: Icons.construction_rounded,
+          color: const Color(0xFF0284C7),
+          title: 'Material & Bangunan (GAGE Build)',
+          subtitle: 'Semen, cat, besi beton, pipa & perlengkapan proyek',
           onTap: () {
             Navigator.pop(context);
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const BabeScreen()));
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const BuildScreen()));
           },
           isDark: isDark,
         ),

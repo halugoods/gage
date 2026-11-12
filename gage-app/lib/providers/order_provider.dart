@@ -16,6 +16,7 @@ class OrderProvider extends ChangeNotifier {
   }
 
   void _initDefaultOrders() {
+    if (!GageApiClient.useDevSeedData) return;
     if (_allOrders.isNotEmpty) return;
     final now = DateTime.now();
     _allOrders = [
@@ -223,10 +224,21 @@ class OrderProvider extends ChangeNotifier {
     required String paymentMethod,
     String? affiliatorId,
     String? promoCode,
+    String? orderPromoCode,
+    String? deliveryPromoCode,
     required String deliveryAddress,
     String? merchantName,
+    String serviceType = 'food',
+    bool isPickup = false,
     int driverTip = 0,
     String deliveryOption = 'REGULER',
+    String? pickupAddress,
+    double? pickupLat,
+    double? pickupLng,
+    double? deliveryLat,
+    double? deliveryLng,
+    String? notes,
+    Map<String, dynamic>? packageDetails,
     int? customShippingFee,
     int? customAdminFee,
     int? customItemsSubtotal,
@@ -241,8 +253,21 @@ class OrderProvider extends ChangeNotifier {
         distanceKm: distanceKm,
         paymentMethod: paymentMethod,
         affiliatorId: affiliatorId,
-        promoCode: promoCode,
+        promoCode: promoCode ?? orderPromoCode ?? deliveryPromoCode,
+        orderPromoCode: orderPromoCode,
+        deliveryPromoCode: deliveryPromoCode,
         deliveryAddress: deliveryAddress,
+        serviceType: serviceType,
+        orderType: isPickup ? 'PICKUP' : 'DELIVERY',
+        deliveryOption: isPickup ? 'PICKUP' : deliveryOption,
+        pickupAddress: pickupAddress,
+        pickupLat: pickupLat,
+        pickupLng: pickupLng,
+        deliveryLat: deliveryLat,
+        deliveryLng: deliveryLng,
+        driverTip: driverTip,
+        notes: notes,
+        packageDetails: packageDetails,
       );
 
       if (res != null && res['success'] == true) {
@@ -264,16 +289,21 @@ class OrderProvider extends ChangeNotifier {
       debugPrint('Error placing order via cloud: $e');
     }
 
-    // Fallback lokal jika offline/network timeout: pesanan tetap berhasil
+    // Fallback lokal jika offline/network timeout: pertahankan status awal yang realistis & tanpa driver fiktif
     final now = DateTime.now();
     final itemsSubtotal = customItemsSubtotal ??
         items.fold<int>(0, (sum, i) => sum + ((int.tryParse(i['price']?.toString().replaceAll(RegExp(r'[^0-9\-]'), '') ?? '') ?? 0) * (int.tryParse(i['quantity']?.toString().replaceAll(RegExp(r'[^0-9\-]'), '') ?? '') ?? 1)));
-    final shippingFee = customShippingFee ??
-        GagePricingService.calculateCustomerShippingFee(
-          distanceKm: distanceKm,
-          deliveryOption: deliveryOption,
-        );
-    final int shippingDiscount = promoCode != null && promoCode.contains('ONGKIR') ? shippingFee : 0;
+    final shippingFee = isPickup
+        ? 0
+        : (customShippingFee ??
+            GagePricingService.calculateCustomerShippingFee(
+              distanceKm: distanceKm,
+              deliveryOption: deliveryOption,
+            ));
+    final int shippingDiscount =
+        (deliveryPromoCode != null || (promoCode != null && promoCode.contains('ONGKIR')))
+            ? shippingFee
+            : 0;
     final adminFee = customAdminFee ??
         GagePricingService.calculateAdminFee(
           paymentMethod: paymentMethod,
@@ -288,23 +318,40 @@ class OrderProvider extends ChangeNotifier {
         .clamp(0, 99999999)
         .toInt();
 
+    final isQris = paymentMethod.toUpperCase().contains('QRIS');
+    final isTransport = const {'ride', 'car', 'send'}.contains(serviceType.toLowerCase());
+    final initialStatus = isQris
+        ? 'PAYMENT_PENDING'
+        : (isTransport ? 'SEARCHING_DRIVER' : 'PAID');
+    final initialPaymentStatus = isQris ? 'PENDING' : 'PAID';
+
+    final svcTag = switch (serviceType.toLowerCase()) {
+      'shop' => 'SH',
+      'farm' => 'FM',
+      'build' => 'BD',
+      'ride' => 'RD',
+      'car' => 'CR',
+      'send' => 'SD',
+      _ => 'FD',
+    };
+
     final fallbackOrder = OrderModel(
-      id: 'ord-fd-${now.millisecondsSinceEpoch}',
+      id: 'ord-${svcTag.toLowerCase()}-${now.millisecondsSinceEpoch}',
       orderNumber: OrderModel.generateUniqueInvoice(
-        serviceType: 'FD',
+        serviceType: svcTag,
         userName: 'CUST',
         timestamp: now,
       ),
       userId: userId,
       merchantId: merchantId,
-      merchantName: merchantName ?? 'Mitra Usaha GAGE Pracimantoro',
-      merchantAddress: 'Pracimantoro, Wonogiri',
-      driverName: 'Joko Susanto (Vario AD 3291 WA)',
-      driverPlate: 'AD 3291 WA',
-      driverPhone: '081226001000',
-      status: 'COOKING',
+      merchantName: merchantName ?? 'Mitra GAGE',
+      merchantAddress: pickupAddress ?? 'Pracimantoro, Wonogiri',
+      driverName: null,
+      driverPlate: null,
+      driverPhone: null,
+      status: initialStatus,
       paymentMethod: paymentMethod,
-      paymentStatus: 'PAID',
+      paymentStatus: initialPaymentStatus,
       totalAmount: totalAmount,
       itemsSubtotal: itemsSubtotal,
       shippingFee: shippingFee,
@@ -312,17 +359,30 @@ class OrderProvider extends ChangeNotifier {
       adminFee: adminFee,
       driverTip: driverTip,
       deliveryAddress: deliveryAddress,
+      pickupAddress: pickupAddress,
+      pickupLat: pickupLat,
+      pickupLng: pickupLng,
+      deliveryLat: deliveryLat,
+      deliveryLng: deliveryLng,
       distanceKm: distanceKm,
-      trackingToken: 'trk-fd-${now.millisecondsSinceEpoch}',
+      trackingToken: 'trk-${svcTag.toLowerCase()}-${now.millisecondsSinceEpoch}',
+      serviceType: serviceType.toLowerCase(),
+      channel: (serviceType == 'shop' || serviceType == 'farm' || serviceType == 'build')
+          ? 'shop'
+          : 'food',
+      isPickup: isPickup,
+      deliveryOption: isPickup ? 'PICKUP' : deliveryOption,
+      notes: notes,
+      packageDetails: packageDetails,
       items: items.map((i) => OrderItemModel(
-        id: i['menu_id'] ?? i['id'] ?? '',
-        name: i['name'] ?? 'Menu Makanan',
-        price: (i['price'] ?? 0) as int,
-        quantity: (i['quantity'] ?? 1) as int,
-        subtotal: ((i['price'] ?? 0) as int) * ((i['quantity'] ?? 1) as int),
-        notes: i['notes'],
-        imageUrl: i['image_url'] ?? i['image'],
-        merchantName: i['merchant_name'],
+        id: (i['menu_id'] ?? i['id'] ?? '').toString(),
+        name: (i['name'] ?? 'Item Pesanan').toString(),
+        price: (i['price'] as num?)?.toInt() ?? 0,
+        quantity: (i['quantity'] as num?)?.toInt() ?? 1,
+        subtotal: ((i['price'] as num?)?.toInt() ?? 0) * ((i['quantity'] as num?)?.toInt() ?? 1),
+        notes: i['notes']?.toString(),
+        imageUrl: (i['image_url'] ?? i['image'])?.toString(),
+        merchantName: i['merchant_name']?.toString(),
       )).toList(),
       createdAt: now.millisecondsSinceEpoch ~/ 1000,
     );

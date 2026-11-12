@@ -753,18 +753,32 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
             SliverPersistentHeader(
               pinned: true,
               delegate: _SliverAppBarDelegate(
-                TabBar(
-                  controller: _tabController,
-                  indicatorColor: GageTheme.primary,
-                  indicatorWeight: 3,
-                  labelColor: GageTheme.primary,
-                  unselectedLabelColor: isDark ? Colors.white60 : Colors.grey.shade600,
-                  labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                  tabs: const [
-                    Tab(text: 'Katalog Cuan'),
-                    Tab(text: 'Performa & CVR'),
-                    Tab(text: 'Riwayat Penarikan'),
-                  ],
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  padding: const EdgeInsets.all(3),
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: TabBar(
+                    controller: _tabController,
+                    onTap: (_) => HapticFeedback.selectionClick(),
+                    indicator: BoxDecoration(
+                      color: GageTheme.primary,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    dividerColor: Colors.transparent,
+                    labelColor: Colors.white,
+                    unselectedLabelColor: isDark ? Colors.white60 : Colors.grey.shade600,
+                    labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                    tabs: const [
+                      Tab(text: 'Katalog Cuan'),
+                      Tab(text: 'Performa & CVR'),
+                      Tab(text: 'Riwayat Penarikan'),
+                    ],
+                  ),
                 ),
                 isDark ? const Color(0xFF0F172A) : Colors.white,
               ),
@@ -1318,21 +1332,22 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
 }
 
 class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
-  _SliverAppBarDelegate(this._tabBar, this.backgroundColor);
+  _SliverAppBarDelegate(this._child, this.backgroundColor);
 
-  final TabBar _tabBar;
+  final Widget _child;
   final Color backgroundColor;
 
   @override
-  double get minExtent => _tabBar.preferredSize.height;
+  double get minExtent => 52;
   @override
-  double get maxExtent => _tabBar.preferredSize.height;
+  double get maxExtent => 52;
 
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
     return Container(
       color: backgroundColor,
-      child: _tabBar,
+      alignment: Alignment.center,
+      child: _child,
     );
   }
 

@@ -36,14 +36,14 @@ void main() {
         serviceType: 'reguler',
         distanceKm: 0,
       );
-      expect(rideReguler, equals(12000));
+      expect(rideReguler, equals(10000));
 
       // Motor Hemat
       final rideHemat = GagePricingService.calculateCustomerRideFare(
         serviceType: 'hemat',
         distanceKm: 0,
       );
-      expect(rideHemat, equals(9000));
+      expect(rideHemat, equals(8000));
 
       // Car Reguler
       final carReguler = GagePricingService.calculateCustomerRideFare(
@@ -199,7 +199,7 @@ void main() {
       expect(find.text('Ubah PIN GAGEPay 6 Digit'), findsOneWidget);
       expect(find.text('Preferensi Aplikasi'), findsOneWidget);
       expect(find.text('Pusat Bantuan & Layanan'), findsOneWidget);
-      expect(find.text('Chat CS WhatsApp Resmi'), findsOneWidget);
+      expect(find.text('Chat Pusat Bantuan Resmi'), findsOneWidget);
 
       // Scroll to bottom to verify Danger Zone
       await tester.scrollUntilVisible(find.text('Keluar dari Akun'), 500);
@@ -232,8 +232,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify Tab Header
-      expect(find.text('Diskon Ongkir'), findsOneWidget);
-      expect(find.text('Diskon Menu'), findsOneWidget);
+      expect(find.text('Semua'), findsOneWidget);
+      expect(find.text('Diskon'), findsOneWidget);
+      expect(find.text('Gratis Ongkir'), findsOneWidget);
 
       // Verify Ticket Stubbing elements
       expect(find.textContaining('Gratis\nOngkir'), findsWidgets);

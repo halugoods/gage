@@ -21,6 +21,20 @@ class GageApiClient {
   @visibleForTesting
   static http.Client? testHttpClient;
 
+  static String? authToken;
+
+  static Map<String, String> _headers({bool jsonContent = true}) {
+    final map = <String, String>{};
+    if (jsonContent) {
+      map['Content-Type'] = 'application/json';
+    }
+    final tok = authToken?.trim();
+    if (tok != null && tok.isNotEmpty) {
+      map['Authorization'] = 'Bearer $tok';
+    }
+    return map;
+  }
+
   static final Map<String, List<Map<String, dynamic>>> _cachedMenusByMerchant = {};
 
   static void clearMerchantMenuCache() {
@@ -159,22 +173,47 @@ class GageApiClient {
   }
 
   // Update Profil Pengguna
-  static Future<bool> updateUserProfile(String userId, {String? name, String? phone}) async {
+  static Future<bool> updateUserProfile(
+    String userId, {
+    String? name,
+    String? phone,
+    String? email,
+    String? avatarUrl,
+  }) async {
     try {
       final res = await http.post(
         Uri.parse('$baseUrl/api/user/profile'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers(),
         body: jsonEncode({
           'user_id': userId,
-          'name': name,
-          'phone': phone,
+          if (name != null) 'name': name,
+          if (phone != null) 'phone': phone,
+          if (email != null) 'email': email,
+          if (avatarUrl != null) 'avatar_url': avatarUrl,
         }),
       ).timeout(const Duration(seconds: 4));
 
       return res.statusCode == 200;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('updateUserProfile error: $e');
       return false;
     }
+  }
+
+  /// Ambil konfigurasi tarif dinamis yang disetel Admin di Cloudflare D1
+  static Future<Map<String, dynamic>?> getPricingConfig() async {
+    try {
+      final res = await _httpGet(Uri.parse('$baseUrl/api/pricing-config'));
+      if (res.statusCode == 200) {
+        final json = jsonDecode(res.body);
+        if (json['success'] == true && json['data'] is Map) {
+          return Map<String, dynamic>.from(json['data']);
+        }
+      }
+    } catch (e) {
+      debugPrint('getPricingConfig error: $e');
+    }
+    return null;
   }
 
   // Menyimpan Alamat Pengguna ke Cloudflare D1
@@ -2551,12 +2590,25 @@ class GageApiClient {
     required String paymentMethod,
     String? affiliatorId,
     String? promoCode,
+    String? orderPromoCode,
+    String? deliveryPromoCode,
     required String deliveryAddress,
+    String? serviceType,
+    String? orderType,
+    String? deliveryOption,
+    String? pickupAddress,
+    double? pickupLat,
+    double? pickupLng,
+    double? deliveryLat,
+    double? deliveryLng,
+    int driverTip = 0,
+    String? notes,
+    Map<String, dynamic>? packageDetails,
   }) async {
     try {
       final res = await http.post(
         Uri.parse('$baseUrl/api/orders'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers(),
         body: jsonEncode({
           'user_id': userId,
           'merchant_id': merchantId,
@@ -2565,7 +2617,20 @@ class GageApiClient {
           'payment_method': paymentMethod,
           'affiliator_id': affiliatorId,
           'promo_code': promoCode,
+          if (orderPromoCode != null) 'order_promo_code': orderPromoCode,
+          if (deliveryPromoCode != null) 'delivery_promo_code': deliveryPromoCode,
           'delivery_address': deliveryAddress,
+          if (serviceType != null) 'service_type': serviceType,
+          if (orderType != null) 'order_type': orderType,
+          if (deliveryOption != null) 'delivery_option': deliveryOption,
+          if (pickupAddress != null) 'pickup_address': pickupAddress,
+          if (pickupLat != null) 'pickup_lat': pickupLat,
+          if (pickupLng != null) 'pickup_lng': pickupLng,
+          if (deliveryLat != null) 'delivery_lat': deliveryLat,
+          if (deliveryLng != null) 'delivery_lng': deliveryLng,
+          if (driverTip > 0) 'driver_tip': driverTip,
+          if (notes != null && notes.isNotEmpty) 'notes': notes,
+          if (packageDetails != null) 'package_details_json': jsonEncode(packageDetails),
         }),
       ).timeout(const Duration(seconds: 8));
 

@@ -65,8 +65,19 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void _syncHematEligibility() {
+    if (_deliveryOption.toUpperCase() == 'HEMAT' && !isHematAvailable) {
+      _deliveryOption = 'REGULER';
+    }
+  }
+
   void setDeliveryOption(String option) {
-    _deliveryOption = option;
+    final normalized = option.trim().toUpperCase();
+    if (normalized == 'HEMAT' && !isHematAvailable) {
+      _deliveryOption = 'REGULER';
+    } else {
+      _deliveryOption = normalized;
+    }
     notifyListeners();
   }
 
@@ -160,6 +171,7 @@ class CartProvider extends ChangeNotifier {
           }
           _syncToMultiMerchantCartService();
         }
+        _syncHematEligibility();
         notifyListeners();
       }
     } catch (e) {
@@ -261,6 +273,7 @@ class CartProvider extends ChangeNotifier {
     if (_autoOrderSyncActive) {
       syncAutoOrderPromo(serviceType: _autoDeliveryServiceOverride, notify: false);
     }
+    _syncHematEligibility();
     _syncToMultiMerchantCartService();
     _saveCart();
     notifyListeners();
@@ -297,6 +310,7 @@ class CartProvider extends ChangeNotifier {
       if (_items.isNotEmpty && _autoOrderSyncActive) {
         syncAutoOrderPromo(serviceType: _autoDeliveryServiceOverride, notify: false);
       }
+      _syncHematEligibility();
       _syncToMultiMerchantCartService();
       _saveCart();
       notifyListeners();
@@ -330,6 +344,7 @@ class CartProvider extends ChangeNotifier {
         selectedVariants: variants,
         variantPrice: variantPrice,
       );
+      _syncHematEligibility();
       _syncToMultiMerchantCartService();
       _saveCart();
       notifyListeners();
@@ -638,6 +653,7 @@ class CartProvider extends ChangeNotifier {
     _autoDeliveryServiceOverride = null;
     _scheduledDeliveryTime = null;
     _groupOrderId = null;
+    _deliveryOption = 'REGULER';
     MultiMerchantCartService.instance.clearCart();
     _saveCart();
     notifyListeners();
@@ -667,8 +683,9 @@ class CartProvider extends ChangeNotifier {
         merchantCount: merchantCount,
       );
 
-  // Syarat Opsi Hemat: Hanya aktif jika jarak >= 2.5 km (untuk melindungi upah minimum driver)
-  bool get isHematAvailable => _distanceKm >= 2.5;
+  // Syarat Opsi Hemat: Aktif jika subtotal belanja memenuhi minimum (dinamis via Admin, default Rp 50.000)
+  bool get isHematAvailable =>
+      subtotal >= GagePricingService.deliveryHematMinSubtotal;
 
   // Ongkir Customer Terpilih (Sesuai Opsi Aktif Tanpa Mengubah Getter Masing-Masing)
   int get rawShippingFee {

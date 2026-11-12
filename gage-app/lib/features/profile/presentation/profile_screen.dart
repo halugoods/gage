@@ -4,8 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
 import 'package:gage_app/providers/auth_provider.dart';
 import 'package:gage_app/providers/theme_provider.dart';
 import 'package:gage_app/providers/language_provider.dart';
@@ -61,32 +61,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await prefs.setBool(key, value);
   }
 
-  Future<void> _openWhatsAppSupport() async {
+  void _openInAppSupport() {
     HapticFeedback.lightImpact();
-    const phone = '6281226001000';
-    const message = 'Halo CS Resmi GAGE Pracimantoro (GAGE by Halu Goods Indonesia), saya butuh bantuan terkait akun dan transaksi saya.';
-    final url = Uri.parse('https://wa.me/$phone?text=${Uri.encodeComponent(message)}');
-    try {
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
-      } else {
-        if (mounted) {
-          GageToast.show(
-            context,
-            'Hubungi WhatsApp CS GAGE Pracimantoro: +$phone',
-            type: GageToastType.info,
-          );
-        }
-      }
-    } catch (_) {
-      if (mounted) {
-        GageToast.show(
-          context,
-          'Hubungi WhatsApp CS GAGE Pracimantoro: +$phone',
-          type: GageToastType.info,
-        );
-      }
-    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const InAppChatScreen(
+          orderId: 'cs-gage-support',
+          recipientName: 'Pusat Bantuan GAGE',
+          recipientRole: 'ai',
+          recipientPhone: '',
+        ),
+      ),
+    );
   }
 
   void _showChangePinSheet(bool isDark) {
@@ -518,7 +505,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           },
           {
             'q': 'Bagaimana jika pesanan saya bermasalah?',
-            'a': 'Hubungi Admin Layanan Pelanggan kami secara langsung melalui WhatsApp dengan menekan tombol Chat CS di menu Bantuan.',
+            'a': 'Hubungi Layanan Pelanggan kami langsung melalui Chat Pusat Bantuan Resmi di menu Bantuan dalam aplikasi.',
           },
         ];
 
@@ -1111,13 +1098,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         _buildSeamlessMenuTile(
                           icon: Icons.support_agent_rounded,
-                          iconColor: const Color(0xFF16A34A),
-                          title: 'Chat CS WhatsApp Resmi',
-                          subtitle: 'Bantuan instan admin GAGE Pracimantoro',
+                          iconColor: GageTheme.primary,
+                          title: 'Chat Pusat Bantuan Resmi',
+                          subtitle: 'Bantuan instan admin GAGE dalam aplikasi',
                           isDark: isDark,
                           badge: 'ONLINE',
                           badgeColor: const Color(0xFF16A34A),
-                          onTap: _openWhatsAppSupport,
+                          onTap: _openInAppSupport,
                         ),
                         _buildSoftCardDivider(isDark),
                         _buildSeamlessMenuTile(
@@ -1608,7 +1595,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           const Text(
                             'Langganan GAGE',
@@ -1619,7 +1609,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               letterSpacing: -0.2,
                             ),
                           ),
-                          const SizedBox(width: 6),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(

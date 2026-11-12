@@ -45,7 +45,6 @@ class GageServiceHeroBanner extends StatelessWidget {
       imageAsset.contains('shop') ? 'customer_shop' :
       imageAsset.contains('tani') ? 'customer_tani' :
       imageAsset.contains('ternak') ? 'ternak' :
-      imageAsset.contains('babe') ? 'babe' :
       imageAsset.contains('send') ? 'send' :
       imageAsset.contains('ride') ? 'ride' : 'customer_home_hero'
     );

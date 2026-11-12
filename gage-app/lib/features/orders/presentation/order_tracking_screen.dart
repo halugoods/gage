@@ -8,13 +8,16 @@ import 'package:latlong2/latlong.dart' hide Path;
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/data/models/order_model.dart';
+import 'package:gage_app/providers/auth_provider.dart';
 import 'package:gage_app/providers/order_provider.dart';
 import 'package:gage_app/core/services/osrm_routing_service.dart';
 import 'package:gage_app/core/services/location_service.dart';
 import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
 import 'package:gage_app/features/orders/presentation/order_success_review_screen.dart';
+import 'package:gage_app/shared/widgets/gage_avatar.dart';
 
 /// Layar Pelacakan Pesanan Realtime (Live Order Tracking & Delivery Lifecycle)
 /// Didesain dengan standar industri terdepan (Clean-Room Flutter Code & $0 Infra)
@@ -51,7 +54,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
   // Driver Realtime Movement & OSRM Road Snapping
   late AnimationController _driverPulseAnim;
   Timer? _driverMovementTimer;
-  int _manualStep = 0; // 0 = auto dari status API, 1..5 = override testing
+  OrderProvider? _orderProvider;
+  int _manualStep = 0; // Override testing hanya saat GageApiClient.useDevSeedData aktif
   int _currentRouteIndex = 0;
   double _driverBearing = 0.0;
   String? _manualVehicleType; // null = auto detect, 'MOTOR', 'CAR'
@@ -66,10 +70,17 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
     )..repeat(reverse: true);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (widget.orderId.isNotEmpty && !widget.orderId.startsWith('#SAMPLE')) {
-        context.read<OrderProvider>().startTrackingOrder(widget.orderId);
+      if (!mounted) return;
+      try {
+        _orderProvider = context.read<OrderProvider>();
+      } on ProviderNotFoundException {
+        _orderProvider = null;
       }
-      _initCoordinatesAndRoute();
+      if (widget.orderId.isNotEmpty && !widget.orderId.startsWith('#SAMPLE')) {
+        _orderProvider?.startTrackingOrder(widget.orderId);
+      }
+      final currentOrder = _orderProvider?.currentTrackedOrder ?? widget.initialOrder;
+      _initCoordinatesAndRoute(currentOrder);
     });
   }
 
@@ -77,21 +88,28 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
   void dispose() {
     _driverPulseAnim.dispose();
     _driverMovementTimer?.cancel();
-    context.read<OrderProvider>().stopTracking();
+    _orderProvider?.stopTracking();
     super.dispose();
   }
 
-  /// Inisialisasi Koordinat Toko, Tujuan, Driver & OSRM Realtime Polyline
-  Future<void> _initCoordinatesAndRoute() async {
+  /// Inisialisasi Koordinat Toko/Jemput, Tujuan, Driver & OSRM Realtime Polyline
+  Future<void> _initCoordinatesAndRoute([OrderModel? order]) async {
     setState(() => _isLoadingRoute = true);
     try {
-      final realUserGps = await LocationService.getCurrentLocation();
+      final hasPickup = order?.pickupLat != null && order?.pickupLng != null;
+      final hasDropoff = order?.deliveryLat != null && order?.deliveryLng != null;
+      final fallbackGps = (hasPickup && hasDropoff)
+          ? LatLng(order!.deliveryLat!, order.deliveryLng!)
+          : await LocationService.getCurrentLocation();
+
       if (mounted) {
         setState(() {
-          _customerLocation = realUserGps;
-          // Toko default: Pusat kuliner / Pasar Pracimantoro
-          _storeLocation = const LatLng(-8.05580, 110.80950);
-          // Driver ditempatkan antara toko dan pemesan
+          _storeLocation = hasPickup
+              ? LatLng(order!.pickupLat!, order.pickupLng!)
+              : const LatLng(-8.05580, 110.80950);
+          _customerLocation = hasDropoff
+              ? LatLng(order!.deliveryLat!, order.deliveryLng!)
+              : fallbackGps;
           _driverLocation = LatLng(
             (_storeLocation.latitude + _customerLocation.latitude) / 2 + 0.001,
             (_storeLocation.longitude + _customerLocation.longitude) / 2 - 0.001,
@@ -99,7 +117,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
         });
       }
     } catch (_) {
-      // Fallback ke titik default Pracimantoro jika GPS offline
+      // Fallback koordinat Pracimantoro jika GPS offline
       _storeLocation = const LatLng(-8.05580, 110.80950);
       _customerLocation = const LatLng(-8.05120, 110.80620);
       _driverLocation = const LatLng(-8.05450, 110.80820);
@@ -111,8 +129,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
       if (mounted) {
         setState(() {
           _routePoints = routeRes.points;
-          _routeDistanceKm = routeRes.distanceKm > 0.1 ? routeRes.distanceKm : 1.8;
-          _estimatedMinutes = routeRes.durationMinutes > 0 ? routeRes.durationMinutes : 12;
+          _routeDistanceKm = routeRes.distanceKm > 0.1
+              ? routeRes.distanceKm
+              : (order != null && order.distanceKm > 0 ? order.distanceKm : 1.8);
+          _estimatedMinutes = routeRes.durationMinutes > 0
+              ? routeRes.durationMinutes
+              : (_routeDistanceKm * 4).ceil().clamp(5, 45);
           _isLoadingRoute = false;
         });
         _fitRouteInCamera();
@@ -130,7 +152,6 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
         _fitRouteInCamera();
       }
     }
-
   }
 
   /// Menyesuaikan kamera peta agar seluruh rute terlihat jelas di layar
@@ -219,13 +240,19 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
 
   /// Deteksi tipe kendaraan: Mobil (GageCar) vs Sepeda Motor (GageRide/Food/Send)
   bool _isCarVehicle(OrderModel order) {
-    if (_manualVehicleType != null) {
+    if (_manualVehicleType != null && GageApiClient.useDevSeedData) {
       return _manualVehicleType == 'CAR';
     }
+    if (order.serviceType.toLowerCase() == 'car') return true;
+    final vehicle = (order.driverVehicle ?? '').toLowerCase();
     final plate = (order.driverPlate ?? '').toLowerCase();
     final name = (order.driverName ?? '').toLowerCase();
     final orderNum = order.orderNumber.toLowerCase();
-    return plate.contains('mobil') ||
+    return vehicle.contains('mobil') ||
+        vehicle.contains('car') ||
+        vehicle.contains('avanza') ||
+        vehicle.contains('brio') ||
+        plate.contains('mobil') ||
         plate.contains('car') ||
         plate.contains('avanza') ||
         plate.contains('brio') ||
@@ -234,16 +261,20 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
         orderNum.contains('car');
   }
 
-  /// Menentukan tahap lifecycle pesanan standar industri (1 sampai 5):
-  /// 1: Pesanan Diterima -> 2: Sedang Disiapkan -> 3: Pesanan Siap -> 4: Dalam Pengantaran -> 5: Pesanan Selesai
+  /// Menentukan tahap lifecycle pesanan berurutan (1..5), 0 jika dibatalkan:
+  /// 1: Menunggu Konfirmasi / Cari Driver -> 2: Disiapkan / Driver Menuju Jemput -> 3: Siap / Tiba di Titik Jemput -> 4: Dalam Pengantaran/Perjalanan -> 5: Selesai
   int _determineLifecycleStage(OrderModel order) {
-    if (_manualStep > 0) return _manualStep;
+    if (GageApiClient.useDevSeedData && _manualStep > 0) return _manualStep;
 
-    switch (order.status) {
+    final s = order.status.toUpperCase();
+    if (s == 'CANCELLED') return 0;
+
+    switch (s) {
       case 'ORDER_RECEIVED':
       case 'PAYMENT_PENDING':
-      case 'PAID':
       case 'PENDING':
+      case 'NEW':
+      case 'PAID':
       case 'SEARCHING_DRIVER':
         return 1;
       case 'COOKING':
@@ -253,76 +284,76 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
       case 'AT_STORE':
       case 'DRIVER_ASSIGNED':
         return 2;
+      case 'AT_MERCHANT':
+        return order.isTransportService ? 3 : 2;
       case 'READY_FOR_PICKUP':
       case 'READY':
         return 3;
+      case 'PICKED_UP':
       case 'ON_DELIVERY':
       case 'DELIVERING':
         return 4;
       case 'COMPLETED':
         return 5;
       default:
-        return 2;
+        return 1;
     }
   }
 
-  /// Launch WhatsApp Driver / Merchant
-  Future<void> _launchWhatsApp(String phone, String name, String orderNumber) async {
-    final cleanPhone = phone.replaceAll(RegExp(r'\D'), '');
-    final waPhone = cleanPhone.startsWith('0') ? '62${cleanPhone.substring(1)}' : cleanPhone;
-    final message = Uri.encodeComponent(
-      'Halo $name, saya pemesan GAGE untuk order $orderNumber. Mau konfirmasi pesanan saya.',
+  void _openSupportChat(OrderModel order) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (ctx) => InAppChatScreen(
+          orderId: order.id,
+          recipientName: 'Pusat Bantuan GAGE',
+          recipientRole: 'ai',
+          recipientPhone: '',
+          currentRole: 'customer',
+        ),
+      ),
     );
-    final url = 'https://wa.me/$waPhone?text=$message';
+  }
 
-    try {
-      final uri = Uri.parse(url);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        await Clipboard.setData(ClipboardData(text: phone));
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Nomor WA disalin: $phone')),
-          );
-        }
-      }
-    } catch (_) {
-      await Clipboard.setData(ClipboardData(text: phone));
+  /// Launch Direct Phone Call (aman tanpa nomor fiktif)
+  Future<void> _launchCall(String phone) async {
+    final trimmed = phone.trim();
+    if (trimmed.isEmpty || trimmed == '-') {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Nomor WA disalin: $phone')),
+          const SnackBar(
+            content: Text('Nomor telepon belum tersedia.'),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
+      return;
     }
-  }
-
-  /// Launch Direct Phone Call
-  Future<void> _launchCall(String phone) async {
-    final uri = Uri.parse('tel:$phone');
+    final uri = Uri.parse('tel:$trimmed');
     try {
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri);
       } else {
-        await Clipboard.setData(ClipboardData(text: phone));
+        await Clipboard.setData(ClipboardData(text: trimmed));
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Nomor telepon disalin: $phone')),
+            SnackBar(content: Text('Nomor telepon disalin: $trimmed')),
           );
         }
       }
     } catch (_) {
-      await Clipboard.setData(ClipboardData(text: phone));
+      await Clipboard.setData(ClipboardData(text: trimmed));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Nomor telepon disalin: $phone')),
+          SnackBar(content: Text('Nomor telepon disalin: $trimmed')),
         );
       }
     }
   }
 
-  /// Buat fallback sample order jika order tidak ditemukan di cloud/D1 saat testing
-  OrderModel _createFallbackOrder() {
+  /// Fallback sample order hanya aktif jika GageApiClient.useDevSeedData = true
+  OrderModel? _createFallbackOrder() {
+    if (!GageApiClient.useDevSeedData) return null;
     return OrderModel(
       id: widget.orderId.isEmpty ? 'ord-gage-8821' : widget.orderId,
       orderNumber: widget.orderId.startsWith('#')
@@ -333,8 +364,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
       merchantName: 'Dimsum Sewu by Halu Goods',
       merchantAddress: 'Kompleks Ruko Pasar Pracimantoro No. 8',
       merchantPhone: '081226001000',
-      driverName: 'Mas Agus Pratama • Driver GAGE',
-      driverPlate: 'AD 3142 WN • Honda Vario 125',
+      driverName: 'Agus Pratama',
+      driverPlate: 'AD 3142 WN',
+      driverVehicle: 'Honda Vario 125',
+      driverRating: 4.9,
       driverPhone: '081234567892',
       status: 'ON_DELIVERY',
       paymentMethod: 'GAGEPAY',
@@ -373,23 +406,86 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
 
   @override
   Widget build(BuildContext context) {
-    final orderProvider = context.watch<OrderProvider>();
-    final order = orderProvider.currentTrackedOrder ??
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    OrderProvider? orderProvider;
+    try {
+      orderProvider = context.watch<OrderProvider>();
+    } on ProviderNotFoundException {
+      orderProvider = null;
+    }
+
+    final resolvedOrder = orderProvider?.currentTrackedOrder ??
+        (widget.orderId.isNotEmpty ? orderProvider?.getOrderById(widget.orderId) : null) ??
         widget.initialOrder ??
         _createFallbackOrder();
 
+    if (resolvedOrder == null) {
+      return Scaffold(
+        backgroundColor: isDark ? GageTheme.darkBackground : const Color(0xFFF8FAFC),
+        appBar: AppBar(
+          backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
+          foregroundColor: isDark ? Colors.white : Colors.black87,
+          title: const Text('Pelacakan Pesanan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          elevation: 0.5,
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.map_outlined, size: 52, color: isDark ? Colors.white38 : Colors.grey.shade400),
+                const SizedBox(height: 12),
+                Text(
+                  'Data pelacakan pesanan belum tersedia.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Periksa kembali rincian pesanan di menu Pesanan Saya.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12.5, color: isDark ? Colors.white60 : Colors.grey.shade600),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: GageTheme.primary,
+                    foregroundColor: Colors.white,
+                    shape: const StadiumBorder(),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Kembali', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final order = resolvedOrder;
     final currentStage = _determineLifecycleStage(order);
 
-    if (currentStage >= 4 && _driverMovementTimer == null) {
+    if (currentStage >= 4 &&
+        order.hasAssignedDriver &&
+        !order.isPickup &&
+        _driverMovementTimer == null) {
       _startDriverRouteMovement();
-    } else if (currentStage < 4 && _driverMovementTimer != null) {
+    } else if ((currentStage < 4 || !order.hasAssignedDriver || order.isPickup) &&
+        _driverMovementTimer != null) {
       _driverMovementTimer?.cancel();
       _driverMovementTimer = null;
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: _buildAppBar(order),
+      backgroundColor: isDark ? GageTheme.darkBackground : const Color(0xFFF8FAFC),
+      appBar: _buildAppBar(order, isDark),
       body: Stack(
         children: [
           // 1. PETA LAYAR PENUH (FULL-BLEED MAP)
@@ -421,7 +517,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                   backgroundColor: GageTheme.primary,
                   foregroundColor: Colors.white,
                   elevation: 3,
-                  tooltip: 'Chat In-App',
+                  tooltip: order.hasAssignedDriver ? 'Chat Driver' : 'Chat Bantuan / Toko',
                   onPressed: () {
                     HapticFeedback.lightImpact();
                     Navigator.push(
@@ -429,9 +525,15 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                       MaterialPageRoute(
                         builder: (ctx) => InAppChatScreen(
                           orderId: order.id,
-                          recipientName: order.driverName ?? 'Kurir GAGE',
-                          recipientRole: 'driver',
-                          recipientPhone: order.driverPhone ?? '081226001000',
+                          recipientName: order.hasAssignedDriver
+                              ? (order.driverName ?? 'Driver GAGE')
+                              : (order.isTransportService ? 'Pusat Bantuan GAGE' : order.merchantName),
+                          recipientRole: order.hasAssignedDriver
+                              ? 'driver'
+                              : (order.isTransportService ? 'ai' : 'merchant'),
+                          recipientPhone: order.hasAssignedDriver
+                              ? (order.driverPhone ?? '').trim()
+                              : (order.merchantPhone ?? '').trim(),
                           currentRole: 'customer',
                         ),
                       ),
@@ -442,8 +544,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                 const SizedBox(height: 8),
                 FloatingActionButton.small(
                   heroTag: 'track_fit_route',
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.black87,
+                  backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
+                  foregroundColor: isDark ? Colors.white : Colors.black87,
                   elevation: 3,
                   onPressed: _fitRouteInCamera,
                   child: const Icon(Icons.zoom_out_map_rounded, size: 20),
@@ -451,11 +553,14 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                 const SizedBox(height: 8),
                 FloatingActionButton.small(
                   heroTag: 'track_recenter',
-                  backgroundColor: Colors.white,
+                  backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
                   foregroundColor: GageTheme.primary,
                   elevation: 3,
                   onPressed: () {
-                    _mapController.move(_driverLocation, 16.0);
+                    final target = (order.hasAssignedDriver && currentStage >= 2)
+                        ? _driverLocation
+                        : _storeLocation;
+                    _mapController.move(target, 16.0);
                   },
                   child: const Icon(Icons.my_location_rounded, size: 20),
                 ),
@@ -468,11 +573,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
             top: 12,
             left: 16,
             right: 16,
-            child: _buildAccordionStepperCard(order, currentStage),
+            child: _buildAccordionStepperCard(order, currentStage, isDark),
           ),
 
-          // 4. BOTTOM SHEET DRAGGABLE: DRIVER CARD, RINCIAN ORDER, POD & KONTROL TAHAP
-          _buildDraggableBottomPanel(order, currentStage),
+          // 4. BOTTOM SHEET DRAGGABLE: DRIVER CARD / STATUS TUNGGU, RINCIAN ORDER & POD
+          _buildDraggableBottomPanel(order, currentStage, isDark),
         ],
       ),
     );
@@ -481,12 +586,13 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
   // ──────────────────────────────────────────────────────────────────────────
   // 1. APPBAR (BERSIH TANPA DUPLIKASI STATUS PILL)
   // ──────────────────────────────────────────────────────────────────────────
-  PreferredSizeWidget _buildAppBar(OrderModel order) {
+  PreferredSizeWidget _buildAppBar(OrderModel order, bool isDark) {
+    final fg = isDark ? Colors.white : Colors.black87;
     return AppBar(
-      backgroundColor: Colors.white,
+      backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
       elevation: 0.5,
       leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: Colors.black87),
+        icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: fg),
         onPressed: () => Navigator.pop(context),
       ),
       title: Column(
@@ -496,8 +602,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
             order.orderNumber,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.black87,
+            style: TextStyle(
+              color: fg,
               fontSize: 15,
               fontWeight: FontWeight.w900,
               letterSpacing: -0.3,
@@ -505,23 +611,23 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
           ),
           const SizedBox(height: 2),
           Text(
-            'Live Tracking • Pracimantoro',
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+            'Pelacakan Langsung',
+            style: TextStyle(color: isDark ? Colors.white60 : Colors.grey.shade600, fontSize: 11),
           ),
         ],
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.refresh_rounded, color: Colors.black87),
+          icon: Icon(Icons.refresh_rounded, color: fg),
           tooltip: 'Segarkan Status',
           onPressed: () {
             if (widget.orderId.isNotEmpty && !widget.orderId.startsWith('#SAMPLE')) {
-              context.read<OrderProvider>().startTrackingOrder(widget.orderId);
+              _orderProvider?.startTrackingOrder(widget.orderId);
             }
-            _initCoordinatesAndRoute();
+            _initCoordinatesAndRoute(order);
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Status pesanan & posisi driver diperbarui'),
+                content: Text('Status pesanan & posisi diperbarui'),
                 duration: Duration(milliseconds: 900),
                 behavior: SnackBarBehavior.floating,
               ),
@@ -529,9 +635,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
           },
         ),
         IconButton(
-          icon: const Icon(Icons.help_outline_rounded, color: Colors.black87),
-          tooltip: 'Bantuan CS',
-          onPressed: () => _launchWhatsApp('081226001000', 'Help Center GAGE Pracimantoro', order.orderNumber),
+          icon: Icon(Icons.help_outline_rounded, color: fg),
+          tooltip: 'Pusat Bantuan GAGE',
+          onPressed: () => _openSupportChat(order),
         ),
       ],
     );
@@ -585,66 +691,73 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
             // 1. Marker Toko / Titik Jemput
             Marker(
               point: _storeLocation,
-              width: 50,
-              height: 50,
-              child: _buildStoreMarker(order.merchantName, order.merchantAvatar),
+              width: 56,
+              height: 54,
+              child: _buildStoreMarker(order),
             ),
 
-            // 2. Marker Rumah Pemesan / Titik Antar
+            // 2. Marker Pemesan / Titik Antar
             Marker(
               point: _customerLocation,
-              width: 50,
-              height: 50,
-              child: _buildCustomerMarker(),
+              width: 56,
+              height: 54,
+              child: _buildCustomerMarker(order),
             ),
 
-            // 3. Marker Driver 3D Bird's-Eye View (Rotasi Bearing & Berlatar Transparan Menyatu dengan Jalan)
-            Marker(
-              point: _driverLocation,
-              width: 80,
-              height: 80,
-              child: _buildDriverMarker(order),
-            ),
+            // 3. Marker Driver 3D (hanya tampil bila driver sudah terassign & bukan pickup)
+            if (order.hasAssignedDriver && !order.isPickup && stage >= 2 && stage < 5)
+              Marker(
+                point: _driverLocation,
+                width: 80,
+                height: 80,
+                child: _buildDriverMarker(order),
+              ),
           ],
         ),
       ],
     );
   }
 
-  Widget _buildStoreMarker(String storeName, [String? avatarUrl]) {
+  Widget _buildStoreMarker(OrderModel order) {
+    final svc = order.serviceType.toLowerCase();
+    final markerLabel = order.isTransportService ? 'Jemput' : order.merchantName;
+    final avatar = order.merchantAvatar;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 38,
-          height: 38,
+          width: 36,
+          height: 36,
           decoration: BoxDecoration(
-            color: const Color(0xFFF97316),
+            color: svc == 'ride' || svc == 'car' || svc == 'send'
+                ? const Color(0xFF16A34A)
+                : const Color(0xFFF97316),
             shape: BoxShape.circle,
             border: Border.all(color: Colors.white, width: 2),
             boxShadow: const [
               BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
             ],
           ),
-          child: ClipOval(
-            child: (avatarUrl != null && avatarUrl.isNotEmpty)
-                ? (avatarUrl.startsWith('http')
-                    ? Image.network(avatarUrl, fit: BoxFit.cover, errorBuilder: (_, _, _) => const Icon(Icons.storefront_rounded, color: Colors.white, size: 20))
-                    : Image.asset(avatarUrl, fit: BoxFit.cover, errorBuilder: (_, _, _) => const Icon(Icons.storefront_rounded, color: Colors.white, size: 20)))
-                : Image.asset('assets/images/resto_dimsum_sewu.png', fit: BoxFit.cover, errorBuilder: (_, _, _) => const Icon(Icons.storefront_rounded, color: Colors.white, size: 20)),
-          ),
+          child: order.isTransportService
+              ? const Icon(Icons.my_location_rounded, color: Colors.white, size: 18)
+              : ClipOval(
+                  child: (avatar != null && avatar.isNotEmpty)
+                      ? GageAvatar(imageUrl: avatar, fallbackName: order.merchantName, radius: 18)
+                      : const Icon(Icons.storefront_rounded, color: Colors.white, size: 19),
+                ),
         ),
         const SizedBox(height: 2),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(999),
             border: Border.all(color: Colors.orange.shade200),
           ),
           child: Text(
-            storeName.isNotEmpty ? storeName : 'Resto',
-            style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold),
+            markerLabel.isNotEmpty ? markerLabel : 'Toko',
+            style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold, color: Colors.black87),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -653,12 +766,27 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
     );
   }
 
-  Widget _buildCustomerMarker() {
+  Widget _buildCustomerMarker(OrderModel order) {
+    AuthProvider? authProvider;
+    try {
+      authProvider = context.read<AuthProvider>();
+    } on ProviderNotFoundException {
+      authProvider = null;
+    }
+    final user = authProvider?.currentUser;
+    final avatarUrl = (order.customerAvatar != null && order.customerAvatar!.trim().isNotEmpty)
+        ? order.customerAvatar
+        : user?.avatarUrl;
+    final fallbackName = (order.customerName != null && order.customerName!.trim().isNotEmpty)
+        ? order.customerName!
+        : (user?.name ?? 'Saya');
+    final label = order.isTransportService ? 'Tujuan' : 'Antar';
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          padding: const EdgeInsets.all(5),
+          padding: const EdgeInsets.all(2),
           decoration: const BoxDecoration(
             color: GageTheme.primary,
             shape: BoxShape.circle,
@@ -666,17 +794,23 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
               BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
             ],
           ),
-          child: const Icon(Icons.home_rounded, color: Colors.white, size: 20),
+          child: GageAvatar(
+            imageUrl: avatarUrl,
+            fallbackName: fallbackName,
+            radius: 15,
+            backgroundColor: Colors.white,
+            foregroundColor: GageTheme.primary,
+          ),
         ),
         const SizedBox(height: 2),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(999),
             border: Border.all(color: Colors.red.shade200),
           ),
-          child: const Text('Rumah', style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold)),
+          child: Text(label, style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold, color: Colors.black87)),
         ),
       ],
     );
@@ -708,52 +842,132 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
     );
   }
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // 3. ACCORDION EXPAND CARD STEPPER TAHAPAN PENGIRIMAN (MELAYANG DI ATAS PETA)
-  // ──────────────────────────────────────────────────────────────────────────
-  Widget _buildAccordionStepperCard(OrderModel order, int currentStage) {
-    final stages = [
+  List<Map<String, dynamic>> _buildStagesForOrder(OrderModel order) {
+    final svc = order.serviceType.toLowerCase();
+    final driverLabel = order.hasAssignedDriver ? order.driverName! : 'Driver GAGE';
+
+    if (svc == 'ride' || svc == 'car') {
+      return [
+        {
+          'step': 1,
+          'title': 'Mencari Driver',
+          'desc': 'Mencari driver terdekat di sekitar titik jemput Anda',
+          'icon': Icons.search_rounded,
+        },
+        {
+          'step': 2,
+          'title': 'Driver Menuju Jemput',
+          'desc': '$driverLabel sedang meluncur menuju lokasi jemput',
+          'icon': svc == 'car' ? Icons.directions_car_rounded : Icons.two_wheeler_rounded,
+        },
+        {
+          'step': 3,
+          'title': 'Tiba di Titik Jemput',
+          'desc': '$driverLabel menunggu di titik penjemputan',
+          'icon': Icons.pin_drop_rounded,
+        },
+        {
+          'step': 4,
+          'title': 'Dalam Perjalanan',
+          'desc': 'Menuju tujuan Anda di ${order.deliveryAddress}',
+          'icon': Icons.navigation_rounded,
+        },
+        {
+          'step': 5,
+          'title': 'Tiba di Tujuan',
+          'desc': 'Perjalanan selesai dengan aman',
+          'icon': Icons.check_circle_rounded,
+        },
+      ];
+    }
+
+    if (svc == 'send') {
+      return [
+        {
+          'step': 1,
+          'title': 'Mencari Kurir',
+          'desc': 'Mencari kurir GAGE Send untuk penjemputan paket',
+          'icon': Icons.search_rounded,
+        },
+        {
+          'step': 2,
+          'title': 'Kurir Menuju Pengirim',
+          'desc': '$driverLabel menuju lokasi penjemputan paket',
+          'icon': Icons.two_wheeler_rounded,
+        },
+        {
+          'step': 3,
+          'title': 'Paket Dijemput',
+          'desc': 'Kurir sedang mengambil paket di lokasi pengirim',
+          'icon': Icons.inventory_2_rounded,
+        },
+        {
+          'step': 4,
+          'title': 'Paket Dikirim',
+          'desc': '$driverLabel mengantar paket menuju penerima',
+          'icon': Icons.local_shipping_rounded,
+        },
+        {
+          'step': 5,
+          'title': 'Paket Diterima',
+          'desc': 'Paket telah sampai ke penerima',
+          'icon': Icons.check_circle_rounded,
+        },
+      ];
+    }
+
+    final isFood = svc == 'food';
+    return [
       {
         'step': 1,
-        'title': 'Pesanan Diterima',
-        'desc': 'Pesanan telah masuk antrean resto/toko dan sistem GAGE',
+        'title': 'Menunggu Konfirmasi',
+        'desc': 'Pesanan menunggu konfirmasi dari ${order.merchantName}',
         'icon': Icons.receipt_long_rounded,
       },
       {
         'step': 2,
-        'title': 'Sedang Disiapkan',
-        'desc': 'Toko/resto sedang memasak & menyiapkan pesanan Anda',
-        'icon': Icons.outdoor_grill_rounded,
+        'title': isFood ? 'Sedang Disiapkan Dapur' : 'Sedang Dikemas Toko',
+        'desc': '${order.merchantName} sedang menyiapkan pesanan Anda',
+        'icon': isFood ? Icons.outdoor_grill_rounded : Icons.storefront_rounded,
       },
       {
         'step': 3,
-        'title': 'Pesanan Siap',
-        'desc': 'Pesanan telah selesai dikemas rapi, siap dipickup kurir',
+        'title': order.isPickup ? 'Siap Diambil' : 'Siap Dipickup Kurir',
+        'desc': order.isPickup
+            ? 'Pesanan siap diambil langsung di ${order.merchantName}'
+            : 'Pesanan selesai dikemas dan menunggu pengambilan kurir',
         'icon': Icons.inventory_2_rounded,
       },
       {
         'step': 4,
         'title': 'Dalam Pengantaran',
-        'desc': '${order.driverName ?? "Kurir GAGE"} sedang mengantar menuju alamat Anda',
+        'desc': '$driverLabel mengantar pesanan menuju alamat Anda',
         'icon': Icons.delivery_dining_rounded,
       },
       {
         'step': 5,
         'title': 'Pesanan Selesai',
-        'desc': 'Pesanan telah diterima di tujuan. Selamat menikmati!',
+        'desc': 'Pesanan telah diterima di tujuan',
         'icon': Icons.check_circle_rounded,
       },
     ];
+  }
 
-    final stageTitle = _getStageTitle(currentStage);
+  // ──────────────────────────────────────────────────────────────────────────
+  // 3. ACCORDION EXPAND CARD STEPPER TAHAPAN PENGIRIMAN (MELAYANG DI ATAS PETA)
+  // ──────────────────────────────────────────────────────────────────────────
+  Widget _buildAccordionStepperCard(OrderModel order, int currentStage, bool isDark) {
+    final stages = _buildStagesForOrder(order);
+    final stageTitle = _getStageTitle(currentStage, order);
     final stageSubtitle = _getStageSubtitle(currentStage, order);
     final stageColor = _getStageColor(currentStage);
-    final stageIcon = _getStageIcon(currentStage);
+    final stageIcon = _getStageIcon(currentStage, order);
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: () {
+          HapticFeedback.selectionClick();
           setState(() {
             _isStepperExpanded = !_isStepperExpanded;
           });
@@ -764,9 +978,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
           curve: Curves.easeInOutCubic,
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.97),
+            color: (isDark ? GageTheme.darkSurface : Colors.white).withValues(alpha: 0.96),
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.grey.shade200, width: 1.2),
+            border: Border.all(color: isDark ? GageTheme.darkBorder : Colors.grey.shade200, width: 1.2),
             boxShadow: const [
               BoxShadow(
                 color: Color(0x19000000),
@@ -779,20 +993,21 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header Status Tahap Saat Ini (Default Tampil)
+              // Header Status Tahap Saat Ini
               Row(
                 children: [
-                  // Icon Status Berdenyut
                   AnimatedBuilder(
                     animation: _driverPulseAnim,
                     builder: (context, child) {
-                      final scale = 1.0 + (_driverPulseAnim.value * 0.08);
+                      final scale = currentStage == 0 || currentStage == 5
+                          ? 1.0
+                          : 1.0 + (_driverPulseAnim.value * 0.08);
                       return Transform.scale(
                         scale: scale,
                         child: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: stageColor.withOpacity(0.12),
+                            color: stageColor.withValues(alpha: 0.14),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(stageIcon, color: stageColor, size: 20),
@@ -801,28 +1016,27 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                     },
                   ),
                   const SizedBox(width: 12),
-                  // Teks Status Tahap
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           stageTitle,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w900,
                             fontSize: 14.0,
-                            color: Color(0xFF0F172A),
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
                             letterSpacing: -0.2,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          currentStage == 5
-                              ? 'Pesanan tiba di tujuan • Selesai'
-                              : 'ETA ~$_estimatedMinutes Menit • $stageSubtitle',
+                          currentStage == 5 || currentStage == 0
+                              ? stageSubtitle
+                              : 'ETA ~$_estimatedMinutes Menit | $stageSubtitle',
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.grey.shade600,
+                            color: isDark ? Colors.white70 : Colors.grey.shade600,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -831,12 +1045,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                     ),
                   ),
                   const SizedBox(width: 8),
-                  // Chip Toggle Accordion
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: GageTheme.primary.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(12),
+                      color: GageTheme.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(999),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -863,7 +1076,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                 ],
               ),
 
-              // Bagian Accordion Mengembang (Expand: 5 Rincian Rute)
+              // Bagian Accordion Mengembang
               AnimatedSize(
                 duration: const Duration(milliseconds: 320),
                 curve: Curves.easeInOutCubic,
@@ -871,15 +1084,15 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                     ? Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Divider(height: 20),
-                          const Padding(
-                            padding: EdgeInsets.only(bottom: 12.0),
+                          Divider(height: 20, color: isDark ? GageTheme.darkBorder : null),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12.0),
                             child: Text(
-                              'Status Perjalanan Pesanan:',
+                              'Tahapan Proses Pesanan:',
                               style: TextStyle(
                                 fontWeight: FontWeight.w800,
                                 fontSize: 12.5,
-                                color: Color(0xFF334155),
+                                color: isDark ? Colors.white : const Color(0xFF334155),
                               ),
                             ),
                           ),
@@ -891,13 +1104,15 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                             final isCurrent = currentStage == stepNum;
                             final isLast = idx == stages.length - 1;
 
-                            Widget stepIndicator = Container(
+                            final Widget stepIndicator = Container(
                               width: 28,
                               height: 28,
                               decoration: BoxDecoration(
                                 color: isCompleted
                                     ? const Color(0xFF16A34A)
-                                    : (isCurrent ? GageTheme.primary : Colors.grey.shade200),
+                                    : (isCurrent
+                                        ? GageTheme.primary
+                                        : (isDark ? Colors.white12 : Colors.grey.shade200)),
                                 shape: BoxShape.circle,
                               ),
                               child: Center(
@@ -905,7 +1120,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                                     ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
                                     : Icon(
                                         item['icon'] as IconData,
-                                        color: isCurrent ? Colors.white : Colors.grey.shade500,
+                                        color: isCurrent
+                                            ? Colors.white
+                                            : (isDark ? Colors.white38 : Colors.grey.shade500),
                                         size: 15,
                                       ),
                               ),
@@ -931,17 +1148,19 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                                                     fontWeight: isCurrent ? FontWeight.w900 : FontWeight.w600,
                                                     fontSize: 12.5,
                                                     color: isCurrent
-                                                        ? const Color(0xFF0F172A)
-                                                        : (isCompleted ? Colors.black87 : Colors.grey.shade500),
+                                                        ? (isDark ? Colors.white : const Color(0xFF0F172A))
+                                                        : (isCompleted
+                                                            ? (isDark ? Colors.white70 : Colors.black87)
+                                                            : (isDark ? Colors.white38 : Colors.grey.shade500)),
                                                   ),
                                                 ),
                                               ),
                                               if (isCurrent)
                                                 Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                                   decoration: BoxDecoration(
-                                                    color: GageTheme.primary.withOpacity(0.1),
-                                                    borderRadius: BorderRadius.circular(6),
+                                                    color: GageTheme.primary.withValues(alpha: 0.12),
+                                                    borderRadius: BorderRadius.circular(999),
                                                   ),
                                                   child: const Text(
                                                     'Aktif',
@@ -960,8 +1179,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                                             style: TextStyle(
                                               fontSize: 11,
                                               color: isCurrent
-                                                  ? Colors.grey.shade700
-                                                  : (isCompleted ? Colors.grey.shade600 : Colors.grey.shade400),
+                                                  ? (isDark ? Colors.white70 : Colors.grey.shade700)
+                                                  : (isCompleted
+                                                      ? (isDark ? Colors.white60 : Colors.grey.shade600)
+                                                      : (isDark ? Colors.white30 : Colors.grey.shade400)),
                                             ),
                                           ),
                                         ],
@@ -975,7 +1196,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                                     width: 2.0,
                                     height: 18,
                                     decoration: BoxDecoration(
-                                      color: isCompleted ? const Color(0xFF16A34A) : Colors.grey.shade200,
+                                      color: isCompleted
+                                          ? const Color(0xFF16A34A)
+                                          : (isDark ? Colors.white12 : Colors.grey.shade200),
                                       borderRadius: BorderRadius.circular(1),
                                     ),
                                   ),
@@ -986,7 +1209,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                           Center(
                             child: Text(
                               'Ketuk kartu untuk menutup rincian',
-                              style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                              style: TextStyle(fontSize: 10, color: isDark ? Colors.white38 : Colors.grey.shade500),
                             ),
                           ),
                         ],
@@ -1000,35 +1223,35 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
     );
   }
 
-  String _getStageTitle(int stage) {
-    switch (stage) {
-      case 1:
-        return 'Pesanan Diterima';
-      case 2:
-        return 'Sedang Disiapkan';
-      case 3:
-        return 'Pesanan Siap Dipickup';
-      case 4:
-        return 'Dalam Pengantaran';
-      case 5:
-        return 'Pesanan Selesai';
-      default:
-        return 'Pesanan Diproses';
-    }
+  String _getStageTitle(int stage, OrderModel order) {
+    if (stage == 0) return 'Pesanan Dibatalkan';
+    return order.statusLabel;
   }
 
   String _getStageSubtitle(int stage, OrderModel order) {
+    if (stage == 0) {
+      return order.cancellationReason?.trim().isNotEmpty == true
+          ? order.cancellationReason!.trim()
+          : 'Pesanan dibatalkan';
+    }
+    final svc = order.serviceType.toLowerCase();
     switch (stage) {
       case 1:
-        return 'Pesanan masuk antrean sistem & toko';
+        if (svc == 'ride' || svc == 'car') return 'Mencari driver terdekat';
+        if (svc == 'send') return 'Mencari kurir penjemputan';
+        return 'Menunggu konfirmasi ${order.merchantName}';
       case 2:
-        return 'Toko sedang memasak & mengemas pesanan';
+        if (order.isTransportService) {
+          return '${order.driverName ?? "Driver"} menuju titik jemput';
+        }
+        return '${order.merchantName} sedang menyiapkan pesanan';
       case 3:
-        return 'Menunggu kurir mengambil pesanan di toko';
+        if (order.isTransportService) return 'Driver tiba di lokasi jemput';
+        return order.isPickup ? 'Siap diambil di toko' : 'Menunggu kurir pickup pesanan';
       case 4:
-        return '${order.driverName ?? "Kurir"} meluncur (${_routeDistanceKm.toStringAsFixed(1)} km)';
+        return '${order.driverName ?? "Driver"} menuju tujuan (${_routeDistanceKm.toStringAsFixed(1)} km)';
       case 5:
-        return 'Paket diterima di alamat tujuan';
+        return 'Pesanan tiba di alamat tujuan';
       default:
         return 'Memproses pesanan';
     }
@@ -1036,31 +1259,37 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
 
   Color _getStageColor(int stage) {
     switch (stage) {
+      case 0:
+        return const Color(0xFFDC2626);
       case 1:
-        return const Color(0xFF2563EB); // Biru Info Diterima
+        return const Color(0xFF2563EB);
       case 2:
-        return const Color(0xFFD97706); // Kuning Masak
+        return const Color(0xFFD97706);
       case 3:
-        return const Color(0xFFC2410C); // Oranye Siap
+        return const Color(0xFFC2410C);
       case 4:
-        return const Color(0xFFE52320); // Merah GAGE Antar
+        return const Color(0xFFE52320);
       case 5:
-        return const Color(0xFF16A34A); // Hijau Selesai
+        return const Color(0xFF16A34A);
       default:
         return GageTheme.primary;
     }
   }
 
-  IconData _getStageIcon(int stage) {
+  IconData _getStageIcon(int stage, OrderModel order) {
+    if (stage == 0) return Icons.cancel_rounded;
+    final svc = order.serviceType.toLowerCase();
     switch (stage) {
       case 1:
-        return Icons.receipt_long_rounded;
+        return order.isTransportService ? Icons.search_rounded : Icons.receipt_long_rounded;
       case 2:
+        if (svc == 'car') return Icons.directions_car_rounded;
+        if (svc == 'ride' || svc == 'send') return Icons.two_wheeler_rounded;
         return Icons.outdoor_grill_rounded;
       case 3:
-        return Icons.inventory_2_rounded;
+        return order.isTransportService ? Icons.pin_drop_rounded : Icons.inventory_2_rounded;
       case 4:
-        return Icons.delivery_dining_rounded;
+        return svc == 'car' ? Icons.directions_car_rounded : Icons.delivery_dining_rounded;
       case 5:
         return Icons.check_circle_rounded;
       default:
@@ -1071,17 +1300,20 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
   // ──────────────────────────────────────────────────────────────────────────
   // 4. BOTTOM SHEET DRAGGABLE (DRIVER CARD, RINCIAN ORDER, POD & KONTROL TAHAP)
   // ──────────────────────────────────────────────────────────────────────────
-  Widget _buildDraggableBottomPanel(OrderModel order, int currentStage) {
+  // ──────────────────────────────────────────────────────────────────────────
+  // 4. BOTTOM SHEET DRAGGABLE (DRIVER CARD / STATUS TUNGGU, RINCIAN ORDER, POD)
+  // ──────────────────────────────────────────────────────────────────────────
+  Widget _buildDraggableBottomPanel(OrderModel order, int currentStage, bool isDark) {
     return DraggableScrollableSheet(
-      initialChildSize: 0.32,
-      minChildSize: 0.20,
+      initialChildSize: 0.34,
+      minChildSize: 0.22,
       maxChildSize: 0.88,
       builder: (context, scrollController) {
         return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            boxShadow: [
+          decoration: BoxDecoration(
+            color: isDark ? GageTheme.darkBackground : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            boxShadow: const [
               BoxShadow(
                 color: Color(0x1F000000),
                 blurRadius: 18,
@@ -1096,34 +1328,34 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Handle Bar drag indicator
                 Center(
                   child: Container(
                     margin: const EdgeInsets.only(top: 10, bottom: 8),
                     width: 44,
                     height: 4.5,
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
+                      color: isDark ? Colors.white24 : Colors.grey.shade300,
                       borderRadius: BorderRadius.circular(3),
                     ),
                   ),
                 ),
 
-                // Driver Card Lengkap
-                _buildDriverCard(order),
+                if (order.hasAssignedDriver && !order.isPickup)
+                  _buildDriverCard(order, isDark)
+                else
+                  _buildWaitingStatusCard(order, currentStage, isDark),
 
                 const SizedBox(height: 12),
 
-                // Rincian Multi-Merchant & Pesanan
-                _buildMerchantAndOrderDetails(order),
+                _buildMerchantAndOrderDetails(order, isDark),
 
-                const SizedBox(height: 16),
-
-                // Tombol Konfirmasi Terima Pesanan (PoD)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _buildPoDActionButton(order, currentStage),
-                ),
+                if (!order.isPickup && currentStage > 0) ...[
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _buildPoDActionButton(order, currentStage, isDark),
+                  ),
+                ],
               ],
             ),
           ),
@@ -1132,17 +1364,94 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
     );
   }
 
-  Widget _buildPoDActionButton(OrderModel order, int currentStage) {
+  Widget _buildWaitingStatusCard(OrderModel order, int currentStage, bool isDark) {
+    final svc = order.serviceType.toLowerCase();
+    final String heading;
+    final String sub;
+    if (currentStage == 0) {
+      heading = 'Pesanan Dibatalkan';
+      sub = order.cancellationReason?.trim().isNotEmpty == true
+          ? order.cancellationReason!.trim()
+          : 'Pesanan tidak dapat dilanjutkan.';
+    } else if (order.isPickup) {
+      heading = 'Ambil Sendiri di Lokasi Merchant';
+      sub = 'Tunjukkan nomor invoice ${order.orderNumber} saat mengambil pesanan.';
+    } else if (svc == 'ride' || svc == 'car' || svc == 'send') {
+      heading = 'Mencari Mitra Driver Terdekat...';
+      sub = 'Identitas dan posisi driver akan muncul segera setelah driver menerima order.';
+    } else {
+      heading = currentStage == 1
+          ? 'Menunggu Konfirmasi ${order.merchantName}'
+          : 'Pesanan Diproses, Mencari Kurir...';
+      sub = currentStage == 1
+          ? 'Merchant sedang meninjau pesanan Anda sebelum disiapkan.'
+          : 'Informasi kurir pengantar akan tampil setelah kurir ditugaskan.';
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? GageTheme.darkSurface : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: isDark ? GageTheme.darkBorder : Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: (currentStage == 0 ? Colors.red : GageTheme.primary).withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              currentStage == 0
+                  ? Icons.cancel_rounded
+                  : (order.isPickup ? Icons.store_mall_directory_rounded : Icons.radar_rounded),
+              color: currentStage == 0 ? Colors.red : GageTheme.primary,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  heading,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  sub,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: isDark ? Colors.white70 : Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPoDActionButton(OrderModel order, int currentStage, bool isDark) {
     final isDeliveredOrArrived = currentStage >= 4;
 
     return ElevatedButton.icon(
       style: ElevatedButton.styleFrom(
         backgroundColor: isDeliveredOrArrived
             ? const Color(0xFF16A34A)
-            : Colors.grey.shade400,
+            : (isDark ? Colors.white12 : Colors.grey.shade400),
         foregroundColor: Colors.white,
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: const StadiumBorder(),
         padding: const EdgeInsets.symmetric(vertical: 14),
       ),
       icon: const Icon(Icons.verified_rounded, size: 20),
@@ -1150,60 +1459,67 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
         currentStage == 5 ? 'Pesanan Telah Selesai (Lihat Bukti PoD)' : 'Konfirmasi Pesanan Diterima',
         style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
       ),
-      onPressed: () {
-        _showProofOfDeliveryDialog(order);
-      },
+      onPressed: isDeliveredOrArrived
+          ? () {
+              _showProofOfDeliveryDialog(order, isDark);
+            }
+          : null,
     );
   }
 
   // ──────────────────────────────────────────────────────────────────────────
   // 4. DRIVER CARD LENGKAP
   // ──────────────────────────────────────────────────────────────────────────
-  Widget _buildDriverCard(OrderModel order) {
-    final driverName = order.driverName ?? 'Mas Agus Pratama • Driver GAGE';
-    final driverPlate = order.driverPlate ?? 'AD 3142 WN • Honda Vario 125';
-    final driverPhone = order.driverPhone ?? '081234567892';
+  Widget _buildDriverCard(OrderModel order, bool isDark) {
+    final driverName = (order.driverName != null && order.driverName!.trim().isNotEmpty)
+        ? order.driverName!.trim()
+        : 'Mitra Driver GAGE';
+    final vehicleParts = [
+      if (order.driverVehicle != null && order.driverVehicle!.trim().isNotEmpty)
+        order.driverVehicle!.trim(),
+      if (order.driverPlate != null && order.driverPlate!.trim().isNotEmpty)
+        order.driverPlate!.trim(),
+    ];
+    final driverPlate = vehicleParts.isNotEmpty ? vehicleParts.join(' | ') : 'Kendaraan Terverifikasi';
+    final driverPhone = (order.driverPhone ?? '').trim();
+    final hasPhone = driverPhone.isNotEmpty && driverPhone != '-';
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? GageTheme.darkSurface : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0A000000),
-            blurRadius: 14,
-            offset: Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: isDark ? GageTheme.darkBorder : Colors.grey.shade200),
+        boxShadow: isDark
+            ? null
+            : const [
+                BoxShadow(
+                  color: Color(0x0A000000),
+                  blurRadius: 14,
+                  offset: Offset(0, 4),
+                ),
+              ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              // Avatar Driver
               Stack(
                 children: [
-                  CircleAvatar(
+                  GageAvatar(
+                    imageUrl: order.driverAvatar,
+                    fallbackName: driverName,
                     radius: 26,
-                    backgroundColor: Colors.blue.shade50,
-                    child: ClipOval(
-                      child: (order.driverAvatar != null && order.driverAvatar!.isNotEmpty)
-                          ? (order.driverAvatar!.startsWith('http')
-                              ? Image.network(order.driverAvatar!, width: 52, height: 52, fit: BoxFit.cover, errorBuilder: (_, _, _) => const Icon(Icons.person_rounded, color: Color(0xFF1E88E5), size: 30))
-                              : Image.asset(order.driverAvatar!, width: 52, height: 52, fit: BoxFit.cover, errorBuilder: (_, _, _) => const Icon(Icons.person_rounded, color: Color(0xFF1E88E5), size: 30)))
-                          : Image.asset('assets/images/avatar_user.png', width: 52, height: 52, fit: BoxFit.cover, errorBuilder: (_, _, _) => const Icon(Icons.person_rounded, color: Color(0xFF1E88E5), size: 30)),
-                    ),
                   ),
                   Positioned(
                     bottom: 0,
                     right: 0,
                     child: Container(
                       padding: const EdgeInsets.all(2),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
+                      decoration: BoxDecoration(
+                        color: isDark ? GageTheme.darkSurface : Colors.white,
                         shape: BoxShape.circle,
                       ),
                       child: Container(
@@ -1220,7 +1536,6 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
               ),
               const SizedBox(width: 14),
 
-              // Detail Identitas Driver
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1230,10 +1545,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                         Flexible(
                           child: Text(
                             driverName,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.w900,
                               fontSize: 14,
-                              color: Color(0xFF0F172A),
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -1249,24 +1564,26 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade700,
+                        color: isDark ? Colors.white70 : Colors.grey.shade700,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: const [
-                        Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 15),
-                        SizedBox(width: 2),
-                        Text(
-                          '4.95 (450+ trip sukses)',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFFD97706),
+                    if (order.driverRating != null) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 15),
+                          const SizedBox(width: 3),
+                          Text(
+                            order.driverRating!.toStringAsFixed(1),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFFD97706),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -1274,10 +1591,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
           ),
 
           const SizedBox(height: 14),
-          const Divider(height: 1),
+          Divider(height: 1, color: isDark ? GageTheme.darkBorder : null),
           const SizedBox(height: 12),
 
-          // Tombol Hubungi Driver: Chat Native In-App & WhatsApp / Telepon
+          // Tombol Hubungi Driver: Chat In-App & Telepon Langsung (Tanpa WhatsApp)
           Row(
             children: [
               Expanded(
@@ -1287,12 +1604,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                     backgroundColor: GageTheme.primary,
                     foregroundColor: Colors.white,
                     elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: const StadiumBorder(),
                     padding: const EdgeInsets.symmetric(vertical: 10),
                   ),
                   icon: const Icon(Icons.chat_bubble_rounded, size: 16),
                   label: const Text(
-                    'Chat In-App',
+                    'Chat Driver',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
                   ),
                   onPressed: () {
@@ -1317,37 +1634,24 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                 flex: 4,
                 child: OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF16A34A),
-                    side: const BorderSide(color: Color(0xFF16A34A)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    foregroundColor: hasPhone
+                        ? (isDark ? Colors.white : const Color(0xFF0F172A))
+                        : (isDark ? Colors.white38 : Colors.grey.shade500),
+                    side: BorderSide(
+                      color: isDark ? GageTheme.darkBorder : Colors.grey.shade300,
+                    ),
+                    shape: const StadiumBorder(),
                     padding: const EdgeInsets.symmetric(vertical: 10),
                   ),
-                  icon: const Icon(Icons.phone_forwarded_rounded, size: 16),
+                  icon: const Icon(Icons.phone_in_talk_rounded, size: 16),
                   label: const Text(
-                    'WhatsApp',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                    'Telepon',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
                   ),
                   onPressed: () {
                     HapticFeedback.lightImpact();
-                    _launchWhatsApp(driverPhone, driverName, order.orderNumber);
+                    _launchCall(driverPhone);
                   },
-                ),
-              ),
-              const SizedBox(width: 8),
-              InkWell(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  _launchCall(driverPhone);
-                },
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: const Icon(Icons.phone_in_talk_rounded, size: 18, color: Colors.black87),
                 ),
               ),
             ],
@@ -1360,42 +1664,36 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
   // ──────────────────────────────────────────────────────────────────────────
   // 5. RINCIAN MULTI-MERCHANT & RINGKASAN PESANAN
   // ──────────────────────────────────────────────────────────────────────────
-  Widget _buildMerchantAndOrderDetails(OrderModel order) {
+  Widget _buildMerchantAndOrderDetails(OrderModel order, bool isDark) {
+    final merchantPhone = (order.merchantPhone ?? '').trim();
+    final hasMerchantPhone = merchantPhone.isNotEmpty && merchantPhone != '-';
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? GageTheme.darkSurface : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0A000000),
-            blurRadius: 14,
-            offset: Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: isDark ? GageTheme.darkBorder : Colors.grey.shade200),
+        boxShadow: isDark
+            ? null
+            : const [
+                BoxShadow(
+                  color: Color(0x0A000000),
+                  blurRadius: 14,
+                  offset: Offset(0, 4),
+                ),
+              ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Toko / Resto Mitra
           Row(
             children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: Colors.amber.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: (order.merchantAvatar != null && order.merchantAvatar!.isNotEmpty)
-                      ? (order.merchantAvatar!.startsWith('http')
-                          ? Image.network(order.merchantAvatar!, fit: BoxFit.cover, errorBuilder: (_, _, _) => const Icon(Icons.storefront_rounded, color: Color(0xFFD97706), size: 22))
-                          : Image.asset(order.merchantAvatar!, fit: BoxFit.cover, errorBuilder: (_, _, _) => const Icon(Icons.storefront_rounded, color: Color(0xFFD97706), size: 22)))
-                      : Image.asset('assets/images/resto_dimsum_sewu.png', fit: BoxFit.cover, errorBuilder: (_, _, _) => const Icon(Icons.storefront_rounded, color: Color(0xFFD97706), size: 22)),
-                ),
+              GageAvatar(
+                imageUrl: order.merchantAvatar,
+                fallbackName: order.merchantName,
+                radius: 21,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1404,164 +1702,180 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                   children: [
                     Text(
                       order.merchantName,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w900,
                         fontSize: 14,
-                        color: Color(0xFF0F172A),
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       order.merchantAddress,
-                      style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600),
+                      style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white60 : Colors.grey.shade600),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.chat_bubble_rounded, color: GageTheme.primary, size: 20),
-                    tooltip: 'Chat Toko (In-App)',
-                    onPressed: () {
-                      HapticFeedback.lightImpact();
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (ctx) => InAppChatScreen(
-                            orderId: order.id,
-                            recipientName: order.merchantName,
-                            recipientRole: 'merchant',
-                            recipientPhone: order.merchantPhone ?? '081226001000',
-                            currentRole: 'customer',
+              if (!order.isTransportService)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chat_bubble_rounded, color: GageTheme.primary, size: 20),
+                      tooltip: 'Chat Toko (In-App)',
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (ctx) => InAppChatScreen(
+                              orderId: order.id,
+                              recipientName: order.merchantName,
+                              recipientRole: 'merchant',
+                              recipientPhone: merchantPhone,
+                              currentRole: 'customer',
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.phone_forwarded_rounded, color: Color(0xFF16A34A), size: 19),
-                    tooltip: 'WhatsApp Resto',
-                    onPressed: () {
-                      HapticFeedback.lightImpact();
-                      _launchWhatsApp(
-                        order.merchantPhone ?? '081226001000',
-                        order.merchantName,
-                        order.orderNumber,
-                      );
-                    },
-                  ),
-                ],
-              ),
+                        );
+                      },
+                    ),
+                    if (hasMerchantPhone)
+                      IconButton(
+                        icon: Icon(Icons.phone_in_talk_rounded, color: isDark ? Colors.white70 : Colors.black87, size: 19),
+                        tooltip: 'Telepon Toko',
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          _launchCall(merchantPhone);
+                        },
+                      ),
+                  ],
+                ),
             ],
           ),
 
-          const SizedBox(height: 14),
-          const Divider(height: 1),
-          const SizedBox(height: 14),
-
-          // Daftar Item Makanan / Barang
-          const Text(
-            'Daftar Belanjaan',
-            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: Color(0xFF0F172A)),
-          ),
-          const SizedBox(height: 10),
-
-          ...order.items.map((item) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 10.0),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: GageTheme.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      '${item.quantity}x',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 12,
-                        color: GageTheme.primary,
+          if (order.items.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Divider(height: 1, color: isDark ? GageTheme.darkBorder : null),
+            const SizedBox(height: 14),
+            Text(
+              'Daftar Pesanan',
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 13,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 10),
+            ...order.items.map((item) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: GageTheme.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '${item.quantity}x',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 12,
+                          color: GageTheme.primary,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                            color: Color(0xFF0F172A),
-                          ),
-                        ),
-                        if (item.notes != null && item.notes!.isNotEmpty)
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           Text(
-                            'Catatan: ${item.notes}',
-                            style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+                            item.name,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            ),
                           ),
-                      ],
+                          if (item.notes != null && item.notes!.isNotEmpty)
+                            Text(
+                              'Catatan: ${item.notes}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isDark ? Colors.white60 : Colors.grey.shade600,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                  Text(
-                    _currencyFormatter.format(item.subtotal),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      color: Color(0xFF0F172A),
+                    Text(
+                      _currencyFormatter.format(item.subtotal),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            );
-          }),
+                  ],
+                ),
+              );
+            }),
+          ],
 
           const SizedBox(height: 8),
-          const Divider(height: 1),
+          Divider(height: 1, color: isDark ? GageTheme.darkBorder : null),
           const SizedBox(height: 12),
 
-          // Rincian Biaya Transparan
-          _buildCostRow('Total Belanja (Barang)', _currencyFormatter.format(order.itemsSubtotal)),
+          _buildCostRow(
+            order.isTransportService ? 'Tarif Dasar' : 'Subtotal Belanja',
+            _currencyFormatter.format(order.itemsSubtotal),
+            isDark: isDark,
+          ),
           const SizedBox(height: 6),
-          _buildCostRow('Biaya Admin Aplikasi', _currencyFormatter.format(order.adminFee)),
+          _buildCostRow('Biaya Admin Aplikasi', _currencyFormatter.format(order.adminFee), isDark: isDark),
           const SizedBox(height: 6),
-          _buildCostRow('Ongkir Transparan (Gage Delivery)', _currencyFormatter.format(order.shippingFee)),
+          _buildCostRow(
+            order.isTransportService ? 'Biaya Jarak & Opsi' : 'Ongkos Kirim',
+            _currencyFormatter.format(order.shippingFee),
+            isDark: isDark,
+          ),
           if (order.shippingDiscount > 0) ...[
             const SizedBox(height: 6),
             _buildCostRow(
-              'Diskon Ongkir Promo',
+              'Diskon Voucher',
               '- ${_currencyFormatter.format(order.shippingDiscount)}',
               isGreen: true,
+              isDark: isDark,
             ),
           ],
 
           const SizedBox(height: 10),
-          const Divider(height: 1),
+          Divider(height: 1, color: isDark ? GageTheme.darkBorder : null),
           const SizedBox(height: 10),
 
-          // Total Pembayaran Akhir
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Total Pembayaran',
-                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13.5, color: Color(0xFF0F172A)),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 13.5,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
                   ),
                   Text(
                     'Metode: ${order.paymentMethod} (${order.paymentStatus})',
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                    style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.grey.shade600),
                   ),
                 ],
               ),
@@ -1578,13 +1892,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
 
           const SizedBox(height: 14),
 
-          // Alamat Pengantaran
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
+              color: isDark ? GageTheme.darkElevated : const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(color: isDark ? GageTheme.darkBorder : Colors.grey.shade200),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1595,14 +1908,18 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Alamat Pengantaran Anda',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5, color: Color(0xFF0F172A)),
+                      Text(
+                        order.isTransportService ? 'Titik Tujuan' : 'Alamat Pengantaran Anda',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11.5,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         order.deliveryAddress,
-                        style: TextStyle(fontSize: 11.5, color: Colors.grey.shade700),
+                        style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white70 : Colors.grey.shade700),
                       ),
                     ],
                   ),
@@ -1615,7 +1932,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
     );
   }
 
-  Widget _buildCostRow(String title, String value, {bool isGreen = false}) {
+  Widget _buildCostRow(String title, String value, {bool isGreen = false, bool isDark = false}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -1623,7 +1940,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
           title,
           style: TextStyle(
             fontSize: 12,
-            color: isGreen ? const Color(0xFF16A34A) : Colors.grey.shade600,
+            color: isGreen
+                ? (isDark ? const Color(0xFF4ADE80) : const Color(0xFF16A34A))
+                : (isDark ? Colors.white60 : Colors.grey.shade600),
             fontWeight: isGreen ? FontWeight.bold : FontWeight.normal,
           ),
         ),
@@ -1632,21 +1951,30 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: isGreen ? const Color(0xFF16A34A) : const Color(0xFF0F172A),
+            color: isGreen
+                ? (isDark ? const Color(0xFF4ADE80) : const Color(0xFF16A34A))
+                : (isDark ? Colors.white : const Color(0xFF0F172A)),
           ),
         ),
       ],
     );
   }
 
-
-
   /// Dialog Proof of Delivery (PoD) Interaktif
-  void _showProofOfDeliveryDialog(OrderModel order) {
+  void _showProofOfDeliveryDialog(OrderModel order, bool isDark) {
     int selectedRating = 5;
+    final driverLabel = (order.driverName != null && order.driverName!.trim().isNotEmpty)
+        ? order.driverName!.trim()
+        : 'Driver GAGE';
+    final driverVehicleLabel = [
+      if (order.driverVehicle != null && order.driverVehicle!.trim().isNotEmpty)
+        order.driverVehicle!.trim(),
+      if (order.driverPlate != null && order.driverPlate!.trim().isNotEmpty)
+        order.driverPlate!.trim(),
+    ].join(' | ');
     final recipientCtrl = TextEditingController(text: 'Diri Sendiri (Pemesan)');
     final feedbackCtrl = TextEditingController();
-    final List<String> selectedTags = ['Pengiriman Cepat ⚡', 'Makanan Hangat & Rapi 🍲'];
+    final List<String> selectedTags = ['Pengiriman Cepat', 'Pesanan Lengkap & Rapi'];
 
     showModalBottomSheet(
       context: context,
@@ -1662,35 +1990,33 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                 left: 20,
                 right: 20,
               ),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              decoration: BoxDecoration(
+                color: isDark ? GageTheme.darkSurface : Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               ),
               child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Handle Bar
                     Center(
                       child: Container(
                         width: 40,
                         height: 4,
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade300,
+                          color: isDark ? Colors.white24 : Colors.grey.shade300,
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
                     ),
                     const SizedBox(height: 16),
 
-                    // Header PoD
                     Row(
                       children: [
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFDCFCE7),
+                            color: isDark ? Colors.green.withValues(alpha: 0.2) : const Color(0xFFDCFCE7),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Icon(Icons.verified_user_rounded, color: Color(0xFF16A34A), size: 24),
@@ -1699,15 +2025,19 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: const [
+                            children: [
                               Text(
                                 'Bukti Penerimaan (PoD)',
-                                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFF0F172A)),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 16,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
                               ),
-                              SizedBox(height: 2),
+                              const SizedBox(height: 2),
                               Text(
                                 'Konfirmasi bahwa pesanan tiba dengan selamat',
-                                style: TextStyle(fontSize: 11.5, color: Colors.grey),
+                                style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white60 : Colors.grey),
                               ),
                             ],
                           ),
@@ -1717,13 +2047,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
 
                     const SizedBox(height: 16),
 
-                    // Foto Preview Bukti Terima (Watermark Digital GAGE)
                     Container(
                       height: 140,
                       decoration: BoxDecoration(
                         color: const Color(0xFF0F172A),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.grey.shade300),
+                        border: Border.all(color: isDark ? GageTheme.darkBorder : Colors.grey.shade300),
                       ),
                       child: Stack(
                         children: [
@@ -1734,12 +2063,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                                 const Icon(Icons.camera_alt_rounded, color: Colors.white70, size: 36),
                                 const SizedBox(height: 6),
                                 const Text(
-                                  'Foto Paket Diserahkan ke Pemesan',
+                                  'Pesanan Diserahkan ke Penerima',
                                   style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  'GAGE PoD Digital • Pracimantoro Verified',
+                                  'GAGE Digital PoD | Terverifikasi',
                                   style: TextStyle(color: Colors.green.shade400, fontSize: 10, fontWeight: FontWeight.w600),
                                 ),
                               ],
@@ -1766,35 +2095,41 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
 
                     const SizedBox(height: 14),
 
-                    // Input Nama Penerima
-                    const Text(
+                    Text(
                       'Nama Penerima',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF0F172A)),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
                     ),
                     const SizedBox(height: 6),
                     TextField(
                       controller: recipientCtrl,
                       decoration: InputDecoration(
                         filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
+                        fillColor: isDark ? GageTheme.darkElevated : const Color(0xFFF8FAFC),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
+                          borderSide: BorderSide(color: isDark ? GageTheme.darkBorder : Colors.grey.shade300),
                         ),
                       ),
-                      style: const TextStyle(fontSize: 13),
+                      style: TextStyle(fontSize: 13, color: isDark ? Colors.white : Colors.black87),
                     ),
 
                     const SizedBox(height: 14),
 
-                    // Rating Bintang Driver
                     Center(
                       child: Column(
                         children: [
-                          const Text(
-                            'Bagaimana pelayanan Mas Agus?',
-                            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: Color(0xFF0F172A)),
+                          Text(
+                            'Bagaimana pelayanan $driverLabel?',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 13,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            ),
                           ),
                           const SizedBox(height: 8),
                           Row(
@@ -1819,23 +2154,32 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
 
                     const SizedBox(height: 12),
 
-                    // Quick Feedback Tags
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        'Pengiriman Cepat ⚡',
-                        'Makanan Hangat & Rapi 🍲',
-                        'Driver Ramah & Sopan 😊',
-                        'Tepat Sesuai Alamat 📍',
+                        'Pengiriman Cepat',
+                        'Pesanan Lengkap & Rapi',
+                        'Kurir Ramah & Sopan',
+                        'Tepat Sesuai Alamat',
                       ].map((tag) {
                         final isSelected = selectedTags.contains(tag);
                         return FilterChip(
-                          label: Text(tag, style: TextStyle(fontSize: 11, color: isSelected ? Colors.white : Colors.black87)),
+                          shape: const StadiumBorder(),
+                          label: Text(
+                            tag,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: isSelected
+                                  ? Colors.white
+                                  : (isDark ? Colors.white70 : Colors.black87),
+                            ),
+                          ),
                           selected: isSelected,
                           selectedColor: const Color(0xFF16A34A),
-                          backgroundColor: const Color(0xFFF1F5F9),
+                          backgroundColor: isDark ? GageTheme.darkElevated : const Color(0xFFF1F5F9),
                           onSelected: (val) {
+                            HapticFeedback.selectionClick();
                             setModalState(() {
                               if (val) {
                                 selectedTags.add(tag);
@@ -1850,51 +2194,55 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
 
                     const SizedBox(height: 14),
 
-                    // Catatan Ulasan Tambahan (Opsional)
-                    const Text(
-                      'Catatan / Pesan untuk Driver (Opsional)',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF0F172A)),
+                    Text(
+                      'Catatan / Pesan Tambahan (Opsional)',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
                     ),
                     const SizedBox(height: 6),
                     TextField(
                       controller: feedbackCtrl,
                       decoration: InputDecoration(
-                        hintText: 'Contoh: Terima kasih mas, makanan masih hangat!',
-                        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+                        hintText: 'Contoh: Pengiriman aman dan tepat waktu',
+                        hintStyle: TextStyle(color: isDark ? Colors.white38 : Colors.grey.shade400, fontSize: 12),
                         filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
+                        fillColor: isDark ? GageTheme.darkElevated : const Color(0xFFF8FAFC),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
+                          borderSide: BorderSide(color: isDark ? GageTheme.darkBorder : Colors.grey.shade300),
                         ),
                       ),
-                      style: const TextStyle(fontSize: 12),
+                      style: TextStyle(fontSize: 12, color: isDark ? Colors.white : Colors.black87),
                     ),
 
                     const SizedBox(height: 18),
 
-                    // Tombol Submit PoD
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF16A34A),
                         foregroundColor: Colors.white,
                         elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        shape: const StadiumBorder(),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                       onPressed: () {
                         Navigator.pop(ctx);
-                        setState(() => _manualStep = 5);
-                        context.read<OrderProvider>().updateOrderStage(order.id, 'COMPLETED');
+                        if (GageApiClient.useDevSeedData) {
+                          setState(() => _manualStep = 5);
+                        }
+                        _orderProvider?.updateOrderStage(order.id, 'COMPLETED');
 
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
                             builder: (_) => OrderSuccessReviewScreen(
                               order: order,
-                              driverName: 'Syamsul Maarif',
-                              driverVehicle: 'Honda Vario • AD 4921 HG',
+                              driverName: driverLabel,
+                              driverVehicle: driverVehicleLabel,
                             ),
                           ),
                         );

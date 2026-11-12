@@ -655,13 +655,16 @@ class _GageWithdrawSheetState extends State<GageWithdrawSheet> {
   Widget _buildQuickAmountChip(String label, int amt) {
     final isSelected = _parsedAmount == amt && amt > 0;
     return InkWell(
-      onTap: () => _setPresetAmount(amt),
-      borderRadius: BorderRadius.circular(20),
+      onTap: () {
+        HapticFeedback.selectionClick();
+        _setPresetAmount(amt);
+      },
+      borderRadius: BorderRadius.circular(999),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFFFEBEE) : const Color(0xFFF1F5F9),
-          borderRadius: BorderRadius.circular(20),
+          color: isSelected ? GageTheme.primary : const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(999),
           border: Border.all(color: isSelected ? GageTheme.primary : const Color(0xFFE2E8F0)),
         ),
         child: Text(
@@ -669,7 +672,7 @@ class _GageWithdrawSheetState extends State<GageWithdrawSheet> {
           style: TextStyle(
             fontSize: 11,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-            color: isSelected ? GageTheme.primary : Colors.black87,
+            color: isSelected ? Colors.white : Colors.black87,
           ),
         ),
       ),

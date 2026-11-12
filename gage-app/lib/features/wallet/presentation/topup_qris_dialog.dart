@@ -506,19 +506,19 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
                       final isSelected = !_isCustom && _selectedAmount == amount;
                       return InkWell(
                         onTap: () {
-                          HapticFeedback.lightImpact();
+                          HapticFeedback.selectionClick();
                           setState(() {
                             _selectedAmount = amount;
                             _isCustom = false;
                             _customController.text = amount.toString();
                           });
                         },
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(999),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                           decoration: BoxDecoration(
                             color: isSelected ? GageTheme.primary : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(999),
                             border: Border.all(
                               color: isSelected ? GageTheme.primary : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
                               width: 1.2,

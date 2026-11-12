@@ -143,12 +143,6 @@ class DynamicAssetService extends ChangeNotifier {
       defaultPath: 'assets/icons/ic_ternak.png',
     );
     _registerSlot(
-      key: 'grid_menu_babe',
-      label: 'Menu: GAGE BaBe',
-      category: 'Menu Grid Beranda',
-      defaultPath: 'assets/icons/ic_babe.png',
-    );
-    _registerSlot(
       key: 'grid_menu_cuan',
       label: 'Menu: GAGE Cuan',
       category: 'Menu Grid Beranda',
@@ -236,10 +230,8 @@ class DynamicAssetService extends ChangeNotifier {
         'assets/icons/ic_send.png',
         'assets/icons/ic_tani.png',
         'assets/icons/ic_ternak.png',
-        'assets/icons/ic_babe.png',
         'assets/icons/ic_bonus.png',
         'assets/icons/ic_ride_car.png',
-        'assets/icons/ic_clean.png',
         'assets/icons/ic_car.png',
       ]);
     } else if (category == 'Cuan & Finansial') {

@@ -210,7 +210,7 @@ class GageVoucherData {
       'tag': 'GAGE Send',
       'expiry': '31 Des 2026',
       'terms': [
-        'Tanpa batas minimal transaksi pengiriman paket.',
+        'Minimal tarif pengiriman paket Rp 5.000.',
         'Potongan ongkir kurir Rp 2.000.',
       ],
       'howToUse': 'Gunakan saat memesan kurir barang.',

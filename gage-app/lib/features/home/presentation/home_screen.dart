@@ -53,10 +53,12 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _isLoadingMerchants = true);
     final auth = context.read<AuthProvider>();
     final wallet = context.read<WalletProvider>();
-    final userId = auth.currentUser?.id ?? 'usr-cust-01';
+    final userId = auth.currentUser?.id ?? (GageApiClient.useDevSeedData ? 'usr-cust-01' : '');
 
     // Fetch wallet dari backend D1
-    wallet.fetchWallet(userId);
+    if (userId.isNotEmpty) {
+      wallet.fetchWallet(userId);
+    }
 
     // Fetch kuliner merchants khusus GAGE Food
     final list = await GageApiClient.getFoodMerchants();

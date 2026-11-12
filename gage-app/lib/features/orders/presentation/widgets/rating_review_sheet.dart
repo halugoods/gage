@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gage_app/core/services/merchant_storefront_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/shared/widgets/gage_avatar.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 
@@ -110,46 +111,20 @@ class _RatingReviewSheetState extends State<RatingReviewSheet> {
   }
 
   Widget _buildMerchantAvatar() {
-    if (widget.merchantAvatar != null && widget.merchantAvatar!.isNotEmpty) {
-      if (widget.merchantAvatar!.startsWith('http')) {
-        return CircleAvatar(
-          radius: 20,
-          backgroundImage: NetworkImage(widget.merchantAvatar!),
-          backgroundColor: GageTheme.primaryLight,
-        );
-      }
-      return CircleAvatar(
-        radius: 20,
-        backgroundImage: AssetImage(widget.merchantAvatar!),
-        backgroundColor: GageTheme.primaryLight,
-      );
-    }
-    return CircleAvatar(
+    return GageAvatar(
+      imageUrl: widget.merchantAvatar,
+      fallbackName: widget.merchantName,
       radius: 20,
       backgroundColor: GageTheme.primaryLight,
-      child: const Icon(Icons.storefront_rounded, color: GageTheme.primary, size: 22),
     );
   }
 
   Widget _buildDriverAvatar() {
-    if (widget.driverAvatar != null && widget.driverAvatar!.isNotEmpty) {
-      if (widget.driverAvatar!.startsWith('http')) {
-        return CircleAvatar(
-          radius: 20,
-          backgroundImage: NetworkImage(widget.driverAvatar!),
-          backgroundColor: const Color(0xFFEFF6FF),
-        );
-      }
-      return CircleAvatar(
-        radius: 20,
-        backgroundImage: AssetImage(widget.driverAvatar!),
-        backgroundColor: const Color(0xFFEFF6FF),
-      );
-    }
-    return CircleAvatar(
+    return GageAvatar(
+      imageUrl: widget.driverAvatar,
+      fallbackName: widget.driverName.isNotEmpty ? widget.driverName : 'Driver GAGE',
       radius: 20,
       backgroundColor: const Color(0xFFEFF6FF),
-      child: const Icon(Icons.two_wheeler_rounded, color: Color(0xFF2563EB), size: 22),
     );
   }
 
@@ -245,8 +220,9 @@ class _RatingReviewSheetState extends State<RatingReviewSheet> {
                       side: BorderSide(
                         color: isSel ? GageTheme.primary : (isDark ? Colors.white24 : Colors.grey.shade300),
                       ),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      shape: const StadiumBorder(),
                       onSelected: (val) {
+                        HapticFeedback.selectionClick();
                         setState(() {
                           if (val) {
                             _selectedMerchantChips.add(chip);
@@ -338,8 +314,9 @@ class _RatingReviewSheetState extends State<RatingReviewSheet> {
                       side: BorderSide(
                         color: isSel ? const Color(0xFF2563EB) : (isDark ? Colors.white24 : Colors.grey.shade300),
                       ),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      shape: const StadiumBorder(),
                       onSelected: (val) {
+                        HapticFeedback.selectionClick();
                         setState(() {
                           if (val) {
                             _selectedDriverChips.add(chip);

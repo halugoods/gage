@@ -160,9 +160,9 @@ class GageLocalization {
       'jv': 'Pusat Pitulungan & Layanan',
     },
     'cs_whatsapp': {
-      'id': 'Chat CS WhatsApp Resmi',
-      'en': 'Official WhatsApp Support',
-      'jv': 'Chat CS WhatsApp Resmi',
+      'id': 'Chat Pusat Bantuan Resmi',
+      'en': 'Official Support Chat',
+      'jv': 'Chat Pusat Pitulungan Resmi',
     },
     'faq_title': {
       'id': 'Pertanyaan Umum (FAQ)',

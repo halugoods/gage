@@ -273,60 +273,6 @@ class GageSkeletonMerchantMenuCard extends StatelessWidget {
   }
 }
 
-/// 3c. Skeleton Card Item Barang Bekas (BaBe Screen & Detail)
-class GageSkeletonBabeItemCard extends StatelessWidget {
-  const GageSkeletonBabeItemCard({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return GageShimmer(
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
-        ),
-        child: const Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            GageSkeletonBox(width: 96, height: 96, borderRadius: BorderRadius.all(Radius.circular(12))),
-            SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  GageSkeletonBox(width: double.infinity, height: 15),
-                  SizedBox(height: 6),
-                  GageSkeletonBox(width: 90, height: 11),
-                  SizedBox(height: 6),
-                  Row(
-                    children: [
-                      GageSkeletonBox(width: 55, height: 14, borderRadius: BorderRadius.all(Radius.circular(4))),
-                      SizedBox(width: 6),
-                      GageSkeletonBox(width: 65, height: 14, borderRadius: BorderRadius.all(Radius.circular(4))),
-                    ],
-                  ),
-                  SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      GageSkeletonBox(width: 80, height: 16),
-                      GageSkeletonBox(width: 60, height: 26, borderRadius: BorderRadius.all(Radius.circular(8))),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /// 4. Skeleton Card untuk daftar Resto / Toko Mitra
 class GageSkeletonRestoCard extends StatelessWidget {
   const GageSkeletonRestoCard({super.key});
@@ -374,7 +320,7 @@ class GageSkeletonRestoCard extends StatelessWidget {
   }
 }
 
-/// 5. Skeleton Card untuk Grid Produk (Shop / Sembako / Tani / Lapak BaBe)
+/// 5. Skeleton Card untuk Grid Produk (Shop / Sembako / Tani / Build)
 class GageSkeletonProductGridCard extends StatelessWidget {
   const GageSkeletonProductGridCard({super.key});
 

@@ -12,7 +12,8 @@ import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/core/services/gage_pricing_service.dart';
 import 'package:gage_app/core/services/osrm_routing_service.dart';
 import 'package:gage_app/core/constants/qris_engine.dart';
-import 'package:gage_app/features/orders/presentation/order_tracking_screen.dart';
+import 'package:gage_app/data/models/order_model.dart';
+import 'package:gage_app/features/orders/presentation/order_detail_screen.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
@@ -90,7 +91,34 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
 
   // Driver notes controller
   final TextEditingController _noteController = TextEditingController();
+  late final TextEditingController _recipientNameCtrl;
+  late final TextEditingController _recipientPhoneCtrl;
+  late final TextEditingController _packageDescCtrl;
+  late String _packageType;
+  late String _weightTier;
   bool _isPlacingOrder = false;
+
+  static const List<String> _packageTypes = [
+    'Barang Dagangan',
+    'Dokumen',
+    'Makanan / Minuman',
+    'Pakaian & Tekstil',
+    'Elektronik',
+  ];
+
+  static const List<String> _weightOptions = [
+    '< 1 kg',
+    '1 - 5 kg',
+    '5 - 10 kg',
+    '10 - 20 kg',
+  ];
+
+  double get _parsedWeightKg {
+    if (_weightTier.contains('10 - 20')) return 15.0;
+    if (_weightTier.contains('5 - 10')) return 8.0;
+    if (_weightTier.contains('1 - 5')) return 3.0;
+    return 1.0;
+  }
 
   final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
@@ -102,6 +130,12 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
     _currentPickupAddress = widget.pickupAddress;
     _currentDropoffAddress = widget.dropoffAddress;
     _currentDistanceKm = widget.distanceKm;
+
+    _recipientNameCtrl = TextEditingController(text: widget.recipientName ?? '');
+    _recipientPhoneCtrl = TextEditingController(text: widget.recipientPhone ?? '');
+    _packageDescCtrl = TextEditingController(text: widget.itemDescription ?? '');
+    _packageType = widget.packageType ?? 'Barang Dagangan';
+    _weightTier = widget.weightTier ?? '< 1 kg';
 
     // Set initial tier matching REGULER / HEMAT radio options
     final lowerOpt = widget.rideOption.toLowerCase();
@@ -126,7 +160,8 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
           _isVoucherManualSelection = false;
           changed = true;
         } else {
-          final clamped = _voucherDiscount.clamp(0, currentFare);
+          final maxDisc = GageVoucherData.calculateDiscount(current, currentFare);
+          final clamped = maxDisc.clamp(0, currentFare);
           if (clamped != _voucherDiscount) {
             _voucherDiscount = clamped;
             changed = true;
@@ -135,14 +170,19 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
       }
     }
 
-    if (widget.serviceType == 'send' && !_voucherManuallyDismissed && !_isVoucherManualSelection) {
-      final best = GageVoucherData.bestEligibleDeliveryVoucher(
-        serviceType: 'send',
-        subtotal: currentFare,
-      );
+    if (!_voucherManuallyDismissed && !_isVoucherManualSelection) {
+      final best = widget.serviceType == 'send'
+          ? GageVoucherData.bestEligibleDeliveryVoucher(
+              serviceType: 'send',
+              subtotal: currentFare,
+            )
+          : GageVoucherData.bestEligibleOrderVoucher(
+              serviceType: widget.serviceType,
+              subtotal: currentFare,
+            );
       if (best != null) {
         final nextCode = best['code'] as String;
-        final nextDiscount = ((best['discountAmount'] as num?)?.toInt() ?? 0).clamp(0, currentFare);
+        final nextDiscount = GageVoucherData.calculateDiscount(best, currentFare).clamp(0, currentFare);
         if (_appliedVoucherCode != nextCode || _voucherDiscount != nextDiscount) {
           _appliedVoucherCode = nextCode;
           _voucherDiscount = nextDiscount;
@@ -163,6 +203,9 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
   @override
   void dispose() {
     _noteController.dispose();
+    _recipientNameCtrl.dispose();
+    _recipientPhoneCtrl.dispose();
+    _packageDescCtrl.dispose();
     super.dispose();
   }
 
@@ -196,8 +239,15 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
   int get _tierBaseFare => _calculateTierFare(_selectedTier);
 
   int _calculateTierFare(String tier) {
-    final isCar = widget.serviceType == 'car';
     final isHemat = tier == 'HEMAT';
+    if (widget.serviceType == 'send') {
+      return GagePricingService.calculateCustomerShippingFee(
+        distanceKm: _currentDistanceKm,
+        deliveryOption: isHemat ? 'HEMAT' : 'REGULER',
+        weightKg: _parsedWeightKg,
+      );
+    }
+    final isCar = widget.serviceType == 'car';
     final service = isCar
         ? (isHemat ? 'car_hemat' : 'car_reguler')
         : (isHemat ? 'hemat' : 'reguler');
@@ -240,7 +290,7 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
       title: 'Catatan Patokan Driver',
       subtitle: 'Beri petunjuk lokasi agar driver mudah menemukan alamat',
       initialValue: _noteController.text,
-      hintText: 'Contoh: surya tani, depan warung...',
+      hintText: 'Contoh: pagar hitam depan balai desa, sebelah masjid...',
     );
     if (text != null && mounted) {
       setState(() {
@@ -608,6 +658,18 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
   }
 
   void _handleCheckout() {
+    if (widget.serviceType == 'send') {
+      if (_recipientNameCtrl.text.trim().isEmpty ||
+          _recipientPhoneCtrl.text.trim().isEmpty) {
+        GageToast.show(
+          context,
+          'Lengkapi nama dan nomor HP penerima paket terlebih dahulu.',
+          type: GageToastType.warning,
+        );
+        return;
+      }
+    }
+
     final wallet = context.read<WalletProvider>();
 
     if (_selectedPaymentMethod == 'GAGEPAY' && wallet.balance < _totalAmount) {
@@ -657,32 +719,50 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
     if (isCar) itemName = 'Layanan Mobil Penumpang ($_selectedTier)';
     if (isSend) itemName = 'Pengiriman Paket GAGE Send ($_selectedTier)';
 
+    final recipientNameVal = _recipientNameCtrl.text.trim();
+    final recipientPhoneVal = _recipientPhoneCtrl.text.trim();
+    final pkgDescVal = _packageDescCtrl.text.trim();
+    final normalizedPayMethod = _selectedPaymentMethod == 'COD' ? 'CASH_COD' : _selectedPaymentMethod;
+
     final orderData = {
       'id': invoiceNumber,
-      'user_id': auth.currentUser?.id ?? 'guest-praci',
+      'user_id': auth.currentUser?.id ?? '',
       'service_type': widget.serviceType,
+      'delivery_option': _selectedTier,
       'tier': _selectedTier,
-      'status': 'searching_driver',
+      'status': 'SEARCHING_DRIVER',
+      'payment_status': normalizedPayMethod == 'CASH_COD' ? 'PENDING' : 'PAID',
       'pickup_address': _currentPickupAddress,
+      'delivery_address': _currentDropoffAddress,
       'destination_address': _currentDropoffAddress,
       'pickup_lat': _currentPickupLocation.latitude,
       'pickup_lng': _currentPickupLocation.longitude,
+      'delivery_lat': _currentDropoffLocation.latitude,
+      'delivery_lng': _currentDropoffLocation.longitude,
       'destination_lat': _currentDropoffLocation.latitude,
       'destination_lng': _currentDropoffLocation.longitude,
       'distance_km': _currentDistanceKm,
-      'payment_method': _selectedPaymentMethod,
+      'payment_method': normalizedPayMethod,
       'fare_amount': _tierBaseFare,
+      'shipping_fee': isSend ? _tierBaseFare : 0,
+      'shipping_discount': isSend ? _voucherDiscount : 0,
       'admin_fee': _adminFee,
       'protection_fee': _protectionFee,
-      if (isSend) 'recipient_name': widget.recipientName,
-      if (isSend) 'recipient_phone': widget.recipientPhone,
-      if (isSend) 'package_type': widget.packageType,
-      if (isSend) 'weight_tier': widget.weightTier,
+      if (isSend)
+        'package_details': {
+          'recipient_name': recipientNameVal,
+          'recipient_phone': recipientPhoneVal,
+          'package_type': _packageType,
+          'weight_tier': _weightTier,
+          if (pkgDescVal.isNotEmpty) 'description': pkgDescVal,
+        },
       'discount_amount': _voucherDiscount,
       'voucher_code': _appliedVoucherCode,
+      'driver_tip': _driverTip,
       'tip_amount': _driverTip,
       'total_amount': _totalAmount,
       'merchant_name': serviceName,
+      'notes': _noteController.text.trim(),
       'items': [
         {
           'id': 'item-transport-01',
@@ -693,7 +773,7 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
           'notes': _noteController.text.isNotEmpty
               ? _noteController.text
               : (isSend
-                  ? 'Penerima: ${widget.recipientName ?? "-"} (${widget.recipientPhone ?? "-"})'
+                  ? 'Penerima: ${recipientNameVal.isNotEmpty ? recipientNameVal : "-"} (${recipientPhoneVal.isNotEmpty ? recipientPhoneVal : "-"}) • $_packageType ($weightLabelSafe)'
                   : 'Jemput sesuai titik peta'),
         }
       ],
@@ -701,6 +781,8 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
     };
 
     orderProvider.createOrder(orderData);
+    final createdOrder =
+        orderProvider.getOrderById(invoiceNumber) ?? OrderModel.fromJson(orderData);
 
     GageToast.show(
       context,
@@ -710,12 +792,14 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (ctx) => OrderTrackingScreen(
-          orderId: orderData['id'] as String,
+        builder: (ctx) => OrderDetailScreen(
+          order: createdOrder,
         ),
       ),
     );
   }
+
+  String get weightLabelSafe => _weightTier;
 
   Future<void> _resolveFavoriteMatches() async {
     final dropoffFav = await UserAddressService.findMatchingFavorite(
@@ -892,7 +976,9 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                               title: 'Reguler',
                               badge: isSend ? 'Langsung' : '~${_realisticEstimates["pickup"] ?? 4} min',
                               badgeColor: const Color(0xFF3B82F6),
-                              desc: isSend ? 'Kurir langsung jalan, barang cepat tiba & aman' : 'Langsung ke titik tujuan, pasti tepat waktu',
+                              desc: isSend
+                                  ? 'Kurir langsung menjemput dan mengantar paket ke tujuan'
+                                  : 'Penjemputan prioritas dengan tarif standar langsung ke tujuan',
                               price: _calculateTierFare('REGULER'),
                               isDark: isDark,
                             ),
@@ -903,7 +989,9 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                               title: 'Hemat',
                               badge: isSend ? 'Hemat' : '~${(_realisticEstimates["pickup"] ?? 4) + 4} min',
                               badgeColor: const Color(0xFF10B981),
-                              desc: isSend ? 'Pengiriman hemat pengantaran rute gabungan' : 'Tarif super irit untuk perjalanan santai',
+                              desc: isSend
+                                  ? 'Tarif hemat dengan jadwal pengantaran rute gabungan'
+                                  : 'Tarif lebih ekonomis untuk perjalanan jarak dekat hingga menengah',
                               price: _calculateTierFare('HEMAT'),
                               isDark: isDark,
                             ),
@@ -1019,7 +1107,7 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                                       const SizedBox(height: 6),
                                       Text(
                                         isSend
-                                            ? 'Penerima: ${widget.recipientName ?? "Penerima"} (${widget.recipientPhone ?? "-"}) • ${widget.packageType ?? "Barang"} (${widget.weightTier ?? "<1kg"})'
+                                            ? 'Penerima: ${_recipientNameCtrl.text.trim().isEmpty ? "Belum diisi" : _recipientNameCtrl.text.trim()} (${_recipientPhoneCtrl.text.trim().isEmpty ? "-" : _recipientPhoneCtrl.text.trim()}) • $_packageType ($_weightTier)'
                                             : 'Jarak ${_currentDistanceKm.toStringAsFixed(1)} km • 1 Penumpang • Est. ~${_realisticEstimates["trip"] ?? 10} mnt',
                                         style: TextStyle(
                                           fontSize: 11,
@@ -1058,6 +1146,8 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                               ],
                             ),
                             if (isSend) ...[
+                              const Divider(height: 20),
+                              _buildSendPackageForm(isDark),
                               const Divider(height: 20),
                               Row(
                                 children: [
@@ -2005,6 +2095,191 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
             color: isDiscount
                 ? const Color(0xFF16A34A)
                 : (isTip ? GageTheme.primary : (isDark ? Colors.white : Colors.black87)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSendPackageForm(bool isDark) {
+    final fieldFill = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+    final fieldBorder = isDark ? Colors.white12 : const Color(0xFFE2E8F0);
+    final textPrimary = isDark ? Colors.white : Colors.black87;
+    final textSecondary = isDark ? Colors.white60 : Colors.grey.shade600;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Rincian Barang & Penerima',
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w700,
+            color: textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _recipientNameCtrl,
+                onChanged: (_) => setState(() {}),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary),
+                decoration: InputDecoration(
+                  prefixIcon: Icon(Icons.person_outline_rounded, size: 16, color: textSecondary),
+                  hintText: 'Nama Penerima',
+                  hintStyle: TextStyle(fontSize: 11.5, color: textSecondary),
+                  filled: true,
+                  fillColor: fieldFill,
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: fieldBorder),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: fieldBorder),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: _recipientPhoneCtrl,
+                keyboardType: TextInputType.phone,
+                onChanged: (_) => setState(() {}),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary),
+                decoration: InputDecoration(
+                  prefixIcon: Icon(Icons.phone_outlined, size: 16, color: textSecondary),
+                  hintText: 'No. HP Penerima',
+                  hintStyle: TextStyle(fontSize: 11.5, color: textSecondary),
+                  filled: true,
+                  fillColor: fieldFill,
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: fieldBorder),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: fieldBorder),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _packageDescCtrl,
+          style: TextStyle(fontSize: 12, color: textPrimary),
+          decoration: InputDecoration(
+            prefixIcon: Icon(Icons.inventory_2_outlined, size: 16, color: textSecondary),
+            hintText: 'Catatan isi paket (opsional, misal: barang pecah belah)',
+            hintStyle: TextStyle(fontSize: 11.5, color: textSecondary),
+            filled: true,
+            fillColor: fieldFill,
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: fieldBorder),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: fieldBorder),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'Kategori Paket',
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: textSecondary),
+        ),
+        const SizedBox(height: 6),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: _packageTypes.map((type) {
+              final selected = _packageType == type;
+              return Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: InkWell(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _packageType = type);
+                  },
+                  borderRadius: BorderRadius.circular(999),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: selected ? GageTheme.primary : fieldFill,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: selected ? GageTheme.primary : fieldBorder,
+                      ),
+                    ),
+                    child: Text(
+                      type,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: selected ? Colors.white : textPrimary,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'Estimasi Berat Paket',
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: textSecondary),
+        ),
+        const SizedBox(height: 6),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: _weightOptions.map((weight) {
+              final selected = _weightTier == weight;
+              return Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: InkWell(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() {
+                      _weightTier = weight;
+                      _syncAutoDeliveryVoucher(notify: false);
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(999),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: selected ? GageTheme.primary : fieldFill,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: selected ? GageTheme.primary : fieldBorder,
+                      ),
+                    ),
+                    child: Text(
+                      weight,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: selected ? Colors.white : textPrimary,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
           ),
         ),
       ],

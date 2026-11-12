@@ -2,6 +2,12 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { generateDynamicQRIS } from './qris';
 import { TrackingRoomDO } from './room_do';
+import {
+  getVerifiedRequestClaims,
+  isAdminOrAuthorizedRole,
+  isProductionRuntime,
+  signAuthToken,
+} from './security';
 
 export { TrackingRoomDO };
 
@@ -11,6 +17,7 @@ type Bindings = {
   GAGE_ENV: string;
   DEFAULT_STATIC_QRIS: string;
   ADMIN_API_KEY: string;
+  AUTH_JWT_SECRET?: string;
   MEDIA_BUCKET?: R2Bucket;
 };
 
@@ -21,6 +28,61 @@ app.use('*', cors({
   allowHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 }));
+
+// Global Admin, Role & Production Simulation Guard Middleware
+app.use('/api/admin/*', async (c, next) => {
+  const ok = await isAdminOrAuthorizedRole(c, ['admin']);
+  if (!ok) {
+    return c.json({ success: false, message: 'Unauthorized admin access' }, 401);
+  }
+  await next();
+});
+
+app.use('/api/banners*', async (c, next) => {
+  if (c.req.method === 'POST' || c.req.method === 'PUT' || c.req.method === 'DELETE') {
+    const ok = await isAdminOrAuthorizedRole(c, ['admin']);
+    if (!ok) {
+      return c.json({ success: false, message: 'Unauthorized banner mutation' }, 401);
+    }
+  }
+  await next();
+});
+
+app.use('/api/*', async (c, next) => {
+  const path = c.req.path;
+  if (
+    path === '/api/auth/google' ||
+    path === '/api/pricing-config' ||
+    path.startsWith('/api/merchants') ||
+    (path === '/api/banners' && c.req.method === 'GET') ||
+    path.startsWith('/api/orders/calculate') ||
+    path.startsWith('/api/tracking')
+  ) {
+    await next();
+    return;
+  }
+
+  // Verification on protected production routes when running in production
+  if (
+    isProductionRuntime(c) &&
+    (path === '/api/user/profile' ||
+      path === '/api/user/addresses' ||
+      path.startsWith('/api/wallet/') ||
+      path.startsWith('/api/orders') ||
+      path.startsWith('/api/merchant/') ||
+      path.startsWith('/api/driver/') ||
+      path === '/api/affiliate/payout' ||
+      path.startsWith('/api/chat/media/upload'))
+  ) {
+    if (!(await isAdminOrAuthorizedRole(c, ['user', 'customer', 'merchant', 'driver', 'admin']))) {
+      const claims = await getVerifiedRequestClaims(c);
+      if (!claims) {
+        return c.json({ success: false, message: 'Autentikasi diperlukan untuk akses layanan ini' }, 401);
+      }
+    }
+  }
+  await next();
+});
 
 import { getLandingPageHtml, getTermsHtml, getPrivacyHtml } from './legal_pages';
 
@@ -798,7 +860,10 @@ app.post('/api/auth/google', async (c) => {
     }
 
     const userRecord: any = await c.env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(userId).first();
-    const token = `gage_jwt_${userId}_${now}`;
+    const token = await signAuthToken(c.env, {
+      sub: userId,
+      role: (userRecord?.role as string) || 'user',
+    });
 
     return c.json({
       success: true,
@@ -814,9 +879,12 @@ app.post('/api/auth/google', async (c) => {
   }
 });
 
-// Dev Quick Login Bypass (Lightning-Fast Testing di ADB Wireless)
+// Dev Quick Login Bypass (Blocked in production unless explicitly authorized by Admin Key)
 app.post('/api/auth/dev-login', async (c) => {
   try {
+    if (isProductionRuntime(c) && !(await isAdminOrAuthorizedRole(c, ['admin']))) {
+      return c.json({ success: false, message: 'Dev login dinonaktifkan di lingkungan produksi' }, 403);
+    }
     const body = await c.req.json().catch(() => ({}));
     const email = body.email || 'test-customer@gage.id';
     const name = body.name || 'Pelanggan Setia Gage';
@@ -827,9 +895,14 @@ app.post('/api/auth/dev-login', async (c) => {
     const existing: any = await c.env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(userId).first();
     if (!existing) {
       await c.env.DB.prepare(
-        `INSERT INTO users (id, phone, name, avatar_url, role, membership_tier, created_at, updated_at)
-         VALUES (?, ?, ?, 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150', 'user', 'free', ?, ?)`
-      ).bind(userId, phone, name, now, now).run();
+        `INSERT INTO users (id, phone, name, email, avatar_url, role, membership_tier, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, 'user', 'free', ?, ?)`
+      ).bind(userId, phone, name, email, null, now, now).run().catch(async () => {
+        await c.env.DB.prepare(
+          `INSERT INTO users (id, phone, name, avatar_url, role, membership_tier, created_at, updated_at)
+           VALUES (?, ?, ?, ?, 'user', 'free', ?, ?)`
+        ).bind(userId, phone, name, null, now, now).run();
+      });
     }
 
     let wallet: any = await c.env.DB.prepare('SELECT * FROM wallets WHERE user_id = ?').bind(userId).first();
@@ -842,7 +915,10 @@ app.post('/api/auth/dev-login', async (c) => {
     }
 
     const userRecord: any = await c.env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(userId).first();
-    const token = `gage_dev_token_${userId}`;
+    const token = await signAuthToken(c.env, {
+      sub: userId,
+      role: (userRecord?.role as string) || 'user',
+    });
 
     return c.json({
       success: true,
@@ -890,8 +966,12 @@ app.post('/api/user/profile', async (c) => {
 
     const now = Math.floor(Date.now() / 1000);
     await c.env.DB.prepare(
-      `UPDATE users SET name = COALESCE(?, name), phone = COALESCE(?, phone), updated_at = ? WHERE id = ?`
-    ).bind(body.name || null, body.phone || null, now, userId).run();
+      `UPDATE users SET name = COALESCE(?, name), phone = COALESCE(?, phone), email = COALESCE(?, email), avatar_url = COALESCE(?, avatar_url), updated_at = ? WHERE id = ?`
+    ).bind(body.name || null, body.phone || null, body.email || null, body.avatar_url || null, now, userId).run().catch(async () => {
+      await c.env.DB.prepare(
+        `UPDATE users SET name = COALESCE(?, name), phone = COALESCE(?, phone), avatar_url = COALESCE(?, avatar_url), updated_at = ? WHERE id = ?`
+      ).bind(body.name || null, body.phone || null, body.avatar_url || null, now, userId).run();
+    });
 
     return c.json({ success: true, message: 'Profil berhasil diperbarui' });
   } catch (err: any) {
@@ -1022,9 +1102,12 @@ app.post('/api/wallet/topup', async (c) => {
   }
 });
 
-// Simulasi top-up berhasil langsung (Instant testing)
+// Simulasi top-up berhasil langsung (Hanya non-production atau Admin Key)
 app.post('/api/wallet/topup-simulate-success', async (c) => {
   try {
+    if (isProductionRuntime(c) && !(await isAdminOrAuthorizedRole(c, ['admin']))) {
+      return c.json({ success: false, message: 'Simulasi top-up dinonaktifkan di lingkungan produksi' }, 403);
+    }
     const body = await c.req.json();
     const userId = body.user_id || 'usr-cust-01';
     const amount = Number(body.amount || 20000);
@@ -1108,21 +1191,160 @@ app.get('/api/merchants/:id/menu', async (c) => {
 // 4. ORDER CREATION, CALCULATION & LIFECYCLE
 // ─────────────────────────────────────────────────────────────────────────────
 
+const DEFAULT_PRICING_CONFIG = {
+  delivery_hemat_min_subtotal: 50000,
+  ride_hemat_base_km: 3.0,
+  ride_hemat_base: 9000,
+  ride_reguler_base_km: 3.0,
+  ride_reguler_base: 12000,
+  car_base_km: 1.0,
+  car_base: 8000,
+  car_per_km: 5000,
+  delivery_base_km: 3.0,
+  delivery_base: 9000,
+  delivery_per_km: 3000,
+  driver_commission_ratio: 0.80,
+  admin_fee_cashless: 1000,
+  admin_fee_cod_base: 3000,
+};
+
+function roundUpTo500(amount: number): number {
+  if (amount <= 0) return 0;
+  const rem = amount % 500;
+  return rem === 0 ? amount : amount + (500 - rem);
+}
+
+function calculateAlignedShippingFee(
+  distanceKm: number,
+  deliveryOption = 'REGULER',
+  serviceType = 'food',
+  subtotal = 0,
+  minHematSubtotal = 50000,
+  weightKg = 1.0
+): { rawShippingFee: number; effectiveOption: string } {
+  const lowerSvc = serviceType.toLowerCase();
+  const isTransport = lowerSvc === 'ride' || lowerSvc === 'car' || lowerSvc === 'send';
+  const lowerOpt = (deliveryOption || 'REGULER').toLowerCase();
+  let effectiveOption = deliveryOption.toUpperCase();
+  let isHemat = lowerOpt.includes('hemat') || lowerOpt.includes('sameday');
+  const isPrioritas = lowerOpt.includes('prioritas');
+  const isCar = lowerSvc === 'car' || lowerOpt.includes('car');
+
+  // Commercial orders only unlock HEMAT when subtotal meets minimum threshold (Rp 50.000)
+  if (!isTransport && isHemat && subtotal < minHematSubtotal) {
+    isHemat = false;
+    effectiveOption = 'REGULER';
+  }
+
+  let weightSurcharge = 0;
+  if (weightKg > 5.0) {
+    weightSurcharge = Math.ceil(weightKg - 5.0) * 2000;
+  }
+
+  if (isCar) {
+    const base = isHemat ? 14000 : isPrioritas ? 20000 : 16000;
+    const perKm = isHemat ? 4500 : isPrioritas ? 5500 : 5000;
+    const fare = distanceKm <= 3.0 ? base : roundUpTo500(Math.round(base + (distanceKm - 3.0) * perKm));
+    return { rawShippingFee: fare + weightSurcharge, effectiveOption };
+  }
+
+  const baseFare = isHemat ? 9000 : 12000;
+  const baseKm = 3.0;
+  let fare = baseFare;
+  if (distanceKm > baseKm) {
+    const km4Rate = isHemat ? 3000 : 4000;
+    const km5Rate = isHemat ? 2500 : 3500;
+    const km6Rate = isHemat ? 2000 : 3000;
+    if (distanceKm <= 4.0) {
+      fare = baseFare + (distanceKm - baseKm) * km4Rate;
+    } else if (distanceKm <= 5.0) {
+      fare = baseFare + (4.0 - baseKm) * km4Rate + (distanceKm - 4.0) * km5Rate;
+    } else {
+      fare = baseFare + (4.0 - baseKm) * km4Rate + km5Rate + (distanceKm - 5.0) * km6Rate;
+    }
+    fare = roundUpTo500(Math.round(fare));
+  }
+  if (isPrioritas) fare += 4000;
+  return { rawShippingFee: fare + weightSurcharge, effectiveOption };
+}
+
+app.get('/api/pricing-config', async (c) => {
+  try {
+    const row: any = await c.env.DB.prepare('SELECT config_json, updated_at FROM pricing_config WHERE id = ?')
+      .bind('default')
+      .first()
+      .catch(() => null);
+    if (row && row.config_json) {
+      return c.json({
+        success: true,
+        data: { ...DEFAULT_PRICING_CONFIG, ...JSON.parse(row.config_json) },
+        updated_at: row.updated_at,
+      });
+    }
+  } catch {
+    // Fallback to aligned default pricing config
+  }
+  return c.json({ success: true, data: DEFAULT_PRICING_CONFIG });
+});
+
+app.put('/api/admin/pricing-config', async (c) => {
+  try {
+    const body = await c.req.json();
+    const now = Math.floor(Date.now() / 1000);
+    const merged = { ...DEFAULT_PRICING_CONFIG, ...body };
+    await c.env.DB.prepare(
+      `INSERT OR REPLACE INTO pricing_config (id, config_json, updated_at) VALUES (?, ?, ?)`
+    ).bind('default', JSON.stringify(merged), now).run();
+    return c.json({ success: true, data: merged, updated_at: now });
+  } catch (err: any) {
+    return c.json({ success: false, message: err.message }, 500);
+  }
+});
+
+app.post('/api/qris/generate', async (c) => {
+  try {
+    const body = await c.req.json();
+    const amount = Math.round(Number(body.amount || 0));
+    const referenceType = String(body.reference_type || 'ORDER').toUpperCase();
+    const referenceId = String(body.reference_id || `ref-${Date.now()}`);
+    if (amount <= 0) {
+      return c.json({ success: false, message: 'Nominal QRIS harus lebih dari 0' }, 400);
+    }
+    const qrisString = generateDynamicQRIS(c.env.DEFAULT_STATIC_QRIS, amount);
+    const now = Math.floor(Date.now() / 1000);
+    const qrisId = `qris-${Date.now().toString(36)}`;
+    await c.env.DB.prepare(
+      `INSERT INTO qris_transactions (id, reference_type, reference_id, amount, qris_string, status, created_at)
+       VALUES (?, ?, ?, ?, ?, 'PENDING', ?)`
+    ).bind(qrisId, referenceType, referenceId, amount, qrisString, now).run().catch(() => {});
+    return c.json({
+      success: true,
+      data: { id: qrisId, amount, qris_string: qrisString, status: 'PENDING', created_at: now },
+    });
+  } catch (err: any) {
+    return c.json({ success: false, message: err.message }, 500);
+  }
+});
+
 app.post('/api/orders/calculate', async (c) => {
   const body = await c.req.json();
-  const subtotal = Number(body.items_subtotal || 0);
-  const distanceKm = Math.max(1, Number(body.distance_km || 1));
-  const isCod = body.payment_method === 'CASH_COD';
+  const subtotal = Math.max(0, Number(body.items_subtotal || 0));
+  const distanceKm = Math.max(0.5, Number(body.distance_km || 1));
+  const serviceType = String(body.service_type || 'food').toLowerCase();
+  const orderType = String(body.order_type || 'DELIVERY').toUpperCase();
+  const deliveryOption = String(body.delivery_option || 'REGULER').toUpperCase();
+  const weightKg = Number(body.weight_kg || 1.0);
+  const isCod = body.payment_method === 'CASH_COD' || body.payment_method === 'COD';
 
   const adminFee = isCod ? 3000 : 1000;
-  const baseRatePerKm = 3500;
-  const rawShippingFee = Math.max(7000, Math.round(distanceKm * baseRatePerKm));
-  const shippingDiscount = calculateTieredDiscount(subtotal);
+  const { rawShippingFee } = orderType === 'PICKUP'
+    ? { rawShippingFee: 0 }
+    : calculateAlignedShippingFee(distanceKm, deliveryOption, serviceType, subtotal, DEFAULT_PRICING_CONFIG.delivery_hemat_min_subtotal, weightKg);
+  const shippingDiscount = orderType === 'PICKUP' ? 0 : Math.min(rawShippingFee, calculateTieredDiscount(subtotal));
   const finalShippingFee = Math.max(0, rawShippingFee - shippingDiscount);
 
-  const driverCutPerKm = 3000;
-  const driverCut = Math.max(6000, Math.round(distanceKm * driverCutPerKm));
-  const merchantCut = Math.round(subtotal * 0.9);
+  const driverCut = orderType === 'PICKUP' ? 0 : Math.round(rawShippingFee * DEFAULT_PRICING_CONFIG.driver_commission_ratio);
+  const merchantCut = serviceType === 'ride' || serviceType === 'car' || serviceType === 'send' ? 0 : Math.round(subtotal * 0.9);
   const totalAmount = subtotal + finalShippingFee + adminFee;
 
   return c.json({
@@ -1148,37 +1370,81 @@ app.post('/api/orders', async (c) => {
   try {
     const body = await c.req.json();
     const userId = body.user_id || 'usr-cust-01';
-    const merchantId = body.merchant_id || 'm-dimsum-sewu';
-    const items = body.items || [];
-    const distanceKm = Math.max(1, Number(body.distance_km || 1.5));
-    const paymentMethod = body.payment_method || 'GAGEPAY'; // 'GAGEPAY', 'QRIS', 'CASH_COD'
-    const deliveryAddress = body.delivery_address || 'Jl. Wates Km 3, Kadipiro';
-    const deliveryLat = Number(body.delivery_lat || -7.8012);
-    const deliveryLng = Number(body.delivery_lng || 110.3456);
+    const serviceType = String(body.service_type || 'food').toLowerCase();
+    const isTransport = serviceType === 'ride' || serviceType === 'car' || serviceType === 'send';
+    const merchantId = body.merchant_id || (isTransport ? 'mch-gage-transport' : 'mch-dimsum-01');
+    const items = Array.isArray(body.items) ? body.items : [];
+    const orderType = String(body.order_type || (body.is_pickup ? 'PICKUP' : 'DELIVERY')).toUpperCase();
+    const isPickup = orderType === 'PICKUP';
+    const distanceKm = isPickup ? 0 : Math.max(0.5, Number(body.distance_km || 1.5));
+    const paymentMethod = body.payment_method === 'COD' ? 'CASH_COD' : (body.payment_method || 'GAGEPAY');
+    const deliveryOption = String(body.delivery_option || 'REGULER').toUpperCase();
+    const pickupAddress = body.pickup_address || null;
+    const pickupLat = body.pickup_lat != null ? Number(body.pickup_lat) : null;
+    const pickupLng = body.pickup_lng != null ? Number(body.pickup_lng) : null;
+    const deliveryAddress = body.delivery_address || 'Pracimantoro, Wonogiri';
+    const deliveryLat = Number(body.delivery_lat ?? -8.05517);
+    const deliveryLng = Number(body.delivery_lng ?? 110.80889);
+    const driverTip = Math.max(0, Math.round(Number(body.driver_tip || 0)));
+    const notes = body.notes ? String(body.notes) : null;
+    const packageDetailsJson = body.package_details_json
+      ? String(body.package_details_json)
+      : (body.package_details ? JSON.stringify(body.package_details) : null);
+    const weightKg = Number(body.weight_kg || 1.0);
     const affiliatorId = body.affiliator_id || null;
     const promoCode = (body.promo_code || '').trim().toUpperCase();
 
-    if (!items || items.length === 0) {
+    if (!isTransport && items.length === 0) {
       return c.json({ success: false, message: 'Keranjang belanja kosong' }, 400);
     }
 
+    // Recompute authoritative item prices from D1 merchant_menus when available
     let subtotal = 0;
+    const verifiedItems: Array<{ menuId: string; name: string; price: number; quantity: number; notes: string | null }> = [];
     for (const item of items) {
-      subtotal += Number(item.price) * Number(item.quantity);
+      const menuId = String(item.menu_id || item.id || 'menu-01');
+      const qty = Math.max(1, Math.round(Number(item.quantity || 1)));
+      let verifiedPrice = Math.max(0, Math.round(Number(item.price || 0)));
+      if (!isTransport) {
+        const dbMenu: any = await c.env.DB.prepare(
+          'SELECT gage_price, promo_price, promo_active FROM merchant_menus WHERE id = ? AND merchant_id = ?'
+        ).bind(menuId, merchantId).first().catch(() => null);
+        if (dbMenu) {
+          const hasPromo = Number(dbMenu.promo_active) === 1 && Number(dbMenu.promo_price) > 0 && Number(dbMenu.promo_price) < Number(dbMenu.gage_price);
+          verifiedPrice = hasPromo ? Number(dbMenu.promo_price) : Number(dbMenu.gage_price);
+        }
+      }
+      subtotal += verifiedPrice * qty;
+      verifiedItems.push({
+        menuId,
+        name: String(item.name || 'Item GAGE'),
+        price: verifiedPrice,
+        quantity: qty,
+        notes: item.notes ? String(item.notes) : null,
+      });
     }
 
     const isCod = paymentMethod === 'CASH_COD';
     const adminFee = isCod ? 3000 : 1000;
-    const rawShipping = Math.max(7000, Math.round(distanceKm * 3500));
-    let shippingDiscount = calculateTieredDiscount(subtotal);
+    const { rawShippingFee: rawShipping } = isPickup
+      ? { rawShippingFee: 0 }
+      : calculateAlignedShippingFee(
+          distanceKm,
+          deliveryOption,
+          serviceType,
+          subtotal,
+          DEFAULT_PRICING_CONFIG.delivery_hemat_min_subtotal,
+          weightKg
+        );
+    let shippingDiscount = isPickup ? 0 : Math.min(rawShipping, calculateTieredDiscount(subtotal));
 
-    // Voucher Kreator GAGERATIH / kode diskon
-    if (promoCode === 'GAGERATIH') {
-      shippingDiscount += 2000;
+    if (!isPickup && promoCode === 'GAGERATIH') {
+      shippingDiscount = Math.min(rawShipping, shippingDiscount + 2000);
     }
 
     const finalShipping = Math.max(0, rawShipping - shippingDiscount);
-    const totalAmount = subtotal + finalShipping + adminFee;
+    const fareBaseForTotal = isTransport ? finalShipping : subtotal + finalShipping;
+    const totalAmount = fareBaseForTotal + adminFee + driverTip;
 
     // Proteksi COD Anti-Fraud
     if (isCod && totalAmount > 75000) {
@@ -1194,11 +1460,10 @@ app.post('/api/orders', async (c) => {
     const trackingToken = `tok-${Date.now().toString(36)}`;
 
     let paymentStatus = 'UNPAID';
-    let orderStatus = 'PAYMENT_PENDING';
+    let orderStatus = isTransport ? 'SEARCHING_DRIVER' : 'PAID';
     let dynamicQrisString: string | null = null;
 
-    // Alur Pembayaran
-    if (paymentMethod === 'GAGEPAY') {
+    if (paymentMethod === 'GAGEPAY' || paymentMethod === 'GAGEPAY_QRIS' || paymentMethod === 'GAGEPAY_COD') {
       const wallet: any = await c.env.DB.prepare('SELECT * FROM wallets WHERE user_id = ?').bind(userId).first();
       if (!wallet || wallet.balance < totalAmount) {
         return c.json({
@@ -1207,18 +1472,15 @@ app.post('/api/orders', async (c) => {
         }, 400);
       }
 
-      // Potong saldo GagePay
       const newBalance = wallet.balance - totalAmount;
       await c.env.DB.prepare('UPDATE wallets SET balance = ?, updated_at = ? WHERE id = ?').bind(newBalance, now, wallet.id).run();
-
-      // Catat di ledger mutasi
       await c.env.DB.prepare(
         `INSERT INTO wallet_transactions (id, wallet_id, type, amount, balance_after, reference_id, description, created_at)
          VALUES (?, ?, 'PAYMENT', ?, ?, ?, ?, ?)`
       ).bind(`tx-${orderId}`, wallet.id, totalAmount, newBalance, orderId, `Pembayaran Pesanan #${orderNumber}`, now).run();
 
       paymentStatus = 'PAID';
-      orderStatus = 'PAID';
+      orderStatus = isTransport ? 'SEARCHING_DRIVER' : 'PAID';
     } else if (paymentMethod === 'QRIS') {
       const staticQris = c.env.DEFAULT_STATIC_QRIS;
       dynamicQrisString = generateDynamicQRIS(staticQris, totalAmount);
@@ -1228,36 +1490,48 @@ app.post('/api/orders', async (c) => {
       ).bind(`qris-${orderId}`, orderId, totalAmount, dynamicQrisString, now).run();
       paymentStatus = 'UNPAID';
       orderStatus = 'PAYMENT_PENDING';
-    } else if (paymentMethod === 'CASH_COD') {
+    } else if (isCod) {
       paymentStatus = 'UNPAID';
-      orderStatus = 'PAID'; // Langsung diteruskan ke resto
+      orderStatus = isTransport ? 'SEARCHING_DRIVER' : 'PAID';
     }
 
-    const driverCut = Math.max(6000, Math.round(distanceKm * 3000));
-    const merchantCut = Math.round(subtotal * 0.9);
+    const driverCut = isPickup ? 0 : Math.round(rawShipping * DEFAULT_PRICING_CONFIG.driver_commission_ratio);
+    const merchantCut = isTransport ? 0 : Math.round(subtotal * 0.9);
     const platformCut = totalAmount - merchantCut - driverCut;
     const affiliateCommission = (affiliatorId || promoCode === 'GAGERATIH') ? Math.round(subtotal * 0.10) : 0;
 
-    // Simpan Pesanan ke D1
     await c.env.DB.prepare(
       `INSERT INTO orders (id, order_number, user_id, merchant_id, affiliator_id, status, payment_method, payment_status,
-       items_subtotal, shipping_fee, shipping_discount, admin_fee, total_amount, merchant_cut, driver_cut, platform_cut,
-       affiliate_commission, delivery_address, delivery_lat, delivery_lng, distance_km, tracking_token, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       items_subtotal, shipping_fee, shipping_discount, admin_fee, driver_tip, total_amount, merchant_cut, driver_cut, platform_cut,
+       affiliate_commission, service_type, order_type, delivery_option, pickup_address, pickup_lat, pickup_lng,
+       delivery_address, delivery_lat, delivery_lng, distance_km, tracking_token, notes, package_details_json, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       orderId, orderNumber, userId, merchantId, affiliatorId, orderStatus, paymentMethod, paymentStatus,
-      subtotal, rawShipping, shippingDiscount, adminFee, totalAmount, merchantCut, driverCut, platformCut,
-      affiliateCommission, deliveryAddress, deliveryLat, deliveryLng, distanceKm, trackingToken, now, now
-    ).run();
+      isTransport ? 0 : subtotal, rawShipping, shippingDiscount, adminFee, driverTip, totalAmount, merchantCut, driverCut, platformCut,
+      affiliateCommission, serviceType, orderType, deliveryOption, pickupAddress, pickupLat, pickupLng,
+      deliveryAddress, deliveryLat, deliveryLng, distanceKm, trackingToken, notes, packageDetailsJson, now, now
+    ).run().catch(async () => {
+      // Compatibility fallback if 0006 columns have not yet migrated on remote D1
+      await c.env.DB.prepare(
+        `INSERT INTO orders (id, order_number, user_id, merchant_id, affiliator_id, status, payment_method, payment_status,
+         items_subtotal, shipping_fee, shipping_discount, admin_fee, total_amount, merchant_cut, driver_cut, platform_cut,
+         affiliate_commission, delivery_address, delivery_lat, delivery_lng, distance_km, tracking_token, notes, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        orderId, orderNumber, userId, merchantId, affiliatorId, orderStatus, paymentMethod, paymentStatus,
+        isTransport ? 0 : subtotal, rawShipping, shippingDiscount, adminFee, totalAmount, merchantCut, driverCut, platformCut,
+        affiliateCommission, deliveryAddress, deliveryLat, deliveryLng, distanceKm, trackingToken, notes, now, now
+      ).run();
+    });
 
-    // Simpan Detail Menu
-    for (const item of items) {
+    for (const item of verifiedItems) {
       const itemId = `item-${Math.random().toString(36).substring(2, 9)}`;
       await c.env.DB.prepare(
         `INSERT INTO order_items (id, order_id, menu_id, name, price, quantity, subtotal, notes)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
       ).bind(
-        itemId, orderId, item.menu_id || 'menu-01', item.name, item.price, item.quantity, item.price * item.quantity, item.notes || null
+        itemId, orderId, item.menuId, item.name, item.price, item.quantity, item.price * item.quantity, item.notes
       ).run();
     }
 
@@ -1271,6 +1545,8 @@ app.post('/api/orders', async (c) => {
         payment_method: paymentMethod,
         payment_status: paymentStatus,
         status: orderStatus,
+        service_type: serviceType,
+        order_type: orderType,
         tracking_token: trackingToken,
         qris_string: dynamicQrisString,
       },
@@ -1285,10 +1561,12 @@ app.get('/api/orders/user/:userId', async (c) => {
   const userId = c.req.param('userId');
   try {
     const res = await c.env.DB.prepare(
-      `SELECT o.*, m.name as merchant_name, m.address as merchant_address, m.image_url as merchant_image,
-              d.vehicle_plate as driver_plate, du.name as driver_name, du.phone as driver_phone
+      `SELECT o.*, COALESCE(m.name, 'Layanan GAGE') as merchant_name, COALESCE(m.address, 'Pracimantoro, Wonogiri') as merchant_address,
+              m.image_url as merchant_avatar, u.name as customer_name, u.phone as customer_phone, u.avatar_url as customer_avatar,
+              d.vehicle_plate as driver_plate, d.vehicle_type as driver_vehicle, du.name as driver_name, du.phone as driver_phone, du.avatar_url as driver_avatar
        FROM orders o
-       JOIN merchants m ON o.merchant_id = m.id
+       LEFT JOIN merchants m ON o.merchant_id = m.id
+       LEFT JOIN users u ON o.user_id = u.id
        LEFT JOIN drivers d ON o.driver_id = d.id
        LEFT JOIN users du ON d.user_id = du.id
        WHERE o.user_id = ?
@@ -1311,10 +1589,12 @@ app.get('/api/orders/:id', async (c) => {
   const orderId = c.req.param('id');
   try {
     const order: any = await c.env.DB.prepare(
-      `SELECT o.*, m.name as merchant_name, m.address as merchant_address, m.phone_wa as merchant_phone, m.image_url as merchant_image,
-              d.vehicle_plate as driver_plate, du.name as driver_name, du.phone as driver_phone
+      `SELECT o.*, COALESCE(m.name, 'Layanan GAGE') as merchant_name, COALESCE(m.address, 'Pracimantoro, Wonogiri') as merchant_address,
+              m.phone_wa as merchant_phone, m.image_url as merchant_avatar, u.name as customer_name, u.phone as customer_phone, u.avatar_url as customer_avatar,
+              d.vehicle_plate as driver_plate, d.vehicle_type as driver_vehicle, du.name as driver_name, du.phone as driver_phone, du.avatar_url as driver_avatar
        FROM orders o
-       JOIN merchants m ON o.merchant_id = m.id
+       LEFT JOIN merchants m ON o.merchant_id = m.id
+       LEFT JOIN users u ON o.user_id = u.id
        LEFT JOIN drivers d ON o.driver_id = d.id
        LEFT JOIN users du ON d.user_id = du.id
        WHERE o.id = ? OR o.order_number = ?`
@@ -1338,15 +1618,18 @@ app.get('/api/orders/:id', async (c) => {
   }
 });
 
-// Endpoint Simulasi Transisi Status untuk Uji Coba Tracker Pelanggan
+// Endpoint Simulasi Transisi Status (Dibatasi non-production atau Admin Key)
 app.post('/api/orders/:id/simulate-stage', async (c) => {
+  if (isProductionRuntime(c) && !(await isAdminOrAuthorizedRole(c, ['admin']))) {
+    return c.json({ success: false, message: 'Simulasi stage dinonaktifkan di lingkungan produksi' }, 403);
+  }
   const orderId = c.req.param('id');
   const body = await c.req.json();
-  const nextStage = body.stage; // 'PAID', 'COOKING', 'READY_FOR_PICKUP', 'ON_DELIVERY', 'COMPLETED'
+  const nextStage = body.stage;
   const now = Math.floor(Date.now() / 1000);
   try {
     await c.env.DB.prepare(
-      `UPDATE orders SET status = ?, driver_id = COALESCE(driver_id, 'drv-01'), updated_at = ? WHERE id = ?`
+      `UPDATE orders SET status = ?, updated_at = ? WHERE id = ?`
     ).bind(nextStage, now, orderId).run();
 
     return c.json({ success: true, order_id: orderId, new_status: nextStage });
@@ -1359,16 +1642,56 @@ app.post('/api/orders/:id/simulate-stage', async (c) => {
 // 5. MERCHANT KITCHEN, DRIVER, & AFFILIATE ENDPOINTS
 // ─────────────────────────────────────────────────────────────────────────────
 
+app.post('/api/merchant/menu/:itemId/toggle-stock', async (c) => {
+  const itemId = c.req.param('itemId');
+  try {
+    const body = await c.req.json();
+    const isAvailable = body.is_available ? 1 : 0;
+    const now = Math.floor(Date.now() / 1000);
+    await c.env.DB.prepare('UPDATE merchant_menus SET is_available = ?, updated_at = ? WHERE id = ?')
+      .bind(isAvailable, now, itemId).run();
+    return c.json({ success: true, data: { id: itemId, is_available: isAvailable, updated_at: now } });
+  } catch (err: any) {
+    return c.json({ success: false, message: err.message }, 500);
+  }
+});
+
+app.post('/api/merchant/menu', async (c) => {
+  try {
+    const body = await c.req.json();
+    const merchantId = String(body.merchant_id || '').trim();
+    const name = String(body.name || '').trim();
+    const category = String(body.category || 'Umum').trim();
+    const offlinePrice = Math.round(Number(body.offline_price || 0));
+    const gagePrice = Math.round(Number(body.gage_price || offlinePrice));
+    if (!merchantId || !name || offlinePrice <= 0) {
+      return c.json({ success: false, message: 'merchant_id, name, dan offline_price wajib valid' }, 400);
+    }
+    const id = `menu-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+    const now = Math.floor(Date.now() / 1000);
+    await c.env.DB.prepare(
+      `INSERT INTO merchant_menus (id, merchant_id, name, description, category, offline_price, gage_price, is_available, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`
+    ).bind(id, merchantId, name, body.description || '', category, offlinePrice, gagePrice, now, now).run();
+    return c.json({
+      success: true,
+      data: { id, merchant_id: merchantId, name, category, offline_price: offlinePrice, gage_price: gagePrice, is_available: 1, created_at: now },
+    });
+  } catch (err: any) {
+    return c.json({ success: false, message: err.message }, 500);
+  }
+});
+
 app.get('/api/merchant/orders', async (c) => {
-  const merchantId = c.req.query('merchant_id') || 'm-dimsum-sewu';
+  const merchantId = c.req.query('merchant_id') || 'mch-dimsum-01';
   try {
     const res = await c.env.DB.prepare(
-      `SELECT o.*, u.name as customer_name, u.phone as customer_phone, d.vehicle_plate as driver_plate, du.name as driver_name
+      `SELECT o.*, u.name as customer_name, u.phone as customer_phone, d.vehicle_plate as driver_plate, du.name as driver_name, du.avatar_url as driver_avatar
        FROM orders o
        JOIN users u ON o.user_id = u.id
        LEFT JOIN drivers d ON o.driver_id = d.id
        LEFT JOIN users du ON d.user_id = du.id
-       WHERE o.merchant_id = ? AND o.status IN ('PAID', 'COOKING', 'READY_FOR_PICKUP')
+       WHERE o.merchant_id = ? AND o.status IN ('NEW', 'PAID', 'COOKING', 'READY_FOR_PICKUP', 'AT_MERCHANT', 'PICKED_UP', 'ON_DELIVERY')
        ORDER BY o.created_at DESC`
     ).bind(merchantId).all();
 
@@ -1402,11 +1725,12 @@ app.post('/api/merchant/orders/:id/update-stage', async (c) => {
 app.get('/api/driver/orders/available', async (c) => {
   try {
     const res = await c.env.DB.prepare(
-      `SELECT o.*, m.name as merchant_name, m.address as merchant_address, u.name as customer_name
+      `SELECT o.*, COALESCE(m.name, 'Layanan GAGE') as merchant_name, COALESCE(m.address, COALESCE(o.pickup_address, 'Pracimantoro')) as merchant_address, u.name as customer_name
        FROM orders o
-       JOIN merchants m ON o.merchant_id = m.id
-       JOIN users u ON o.user_id = u.id
-       WHERE o.driver_id IS NULL AND o.status IN ('PAID', 'COOKING', 'READY_FOR_PICKUP')
+       LEFT JOIN merchants m ON o.merchant_id = m.id
+       LEFT JOIN users u ON o.user_id = u.id
+       WHERE o.driver_id IS NULL AND COALESCE(o.order_type, 'DELIVERY') != 'PICKUP'
+         AND o.status IN ('SEARCHING_DRIVER', 'PAID', 'COOKING', 'READY_FOR_PICKUP')
        ORDER BY o.created_at ASC`
     ).all();
 
@@ -1424,13 +1748,43 @@ app.get('/api/driver/orders/available', async (c) => {
 app.post('/api/driver/orders/:id/accept', async (c) => {
   const orderId = c.req.param('id');
   const body = await c.req.json();
-  const driverId = body.driver_id || 'drv-01';
+  const driverId = String(body.driver_id || '').trim();
+  if (!driverId) {
+    return c.json({ success: false, message: 'driver_id wajib diisi' }, 400);
+  }
   const now = Math.floor(Date.now() / 1000);
   try {
-    await c.env.DB.prepare('UPDATE orders SET driver_id = ?, status = ?, updated_at = ? WHERE id = ?').bind(driverId, 'ON_DELIVERY', now, orderId).run();
+    // Atomic claim: prevent double assignment and preserve merchant kitchen stage if still preparing
+    const result = await c.env.DB.prepare(
+      `UPDATE orders SET driver_id = ?,
+       status = CASE WHEN status = 'SEARCHING_DRIVER' THEN 'DRIVER_ASSIGNED' WHEN status = 'READY_FOR_PICKUP' THEN 'AT_MERCHANT' ELSE status END,
+       updated_at = ? WHERE id = ? AND driver_id IS NULL`
+    ).bind(driverId, now, orderId).run();
+
+    if ((result.meta?.changes || 0) === 0) {
+      return c.json({ success: false, message: 'Order sudah diambil driver lain atau tidak tersedia' }, 409);
+    }
+
+    const updated: any = await c.env.DB.prepare(
+      `SELECT o.status, d.vehicle_plate as driver_plate, u.name as driver_name, u.phone as driver_phone, u.avatar_url as driver_avatar
+       FROM orders o
+       LEFT JOIN drivers d ON o.driver_id = d.id
+       LEFT JOIN users u ON d.user_id = u.id
+       WHERE o.id = ?`
+    ).bind(orderId).first();
+
     return c.json({
       success: true,
-      data: { order_id: orderId, driver_id: driverId, status: 'ON_DELIVERY', assigned_at: now },
+      data: {
+        order_id: orderId,
+        driver_id: driverId,
+        status: updated?.status || 'DRIVER_ASSIGNED',
+        driver_name: updated?.driver_name || null,
+        driver_plate: updated?.driver_plate || null,
+        driver_phone: updated?.driver_phone || null,
+        driver_avatar: updated?.driver_avatar || null,
+        assigned_at: now,
+      },
     });
   } catch (err: any) {
     return c.json({ success: false, message: err.message }, 500);
@@ -1456,6 +1810,33 @@ app.post('/api/driver/orders/:id/status', async (c) => {
     return c.json({
       success: true,
       data: { order_id: orderId, status: newStatus, updated_at: now },
+    });
+  } catch (err: any) {
+    return c.json({ success: false, message: err.message }, 500);
+  }
+});
+
+app.post('/api/affiliate/payout', async (c) => {
+  try {
+    const body = await c.req.json();
+    const affiliateCode = String(body.affiliate_code || '').trim();
+    const amount = Math.round(Number(body.amount || 0));
+    const bankName = String(body.bank_name || '').trim();
+    const accountNumber = String(body.account_number || '').trim();
+    const accountHolder = String(body.account_holder || '').trim();
+    if (!affiliateCode || amount < 10000 || !bankName || !accountNumber || !accountHolder) {
+      return c.json({ success: false, message: 'Data penarikan komisi tidak lengkap (min. Rp 10.000)' }, 400);
+    }
+    const id = `affpay-${Date.now().toString(36)}`;
+    const now = Math.floor(Date.now() / 1000);
+    await c.env.DB.prepare(
+      `INSERT INTO affiliate_payouts (id, affiliate_code, amount, bank_name, account_number, account_holder, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'PENDING', ?)`
+    ).bind(id, affiliateCode, amount, bankName, accountNumber, accountHolder, now).run();
+    return c.json({
+      success: true,
+      message: 'Permintaan pencairan komisi dicatat',
+      data: { id, affiliate_code: affiliateCode, amount, status: 'PENDING', created_at: now },
     });
   } catch (err: any) {
     return c.json({ success: false, message: err.message }, 500);
@@ -1813,14 +2194,16 @@ app.post('/api/chat/media/upload', async (c) => {
     const contentType = c.req.header('Content-Type') || 'application/octet-stream';
     const body = await c.req.arrayBuffer();
 
-    if (c.env.MEDIA_BUCKET) {
-      await c.env.MEDIA_BUCKET.put(key, body, {
-        httpMetadata: {
-          contentType,
-          cacheControl: 'public, max-age=31536000, immutable',
-        },
-      });
+    if (!c.env.MEDIA_BUCKET) {
+      return c.json({ success: false, message: 'R2 bucket MEDIA_BUCKET belum aktif' }, 503);
     }
+
+    await c.env.MEDIA_BUCKET.put(key, body, {
+      httpMetadata: {
+        contentType,
+        cacheControl: 'public, max-age=31536000, immutable',
+      },
+    });
 
     return c.json({
       success: true,

@@ -13,6 +13,7 @@ import 'package:gage_app/data/models/cart_item_model.dart';
 import 'package:gage_app/features/checkout/presentation/checkout_screen.dart';
 import 'package:gage_app/features/ride/presentation/ride_checkout_screen.dart';
 import 'package:gage_app/providers/auth_provider.dart';
+import 'package:gage_app/shared/widgets/full_screen_map_picker.dart';
 import 'package:gage_app/providers/cart_provider.dart';
 import 'package:gage_app/providers/order_provider.dart';
 import 'package:gage_app/providers/wallet_provider.dart';
@@ -306,10 +307,13 @@ void main() {
       }).toList();
       expect(capsuleThumbs.length, equals(1));
 
-      // Tapping in-card Ganti clears selection highlight to let user pick another address
+      // Tapping in-card Ganti directly opens FullScreenMapPicker
       await tester.tap(find.byIcon(Icons.swap_horiz_rounded));
       await tester.pump();
-      expect(find.text('Terpilih'), findsNothing);
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(find.byType(FullScreenMapPicker), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.arrow_back_rounded));
+      await tester.pump();
       await tester.pump(const Duration(seconds: 3));
     });
 

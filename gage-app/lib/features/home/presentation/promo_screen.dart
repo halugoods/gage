@@ -68,7 +68,7 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
 
   List<Map<String, dynamic>> _getVouchersForTab(int tabIndex) {
     switch (tabIndex) {
-      case 1: // Diskon (Merangkap Food, Mart, Ride/Car, BaBe)
+      case 1: // Diskon (Merangkap Food, Shop, Farm, Build, Ride/Car)
         return _allVouchers.where((v) => v['type'] != 'delivery').toList();
       case 2: // Gratis Ongkir (Merangkap semua layanan)
         return _allVouchers.where((v) => v['type'] == 'delivery').toList();
@@ -543,7 +543,7 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
                   color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(999),
                 ),
                 child: Row(
                   children: List.generate(_tabs.length, (idx) {
@@ -560,7 +560,7 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           decoration: BoxDecoration(
                             color: isSel ? GageTheme.primary : Colors.transparent,
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(999),
                             boxShadow: isSel
                                 ? [
                                     BoxShadow(

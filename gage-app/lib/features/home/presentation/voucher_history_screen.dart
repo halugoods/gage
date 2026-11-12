@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/home/presentation/widgets/gage_ticket_voucher_card.dart';
 
@@ -170,7 +171,10 @@ class _VoucherHistoryScreenState extends State<VoucherHistoryScreen> {
   Widget _buildFilterChip(String label, String value, bool isDark) {
     final isSelected = _activeFilter == value;
     return GestureDetector(
-      onTap: () => setState(() => _activeFilter = value),
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _activeFilter = value);
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
@@ -178,7 +182,7 @@ class _VoucherHistoryScreenState extends State<VoucherHistoryScreen> {
           color: isSelected
               ? GageTheme.primary
               : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: isSelected
                 ? GageTheme.primary

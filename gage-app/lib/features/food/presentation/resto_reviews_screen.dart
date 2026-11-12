@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:gage_app/core/services/merchant_storefront_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
@@ -452,13 +453,16 @@ class _RestoReviewsScreenState extends State<RestoReviewsScreen> {
   Widget _buildFilterChip(String label, int starValue, bool isDark) {
     final isSel = _selectedStarFilter == starValue;
     return InkWell(
-      onTap: () => _onFilterChanged(starValue),
-      borderRadius: BorderRadius.circular(20),
+      onTap: () {
+        HapticFeedback.selectionClick();
+        _onFilterChanged(starValue);
+      },
+      borderRadius: BorderRadius.circular(999),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
           color: isSel ? GageTheme.primary : (isDark ? Colors.grey.shade900 : Colors.white),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: isSel ? GageTheme.primary : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
           ),

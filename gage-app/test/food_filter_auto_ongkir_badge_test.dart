@@ -736,6 +736,12 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 350));
 
+      // Wave 1: auto-apply memilih PRACICAR (-3RB) secara otomatis saat layar dibuka
+      expect(find.text('-3RB'), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.close_rounded).first);
+      await tester.pump();
+      expect(find.text('Gunakan / masukkan kode'), findsOneWidget);
+
       await tester.tap(find.text('Gunakan / masukkan kode'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));

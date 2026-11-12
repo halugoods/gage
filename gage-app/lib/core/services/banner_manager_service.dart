@@ -137,16 +137,6 @@ class BannerManagerService extends ChangeNotifier {
       ctaText: 'Panggil Kurir',
     );
 
-    _banners['babe'] = const BannerConfig(
-      menuKey: 'babe',
-      menuName: 'GAGE BaBe (Barang Bekas)',
-      title: 'GAGE BaBe - Lapak Barang Bekas Resmi GAGE',
-      subtitle: 'Barang terverifikasi tim kurir • Bebas transaksi gelap • Jaminan garansi 48 jam',
-      badge: '',
-      imagePath: 'assets/images/babe_hero_banner.png',
-      ctaText: 'Titip Jual Sekarang',
-    );
-
     _banners['ride'] = const BannerConfig(
       menuKey: 'ride',
       menuName: 'GAGE Ride & Car',

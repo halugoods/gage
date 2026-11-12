@@ -83,7 +83,7 @@ class _GageAuthScreenState extends State<GageAuthScreen> {
   void _submitWhatsApp() async {
     final phone = _phoneCtrl.text.trim();
     if (phone.isEmpty || phone.length < 8) {
-      GageToast.show(context, 'Masukkan nomor WhatsApp yang valid', type: GageToastType.warning);
+      GageToast.show(context, 'Masukkan nomor HP yang valid', type: GageToastType.warning);
       return;
     }
 
@@ -97,7 +97,7 @@ class _GageAuthScreenState extends State<GageAuthScreen> {
       return;
     }
 
-    // Simulasi Pengiriman Kode OTP WhatsApp
+    // Simulasi Pengiriman Kode OTP Nomor HP
     HapticFeedback.mediumImpact();
     setState(() {
       _isOtpStage = true;
@@ -105,7 +105,7 @@ class _GageAuthScreenState extends State<GageAuthScreen> {
     _startOtpCooldown();
     GageToast.show(
       context,
-      'Kode OTP 6-digit dikirim ke WhatsApp +62 $phone',
+      'Kode OTP 6-digit dikirim ke nomor +62 $phone',
       type: GageToastType.success,
     );
   }
@@ -205,7 +205,7 @@ class _GageAuthScreenState extends State<GageAuthScreen> {
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
                     color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(999),
                   ),
                   child: Row(
                     children: [
@@ -275,8 +275,8 @@ class _GageAuthScreenState extends State<GageAuthScreen> {
                         const SizedBox(height: 14),
                       ],
 
-                      // Field Nomor WhatsApp (+62 Prefix)
-                      _buildFieldLabel('Nomor WhatsApp', isDark),
+                      // Field Nomor HP (+62 Prefix)
+                      _buildFieldLabel('Nomor HP / Telepon', isDark),
                       const SizedBox(height: 6),
                       Row(
                         children: [
@@ -334,18 +334,16 @@ class _GageAuthScreenState extends State<GageAuthScreen> {
 
                       const SizedBox(height: 20),
 
-                      // Tombol WhatsApp OTP Submit
+                      // Tombol OTP Nomor HP Submit
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
                           onPressed: auth.isLoading ? null : _submitWhatsApp,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF25D366), // WhatsApp Green
+                            backgroundColor: GageTheme.primary,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
+                            shape: const StadiumBorder(),
                             elevation: 0,
                           ),
                           child: auth.isLoading
@@ -358,11 +356,11 @@ class _GageAuthScreenState extends State<GageAuthScreen> {
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Icon(Icons.chat_bubble_rounded, size: 18),
+                                    const Icon(Icons.sms_rounded, size: 18),
                                     const SizedBox(width: 8),
                                     Flexible(
                                       child: Text(
-                                        _isRegister ? 'Daftar Lewat WhatsApp' : 'Kirim OTP WhatsApp',
+                                        _isRegister ? 'Daftar dengan Nomor HP' : 'Kirim Kode OTP',
                                         style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
                                         overflow: TextOverflow.ellipsis,
                                       ),
@@ -695,15 +693,16 @@ class _GageAuthScreenState extends State<GageAuthScreen> {
     required bool isDark,
   }) {
     return GageTapScale(
-      onTap: onTap,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
       scaleDown: 0.96,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected
-              ? (isDark ? GageTheme.primary : Colors.white)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
+          color: isSelected ? GageTheme.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
           boxShadow: isSelected
               ? [
                   BoxShadow(
@@ -721,7 +720,7 @@ class _GageAuthScreenState extends State<GageAuthScreen> {
             fontSize: 13,
             fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
             color: isSelected
-                ? (isDark ? Colors.white : GageTheme.primary)
+                ? Colors.white
                 : (isDark ? Colors.white60 : const Color(0xFF64748B)),
           ),
         ),
