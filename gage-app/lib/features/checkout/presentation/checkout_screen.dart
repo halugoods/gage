@@ -27,6 +27,7 @@ import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 import 'package:gage_app/core/services/location_service.dart';
 import 'package:gage_app/core/services/osm_geocoding_service.dart';
+import 'package:gage_app/core/services/user_address_service.dart';
 import 'package:gage_app/core/services/pracimantoro_places_database.dart';
 import 'package:gage_app/shared/widgets/mini_location_preview_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -49,6 +50,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   final TextEditingController _notePatokanController = TextEditingController();
   late LatLng _selectedDeliveryLocation;
   bool _hasExplicitLocation = false;
+  UserSavedAddress? _matchedFavorite;
 
   final TextEditingController _giftRecipientNameCtrl = TextEditingController();
   final TextEditingController _giftRecipientPhoneCtrl = TextEditingController();
@@ -98,6 +100,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (!_hasExplicitLocation) {
       _syncInitialGpsLocation();
     }
+    _resolveFavoriteMatch();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final cart = context.read<CartProvider>();
@@ -124,9 +127,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           (!cart.isPickup && cart.deliveryAddress.isNotEmpty) ? cart.deliveryAddress : resolvedAddr,
           distKm,
           location: gps,
+          updateFavoriteMeta: false,
         );
       }
+      _resolveFavoriteMatch();
     } catch (_) {}
+  }
+
+  Future<void> _resolveFavoriteMatch() async {
+    final cart = context.read<CartProvider>();
+    final matched = await UserAddressService.findMatchingFavorite(
+      location: _selectedDeliveryLocation,
+      preferredId: cart.deliveryFavoriteId,
+      preferredName: cart.deliveryLocationLabel,
+    );
+    if (!mounted) return;
+    setState(() => _matchedFavorite = matched);
   }
 
   @override
@@ -406,22 +422,38 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   void _openLocationPicker() {
+    final cart = context.read<CartProvider>();
+    UserSavedAddress? pickedFavorite;
     LocationPickerSheet.show(
       context,
       title: 'Pilih Titik Antar',
       initialLocation: _selectedDeliveryLocation,
-      onSelected: (title, fullAddress, latLng) {
+      initialLocationTitle: _matchedFavorite?.name ?? cart.deliveryLocationLabel,
+      selectedFavoriteId: _matchedFavorite?.id ?? cart.deliveryFavoriteId,
+      onFavoriteSelected: (fav) {
+        pickedFavorite = fav;
+      },
+      onSelected: (title, fullAddress, latLng) async {
         final resolvedAddress = fullAddress.isNotEmpty ? fullAddress : title;
         final distKm = _calculateDistanceKm(_merchantLocation, latLng);
+        final matched = pickedFavorite ??
+            await UserAddressService.findMatchingFavorite(
+              location: latLng,
+              preferredName: title,
+            );
+        if (!mounted) return;
         setState(() {
           _hasExplicitLocation = true;
           _addressController.text = resolvedAddress;
           _selectedDeliveryLocation = latLng;
+          _matchedFavorite = matched;
         });
         context.read<CartProvider>().setDeliveryAddress(
               resolvedAddress,
               distKm,
               location: latLng,
+              locationLabel: matched?.name ?? (title.isNotEmpty ? title : null),
+              favoriteId: matched?.id,
             );
       },
     );
@@ -1691,20 +1723,47 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                                 ),
                                               ),
                                               const SizedBox(width: 8),
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                                decoration: BoxDecoration(
-                                                  color: isDark ? Colors.white10 : const Color(0xFFF1F5F9),
-                                                  borderRadius: BorderRadius.circular(8),
-                                                ),
-                                                child: Text(
-                                                  'Utama',
-                                                  style: TextStyle(
-                                                    fontSize: 10,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: isDark ? Colors.white70 : const Color(0xFF64748B),
-                                                  ),
-                                                ),
+                                              Builder(
+                                                builder: (context) {
+                                                  final favName = _matchedFavorite?.name ??
+                                                      (cart.deliveryFavoriteId != null
+                                                          ? cart.deliveryLocationLabel
+                                                          : null);
+                                                  final isFav = favName != null && favName.isNotEmpty;
+                                                  return Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                    decoration: BoxDecoration(
+                                                      color: isFav
+                                                          ? (isDark
+                                                              ? GageTheme.primary.withValues(alpha: 0.22)
+                                                              : const Color(0xFFFFEBEE))
+                                                          : (isDark ? Colors.white10 : const Color(0xFFF1F5F9)),
+                                                      borderRadius: BorderRadius.circular(999),
+                                                      border: isFav
+                                                          ? Border.all(color: GageTheme.primary.withValues(alpha: 0.35))
+                                                          : null,
+                                                    ),
+                                                    child: Row(
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        if (isFav) ...[
+                                                          const Icon(Icons.bookmark_rounded, size: 11, color: GageTheme.primary),
+                                                          const SizedBox(width: 3),
+                                                        ],
+                                                        Text(
+                                                          isFav ? 'Favorit • $favName' : 'Utama',
+                                                          style: TextStyle(
+                                                            fontSize: 10,
+                                                            fontWeight: FontWeight.bold,
+                                                            color: isFav
+                                                                ? (isDark ? Colors.white : GageTheme.primary)
+                                                                : (isDark ? Colors.white70 : const Color(0xFF64748B)),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  );
+                                                },
                                               ),
                                             ],
                                           ),

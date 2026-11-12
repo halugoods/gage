@@ -158,4 +158,58 @@ class UserAddressService {
     final encoded = json.encode(currentList.map((a) => a.toJson()).toList());
     await prefs.setString(_keyRecents, encoded);
   }
+
+  /// Mencari alamat favorit yang cocok berdasarkan ID, nama, atau kedekatan koordinat (<= 35 meter).
+  static UserSavedAddress? matchFavoriteInList(
+    List<UserSavedAddress> favorites, {
+    LatLng? location,
+    String? preferredId,
+    String? preferredName,
+    double maxDistanceMeters = 35.0,
+  }) {
+    if (favorites.isEmpty) return null;
+
+    final cleanId = preferredId?.trim() ?? '';
+    if (cleanId.isNotEmpty) {
+      for (final fav in favorites) {
+        if (fav.id == cleanId) return fav;
+      }
+    }
+
+    if (location == null) return null;
+    final cleanName = (preferredName ?? '')
+        .replaceFirst(RegExp(r'^Favorit:\s*', caseSensitive: false), '')
+        .trim()
+        .toLowerCase();
+
+    const distCalc = Distance();
+    UserSavedAddress? firstCloseMatch;
+    for (final fav in favorites) {
+      final meters = distCalc.as(LengthUnit.Meter, fav.location, location);
+      if (meters <= maxDistanceMeters) {
+        if (cleanName.isNotEmpty && fav.name.trim().toLowerCase() == cleanName) {
+          return fav;
+        }
+        firstCloseMatch ??= fav;
+      }
+    }
+    return firstCloseMatch;
+  }
+
+  /// Mengambil dan mencocokkan alamat favorit dari penyimpanan lokal.
+  static Future<UserSavedAddress?> findMatchingFavorite({
+    LatLng? location,
+    String? preferredId,
+    String? preferredName,
+    double maxDistanceMeters = 35.0,
+  }) async {
+    final favs = await getFavorites();
+    return matchFavoriteInList(
+      favs,
+      location: location,
+      preferredId: preferredId,
+      preferredName: preferredName,
+      maxDistanceMeters: maxDistanceMeters,
+    );
+  }
 }

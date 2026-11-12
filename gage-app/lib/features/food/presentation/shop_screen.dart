@@ -7,6 +7,7 @@ import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/core/services/location_service.dart';
 import 'package:gage_app/core/services/osm_geocoding_service.dart';
+import 'package:gage_app/core/services/user_address_service.dart';
 import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
 import 'package:gage_app/core/services/banner_manager_service.dart';
 import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
@@ -131,16 +132,28 @@ class _ShopScreenState extends State<ShopScreen> {
 
   void _showDeliveryLocationPicker() {
     final cart = Provider.of<CartProvider?>(context, listen: false);
+    UserSavedAddress? pickedFavorite;
     LocationPickerSheet.show(
       context,
       title: 'Pilih Lokasi Pengantaran Belanja',
       initialLocation: cart?.deliveryLocation,
+      initialLocationTitle: cart?.deliveryLocationLabel,
+      selectedFavoriteId: cart?.deliveryFavoriteId,
+      onFavoriteSelected: (fav) {
+        pickedFavorite = fav;
+      },
       onSelected: (title, fullAddress, latLng) {
         final resolved = fullAddress.isNotEmpty ? fullAddress : title;
         setState(() {
           _deliveryLocation = '$title - $fullAddress';
         });
-        cart?.setDeliveryAddress(resolved, cart.distanceKm, location: latLng);
+        cart?.setDeliveryAddress(
+          resolved,
+          cart.distanceKm,
+          location: latLng,
+          locationLabel: pickedFavorite?.name ?? (title.isNotEmpty ? title : null),
+          favoriteId: pickedFavorite?.id,
+        );
       },
     );
   }

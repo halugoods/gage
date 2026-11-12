@@ -2,7 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:gage_app/core/services/user_address_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/core/services/banner_manager_service.dart';
@@ -31,6 +33,9 @@ class _BabeScreenState extends State<BabeScreen> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchCtrl = TextEditingController();
   String _deliveryLocation = 'Mendeteksi titik GPS Anda...';
+  LatLng? _deliveryLatLng;
+  String? _deliveryFavoriteId;
+  String? _deliveryFavoriteName;
   final Set<String> _favoriteItemIds = {};
   final bool _showFavoritesOnly = false;
   bool _isLoading = true;
@@ -334,11 +339,27 @@ class _BabeScreenState extends State<BabeScreen> {
   }
 
   void _showLocationPicker() {
+    UserSavedAddress? pickedFavorite;
     LocationPickerSheet.show(
       context,
       title: 'Pilih Lokasi Pengantaran BaBe',
-      onSelected: (title, fullAddress, latLng) {
+      initialLocation: _deliveryLatLng,
+      initialLocationTitle: _deliveryFavoriteName,
+      selectedFavoriteId: _deliveryFavoriteId,
+      onFavoriteSelected: (fav) {
+        pickedFavorite = fav;
+      },
+      onSelected: (title, fullAddress, latLng) async {
+        final matched = pickedFavorite ??
+            await UserAddressService.findMatchingFavorite(
+              location: latLng,
+              preferredName: title,
+            );
+        if (!mounted) return;
         setState(() {
+          _deliveryLatLng = latLng;
+          _deliveryFavoriteId = matched?.id;
+          _deliveryFavoriteName = matched?.name;
           _deliveryLocation = title.isNotEmpty ? title : fullAddress;
         });
       },

@@ -11,6 +11,7 @@ import 'package:gage_app/core/services/gage_pricing_service.dart';
 import 'package:gage_app/features/ride/presentation/ride_checkout_screen.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
+import 'package:gage_app/core/services/user_address_service.dart';
 import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
 
 /// Screen utama pemesanan pengantaran barang GAGE Send.
@@ -47,6 +48,11 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
 
   LatLng _senderLatLng = const LatLng(-8.0895, 110.8492);
   LatLng? _recipientLatLng;
+  bool _hasExplicitSender = false;
+  String? _senderFavoriteId;
+  String? _senderFavoriteName;
+  String? _recipientFavoriteId;
+  String? _recipientFavoriteName;
   List<LatLng> _routePoints = [];
   double _distanceKm = 0.0;
   bool _isLoadingRoute = false;
@@ -91,7 +97,7 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
   Future<void> _initSenderGps() async {
     try {
       final gps = await LocationService.getCurrentLocation();
-      if (mounted) {
+      if (mounted && !_hasExplicitSender) {
         setState(() {
           _senderLatLng = gps;
           // Alamat pengirim dibiarkan kosong di awal sesuai instruksi user
@@ -156,16 +162,31 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
   }
 
   void _pickSenderAddress() {
+    UserSavedAddress? pickedFavorite;
     LocationPickerSheet.show(
       context,
       title: 'Pilih Titik Jemput',
       initialLocation: _senderLatLng,
+      initialLocationTitle: _senderFavoriteName,
+      selectedFavoriteId: _senderFavoriteId,
+      onFavoriteSelected: (fav) {
+        pickedFavorite = fav;
+      },
       showMiniMap: false,
       autoFocusSearch: true,
-      onSelected: (title, fullAddress, latLng) {
+      onSelected: (title, fullAddress, latLng) async {
+        final matched = pickedFavorite ??
+            await UserAddressService.findMatchingFavorite(
+              location: latLng,
+              preferredName: title,
+            );
+        if (!mounted) return;
         setState(() {
+          _hasExplicitSender = true;
           _senderLatLng = latLng;
           _senderAddressCtrl.text = title.isNotEmpty ? title : fullAddress;
+          _senderFavoriteId = matched?.id;
+          _senderFavoriteName = matched?.name;
         });
         if (_recipientLatLng != null) {
           _updateRoute();
@@ -177,16 +198,30 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
   }
 
   void _pickRecipientAddress() {
+    UserSavedAddress? pickedFavorite;
     LocationPickerSheet.show(
       context,
       title: 'Pilih Titik Antar',
       initialLocation: _recipientLatLng ?? _senderLatLng,
+      initialLocationTitle: _recipientFavoriteName,
+      selectedFavoriteId: _recipientFavoriteId,
+      onFavoriteSelected: (fav) {
+        pickedFavorite = fav;
+      },
       showMiniMap: false,
       autoFocusSearch: true,
-      onSelected: (title, fullAddress, latLng) {
+      onSelected: (title, fullAddress, latLng) async {
+        final matched = pickedFavorite ??
+            await UserAddressService.findMatchingFavorite(
+              location: latLng,
+              preferredName: title,
+            );
+        if (!mounted) return;
         setState(() {
           _recipientLatLng = latLng;
           _recipientAddressCtrl.text = title.isNotEmpty ? title : fullAddress;
+          _recipientFavoriteId = matched?.id;
+          _recipientFavoriteName = matched?.name;
         });
         _updateRoute();
         Future.delayed(const Duration(milliseconds: 350), () {

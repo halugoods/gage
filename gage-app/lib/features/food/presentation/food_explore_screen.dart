@@ -14,6 +14,7 @@ import 'package:latlong2/latlong.dart';
 import 'dart:async';
 import 'package:gage_app/core/services/osm_geocoding_service.dart';
 import 'package:gage_app/core/services/location_service.dart';
+import 'package:gage_app/core/services/user_address_service.dart';
 import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
 import 'package:gage_app/shared/widgets/seamless_floating_cart_bar.dart';
 import 'package:gage_app/shared/widgets/gage_service_header.dart';
@@ -50,14 +51,26 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
 
   void _showAddressPicker() {
     final cart = Provider.of<CartProvider?>(context, listen: false);
+    UserSavedAddress? pickedFavorite;
     LocationPickerSheet.show(
       context,
       title: 'Pilih Lokasi Pengantaran',
       initialLocation: cart?.deliveryLocation,
+      initialLocationTitle: cart?.deliveryLocationLabel,
+      selectedFavoriteId: cart?.deliveryFavoriteId,
+      onFavoriteSelected: (fav) {
+        pickedFavorite = fav;
+      },
       onSelected: (title, fullAddress, latLng) {
         final resolved = fullAddress.isNotEmpty ? fullAddress : title;
         setState(() => _selectedLocation = title);
-        cart?.setDeliveryAddress(resolved, cart.distanceKm, location: latLng);
+        cart?.setDeliveryAddress(
+          resolved,
+          cart.distanceKm,
+          location: latLng,
+          locationLabel: pickedFavorite?.name ?? (title.isNotEmpty ? title : null),
+          favoriteId: pickedFavorite?.id,
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Lokasi diatur ke: $title'),

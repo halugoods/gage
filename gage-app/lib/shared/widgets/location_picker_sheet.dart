@@ -16,7 +16,10 @@ import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 class LocationPickerSheet extends StatefulWidget {
   final String title;
   final LatLng? initialLocation;
+  final String? initialLocationTitle;
+  final String? selectedFavoriteId;
   final Function(String title, String fullAddress, LatLng latLng) onSelected;
+  final ValueChanged<UserSavedAddress?>? onFavoriteSelected;
   final bool showMiniMap;
   final bool autoFocusSearch;
 
@@ -24,7 +27,10 @@ class LocationPickerSheet extends StatefulWidget {
     super.key,
     required this.title,
     this.initialLocation,
+    this.initialLocationTitle,
+    this.selectedFavoriteId,
     required this.onSelected,
+    this.onFavoriteSelected,
     this.showMiniMap = true,
     this.autoFocusSearch = false,
   });
@@ -33,7 +39,10 @@ class LocationPickerSheet extends StatefulWidget {
     BuildContext context, {
     String title = 'Pilih Lokasi',
     LatLng? initialLocation,
+    String? initialLocationTitle,
+    String? selectedFavoriteId,
     required Function(String title, String fullAddress, LatLng latLng) onSelected,
+    ValueChanged<UserSavedAddress?>? onFavoriteSelected,
     bool showMiniMap = true,
     bool autoFocusSearch = false,
   }) {
@@ -55,7 +64,10 @@ class LocationPickerSheet extends StatefulWidget {
             child: LocationPickerSheet(
               title: title,
               initialLocation: initialLocation,
+              initialLocationTitle: initialLocationTitle,
+              selectedFavoriteId: selectedFavoriteId,
               onSelected: onSelected,
+              onFavoriteSelected: onFavoriteSelected,
               showMiniMap: showMiniMap,
               autoFocusSearch: autoFocusSearch,
             ),
@@ -81,9 +93,16 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
   List<UserSavedAddress> _recents = [];
   bool _isLoadingAddresses = true;
   bool _isAcquiringGps = false;
-  bool _hasPinMoved = false;
 
-  // State Accordion Tambah Alamat Baru & Mini Preview Map
+  // State Main Preview MiniMap (terpisah dari draft Tambah Alamat Favorit)
+  late LatLng _activePreviewLocation;
+  String _activePreviewTitle = 'Titik Lokasi Pengantaran';
+  String _activePreviewFullAddr = 'Kec. Pracimantoro, Kabupaten Wonogiri, Jawa Tengah';
+  bool _hasMainPinMoved = false;
+  UserSavedAddress? _matchedFavorite;
+  int _mainGeocodeSeq = 0;
+
+  // State Accordion Tambah Alamat Baru & Draft MiniMap
   bool _isAddingNewAddress = false;
   final TextEditingController _newAddrNameCtrl = TextEditingController();
   final TextEditingController _newAddrNotesCtrl = TextEditingController();
@@ -91,19 +110,33 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
   List<OsmPlace> _newAddrSearchResults = [];
   bool _isNewAddrSearching = false;
   Timer? _newAddrDebounce;
-  late LatLng _activePreviewLocation;
-  String _activePreviewTitle = 'Titik Lokasi Pengantaran';
-  late LatLng _selectedPin;
-  String _detectedAddr = 'Pracimantoro, Wonogiri';
-  String _detectedFullAddr = 'Kec. Pracimantoro, Kabupaten Wonogiri, Jawa Tengah';
+  late LatLng _draftPin;
+  String _draftAddr = 'Pracimantoro, Wonogiri';
+  String _draftFullAddr = 'Kec. Pracimantoro, Kabupaten Wonogiri, Jawa Tengah';
+  bool _hasDraftPinMoved = false;
+  bool _isDraftPinLocked = false;
+  int _draftGeocodeSeq = 0;
+
   final MapController _miniMapController = MapController();
   final MapController _accordionMapController = MapController();
+
+  void _safeMoveMap(MapController controller, LatLng target, double zoom) {
+    try {
+      controller.move(target, zoom);
+    } catch (_) {}
+  }
 
   @override
   void initState() {
     super.initState();
-    _activePreviewLocation = widget.initialLocation ?? const LatLng(-8.05517, 110.80889);
-    _selectedPin = _activePreviewLocation;
+    _activePreviewLocation = widget.initialLocation ?? LocationService.cachedOrFallback;
+    if (widget.initialLocationTitle != null && widget.initialLocationTitle!.trim().isNotEmpty) {
+      _activePreviewTitle = widget.initialLocationTitle!.trim();
+    }
+    _activePreviewFullAddr = OsmGeocodingService.formatFullOfficialAddress(_activePreviewLocation);
+    _draftPin = _activePreviewLocation;
+    _draftAddr = _activePreviewTitle;
+    _draftFullAddr = _activePreviewFullAddr;
     _loadAddressData();
     _initPreviewAddress();
     if (widget.initialLocation == null) {
@@ -114,40 +147,67 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
   Future<void> _acquireDefaultGps() async {
     try {
       final pos = await LocationService.getCurrentLocation();
-      if (!mounted) return;
+      if (!mounted || _hasMainPinMoved) return;
       setState(() {
         _activePreviewLocation = pos;
-        _selectedPin = pos;
+        if (!_isAddingNewAddress) {
+          _draftPin = pos;
+        }
       });
-      _miniMapController.move(pos, 16.5);
+      _safeMoveMap(_miniMapController, pos, 16.5);
       _initPreviewAddress();
     } catch (_) {}
   }
 
-  void _initPreviewAddress() async {
+  Future<void> _initPreviewAddress() async {
+    final target = _activePreviewLocation;
+    final seq = ++_mainGeocodeSeq;
     try {
-      final name = await OsmGeocodingService.reverseGeocode(_activePreviewLocation);
-      final full = OsmGeocodingService.formatFullOfficialAddress(_activePreviewLocation);
-      if (mounted) {
-        setState(() {
+      final name = await OsmGeocodingService.reverseGeocode(target);
+      final full = OsmGeocodingService.formatFullOfficialAddress(target);
+      if (!mounted || seq != _mainGeocodeSeq) return;
+      setState(() {
+        if (_matchedFavorite != null) {
+          _activePreviewTitle = _matchedFavorite!.name;
+        } else if (!_hasMainPinMoved &&
+            widget.initialLocationTitle != null &&
+            widget.initialLocationTitle!.trim().isNotEmpty) {
+          _activePreviewTitle = widget.initialLocationTitle!.trim();
+        } else {
           _activePreviewTitle = name;
-          _detectedAddr = name;
-          _detectedFullAddr = full;
-        });
-      }
+        }
+        _activePreviewFullAddr = full;
+        if (!_isAddingNewAddress && !_hasDraftPinMoved && !_isDraftPinLocked) {
+          _draftAddr = name;
+          _draftFullAddr = full;
+        }
+      });
     } catch (_) {}
   }
 
   Future<void> _loadAddressData() async {
     final favs = await UserAddressService.getFavorites();
     final recs = await UserAddressService.getRecents();
-    if (mounted) {
-      setState(() {
-        _favorites = favs;
-        _recents = recs;
-        _isLoadingAddresses = false;
-      });
-    }
+    final matched = UserAddressService.matchFavoriteInList(
+      favs,
+      location: _activePreviewLocation,
+      preferredId: _hasMainPinMoved ? null : widget.selectedFavoriteId,
+      preferredName: _hasMainPinMoved ? null : widget.initialLocationTitle,
+    );
+    if (!mounted) return;
+    setState(() {
+      _favorites = favs;
+      _recents = recs;
+      _isLoadingAddresses = false;
+      _matchedFavorite = matched;
+      if (matched != null) {
+        _favoriteCategory = matched.category;
+        _activePreviewTitle = matched.name;
+        if (_activePreviewFullAddr.trim().isEmpty) {
+          _activePreviewFullAddr = matched.address;
+        }
+      }
+    });
   }
 
   void _onSearchChanged(String val) {
@@ -192,7 +252,7 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
     _newAddrDebounce = Timer(const Duration(milliseconds: 320), () async {
       final results = await OsmGeocodingService.searchPlaces(
         clean,
-        proximityLocation: _selectedPin,
+        proximityLocation: _draftPin,
       );
       if (!mounted) return;
       setState(() {
@@ -273,37 +333,40 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
 
       if (!mounted) return;
       setState(() => _isAcquiringGps = false);
-      Navigator.pop(context);
-      widget.onSelected(addr, fullAddr, gps);
       GageToast.show(
         context,
         'Lokasi saat ini berhasil dipilih',
         type: GageToastType.success,
       );
+      Navigator.pop(context);
+      widget.onFavoriteSelected?.call(null);
+      widget.onSelected(addr, fullAddr, gps);
     } catch (e) {
       final fallbackGps = LocationService.cachedOrFallback;
       final addr = await OsmGeocodingService.reverseGeocode(fallbackGps);
       final fullAddr = OsmGeocodingService.formatFullOfficialAddress(fallbackGps);
       if (!mounted) return;
       setState(() => _isAcquiringGps = false);
-      Navigator.pop(context);
-      widget.onSelected(addr, fullAddr, fallbackGps);
       GageToast.show(
         context,
         'Menggunakan lokasi GPS tersimpan',
         type: GageToastType.info,
       );
+      Navigator.pop(context);
+      widget.onFavoriteSelected?.call(null);
+      widget.onSelected(addr, fullAddr, fallbackGps);
     }
   }
 
   void _openMapPicker() {
+    final initialPin = _activePreviewLocation;
     Navigator.pop(context);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _RetinaMapPickerModal(
-        initialLocation: widget.initialLocation,
+        initialLocation: initialPin,
         onConfirmed: (title, fullAddr, latLng) async {
           await UserAddressService.addRecent(UserSavedAddress(
             id: 'rec_${DateTime.now().millisecondsSinceEpoch}',
@@ -313,25 +376,40 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
             latitude: latLng.latitude,
             longitude: latLng.longitude,
           ));
+          widget.onFavoriteSelected?.call(null);
           widget.onSelected(title, fullAddr, latLng);
         },
       ),
     );
   }
 
+  void _openAddAddressForm() {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _isAddingNewAddress = !_isAddingNewAddress;
+      if (_isAddingNewAddress) {
+        _draftPin = _activePreviewLocation;
+        _draftAddr = _activePreviewTitle;
+        _draftFullAddr = _activePreviewFullAddr;
+        _hasDraftPinMoved = false;
+        _isDraftPinLocked = false;
+      }
+    });
+  }
+
   Future<void> _acquireGpsForNewAddress() async {
     try {
       final latLng = await LocationService.getCurrentLocation(forceFresh: true);
-      _updateSelectedPin(latLng);
-      _accordionMapController.move(latLng, 17.0);
+      _updateDraftPin(latLng, markMoved: false, locked: true);
+      _safeMoveMap(_accordionMapController, latLng, 17.0);
       if (mounted) {
         GageToast.show(context, 'Titik GPS berhasil diarahkan', type: GageToastType.success);
       }
     } catch (e) {
       if (mounted) {
         final fallback = LocationService.cachedOrFallback;
-        _updateSelectedPin(fallback);
-        _accordionMapController.move(fallback, 17.0);
+        _updateDraftPin(fallback, markMoved: false, locked: true);
+        _safeMoveMap(_accordionMapController, fallback, 17.0);
         GageToast.show(context, 'Menggunakan titik lokasi tersimpan', type: GageToastType.info);
       }
     }
@@ -343,32 +421,118 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _RetinaMapPickerModal(
-        initialLocation: _selectedPin,
+        initialLocation: _draftPin,
         onConfirmed: (title, fullAddr, latLng) {
-          _updateSelectedPin(latLng, title: title, fullAddr: fullAddr);
-          _accordionMapController.move(latLng, 17.0);
+          _updateDraftPin(
+            latLng,
+            title: title,
+            fullAddr: fullAddr,
+            markMoved: false,
+            locked: true,
+          );
+          _safeMoveMap(_accordionMapController, latLng, 17.0);
         },
       ),
     );
   }
 
-  void _updateSelectedPin(LatLng pin, {String? title, String? fullAddr}) async {
+  Future<void> _updateMainPreviewPin(LatLng pin) async {
+    final seq = ++_mainGeocodeSeq;
+    final matched = UserAddressService.matchFavoriteInList(
+      _favorites,
+      location: pin,
+    );
     setState(() {
-      _selectedPin = pin;
-      if (title != null) _detectedAddr = title;
-      if (fullAddr != null) _detectedFullAddr = fullAddr;
+      _activePreviewLocation = pin;
+      _hasMainPinMoved = true;
+      _matchedFavorite = matched;
+      if (matched != null) {
+        _activePreviewTitle = matched.name;
+      }
+    });
+
+    final name = await OsmGeocodingService.reverseGeocode(pin);
+    final full = OsmGeocodingService.formatFullOfficialAddress(pin);
+    if (!mounted || seq != _mainGeocodeSeq) return;
+    setState(() {
+      if (_matchedFavorite != null) {
+        _activePreviewTitle = _matchedFavorite!.name;
+      } else {
+        _activePreviewTitle = name;
+      }
+      _activePreviewFullAddr = full;
+    });
+  }
+
+  Future<void> _confirmMainMiniMapPin() async {
+    final target = _activePreviewLocation;
+    final title = _activePreviewTitle.trim().isNotEmpty
+        ? _activePreviewTitle.trim()
+        : OsmGeocodingService.formatFullOfficialAddress(target);
+    final fullAddr = _activePreviewFullAddr.trim().isNotEmpty
+        ? _activePreviewFullAddr.trim()
+        : OsmGeocodingService.formatFullOfficialAddress(target);
+    final matched = UserAddressService.matchFavoriteInList(
+      _favorites,
+      location: target,
+      preferredId: _matchedFavorite?.id,
+      preferredName: _matchedFavorite?.name,
+    );
+
+    await UserAddressService.addRecent(UserSavedAddress(
+      id: 'rec_${DateTime.now().millisecondsSinceEpoch}',
+      name: title,
+      address: fullAddr,
+      category: 'personal',
+      latitude: target.latitude,
+      longitude: target.longitude,
+    ));
+    if (!mounted) return;
+    setState(() => _hasMainPinMoved = false);
+    GageToast.show(context, 'Titik lokasi berhasil dikunci', type: GageToastType.success);
+    Navigator.pop(context);
+    widget.onFavoriteSelected?.call(matched);
+    widget.onSelected(title, fullAddr, target);
+  }
+
+  Future<void> _updateDraftPin(
+    LatLng pin, {
+    String? title,
+    String? fullAddr,
+    bool markMoved = true,
+    bool locked = false,
+  }) async {
+    final seq = ++_draftGeocodeSeq;
+    setState(() {
+      _draftPin = pin;
+      if (title != null) _draftAddr = title;
+      if (fullAddr != null) _draftFullAddr = fullAddr;
+      _hasDraftPinMoved = markMoved;
+      _isDraftPinLocked = locked;
     });
 
     if (title == null || fullAddr == null) {
       final name = await OsmGeocodingService.reverseGeocode(pin);
       final full = OsmGeocodingService.formatFullOfficialAddress(pin);
-      if (mounted) {
-        setState(() {
-          _detectedAddr = name;
-          _detectedFullAddr = full;
-        });
-      }
+      if (!mounted || seq != _draftGeocodeSeq) return;
+      setState(() {
+        _draftAddr = name;
+        _draftFullAddr = full;
+      });
     }
+  }
+
+  void _lockDraftMiniMapPin() {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _hasDraftPinMoved = false;
+      _isDraftPinLocked = true;
+    });
+    GageToast.show(
+      context,
+      'Titik peta dikunci. Isi nama alamat lalu tekan Simpan.',
+      type: GageToastType.success,
+    );
   }
 
   Future<void> _saveNewAddress() async {
@@ -378,13 +542,18 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
       return;
     }
 
+    final savedCoord = _draftPin;
+    final savedAddrText = _draftAddr.trim().isNotEmpty
+        ? _draftAddr.trim()
+        : OsmGeocodingService.formatFullOfficialAddress(savedCoord);
+
     final newAddr = UserSavedAddress(
       id: 'fav_${DateTime.now().millisecondsSinceEpoch}',
       name: label,
-      address: _detectedAddr,
+      address: savedAddrText,
       category: _favoriteCategory,
-      latitude: _selectedPin.latitude,
-      longitude: _selectedPin.longitude,
+      latitude: savedCoord.latitude,
+      longitude: savedCoord.longitude,
       notes: _newAddrNotesCtrl.text.trim().isEmpty ? null : _newAddrNotesCtrl.text.trim(),
     );
 
@@ -393,16 +562,22 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
 
     setState(() {
       _isAddingNewAddress = false;
+      _hasDraftPinMoved = false;
+      _isDraftPinLocked = false;
       _newAddrNameCtrl.clear();
       _newAddrNotesCtrl.clear();
       _newAddrSearchCtrl.clear();
-      _activePreviewLocation = _selectedPin;
+      _activePreviewLocation = savedCoord;
       _activePreviewTitle = label;
+      _activePreviewFullAddr = _draftFullAddr;
+      _matchedFavorite = newAddr;
     });
 
-    _miniMapController.move(_selectedPin, 16.5);
-    _loadAddressData();
-    GageToast.show(context, 'Alamat $label berhasil disimpan ke cloud', type: GageToastType.success);
+    _safeMoveMap(_miniMapController, savedCoord, 16.5);
+    await _loadAddressData();
+    if (mounted) {
+      GageToast.show(context, 'Alamat $label berhasil disimpan ke favorit', type: GageToastType.success);
+    }
   }
 
   Widget _buildMiniMapWidget({
@@ -412,11 +587,16 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
     required String addressLabel,
     required String fullAddressLabel,
     required MapController mapController,
+    required ValueChanged<LatLng> onPositionDragged,
+    required bool showConfirmButton,
+    VoidCallback? onConfirmPin,
+    bool isPinLocked = false,
+    Key? mapKey,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return AspectRatio(
-      aspectRatio: 1.0,
+      aspectRatio: 1.7,
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
@@ -430,6 +610,7 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
         child: Stack(
           children: [
             FlutterMap(
+              key: mapKey,
               mapController: mapController,
               options: MapOptions(
                 initialCenter: center,
@@ -439,10 +620,7 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                 ),
                 onPositionChanged: (pos, hasGesture) {
                   if (hasGesture) {
-                    _updateSelectedPin(pos.center);
-                    if (!_hasPinMoved) {
-                      setState(() => _hasPinMoved = true);
-                    }
+                    onPositionDragged(pos.center);
                   }
                 },
               ),
@@ -457,31 +635,33 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                 ),
               ],
             ),
-            // Center Pin Marker
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: const BoxDecoration(
-                        color: GageTheme.primary,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
-                        ],
+            // Center Pin Marker (IgnorePointer agar tidak menghalangi gesture geser peta di tengah pin)
+            IgnorePointer(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: const BoxDecoration(
+                          color: GageTheme.primary,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
+                          ],
+                        ),
+                        child: const Icon(Icons.location_on_rounded, color: Colors.white, size: 20),
                       ),
-                      child: const Icon(Icons.location_on_rounded, color: Colors.white, size: 20),
-                    ),
-                    Container(width: 3.5, height: 10, color: GageTheme.primary),
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(color: Colors.black38, shape: BoxShape.circle),
-                    ),
-                  ],
+                      Container(width: 3.5, height: 10, color: GageTheme.primary),
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: const BoxDecoration(color: Colors.black38, shape: BoxShape.circle),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -583,24 +763,44 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                       ],
                     ),
                   ),
-                  if (_hasPinMoved) ...[
+                  if (showConfirmButton && onConfirmPin != null) ...[
                     const SizedBox(width: 8),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: GageTheme.primary,
                         foregroundColor: Colors.white,
                         elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        shape: const StadiumBorder(),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         visualDensity: VisualDensity.compact,
                       ),
-                      onPressed: () {
-                        setState(() => _hasPinMoved = false);
-                        Navigator.pop(context);
-                        widget.onSelected(addressLabel, fullAddressLabel, center);
-                        GageToast.show(context, 'Titik lokasi berhasil dikunci', type: GageToastType.success);
-                      },
+                      onPressed: onConfirmPin,
                       child: const Text('Pakai Lokasi Ini', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    ),
+                  ] else if (isPinLocked) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFECFDF5),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.lock_rounded, size: 12, color: Color(0xFF047857)),
+                          SizedBox(width: 4),
+                          Text(
+                            'Terkunci',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF047857),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ],
@@ -682,12 +882,17 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                     onChanged: _onNewAddrSearchChanged,
                     onSubmitted: (query) async {
                       if (query.trim().length >= 2) {
-                        final results = await OsmGeocodingService.searchPlaces(query.trim(), proximityLocation: _selectedPin);
+                        final results = await OsmGeocodingService.searchPlaces(query.trim(), proximityLocation: _draftPin);
                         if (results.isNotEmpty) {
                           final top = results.first;
-                          _updateSelectedPin(top.location, title: top.title, fullAddr: top.displayName);
-                          _accordionMapController.move(top.location, 17.0);
-                          _miniMapController.move(top.location, 17.0);
+                          _updateDraftPin(
+                            top.location,
+                            title: top.title,
+                            fullAddr: top.displayName,
+                            markMoved: false,
+                            locked: true,
+                          );
+                          _safeMoveMap(_accordionMapController, top.location, 17.0);
                           setState(() => _newAddrSearchResults = []);
                         }
                       }
@@ -763,9 +968,14 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                         _newAddrSearchCtrl.text = place.title;
                         _newAddrSearchResults = [];
                       });
-                      _updateSelectedPin(place.location, title: place.title, fullAddr: place.displayName);
-                      _accordionMapController.move(place.location, 17.0);
-                      _miniMapController.move(place.location, 17.0);
+                      _updateDraftPin(
+                        place.location,
+                        title: place.title,
+                        fullAddr: place.displayName,
+                        markMoved: false,
+                        locked: true,
+                      );
+                      _safeMoveMap(_accordionMapController, place.location, 17.0);
                     },
                   );
                 },
@@ -793,7 +1003,14 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                       children: [
                         Icon(Icons.my_location_rounded, size: 14, color: GageTheme.primary),
                         SizedBox(width: 4),
-                        Text('Lokasi Saat Ini', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: GageTheme.primary)),
+                        Flexible(
+                          child: Text(
+                            'Lokasi Saat Ini',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: GageTheme.primary),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -816,7 +1033,14 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                       children: [
                         Icon(Icons.map_rounded, size: 14, color: Color(0xFF2563EB)),
                         SizedBox(width: 4),
-                        Text('Pilih Lewat Peta', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                        Flexible(
+                          child: Text(
+                            'Pilih Lewat Peta',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2563EB)),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -882,14 +1106,19 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
           ),
           const SizedBox(height: 10),
 
-          // Mini Preview Map Realtime Pin dengan Tombol Expand Fullscreen & Pusatkan GPS
+          // Mini Preview Map Realtime Pin untuk Alamat Favorit (mengunci lokasi tanpa keluar sheet)
           _buildMiniMapWidget(
-            center: _selectedPin,
+            mapKey: const ValueKey('add_favorite_draft_minimap'),
+            center: _draftPin,
             onExpand: _openMapPickerForNewAddress,
             onRecenter: _acquireGpsForNewAddress,
-            addressLabel: _detectedAddr,
-            fullAddressLabel: _detectedFullAddr,
+            addressLabel: _draftAddr,
+            fullAddressLabel: _draftFullAddr,
             mapController: _accordionMapController,
+            onPositionDragged: (center) => _updateDraftPin(center, markMoved: true, locked: false),
+            showConfirmButton: _hasDraftPinMoved,
+            onConfirmPin: _lockDraftMiniMapPin,
+            isPinLocked: _isDraftPinLocked,
           ),
           const SizedBox(height: 12),
 
@@ -1024,15 +1253,25 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
           ),
           const SizedBox(height: 12),
 
+          // Interactive Banner saat lokasi aktif berasal dari Alamat Favorit
+          if (!_isAddingNewAddress && _matchedFavorite != null) ...[
+            _buildActiveFavoriteBanner(isDark, _matchedFavorite!),
+            const SizedBox(height: 10),
+          ],
+
           // Realtime Pin Mini Preview Map Terkini (Disembunyikan saat tambah alamat baru agar lapang)
           if (!_isAddingNewAddress && widget.showMiniMap) ...[
             _buildMiniMapWidget(
+              mapKey: const ValueKey('main_preview_minimap'),
               center: _activePreviewLocation,
               onExpand: _openMapPicker,
               onRecenter: _selectCurrentGps,
               addressLabel: _activePreviewTitle,
-              fullAddressLabel: _detectedFullAddr,
+              fullAddressLabel: _activePreviewFullAddr,
               mapController: _miniMapController,
+              onPositionDragged: _updateMainPreviewPin,
+              showConfirmButton: _hasMainPinMoved,
+              onConfirmPin: _confirmMainMiniMapPin,
             ),
             const SizedBox(height: 12),
           ],
@@ -1108,9 +1347,13 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                                 )
                               : const Icon(Icons.my_location_rounded, size: 16, color: GageTheme.primary),
                           const SizedBox(width: 6),
-                          Text(
-                            _isAcquiringGps ? 'Mendeteksi...' : 'Lokasi Saat Ini',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5, color: GageTheme.primary),
+                          Flexible(
+                            child: Text(
+                              _isAcquiringGps ? 'Mendeteksi...' : 'Lokasi Saat Ini',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5, color: GageTheme.primary),
+                            ),
                           ),
                         ],
                       ),
@@ -1136,9 +1379,13 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                         children: [
                           Icon(Icons.map_rounded, size: 16, color: Color(0xFF2563EB)),
                           SizedBox(width: 6),
-                          Text(
-                            'Pilih Lewat Peta',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5, color: Color(0xFF2563EB)),
+                          Flexible(
+                            child: Text(
+                              'Pilih Lewat Peta',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5, color: Color(0xFF2563EB)),
+                            ),
                           ),
                         ],
                       ),
@@ -1163,17 +1410,17 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Belum ada alamat tersimpan',
-                    style: TextStyle(fontSize: 11.5, color: GageTheme.textSecondary),
+                  const Expanded(
+                    child: Text(
+                      'Belum ada alamat tersimpan',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 11.5, color: GageTheme.textSecondary),
+                    ),
                   ),
                   TextButton.icon(
-                    onPressed: () {
-                      HapticFeedback.lightImpact();
-                      setState(() => _isAddingNewAddress = true);
-                    },
+                    onPressed: _openAddAddressForm,
                     icon: const Icon(Icons.add_rounded, size: 15, color: GageTheme.primary),
                     label: const Text(
                       'Simpan Alamat',
@@ -1247,6 +1494,7 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
               latitude: p.location.latitude,
               longitude: p.location.longitude,
             ));
+            widget.onFavoriteSelected?.call(null);
             widget.onSelected(p.title, p.displayName, p.location);
           },
         );
@@ -1276,16 +1524,13 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
             children: [
               const Text('Alamat Favorit', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold)),
               InkWell(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  setState(() => _isAddingNewAddress = !_isAddingNewAddress);
-                },
-                borderRadius: BorderRadius.circular(14),
+                onTap: _openAddAddressForm,
+                borderRadius: BorderRadius.circular(999),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
                   decoration: BoxDecoration(
                     color: const Color(0xFFFFEBEE),
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(999),
                   ),
                   child: Row(
                     children: [
@@ -1300,35 +1545,49 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
           ),
           const SizedBox(height: 10),
 
-          // Switcher 2 Tab: Personal vs Bisnis
+          // Switcher 2 Tab Full-Rounded Capsule: Personal vs Bisnis
           Container(
             padding: const EdgeInsets.all(3),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF27272A) : Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(12),
+              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(999),
             ),
             child: Row(
               children: [
                 Expanded(
                   child: GestureDetector(
-                    onTap: () => setState(() => _favoriteCategory = 'personal'),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 7),
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _favoriteCategory = 'personal');
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
                       decoration: BoxDecoration(
-                        color: _favoriteCategory == 'personal'
-                            ? (isDark ? const Color(0xFF3F3F46) : Colors.white)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: _favoriteCategory == 'personal'
-                            ? const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 1))]
-                            : null,
+                        color: _favoriteCategory == 'personal' ? GageTheme.primary : Colors.transparent,
+                        borderRadius: BorderRadius.circular(999),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.person_rounded, size: 16, color: _favoriteCategory == 'personal' ? GageTheme.primary : (isDark ? Colors.white60 : Colors.grey)),
+                          Icon(
+                            Icons.person_rounded,
+                            size: 16,
+                            color: _favoriteCategory == 'personal'
+                                ? Colors.white
+                                : (isDark ? Colors.white60 : const Color(0xFF64748B)),
+                          ),
                           const SizedBox(width: 6),
-                          Text('Personal', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _favoriteCategory == 'personal' ? GageTheme.primary : (isDark ? Colors.white70 : Colors.grey))),
+                          Text(
+                            'Personal',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: _favoriteCategory == 'personal'
+                                  ? Colors.white
+                                  : (isDark ? Colors.white70 : const Color(0xFF475569)),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -1336,24 +1595,38 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                 ),
                 Expanded(
                   child: GestureDetector(
-                    onTap: () => setState(() => _favoriteCategory = 'business'),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 7),
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _favoriteCategory = 'business');
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
                       decoration: BoxDecoration(
-                        color: _favoriteCategory == 'business'
-                            ? (isDark ? const Color(0xFF3F3F46) : Colors.white)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: _favoriteCategory == 'business'
-                            ? const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 1))]
-                            : null,
+                        color: _favoriteCategory == 'business' ? GageTheme.primary : Colors.transparent,
+                        borderRadius: BorderRadius.circular(999),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.business_center_rounded, size: 16, color: _favoriteCategory == 'business' ? GageTheme.primary : (isDark ? Colors.white60 : Colors.grey)),
+                          Icon(
+                            Icons.business_center_rounded,
+                            size: 16,
+                            color: _favoriteCategory == 'business'
+                                ? Colors.white
+                                : (isDark ? Colors.white60 : const Color(0xFF64748B)),
+                          ),
                           const SizedBox(width: 6),
-                          Text('Bisnis', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _favoriteCategory == 'business' ? GageTheme.primary : (isDark ? Colors.white70 : Colors.grey))),
+                          Text(
+                            'Bisnis',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: _favoriteCategory == 'business'
+                                  ? Colors.white
+                                  : (isDark ? Colors.white70 : const Color(0xFF475569)),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -1400,8 +1673,11 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
           else
             ...filteredFavs.map((fav) => _buildAddressCard(
               address: fav,
+              isSelected: _matchedFavorite?.id == fav.id,
               onTap: () {
+                HapticFeedback.selectionClick();
                 Navigator.pop(context);
+                widget.onFavoriteSelected?.call(fav);
                 widget.onSelected(fav.name, fav.address, fav.location);
               },
               onDelete: () async {
@@ -1420,7 +1696,9 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
               address: rec,
               isRecent: true,
               onTap: () {
+                HapticFeedback.selectionClick();
                 Navigator.pop(context);
+                widget.onFavoriteSelected?.call(null);
                 widget.onSelected(rec.name, rec.address, rec.location);
               },
             )),
@@ -1432,9 +1710,103 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
     );
   }
 
+  Widget _buildActiveFavoriteBanner(bool isDark, UserSavedAddress fav) {
+    final categoryLabel = fav.category == 'business' ? 'Bisnis' : 'Personal';
+    return InkWell(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() {
+          _isAddingNewAddress = false;
+          _searchCtrl.clear();
+          _searchFilter = '';
+          _searchResults = [];
+          _favoriteCategory = fav.category;
+        });
+        GageToast.show(
+          context,
+          'Alamat favorit "${fav.name}" sedang terpilih. Pilih alamat lain atau geser peta untuk mengganti.',
+          type: GageToastType.info,
+        );
+      },
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        decoration: BoxDecoration(
+          color: isDark
+              ? GageTheme.primary.withValues(alpha: 0.16)
+              : const Color(0xFFFFF5F5),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: GageTheme.primary.withValues(alpha: 0.35),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: const BoxDecoration(
+                color: GageTheme.primary,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.bookmark_rounded, size: 14, color: Colors.white),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Dipilih dari Alamat Favorit: ${fav.name}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : const Color(0xFF991B1B),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    'Kategori $categoryLabel - pilih favorit lain atau geser pin untuk ubah',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      color: isDark ? Colors.white70 : const Color(0xFF7F1D1D),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: GageTheme.primary.withValues(alpha: 0.35)),
+              ),
+              child: const Text(
+                'Ganti',
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.bold,
+                  color: GageTheme.primary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildAddressCard({
     required UserSavedAddress address,
     bool isRecent = false,
+    bool isSelected = false,
     required VoidCallback onTap,
     VoidCallback? onDelete,
   }) {
@@ -1503,26 +1875,70 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
       );
     }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF27272A) : Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
-      ),
-      child: ListTile(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: isSelected
+            ? (isDark
+                ? GageTheme.primary.withValues(alpha: 0.14)
+                : const Color(0xFFFFF5F5))
+            : (isDark ? const Color(0xFF27272A) : Colors.white),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(
+            color: isSelected
+                ? GageTheme.primary
+                : (isDark ? Colors.white12 : Colors.grey.shade200),
+            width: isSelected ? 1.5 : 1.0,
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: ListTile(
         onTap: onTap,
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
         leading: CircleAvatar(
           radius: 18,
-          backgroundColor: const Color(0xFFFFEBEE),
+          backgroundColor: isSelected ? GageTheme.primary : const Color(0xFFFFEBEE),
           child: Icon(
             address.icon,
             size: 20,
-            color: GageTheme.primary,
+            color: isSelected ? Colors.white : GageTheme.primary,
           ),
         ),
-        title: Text(address.name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: isDark ? Colors.white : Colors.black87)),
+        title: Row(
+          children: [
+            Flexible(
+              child: Text(
+                address.name,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13.5,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (isSelected) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: GageTheme.primary,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Text(
+                  'Terpilih',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1537,6 +1953,7 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                 onPressed: onDelete,
               )
             : const Icon(Icons.chevron_right_rounded, size: 20, color: Colors.black26),
+        ),
       ),
     );
   }
@@ -1594,7 +2011,14 @@ class _RetinaMapPickerModalState extends State<_RetinaMapPickerModal> {
 
   Future<void> _recenterGps() async {
     final gps = await LocationService.getCurrentLocation();
-    _mapController.move(gps, 17.5);
+    if (!mounted) return;
+    setState(() {
+      _currentCenter = gps;
+      _isGeocoding = true;
+    });
+    try {
+      _mapController.move(gps, 17.5);
+    } catch (_) {}
     _reverseGeocodeCenter(gps);
   }
 

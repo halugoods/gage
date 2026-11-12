@@ -17,6 +17,7 @@ import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 import 'package:gage_app/shared/widgets/mini_location_preview_map.dart';
+import 'package:gage_app/core/services/user_address_service.dart';
 import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
 import 'package:gage_app/features/wallet/presentation/gagepay_screen.dart';
 import 'package:gage_app/core/services/merchant_discount_tier_service.dart';
@@ -71,6 +72,8 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
   late String _currentDropoffAddress;
   late double _currentDistanceKm;
   bool _protectShipment = false;
+  UserSavedAddress? _matchedDropoffFavorite;
+  UserSavedAddress? _matchedPickupFavorite;
 
   // Selected Payment Method: 'GAGEPAY', 'GAGEPAY_COD', 'GAGEPAY_QRIS', 'QRIS', 'COD'
   String _selectedPaymentMethod = 'GAGEPAY';
@@ -106,6 +109,7 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
 
     _loadPaymentPreference();
     _syncAutoDeliveryVoucher(notify: false);
+    _resolveFavoriteMatches();
   }
 
   void _syncAutoDeliveryVoucher({bool notify = true}) {
@@ -713,12 +717,40 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
     );
   }
 
+  Future<void> _resolveFavoriteMatches() async {
+    final dropoffFav = await UserAddressService.findMatchingFavorite(
+      location: _currentDropoffLocation,
+    );
+    final pickupFav = await UserAddressService.findMatchingFavorite(
+      location: _currentPickupLocation,
+    );
+    if (!mounted) return;
+    setState(() {
+      _matchedDropoffFavorite = dropoffFav;
+      _matchedPickupFavorite = pickupFav;
+    });
+  }
+
   void _openLocationPicker({required bool isDropoff}) {
+    final activeFav = isDropoff ? _matchedDropoffFavorite : _matchedPickupFavorite;
+    UserSavedAddress? pickedFavorite;
     LocationPickerSheet.show(
       context,
       title: isDropoff ? 'Ubah Alamat Pengantaran' : 'Ubah Titik Jemput',
       initialLocation: isDropoff ? _currentDropoffLocation : _currentPickupLocation,
+      initialLocationTitle: activeFav?.name,
+      selectedFavoriteId: activeFav?.id,
+      onFavoriteSelected: (fav) {
+        pickedFavorite = fav;
+      },
       onSelected: (title, fullAddress, latLng) async {
+        final resolvedAddr = fullAddress.isNotEmpty ? fullAddress : title;
+        final matched = pickedFavorite ??
+            await UserAddressService.findMatchingFavorite(
+              location: latLng,
+              preferredName: title,
+            );
+        if (!mounted) return;
         final fallbackKm = const Distance().as(
           LengthUnit.Kilometer,
           isDropoff ? _currentPickupLocation : latLng,
@@ -727,10 +759,12 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
         setState(() {
           if (isDropoff) {
             _currentDropoffLocation = latLng;
-            _currentDropoffAddress = fullAddress;
+            _currentDropoffAddress = resolvedAddr;
+            _matchedDropoffFavorite = matched;
           } else {
             _currentPickupLocation = latLng;
-            _currentPickupAddress = fullAddress;
+            _currentPickupAddress = resolvedAddr;
+            _matchedPickupFavorite = matched;
           }
           if (fallbackKm > 0) {
             _currentDistanceKm = fallbackKm;
@@ -922,16 +956,44 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                                             ),
                                           ),
                                           const SizedBox(width: 8),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                            decoration: BoxDecoration(
-                                              color: isDark ? Colors.white10 : const Color(0xFFF1F5F9),
-                                              borderRadius: BorderRadius.circular(8),
-                                            ),
-                                            child: const Text(
-                                              'Utama',
-                                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
-                                            ),
+                                          Builder(
+                                            builder: (context) {
+                                              final favName = _matchedDropoffFavorite?.name;
+                                              final isFav = favName != null && favName.isNotEmpty;
+                                              return Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: isFav
+                                                      ? (isDark
+                                                          ? GageTheme.primary.withValues(alpha: 0.22)
+                                                          : const Color(0xFFFFEBEE))
+                                                      : (isDark ? Colors.white10 : const Color(0xFFF1F5F9)),
+                                                  borderRadius: BorderRadius.circular(999),
+                                                  border: isFav
+                                                      ? Border.all(color: GageTheme.primary.withValues(alpha: 0.35))
+                                                      : null,
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    if (isFav) ...[
+                                                      const Icon(Icons.bookmark_rounded, size: 11, color: GageTheme.primary),
+                                                      const SizedBox(width: 3),
+                                                    ],
+                                                    Text(
+                                                      isFav ? 'Favorit • $favName' : 'Utama',
+                                                      style: TextStyle(
+                                                        fontSize: 10,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: isFav
+                                                            ? (isDark ? Colors.white : GageTheme.primary)
+                                                            : const Color(0xFF64748B),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                            },
                                           ),
                                         ],
                                       ),
@@ -1035,6 +1097,25 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                                       ),
                                     ),
                                   ),
+                                  if (_matchedPickupFavorite != null) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFFEBEE),
+                                        borderRadius: BorderRadius.circular(999),
+                                      ),
+                                      child: Text(
+                                        'Favorit • ${_matchedPickupFavorite!.name}',
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          color: GageTheme.primary,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                  const SizedBox(width: 8),
                                   InkWell(
                                     onTap: () => _openLocationPicker(isDropoff: false),
                                     child: const Text(

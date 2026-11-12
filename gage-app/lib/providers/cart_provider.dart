@@ -14,6 +14,8 @@ class CartProvider extends ChangeNotifier {
   double _distanceKm = 1.8;
   String _deliveryAddress = '';
   LatLng? _deliveryLocation;
+  String? _deliveryLocationLabel;
+  String? _deliveryFavoriteId;
   String _addressNotes = '';
   String? _promoCode;
   String _paymentMethod = 'GAGEPAY'; // 'GAGEPAY', 'QRIS', 'CASH_COD'
@@ -36,6 +38,8 @@ class CartProvider extends ChangeNotifier {
   double get distanceKm => _distanceKm;
   String get deliveryAddress => _isPickup ? 'Ambil di Toko / Resto Mitra' : _deliveryAddress;
   LatLng? get deliveryLocation => _deliveryLocation;
+  String? get deliveryLocationLabel => _deliveryLocationLabel;
+  String? get deliveryFavoriteId => _deliveryFavoriteId;
   bool get hasCustomDeliveryLocation => _deliveryLocation != null;
   String get addressNotes => _addressNotes;
   String? get promoCode => _promoCode;
@@ -140,6 +144,10 @@ class CartProvider extends ChangeNotifier {
         if (savedLat != null && savedLng != null) {
           _deliveryLocation = LatLng(savedLat, savedLng);
         }
+        final savedAddrLabel = data['delivery_label']?.toString();
+        final savedFavId = data['delivery_favorite_id']?.toString();
+        _deliveryLocationLabel = (savedAddrLabel != null && savedAddrLabel.isNotEmpty) ? savedAddrLabel : null;
+        _deliveryFavoriteId = (savedFavId != null && savedFavId.isNotEmpty) ? savedFavId : null;
         final rawAddr = data['delivery_address']?.toString() ?? '';
         // Clear legacy Yogyakarta placeholder when no coordinate was stored.
         _deliveryAddress = (savedLat == null && rawAddr.contains('Jl. Wates')) ? '' : rawAddr;
@@ -170,6 +178,8 @@ class CartProvider extends ChangeNotifier {
         'delivery_address': _deliveryAddress,
         if (_deliveryLocation != null) 'delivery_lat': _deliveryLocation!.latitude,
         if (_deliveryLocation != null) 'delivery_lng': _deliveryLocation!.longitude,
+        if (_deliveryLocationLabel != null) 'delivery_label': _deliveryLocationLabel,
+        if (_deliveryFavoriteId != null) 'delivery_favorite_id': _deliveryFavoriteId,
         'promo_code': _promoCode,
         'items': _items.map((i) => i.toJson()).toList(),
       };
@@ -331,11 +341,22 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setDeliveryAddress(String address, double distance, {LatLng? location}) {
+  void setDeliveryAddress(
+    String address,
+    double distance, {
+    LatLng? location,
+    String? locationLabel,
+    String? favoriteId,
+    bool updateFavoriteMeta = true,
+  }) {
     _deliveryAddress = address;
     _distanceKm = distance;
     if (location != null) {
       _deliveryLocation = location;
+    }
+    if (updateFavoriteMeta) {
+      _deliveryLocationLabel = locationLabel;
+      _deliveryFavoriteId = favoriteId;
     }
     _saveCart();
     notifyListeners();

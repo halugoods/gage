@@ -14,6 +14,7 @@ import 'package:gage_app/core/services/osm_geocoding_service.dart';
 import 'package:gage_app/core/services/location_service.dart';
 import 'package:gage_app/core/services/gage_pricing_service.dart';
 import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
+import 'package:gage_app/core/services/user_address_service.dart';
 import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
 import 'package:gage_app/features/ride/presentation/ride_checkout_screen.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
@@ -55,6 +56,11 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
 
   final TextEditingController _pickupController = TextEditingController();
   final TextEditingController _dropoffController = TextEditingController();
+  bool _hasExplicitPickup = false;
+  String? _pickupFavoriteId;
+  String? _pickupFavoriteName;
+  String? _dropoffFavoriteId;
+  String? _dropoffFavoriteName;
 
 
   int get _realisticTripMins {
@@ -74,7 +80,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
 
   Future<void> _initRealGpsAndRoute() async {
     final realGps = await LocationService.getCurrentLocation();
-    if (mounted) {
+    if (mounted && !_hasExplicitPickup) {
       setState(() {
         _pickupLocation = realGps;
         _driverLocation = LatLng(realGps.latitude - 0.004, realGps.longitude - 0.003);
@@ -94,7 +100,10 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
     if (!mounted) return;
     _mapController.move(realGps, 16.0);
     setState(() {
+      _hasExplicitPickup = true;
       _pickupLocation = realGps;
+      _pickupFavoriteId = null;
+      _pickupFavoriteName = null;
     });
     final addr = await OsmGeocodingService.reverseGeocode(realGps);
     if (!mounted) return;
@@ -262,20 +271,37 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
   }
 
   void _showAddressSearchSheet(bool isPickup) {
+    UserSavedAddress? pickedFavorite;
     LocationPickerSheet.show(
       context,
       title: isPickup ? 'Pilih Titik Jemput' : 'Pilih Titik Tujuan',
       initialLocation: (isPickup ? _pickupLocation : _dropoffLocation) ?? _pickupLocation,
+      initialLocationTitle: isPickup ? _pickupFavoriteName : _dropoffFavoriteName,
+      selectedFavoriteId: isPickup ? _pickupFavoriteId : _dropoffFavoriteId,
+      onFavoriteSelected: (fav) {
+        pickedFavorite = fav;
+      },
       showMiniMap: false,
       autoFocusSearch: true,
-      onSelected: (title, fullAddress, latLng) {
+      onSelected: (title, fullAddress, latLng) async {
+        final matched = pickedFavorite ??
+            await UserAddressService.findMatchingFavorite(
+              location: latLng,
+              preferredName: title,
+            );
+        if (!mounted) return;
         setState(() {
           if (isPickup) {
+            _hasExplicitPickup = true;
             _pickupLocation = latLng;
             _pickupController.text = title;
+            _pickupFavoriteId = matched?.id;
+            _pickupFavoriteName = matched?.name;
           } else {
             _dropoffLocation = latLng;
             _dropoffController.text = title;
+            _dropoffFavoriteId = matched?.id;
+            _dropoffFavoriteName = matched?.name;
           }
         });
         _initRoute();
