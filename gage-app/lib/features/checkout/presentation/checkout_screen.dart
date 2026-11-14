@@ -17,7 +17,7 @@ import 'package:gage_app/providers/wallet_provider.dart';
 import 'package:gage_app/providers/order_provider.dart';
 import 'package:gage_app/features/food/data/merchant_catalog_helper.dart';
 import 'package:gage_app/features/orders/presentation/order_detail_screen.dart';
-import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
+import 'package:gage_app/shared/widgets/full_screen_map_picker.dart';
 import 'package:gage_app/features/food/presentation/food_explore_screen.dart';
 import 'package:gage_app/features/food/presentation/shop_screen.dart';
 import 'package:gage_app/features/food/presentation/farm_screen.dart';
@@ -33,6 +33,7 @@ import 'package:gage_app/core/services/osm_geocoding_service.dart';
 import 'package:gage_app/core/services/user_address_service.dart';
 import 'package:gage_app/core/services/pracimantoro_places_database.dart';
 import 'package:gage_app/shared/widgets/mini_location_preview_map.dart';
+import 'package:gage_app/shared/widgets/gage_split_payment_banner.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:gage_app/features/wallet/presentation/gagepay_screen.dart';
 
@@ -116,6 +117,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final cart = context.read<CartProvider>();
+      final wallet = context.read<WalletProvider>();
+      // Jangan jadikan GAGEPay atau split sebagai default saat saldo Rp 0.
+      if (wallet.balance <= 0 && cart.paymentMethod.startsWith('GAGEPAY')) {
+        cart.setPaymentMethod('');
+      }
       final activeService = _activeServiceType(cart);
       cart.syncAutoPromos(serviceType: activeService);
       _loadMerchantRecommendations(cart.merchantId);
@@ -177,7 +183,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       preferredName: cart.deliveryLocationLabel,
     );
     if (!mounted) return;
-    setState(() => _matchedFavorite = matched);
+    setState(() {
+      _matchedFavorite = matched;
+      if (matched != null &&
+          _notePatokanController.text.trim().isEmpty &&
+          (matched.notes?.trim().isNotEmpty ?? false)) {
+        _notePatokanController.text = matched.notes!.trim();
+        cart.setAddressNotes(matched.notes!.trim());
+      }
+    });
   }
 
   @override
@@ -460,42 +474,44 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
-  void _openLocationPicker() {
+  Future<void> _openLocationPicker() async {
     final cart = context.read<CartProvider>();
-    UserSavedAddress? pickedFavorite;
-    LocationPickerSheet.show(
+    final result = await FullScreenMapPicker.open(
       context,
       title: 'Pilih Titik Antar',
       initialLocation: _selectedDeliveryLocation,
-      initialLocationTitle: _matchedFavorite?.name ?? cart.deliveryLocationLabel,
+      initialTitle: _matchedFavorite?.name ?? cart.deliveryLocationLabel,
       selectedFavoriteId: _matchedFavorite?.id ?? cart.deliveryFavoriteId,
-      onFavoriteSelected: (fav) {
-        pickedFavorite = fav;
-      },
-      onSelected: (title, fullAddress, latLng) async {
-        final resolvedAddress = fullAddress.isNotEmpty ? fullAddress : title;
-        final distKm = _calculateDistanceKm(_merchantLocation, latLng);
-        final matched = pickedFavorite ??
-            await UserAddressService.findMatchingFavorite(
-              location: latLng,
-              preferredName: title,
-            );
-        if (!mounted) return;
-        setState(() {
-          _hasExplicitLocation = true;
-          _addressController.text = resolvedAddress;
-          _selectedDeliveryLocation = latLng;
-          _matchedFavorite = matched;
-        });
-        context.read<CartProvider>().setDeliveryAddress(
-              resolvedAddress,
-              distKm,
-              location: latLng,
-              locationLabel: matched?.name ?? (title.isNotEmpty ? title : null),
-              favoriteId: matched?.id,
-            );
-      },
     );
+    if (!mounted || result == null) return;
+    final resolvedAddress =
+        result.fullAddress.isNotEmpty ? result.fullAddress : result.title;
+    final distKm = _calculateDistanceKm(_merchantLocation, result.location);
+    final matched = result.matchedFavorite ??
+        await UserAddressService.findMatchingFavorite(
+          location: result.location,
+          preferredName: result.title,
+        );
+    if (!mounted) return;
+    setState(() {
+      _hasExplicitLocation = true;
+      _addressController.text = resolvedAddress;
+      _selectedDeliveryLocation = result.location;
+      _matchedFavorite = matched;
+      if (matched != null && (matched.notes?.trim().isNotEmpty ?? false)) {
+        _notePatokanController.text = matched.notes!.trim();
+      }
+    });
+    cart.setDeliveryAddress(
+      resolvedAddress,
+      distKm,
+      location: result.location,
+      locationLabel: matched?.name ?? (result.title.isNotEmpty ? result.title : null),
+      favoriteId: matched?.id,
+    );
+    if (matched != null && (matched.notes?.trim().isNotEmpty ?? false)) {
+      cart.setAddressNotes(matched.notes!.trim());
+    }
   }
 
   Future<void> _openVoucherSelection({int initialTabIndex = 0}) async {
@@ -517,67 +533,68 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   void _showMerchantMapDialog(BuildContext context, String merchantName, String address, LatLng location) {
-    showDialog(
+    GageFloatingSheet.show(
       context: context,
       builder: (ctx) {
         final isDark = Theme.of(ctx).brightness == Brightness.dark;
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Lokasi Toko Mitra',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : Colors.black87,
-                        ),
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Lokasi Toko Mitra',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black87,
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.close, size: 20),
-                      onPressed: () => Navigator.pop(ctx),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                MiniLocationPreviewMap(
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              AspectRatio(
+                aspectRatio: 1.0,
+                child: MiniLocationPreviewMap(
                   location: location,
                   width: double.infinity,
-                  height: 200,
-                  borderRadius: 14,
+                  height: double.infinity,
+                  borderRadius: 16,
                   zoom: 16.8,
+                  useMerchantPin: true,
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  address,
-                  style: TextStyle(fontSize: 12.5, color: isDark ? Colors.white70 : Colors.black87),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 14),
-                SizedBox(
-                  width: double.infinity,
-                  height: 42,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: GageTheme.primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                    ),
-                    onPressed: () => Navigator.pop(ctx),
-                    icon: const Icon(Icons.check, size: 18),
-                    label: const Text('Tutup', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                address,
+                style: TextStyle(fontSize: 12.5, color: isDark ? Colors.white70 : Colors.black87),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: GageTheme.primary,
+                    foregroundColor: Colors.white,
+                    shape: const StadiumBorder(),
                   ),
+                  onPressed: () => Navigator.pop(ctx),
+                  icon: const Icon(Icons.check_rounded, size: 18),
+                  label: const Text('Tutup', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },
@@ -669,8 +686,27 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final totalPay = cart.grandTotal + effectiveTip;
     final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
-    // Validasi Saldo GagePay & Multi Metode
+    // Validasi Metode Pembayaran & Saldo GagePay
+    if (cart.paymentMethod.trim().isEmpty) {
+      GageToast.show(
+        context,
+        'Pilih metode pembayaran terlebih dahulu (COD, QRIS, atau Top Up GAGEPay).',
+        type: GageToastType.warning,
+      );
+      _showPaymentMethodSheet(context, cart, wallet);
+      return;
+    }
+
     if (cart.paymentMethod == 'GAGEPAY') {
+      if (wallet.balance <= 0) {
+        GageToast.show(
+          context,
+          'Saldo GAGEPay Rp 0. Silakan Top Up atau pilih COD / QRIS.',
+          type: GageToastType.warning,
+        );
+        _showPaymentMethodSheet(context, cart, wallet);
+        return;
+      }
       if (wallet.balance < totalPay) {
         final deficit = totalPay - wallet.balance;
         GageFloatingSheet.show(
@@ -1055,10 +1091,45 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 iconColor: const Color(0xFF0284C7),
                 title: 'GAGEPay',
                 subtitle: 'Saldo Anda: ${currencyFormatter.format(wallet.balance)} • 0% Biaya Layanan',
-                badge: wallet.balance < totalPay ? 'Kurang ${currencyFormatter.format(totalPay - wallet.balance)}' : 'CUKUP',
+                badge: wallet.balance <= 0
+                    ? 'SALDO RP 0'
+                    : (wallet.balance < totalPay
+                        ? 'Kurang ${currencyFormatter.format(totalPay - wallet.balance)}'
+                        : 'CUKUP'),
                 badgeColor: wallet.balance < totalPay ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                trailingAction: wallet.balance < totalPay
+                    ? InkWell(
+                        onTap: () async {
+                          HapticFeedback.selectionClick();
+                          Navigator.pop(ctx);
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const GagePayScreen()),
+                          );
+                          if (mounted) setState(() {});
+                        },
+                        borderRadius: BorderRadius.circular(999),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: GageTheme.primary,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: const Text(
+                            'Top Up',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      )
+                    : null,
                 onTap: () {
-                  if (wallet.balance < totalPay) {
+                  if (wallet.balance <= 0) {
+                    GageToast.show(context, 'Saldo GAGEPay Rp 0. Silakan Top Up atau pilih QRIS / COD.', type: GageToastType.warning);
+                  } else if (wallet.balance < totalPay) {
                     GageToast.show(context, 'Saldo GAGEPay kurang. Gunakan opsi GAGEPay + QRIS atau GAGEPay + COD di bawah.', type: GageToastType.warning);
                   } else {
                     cart.setPaymentMethod('GAGEPAY');
@@ -1174,6 +1245,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     required String subtitle,
     String? badge,
     Color? badgeColor,
+    Widget? trailingAction,
     required VoidCallback onTap,
   }) {
     return Container(
@@ -1188,58 +1260,74 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           width: isSelected ? 1.5 : 1.0,
         ),
       ),
-      child: ListTile(
-        onTap: onTap,
-        dense: true,
-        leading: Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: isSelected
-                ? GageTheme.primary.withValues(alpha: 0.12)
-                : (isDark ? const Color(0xFF27272A) : const Color(0xFFF3F4F6)),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, color: iconColor, size: 19),
-        ),
-        title: Row(
-          children: [
-            Text(
-              title,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: ListTile(
+          onTap: onTap,
+          dense: true,
+          leading: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? GageTheme.primary.withValues(alpha: 0.12)
+                  : (isDark ? const Color(0xFF27272A) : const Color(0xFFF3F4F6)),
+              shape: BoxShape.circle,
             ),
-            if (badge != null) ...[
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: (badgeColor ?? GageTheme.primary).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(6),
-                ),
+            child: Icon(icon, color: iconColor, size: 19),
+          ),
+          title: Row(
+            children: [
+              Flexible(
                 child: Text(
-                  badge,
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 9.5,
                     fontWeight: FontWeight.bold,
-                    color: badgeColor ?? GageTheme.primary,
+                    fontSize: 13,
+                    color: isDark ? Colors.white : Colors.black87,
                   ),
                 ),
               ),
+              if (badge != null) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: (badgeColor ?? GageTheme.primary).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    badge,
+                    style: TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.bold,
+                      color: badgeColor ?? GageTheme.primary,
+                    ),
+                  ),
+                ),
+              ],
             ],
-          ],
-        ),
-        subtitle: Text(
-          subtitle,
-          style: TextStyle(fontSize: 11, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
-        ),
-        trailing: Icon(
-          isSelected ? Icons.check_circle_rounded : Icons.radio_button_off_rounded,
-          color: isSelected ? GageTheme.primary : Colors.grey,
-          size: 19,
+          ),
+          subtitle: Text(
+            subtitle,
+            style: TextStyle(fontSize: 11, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (trailingAction != null) ...[
+                trailingAction,
+                const SizedBox(width: 8),
+              ],
+              Icon(
+                isSelected ? Icons.check_circle_rounded : Icons.radio_button_off_rounded,
+                color: isSelected ? GageTheme.primary : Colors.grey,
+                size: 19,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1791,66 +1879,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Row(
-                                            children: [
-                                              Flexible(
-                                                child: Text(
-                                                  'Alamat Pengantaran',
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: isDark ? Colors.white : Colors.black87,
-                                                  ),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Builder(
-                                                builder: (context) {
-                                                  final favName = _matchedFavorite?.name ??
-                                                      (cart.deliveryFavoriteId != null
-                                                          ? cart.deliveryLocationLabel
-                                                          : null);
-                                                  final isFav = favName != null && favName.isNotEmpty;
-                                                  return Container(
-                                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                                    decoration: BoxDecoration(
-                                                      color: isFav
-                                                          ? (isDark
-                                                              ? GageTheme.primary.withValues(alpha: 0.22)
-                                                              : const Color(0xFFFFEBEE))
-                                                          : (isDark ? Colors.white10 : const Color(0xFFF1F5F9)),
-                                                      borderRadius: BorderRadius.circular(999),
-                                                      border: isFav
-                                                          ? Border.all(color: GageTheme.primary.withValues(alpha: 0.35))
-                                                          : null,
-                                                    ),
-                                                    child: Row(
-                                                      mainAxisSize: MainAxisSize.min,
-                                                      children: [
-                                                        if (isFav) ...[
-                                                          const Icon(Icons.bookmark_rounded, size: 11, color: GageTheme.primary),
-                                                          const SizedBox(width: 3),
-                                                        ],
-                                                        Text(
-                                                          isFav ? 'Favorit • $favName' : 'Utama',
-                                                          style: TextStyle(
-                                                            fontSize: 10,
-                                                            fontWeight: FontWeight.bold,
-                                                            color: isFav
-                                                                ? (isDark ? Colors.white : GageTheme.primary)
-                                                                : (isDark ? Colors.white70 : const Color(0xFF64748B)),
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  );
-                                                },
-                                              ),
-                                            ],
+                                          Text(
+                                            'Alamat Pengantaran',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 13.5,
+                                              fontWeight: FontWeight.bold,
+                                              color: isDark ? Colors.white : Colors.black87,
+                                            ),
                                           ),
-                                          const SizedBox(height: 4),
+                                          const SizedBox(height: 3),
                                           Text(
                                             _addressController.text.isNotEmpty ? _addressController.text : 'Titik lokasi terpilih',
                                             style: TextStyle(
@@ -1862,49 +1901,95 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                           const SizedBox(height: 8),
-                                          // Catatan Driver Dinamis
-                                          InkWell(
-                                            onTap: _editAddressNote,
-                                            borderRadius: BorderRadius.circular(14),
-                                            child: Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                              decoration: BoxDecoration(
-                                                color: isDark ? const Color(0xFF27272A) : const Color(0xFFF8FAFC),
-                                                borderRadius: BorderRadius.circular(14),
-                                                border: Border.all(
-                                                  color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-                                                ),
-                                              ),
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
+                                          // Catatan Driver Dinamis + Compact Favorite Badge
+                                          Builder(
+                                            builder: (context) {
+                                              final favName = _matchedFavorite?.name ??
+                                                  (cart.deliveryFavoriteId != null
+                                                      ? cart.deliveryLocationLabel
+                                                      : null);
+                                              final isFav = favName != null && favName.isNotEmpty;
+
+                                              return Row(
                                                 children: [
-                                                  Icon(
-                                                    _notePatokanController.text.isNotEmpty
-                                                        ? Icons.edit_note_rounded
-                                                        : Icons.add_comment_outlined,
-                                                    size: 14,
-                                                    color: GageTheme.primary,
-                                                  ),
-                                                  const SizedBox(width: 6),
-                                                  Flexible(
-                                                    child: Text(
-                                                      _notePatokanController.text.isNotEmpty
-                                                          ? 'Catatan: "${_notePatokanController.text}"'
-                                                          : '+ Tambah catatan / patokan driver',
-                                                      style: TextStyle(
-                                                        fontSize: 11,
-                                                        color: _notePatokanController.text.isNotEmpty
-                                                            ? (isDark ? Colors.white : Colors.black87)
-                                                            : (isDark ? Colors.white60 : Colors.grey.shade600),
-                                                        fontWeight: FontWeight.w600,
+                                                  Expanded(
+                                                    child: InkWell(
+                                                      onTap: _editAddressNote,
+                                                      borderRadius: BorderRadius.circular(14),
+                                                      child: Container(
+                                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                                        decoration: BoxDecoration(
+                                                          color: isDark ? const Color(0xFF27272A) : const Color(0xFFF8FAFC),
+                                                          borderRadius: BorderRadius.circular(14),
+                                                          border: Border.all(
+                                                            color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                                                          ),
+                                                        ),
+                                                        child: Row(
+                                                          mainAxisSize: MainAxisSize.min,
+                                                          children: [
+                                                            Icon(
+                                                              _notePatokanController.text.isNotEmpty
+                                                                  ? Icons.edit_note_rounded
+                                                                  : Icons.add_comment_outlined,
+                                                              size: 14,
+                                                              color: GageTheme.primary,
+                                                            ),
+                                                            const SizedBox(width: 6),
+                                                            Flexible(
+                                                              child: Text(
+                                                                _notePatokanController.text.isNotEmpty
+                                                                    ? 'Catatan: "${_notePatokanController.text}"'
+                                                                    : '+ Tambah catatan / patokan driver',
+                                                                style: TextStyle(
+                                                                  fontSize: 11,
+                                                                  color: _notePatokanController.text.isNotEmpty
+                                                                      ? (isDark ? Colors.white : Colors.black87)
+                                                                      : (isDark ? Colors.white60 : Colors.grey.shade600),
+                                                                  fontWeight: FontWeight.w600,
+                                                                ),
+                                                                maxLines: 1,
+                                                                overflow: TextOverflow.ellipsis,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
                                                       ),
-                                                      maxLines: 1,
-                                                      overflow: TextOverflow.ellipsis,
                                                     ),
                                                   ),
+                                                  if (isFav) ...[
+                                                    const SizedBox(width: 6),
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                                                      decoration: BoxDecoration(
+                                                        color: isDark
+                                                            ? GageTheme.primary.withValues(alpha: 0.22)
+                                                            : const Color(0xFFFFEBEE),
+                                                        borderRadius: BorderRadius.circular(999),
+                                                        border: Border.all(color: GageTheme.primary.withValues(alpha: 0.35)),
+                                                      ),
+                                                      child: Row(
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        children: [
+                                                          const Icon(Icons.bookmark_rounded, size: 10, color: GageTheme.primary),
+                                                          const SizedBox(width: 3),
+                                                          Text(
+                                                            'Favorit • $favName',
+                                                            style: TextStyle(
+                                                              fontSize: 9.5,
+                                                              fontWeight: FontWeight.bold,
+                                                              color: isDark ? Colors.white : GageTheme.primary,
+                                                            ),
+                                                            maxLines: 1,
+                                                            overflow: TextOverflow.ellipsis,
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ],
-                                              ),
-                                            ),
+                                              );
+                                            },
                                           ),
                                         ],
                                       ),
@@ -1978,51 +2063,55 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                           ),
                                         ),
                                         const SizedBox(width: 12),
-                                        Column(
-                                          crossAxisAlignment: CrossAxisAlignment.end,
-                                          children: [
-                                            ClipRRect(
-                                              borderRadius: BorderRadius.circular(12),
-                                              child: SizedBox(
-                                                width: 70,
-                                                height: 70,
-                                                child: _buildProductThumbnail(item.imageUrl, item.name),
+                                        SizedBox(
+                                          width: 88,
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                                            children: [
+                                              ClipRRect(
+                                                borderRadius: BorderRadius.circular(12),
+                                                child: SizedBox(
+                                                  width: 88,
+                                                  height: 88,
+                                                  child: _buildProductThumbnail(item.imageUrl, item.name),
+                                                ),
                                               ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Container(
-                                              height: 32,
-                                              padding: const EdgeInsets.symmetric(horizontal: 4),
-                                              decoration: BoxDecoration(
-                                                color: Colors.white,
-                                                borderRadius: BorderRadius.circular(20),
-                                                border: Border.all(color: GageTheme.primary, width: 1.5),
-                                              ),
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  InkWell(
-                                                    onTap: () => cart.updateQuantity(item.menuId, -1),
-                                                    child: const Padding(
-                                                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                                                      child: Icon(Icons.remove, color: GageTheme.primary, size: 16),
+                                              const SizedBox(height: 8),
+                                              Container(
+                                                width: 88,
+                                                height: 32,
+                                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white,
+                                                  borderRadius: BorderRadius.circular(20),
+                                                  border: Border.all(color: GageTheme.primary, width: 1.5),
+                                                ),
+                                                child: Row(
+                                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                  children: [
+                                                    InkWell(
+                                                      onTap: () => cart.updateQuantity(item.menuId, -1),
+                                                      child: const Padding(
+                                                        padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                                                        child: Icon(Icons.remove, color: GageTheme.primary, size: 16),
+                                                      ),
                                                     ),
-                                                  ),
-                                                  Padding(
-                                                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                                                    child: Text('${item.quantity}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87)),
-                                                  ),
-                                                  InkWell(
-                                                    onTap: () => cart.updateQuantity(item.menuId, 1),
-                                                    child: const Padding(
-                                                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                                                      child: Icon(Icons.add, color: GageTheme.primary, size: 16),
+                                                    Text(
+                                                      '${item.quantity}',
+                                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87),
                                                     ),
-                                                  ),
-                                                ],
+                                                    InkWell(
+                                                      onTap: () => cart.updateQuantity(item.menuId, 1),
+                                                      child: const Padding(
+                                                        padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                                                        child: Icon(Icons.add, color: GageTheme.primary, size: 16),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
-                                            ),
-                                          ],
+                                            ],
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -2032,93 +2121,39 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                   Row(
                                     children: [
                                       Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'Ada lagi yang mau dibeli?',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 14,
-                                                color: isDark ? Colors.white : Colors.black87,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              _activeServiceType(cart) == 'food'
-                                                  ? 'Tambah menu lain dari merchant ini sebelum pesan.'
-                                                  : 'Tambah produk lain dari toko ini sebelum pesan.',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: isDark ? Colors.white60 : Colors.black54,
-                                              ),
-                                            ),
-                                          ],
+                                        child: Text(
+                                          _recommendedProducts.isNotEmpty
+                                              ? (_activeServiceType(cart) == 'food'
+                                                  ? 'Rekomendasi dari merchant'
+                                                  : 'Rekomendasi produk lainnya')
+                                              : 'Ada lagi yang mau dibeli?',
+                                          style: TextStyle(
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: isDark ? Colors.white70 : const Color(0xFF475569),
+                                          ),
                                         ),
                                       ),
-                                      const SizedBox(width: 8),
-                                      OutlinedButton(
-                                        style: OutlinedButton.styleFrom(
+                                      TextButton(
+                                        style: TextButton.styleFrom(
                                           foregroundColor: GageTheme.primary,
-                                          side: const BorderSide(color: GageTheme.primary, width: 1.2),
-                                          shape: const StadiumBorder(),
-                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                          padding: EdgeInsets.zero,
+                                          minimumSize: Size.zero,
+                                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                           visualDensity: VisualDensity.compact,
                                         ),
-                                        onPressed: () {
-                                          final effectiveService = _activeServiceType(cart);
-                                          if (cart.merchantId != null && cart.merchantId!.isNotEmpty) {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (ctx) => RestoDetailScreen(
-                                                  merchant: {
-                                                    'id': cart.merchantId,
-                                                    'name': cart.merchantName,
-                                                    'domain': effectiveService,
-                                                    'serviceType': effectiveService,
-                                                  },
-                                                ),
-                                              ),
-                                            );
-                                          } else {
-                                            Widget destination;
-                                            switch (effectiveService) {
-                                              case 'shop':
-                                              case 'mart':
-                                                destination = const ShopScreen();
-                                                break;
-                                              case 'farm':
-                                                destination = const FarmScreen();
-                                                break;
-                                              case 'build':
-                                                destination = const BuildScreen();
-                                                break;
-                                              default:
-                                                destination = const FoodExploreScreen();
-                                            }
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(builder: (ctx) => destination),
-                                            );
-                                          }
-                                        },
-                                        child: const Text('Tambah', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+                                        onPressed: () => _openAddMoreProducts(context, cart),
+                                        child: const Text(
+                                          'Tambah lainnya',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 12.5,
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ),
                                   if (_recommendedProducts.isNotEmpty) ...[
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      _activeServiceType(cart) == 'food'
-                                          ? 'Rekomendasi dari merchant'
-                                          : 'Rekomendasi produk lainnya',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                        color: isDark ? Colors.white70 : const Color(0xFF475569),
-                                      ),
-                                    ),
                                     const SizedBox(height: 8),
                                     _buildMerchantRecommendationSlider(
                                       cart: cart,
@@ -2485,18 +2520,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                           visualDensity: VisualDensity.compact,
                                         ),
-                                        child: const Row(
+                                        child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             Text(
-                                              'Ganti',
-                                              style: TextStyle(
+                                              cart.paymentMethod.isEmpty ? 'Pilih' : 'Ganti',
+                                              style: const TextStyle(
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.bold,
                                                 color: GageTheme.primary,
                                               ),
                                             ),
-                                            Icon(Icons.chevron_right_rounded, size: 16, color: GageTheme.primary),
+                                            const Icon(Icons.chevron_right_rounded, size: 16, color: GageTheme.primary),
                                           ],
                                         ),
                                       ),
@@ -2504,179 +2539,124 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                   ),
                                   const SizedBox(height: 12),
                                   // Selected Payment Method Display
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                    decoration: BoxDecoration(
-                                      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                        color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          cart.paymentMethod == 'GAGEPAY'
-                                              ? Icons.account_balance_wallet_rounded
-                                              : (cart.paymentMethod == 'GAGEPAY_QRIS'
-                                                  ? Icons.qr_code_scanner_rounded
-                                                  : (cart.paymentMethod == 'GAGEPAY_COD'
-                                                      ? Icons.payments_outlined
-                                                      : (cart.paymentMethod == 'QRIS'
-                                                          ? Icons.qr_code_2_rounded
-                                                          : Icons.payments_rounded))),
-                                          color: cart.paymentMethod.startsWith('GAGEPAY')
-                                              ? const Color(0xFF0284C7)
-                                              : (cart.paymentMethod == 'QRIS'
-                                                  ? GageTheme.primary
-                                                  : const Color(0xFF16A34A)),
-                                          size: 22,
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                cart.paymentMethod == 'GAGEPAY'
-                                                    ? 'GAGEPay'
-                                                    : (cart.paymentMethod == 'GAGEPAY_QRIS'
-                                                        ? 'GAGEPay + QRIS'
-                                                        : (cart.paymentMethod == 'GAGEPAY_COD'
-                                                            ? 'GAGEPay + COD'
-                                                            : (cart.paymentMethod == 'QRIS'
-                                                                ? 'QRIS'
-                                                                : 'Tunai ke Driver (COD)'))),
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 13,
-                                                  color: isDark ? Colors.white : Colors.black87,
-                                                ),
-                                              ),
-                                              Text(
-                                                cart.paymentMethod == 'GAGEPAY'
-                                                    ? 'Saldo Anda: ${currencyFormatter.format(wallet.balance)}'
-                                                    : (cart.paymentMethod == 'GAGEPAY_QRIS'
-                                                        ? 'GAGEPay ${currencyFormatter.format(wallet.balance)} + QRIS ${currencyFormatter.format(totalPay - wallet.balance)}'
-                                                        : (cart.paymentMethod == 'GAGEPAY_COD'
-                                                            ? 'GAGEPay ${currencyFormatter.format(wallet.balance)} + Tunai ${currencyFormatter.format(totalPay - wallet.balance)}'
-                                                            : (cart.paymentMethod == 'QRIS'
-                                                                ? 'ShopeePay, GoPay, BCA, Mandiri'
-                                                                : 'Bayar saat pesanan tiba'))),
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  color: isDark ? Colors.white60 : Colors.grey.shade600,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  // Opsi Split Otomatis Jika GAGEPay Kurang
-                                  if (cart.paymentMethod == 'GAGEPAY' && wallet.balance < totalPay) ...[
-                                    const SizedBox(height: 10),
-                                    Container(
-                                      padding: const EdgeInsets.all(10),
+                                  InkWell(
+                                    onTap: () => _showPaymentMethodSheet(context, cart, wallet),
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFFFEF2F2),
+                                        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                                         borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(color: const Color(0xFFFECACA)),
+                                        border: Border.all(
+                                          color: cart.paymentMethod.isEmpty
+                                              ? GageTheme.primary.withValues(alpha: 0.45)
+                                              : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                                        ),
                                       ),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                      child: Row(
                                         children: [
-                                          Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Expanded(
-                                                child: Row(
-                                                  children: [
-                                                    const Icon(Icons.info_outline_rounded, color: Color(0xFFDC2626), size: 16),
-                                                    const SizedBox(width: 6),
-                                                    Expanded(
-                                                      child: Text(
-                                                        'Saldo GAGEPay kurang ${currencyFormatter.format(totalPay - wallet.balance)}',
-                                                        maxLines: 1,
-                                                        overflow: TextOverflow.ellipsis,
-                                                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF991B1B)),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                              const SizedBox(width: 6),
-                                              InkWell(
-                                                onTap: () async {
-                                                  await Navigator.push(
-                                                    context,
-                                                    MaterialPageRoute(builder: (_) => const GagePayScreen()),
-                                                  );
-                                                  setState(() {});
-                                                },
-                                                borderRadius: BorderRadius.circular(8),
-                                                child: const Padding(
-                                                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                                  child: Row(
-                                                    mainAxisSize: MainAxisSize.min,
-                                                    children: [
-                                                      Text(
-                                                        'Top Up',
-                                                        style: TextStyle(
-                                                          fontSize: 12,
-                                                          fontWeight: FontWeight.bold,
-                                                          color: GageTheme.primary,
-                                                        ),
-                                                      ),
-                                                      SizedBox(width: 2),
-                                                      Icon(Icons.chevron_right_rounded, size: 16, color: GageTheme.primary),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
+                                          Icon(
+                                            cart.paymentMethod.isEmpty
+                                                ? Icons.account_balance_wallet_outlined
+                                                : (cart.paymentMethod == 'GAGEPAY'
+                                                    ? Icons.account_balance_wallet_rounded
+                                                    : (cart.paymentMethod == 'GAGEPAY_QRIS'
+                                                        ? Icons.qr_code_scanner_rounded
+                                                        : (cart.paymentMethod == 'GAGEPAY_COD'
+                                                            ? Icons.payments_outlined
+                                                            : (cart.paymentMethod == 'QRIS'
+                                                                ? Icons.qr_code_2_rounded
+                                                                : Icons.payments_rounded)))),
+                                            color: cart.paymentMethod.isEmpty
+                                                ? GageTheme.primary
+                                                : (cart.paymentMethod.startsWith('GAGEPAY')
+                                                    ? const Color(0xFF0284C7)
+                                                    : (cart.paymentMethod == 'QRIS'
+                                                        ? GageTheme.primary
+                                                        : const Color(0xFF16A34A))),
+                                            size: 22,
                                           ),
-                                          const SizedBox(height: 10),
-                                          Row(
-                                            children: [
-                                              Expanded(
-                                                child: OutlinedButton(
-                                                  style: OutlinedButton.styleFrom(
-                                                    foregroundColor: GageTheme.primary,
-                                                    side: const BorderSide(color: GageTheme.primary),
-                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                                    padding: const EdgeInsets.symmetric(vertical: 7),
-                                                    visualDensity: VisualDensity.compact,
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  cart.paymentMethod.isEmpty
+                                                      ? 'Pilih Metode Pembayaran'
+                                                      : (cart.paymentMethod == 'GAGEPAY'
+                                                          ? 'GAGEPay'
+                                                          : (cart.paymentMethod == 'GAGEPAY_QRIS'
+                                                              ? 'GAGEPay + QRIS'
+                                                              : (cart.paymentMethod == 'GAGEPAY_COD'
+                                                                  ? 'GAGEPay + COD'
+                                                                  : (cart.paymentMethod == 'QRIS'
+                                                                      ? 'QRIS'
+                                                                      : 'Tunai ke Driver (COD)')))),
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 13,
+                                                    color: isDark ? Colors.white : Colors.black87,
                                                   ),
-                                                  onPressed: () {
-                                                    cart.setPaymentMethod('GAGEPAY_COD');
-                                                    setState(() {});
-                                                  },
-                                                  child: const Text('GAGEPay + COD', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                                                 ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Expanded(
-                                                child: OutlinedButton(
-                                                  style: OutlinedButton.styleFrom(
-                                                    foregroundColor: const Color(0xFF0284C7),
-                                                    side: const BorderSide(color: Color(0xFF0284C7)),
-                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                                    padding: const EdgeInsets.symmetric(vertical: 7),
-                                                    visualDensity: VisualDensity.compact,
+                                                Text(
+                                                  cart.paymentMethod.isEmpty
+                                                      ? (wallet.balance <= 0
+                                                          ? 'Saldo GAGEPay Rp 0 • Ketuk untuk memilih metode pembayaran'
+                                                          : 'Ketuk untuk memilih GAGEPay, QRIS, atau COD')
+                                                      : (cart.paymentMethod == 'GAGEPAY'
+                                                          ? 'Saldo Anda: ${currencyFormatter.format(wallet.balance)}'
+                                                          : (cart.paymentMethod == 'GAGEPAY_QRIS'
+                                                              ? 'GAGEPay ${currencyFormatter.format(wallet.balance)} + QRIS ${currencyFormatter.format(totalPay - wallet.balance)}'
+                                                              : (cart.paymentMethod == 'GAGEPAY_COD'
+                                                                  ? 'GAGEPay ${currencyFormatter.format(wallet.balance)} + Tunai ${currencyFormatter.format(totalPay - wallet.balance)}'
+                                                                  : (cart.paymentMethod == 'QRIS'
+                                                                      ? 'ShopeePay, GoPay, BCA, Mandiri'
+                                                                      : 'Bayar saat pesanan tiba')))),
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: isDark ? Colors.white60 : Colors.grey.shade600,
                                                   ),
-                                                  onPressed: () {
-                                                    cart.setPaymentMethod('GAGEPAY_QRIS');
-                                                    setState(() {});
-                                                  },
-                                                  child: const Text('GAGEPay + QRIS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                                                 ),
-                                              ),
-                                            ],
+                                              ],
+                                            ),
                                           ),
                                         ],
                                       ),
+                                    ),
+                                  ),
+                                  // Banner Split Payment hanya saat saldo > 0 tapi < totalPay dan user memilih GAGEPay
+                                  if (cart.paymentMethod == 'GAGEPAY' &&
+                                      wallet.balance > 0 &&
+                                      wallet.balance < totalPay) ...[
+                                    const SizedBox(height: 10),
+                                    GageSplitPaymentBanner(
+                                      walletBalance: wallet.balance,
+                                      totalAmount: totalPay,
+                                      currencyFormatter: currencyFormatter,
+                                      onTopUp: () async {
+                                        await Navigator.push(
+                                          context,
+                                          MaterialPageRoute(builder: (_) => const GagePayScreen()),
+                                        );
+                                        if (mounted) setState(() {});
+                                      },
+                                      onSelectCodSplit: () {
+                                        cart.setPaymentMethod('GAGEPAY_COD');
+                                        setState(() {});
+                                      },
+                                      onSelectQrisSplit: () {
+                                        cart.setPaymentMethod('GAGEPAY_QRIS');
+                                        setState(() {});
+                                      },
+                                      onSelectPureCod: () {
+                                        cart.setPaymentMethod('CASH_COD');
+                                        setState(() {});
+                                      },
+                                      onSelectPureQris: () {
+                                        cart.setPaymentMethod('QRIS');
+                                        setState(() {});
+                                      },
                                     ),
                                   ],
                                 ],
@@ -2875,6 +2855,46 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
+  void _openAddMoreProducts(BuildContext context, CartProvider cart) {
+    final effectiveService = _activeServiceType(cart);
+    if (cart.merchantId != null && cart.merchantId!.isNotEmpty) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (ctx) => RestoDetailScreen(
+            merchant: {
+              'id': cart.merchantId,
+              'name': cart.merchantName,
+              'domain': effectiveService,
+              'serviceType': effectiveService,
+            },
+          ),
+        ),
+      );
+      return;
+    }
+
+    Widget destination;
+    switch (effectiveService) {
+      case 'shop':
+      case 'mart':
+        destination = const ShopScreen();
+        break;
+      case 'farm':
+        destination = const FarmScreen();
+        break;
+      case 'build':
+        destination = const BuildScreen();
+        break;
+      default:
+        destination = const FoodExploreScreen();
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (ctx) => destination),
+    );
+  }
+
   Widget _buildMerchantRecommendationSlider({
     required CartProvider cart,
     required NumberFormat currencyFormatter,
@@ -2886,14 +2906,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final cardBg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
     final cardBorder = isDark ? Colors.white12 : const Color(0xFFE2E8F0);
     final titleColor = isDark ? Colors.white : Colors.black87;
-    final subColor = isDark ? Colors.white60 : Colors.black54;
 
     return SizedBox(
-      height: 182,
+      height: 190,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: _recommendedProducts.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (ctx, i) {
           final item = _recommendedProducts[i];
           final menuId = (item['id'] ?? 'rec-$i').toString();
@@ -2904,68 +2923,102 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               0;
           final imageUrl = item['image']?.toString();
           final category = (item['category'] ?? 'Umum').toString();
-          final sold = (item['_sold'] as num?)?.toInt() ?? 0;
           final inCartQty = cart.getItemQuantity(menuId);
 
           return Container(
-            width: 138,
-            padding: const EdgeInsets.all(8),
+            width: 106,
+            padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
               color: cardBg,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(color: cardBorder),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Stack(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: 76,
-                        child: _buildProductThumbnail(imageUrl, name),
-                      ),
-                    ),
-                    if (sold > 0)
-                      Positioned(
-                        top: 5,
-                        left: 5,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.65),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            '$sold+ terjual',
-                            style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                      ),
-                  ],
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: AspectRatio(
+                    aspectRatio: 1.0,
+                    child: _buildProductThumbnail(imageUrl, name),
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   name,
-                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: titleColor),
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: titleColor, height: 1.15),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const Spacer(),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        currencyFormatter.format(price),
-                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: GageTheme.primary),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                Text(
+                  currencyFormatter.format(price),
+                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: GageTheme.primary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 5),
+                if (inCartQty > 0)
+                  Container(
+                    width: double.infinity,
+                    height: 26,
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: GageTheme.primary, width: 1.2),
                     ),
-                    InkWell(
-                      onTap: () {
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        InkWell(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            cart.updateQuantity(menuId, -1);
+                            cart.syncAutoPromos(serviceType: activeService);
+                          },
+                          borderRadius: BorderRadius.circular(999),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            child: Icon(Icons.remove, color: GageTheme.primary, size: 13),
+                          ),
+                        ),
+                        Text(
+                          '$inCartQty',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                        InkWell(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            cart.updateQuantity(menuId, 1);
+                            cart.syncAutoPromos(serviceType: activeService);
+                          },
+                          borderRadius: BorderRadius.circular(999),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            child: Icon(Icons.add, color: GageTheme.primary, size: 13),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  SizedBox(
+                    width: double.infinity,
+                    height: 26,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: GageTheme.primary,
+                        foregroundColor: Colors.white,
+                        shape: const StadiumBorder(),
+                        padding: EdgeInsets.zero,
+                        elevation: 0,
+                      ),
+                      onPressed: () {
                         HapticFeedback.selectionClick();
                         cart.addItem(
                           CartItemModel(
@@ -2982,27 +3035,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         );
                         cart.syncAutoPromos(serviceType: activeService);
                       },
-                      borderRadius: BorderRadius.circular(999),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: inCartQty > 0 ? const Color(0xFF16A34A) : GageTheme.primary,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          inCartQty > 0 ? '+$inCartQty' : '+ Tambah',
-                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800),
-                        ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.add_rounded, size: 13),
+                          SizedBox(width: 2),
+                          Text('Tambah', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10.5)),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
-                if (inCartQty > 0)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      'Di keranjang: $inCartQty',
-                      style: TextStyle(fontSize: 9.5, color: subColor),
                     ),
                   ),
               ],

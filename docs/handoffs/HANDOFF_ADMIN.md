@@ -145,6 +145,7 @@ Berdasarkan inspeksi langsung terhadap [`0001_initial_schema.sql`](../../gage-cl
    - Endpoint admin/voucher/pricing wajib memverifikasi header `X-Admin-Key` / bearer JWT admin sesuai `src/security.ts` dan `src/index.ts`.
 3. **Sinkronisasi Pengaturan Pricing (`GagePricingService` / `/api/pricing-config`)**:
    - Customer Portal kini memicu tier **Hemat** (Food, Shop, Farm, Build) berbasis minimal belanja **`hematMinSubtotal`** dengan default **`Rp 50.000`** (menggantikan syarat jarak >= 2.5 km) demi menjaga margin komisi.
+   - Pada layanan GAGE Send (`serviceType == 'send'`), tier pengiriman disinkronkan menjadi **`INSTAN`** (pengganti `REGULER`) dan **`HEMAT`**. Nilai ini dikirim di `delivery_option` dan `tier` pada payload pesanan.
    - Portal Admin perlu menyediakan form konfigurasi `hematMinSubtotal` (dan tarif dasar/ongkir per service) agar dapat diubah sewaktu-waktu via `PUT /api/admin/pricing-config` tanpa rebuild aplikasi.
 
 ### B. Cleanup Wave 3 untuk Portal Admin (`lib/features/admin/` & `main_admin.dart`)
@@ -152,4 +153,93 @@ Berdasarkan inspeksi langsung terhadap [`0001_initial_schema.sql`](../../gage-cl
   - Hapus seluruh tab, menu, KPI, moderasi, atau filter yang masih merujuk ke modul **GAGE BaBe** dan **GAGE Clean** yang sudah dihentikan.
   - Pastikan admin dashboard / WA center tidak lagi memakai tautan eksternal WhatsApp (`wa.me` / `whatsapp://`) untuk alur chat pelanggan dan mengarahkannya ke sistem chat in-app (`InAppChatProvider`).
   - Terapkan kapsul penuh (`BorderRadius.circular(999)` / `StadiumBorder()`) pada seluruh segmented switch dan tab di Portal Admin.
+
+---
+
+## 6. Update Multi-User Wallet Top-Up & ShopeePay Gateway Settlement (Nov 2026)
+
+### A. Endpoint Settlement Gateway (`POST /api/gateway/settle`)
+- **Autentikasi**: Header `X-Gateway-Secret` atau payload `secret` dicocokkan terhadap `c.env.GATEWAY_SECRET || 'gage-secret-local-dev-2026'`.
+- **Payload Request**:
+  ```json
+  {
+    "amount": 50123,
+    "reference": "TOP-XYZ",
+    "shopee_tx_id": "SPP123456",
+    "secret": "gage-secret-local-dev-2026"
+  }
+  ```
+- **Logika Eksekusi**:
+  1. Cari transaksi pending: `SELECT * FROM qris_transactions WHERE amount = ? AND status = 'PENDING' ORDER BY created_at DESC LIMIT 1` (atau via `id = reference`).
+  2. Idempotensi: Jika transaksi sudah berstatus `SUCCESS`, kembalikan respons sukses langsung.
+  3. Update `qris_transactions` menjadi `status = 'SUCCESS'`, `paid_at = now`.
+  4. Ambil wallet user: `SELECT * FROM wallets WHERE user_id = ?` (auto-create jika belum ada).
+  5. Update saldo: `UPDATE wallets SET balance = balance + ?, updated_at = ? WHERE user_id = ?`.
+  6. Catat mutasi: `INSERT INTO wallet_transactions (id, wallet_id, type, amount, balance_after, reference_id, description, created_at) VALUES (?, ?, 'TOPUP', ?, ?, ?, 'Top Up QRIS ShopeePay', ?)`.
+  7. Jika `reference_type == 'ORDER'`, otomatis update `orders.payment_status = 'PAID'` dan transisikan status order ke persiapan pesanan.
+
+### B. Polling Status Top-Up QRIS (`GET /api/wallet/topup/status/:reference`)
+- Mengembalikan status transaksi (`PENDING`, `SUCCESS`, `EXPIRED`) bagi aplikasi mobile / dialog top-up QRIS:
+  ```json
+  {
+    "success": true,
+    "status": "SUCCESS",
+    "data": {
+      "reference": "TOP-123",
+      "user_id": "usr-cust-01",
+      "amount": 50123,
+      "status": "SUCCESS",
+      "reference_type": "TOPUP",
+      "created_at": 1773000000,
+      "paid_at": 1773000010
+    }
+  }
+  ```
+- Dilengkapi mekanisme auto-expire bila transaksi masih `PENDING` setelah 15 menit.
+
+### C. Multi-User Wallet Fetch (`GET /api/wallet/:userId`)
+- Mengembalikan saldo terkini (`balance`, `points`, object `wallet`) dan 20 transaksi mutasi terakhir dari `wallet_transactions` diurutkan dari yang terbaru.
+
+---
+
+## 7. Modul Kustomisasi Struk Pembayaran Digital (Admin Receipt Configurator)
+
+### A. Kebutuhan Bisnis & Visual
+Customer Portal (`gage_receipt_share_dialog.dart`) telah memiliki fitur Struk Pembayaran Digital Resmi bergaya thermal receipt autentik (layar penuh, anti AI-slop, perforated edge, anti-fraud QR code, dan penyimpanan native ke album Galeri `"Gage by Halu Goods Indonesia"`).
+Admin harus memiliki kontrol penuh untuk mengubah logo, nama header, catatan kaki, dan format struk tanpa perlu merilis ulang APK mobile.
+
+### B. Skema Konfigurasi D1 (`receipt_settings`)
+```sql
+CREATE TABLE IF NOT EXISTS receipt_settings (
+  id TEXT PRIMARY KEY DEFAULT 'default',
+  logo_url TEXT DEFAULT '',
+  header_title TEXT DEFAULT 'GAGE PRACIMANTORO',
+  subtitle TEXT DEFAULT 'BUKTI TRANSAKSI PEMBAYARAN RESMI',
+  footer_note TEXT DEFAULT 'GAGE - Layanan Lokal Pracimantoro',
+  contact_hotline TEXT DEFAULT '0812-3456-7890',
+  qr_verification_enabled INTEGER DEFAULT 1,
+  updated_at INTEGER NOT NULL
+);
+```
+
+### C. Kontrak API Hono Cloudflare (`gage-cloud`)
+1. **Ambil Konfigurasi Struk Publik (`GET /api/receipt/config`)**:
+   - Digunakan oleh Customer Portal saat merender struk pembayaran digital.
+   ```json
+   {
+     "success": true,
+     "data": {
+       "logo_url": "https://pub-r2.gage.id/branding/logo_gage_receipt.png",
+       "header_title": "GAGE PRACIMANTORO",
+       "subtitle": "BUKTI TRANSAKSI PEMBAYARAN RESMI",
+       "footer_note": "GAGE - Layanan Lokal Pracimantoro",
+       "contact_hotline": "0812-3456-7890",
+       "qr_verification_enabled": true
+     }
+   }
+   ```
+2. **Pembaruan Konfigurasi oleh Admin (`PUT /api/admin/receipt/config`)**:
+   - Membutuhkan role admin token. Mengupdate field konfigurasi struk di tabel D1.
+
+
 

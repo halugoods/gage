@@ -13,6 +13,7 @@ import 'package:gage_app/features/orders/presentation/order_tracking_screen.dart
 import 'package:gage_app/features/checkout/presentation/checkout_screen.dart';
 import 'package:gage_app/features/orders/presentation/order_detail_screen.dart';
 import 'package:gage_app/features/orders/presentation/widgets/rating_review_sheet.dart';
+import 'package:gage_app/shared/widgets/gage_receipt_share_dialog.dart';
 import 'package:gage_app/shared/widgets/gage_bottom_nav_bar.dart';
 import 'package:gage_app/features/home/presentation/home_screen.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
@@ -43,11 +44,120 @@ class _OrdersScreenState extends State<OrdersScreen> {
     await context.read<OrderProvider>().fetchUserOrders(userId);
   }
 
+  Future<void> _confirmCancelOrder(BuildContext context, OrderModel order) async {
+    HapticFeedback.mediumImpact();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFEE2E2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 36),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Batalkan Pesanan Ini?',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              order.isTransportService
+                  ? 'Mitra driver belum ditugaskan. Apakah Anda yakin ingin membatalkan perjalanan/pengiriman ini?'
+                  : 'Merchant belum mengonfirmasi pesanan. Apakah Anda yakin ingin membatalkan pesanan ini?',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? Colors.white70 : Colors.grey.shade600,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Kembali', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFDC2626),
+                      foregroundColor: Colors.white,
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      elevation: 0,
+                    ),
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('Ya, Batalkan', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      final ok = await context.read<OrderProvider>().updateOrderStage(
+        order.id,
+        'CANCELLED',
+        reason: 'Dibatalkan oleh pelanggan',
+      );
+      if (context.mounted) {
+        if (ok) {
+          _refresh();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Pesanan berhasil dibatalkan'),
+              backgroundColor: Color(0xFFDC2626),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Gagal membatalkan pesanan. Silakan coba kembali.'),
+              backgroundColor: Color(0xFFDC2626),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final orderProvider = context.watch<OrderProvider>();
     final activeOrders = orderProvider.activeOrders;
     final historyOrders = orderProvider.orderHistory;
+    final unratedOrdersCount = historyOrders.where((o) => o.status == 'COMPLETED' && !_ratedOrders.containsKey(o.id)).length;
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -152,20 +262,20 @@ class _OrdersScreenState extends State<OrdersScreen> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               const Text('Riwayat Selesai'),
-                              if (historyOrders.isNotEmpty) ...[
+                              if (unratedOrdersCount > 0) ...[
                                 const SizedBox(width: 6),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                                   decoration: BoxDecoration(
-                                    color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
+                                    color: const Color(0xFFF59E0B),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Text(
-                                    '${historyOrders.length}',
-                                    style: TextStyle(
+                                    '$unratedOrdersCount',
+                                    style: const TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
-                                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                      color: Colors.white,
                                     ),
                                   ),
                                 ),
@@ -455,6 +565,38 @@ class _OrdersScreenState extends State<OrdersScreen> {
                           },
                           child: const Text('Rincian', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                         ),
+                        if (isActive && order.canBeCancelledByCustomer) ...[
+                          const SizedBox(width: 8),
+                          OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFFDC2626),
+                              side: const BorderSide(color: Color(0xFFDC2626), width: 1.2),
+                              shape: const StadiumBorder(),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            onPressed: () => _confirmCancelOrder(context, order),
+                            icon: const Icon(Icons.cancel_outlined, size: 14),
+                            label: const Text('Batalkan', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                        if (!isActive && order.status == 'COMPLETED') ...[
+                          const SizedBox(width: 8),
+                          OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: GageTheme.primary,
+                              side: const BorderSide(color: GageTheme.primary, width: 1.2),
+                              shape: const StadiumBorder(),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            onPressed: () {
+                              GageReceiptShareDialog.show(context, order);
+                            },
+                            icon: const Icon(Icons.receipt_long_rounded, size: 14),
+                            label: const Text('Struk', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
                         if (isActive &&
                             !order.isPickup &&
                             !const {'PAYMENT_PENDING', 'PENDING'}.contains(order.status)) ...[

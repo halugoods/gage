@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -10,19 +11,13 @@ import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/providers/auth_provider.dart';
 import 'package:gage_app/providers/wallet_provider.dart';
 import 'package:gage_app/features/wallet/presentation/topup_qris_dialog.dart';
+import 'package:gage_app/features/wallet/presentation/gagepay_transfer_screen.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 
-/// Layar Pemindai QRIS GAGEPay (Pure White UI - Production Grade)
-/// - UI 1:1 Mengikuti referensi desain GAGE:
-///   - Layar full putih bersih (#FFFFFF)
-///   - Top Bar: Circular Back di kiri, badge QR merah di tengah dengan judul & subjudul, tanpa duplikasi galeri di kanan
-///   - Viewfinder Kamera: Terpasang rapi di dalam kotak persegi bersudut melengkung (28px radius) di tengah layar
-///   - Below Viewfinder: "Pilih dari Galeri" card pill, divider "atau"
-///   - GAGEPay Funding Card: Saldo GAGEPay realtime + "+ Top Up" quick button
-///   - Dual Action Pills: "Input Nominal Manual" & "Riwayat Transaksi"
-///   - Bottom CTA: Full stadium red button "Aktifkan Senter" / "Matikan Senter"
-/// - Semua dialog & popup dikonversi ke GageFloatingSheet (iOS frosted glass, 28px radius, capsule inputs)
-/// - Zero simulation buttons (100% production ready).
+/// Layar Universal Scanner GAGEPay (Full-Bleed Immersive Camera + Floating Glass HUD)
+/// - 100% Edge-to-edge camera viewport dengan translucent dark scrim & squircle cutout window
+/// - Floating frosted glass HUD: Top Bar, Segmented Mode Switcher, & Thumb-Zone Action Dock
+/// - Mendukung QRIS Merchant (EMVCo TLV), Transfer P2P GAGEPay, & Verifikasi Struk Cloud
 class QrisPayScreen extends StatefulWidget {
   const QrisPayScreen({super.key});
 
@@ -30,10 +25,12 @@ class QrisPayScreen extends StatefulWidget {
   State<QrisPayScreen> createState() => _QrisPayScreenState();
 }
 
-class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProviderStateMixin {
+class _QrisPayScreenState extends State<QrisPayScreen> with TickerProviderStateMixin {
   late MobileScannerController _scannerController;
   late AnimationController _laserAnimCtrl;
   late Animation<double> _laserAnimation;
+  late AnimationController _breatheAnimCtrl;
+  late Animation<double> _breatheAnimation;
 
   bool _isFlashOn = false;
   bool _isLockingOn = false;
@@ -43,6 +40,9 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
   String _detectedMerchantName = 'Toko Kelontong Berkah Fajar';
   String _detectedMerchantLocation = 'Pasar Pracimantoro Los A No. 4';
   String _detectedMerchantNmid = 'ID1024395819028';
+
+  // Offset vertikal terkalibrasi presisi dari tengah layar untuk reticle & lubang cutout
+  static const double _kCalibratedVerticalOffset = -30.0;
 
   final currencyFormatter = NumberFormat.currency(
     locale: 'id_ID',
@@ -62,19 +62,29 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
     );
 
     _laserAnimCtrl = AnimationController(
-      duration: const Duration(milliseconds: 1800),
+      duration: const Duration(milliseconds: 2200),
       vsync: this,
     )..repeat(reverse: true);
 
     _laserAnimation = CurvedAnimation(
       parent: _laserAnimCtrl,
-      curve: Curves.easeInOut,
+      curve: Curves.easeInOutCubic,
+    );
+
+    _breatheAnimCtrl = AnimationController(
+      duration: const Duration(milliseconds: 1400),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _breatheAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _breatheAnimCtrl, curve: Curves.easeInOut),
     );
   }
 
   @override
   void dispose() {
     _laserAnimCtrl.dispose();
+    _breatheAnimCtrl.dispose();
     _scannerController.dispose();
     super.dispose();
   }
@@ -123,7 +133,7 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
     }
   }
 
-  /// Smart Scan Trigger: Kunci reticle, getar haptic, animasi capture ~450ms sebelum membuka sheet
+  /// Smart Scan Trigger: Universal Scanner untuk QRIS Merchant, Transfer GAGEPay & Verifikasi Struk
   Future<void> _handleQrCodeDetected(String rawCode) async {
     if (_isQrScanned || _isLockingOn) return;
 
@@ -132,12 +142,63 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
     });
 
     HapticFeedback.heavyImpact();
+
+    // 1. Cek apakah ini QR kode verifikasi keaslian struk order
+    if (rawCode.contains('/receipt/') || rawCode.startsWith('ORD-')) {
+      final String orderNumber = rawCode.contains('/receipt/')
+          ? rawCode.split('/receipt/').last.split('?').first.trim()
+          : rawCode.trim();
+
+      await Future.delayed(const Duration(milliseconds: 320));
+      if (!mounted) return;
+      HapticFeedback.selectionClick();
+      setState(() {
+        _isLockingOn = false;
+        _isQrScanned = true;
+      });
+
+      await _showReceiptVerificationSheet(orderNumber);
+      _resetScan();
+      return;
+    }
+
+    // 2. Cek apakah ini QR kode transfer sesama pengguna GAGEPay
+    if (rawCode.startsWith('gagepay://transfer')) {
+      final uri = Uri.tryParse(rawCode);
+      final toAccount = uri?.queryParameters['to'] ?? '';
+      final rawAmount = int.tryParse(uri?.queryParameters['amount'] ?? '');
+
+      await Future.delayed(const Duration(milliseconds: 320));
+      if (!mounted) return;
+      HapticFeedback.selectionClick();
+      setState(() {
+        _isLockingOn = false;
+        _isQrScanned = true;
+      });
+
+      if (toAccount.isNotEmpty) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => GagePayTransferScreen(
+              initialAccount: toAccount,
+              initialAmount: rawAmount,
+            ),
+          ),
+        );
+      }
+      _resetScan();
+      return;
+    }
+
+    // 3. Standar QRIS Merchant / Dinamis
     _parseAndApplyQris(rawCode);
 
     // Animasi capture delay ~450ms agar pengguna merasakan proses smart lock-on kamera
     await Future.delayed(const Duration(milliseconds: 450));
 
     if (!mounted) return;
+    HapticFeedback.mediumImpact();
 
     setState(() {
       _isLockingOn = false;
@@ -147,7 +208,240 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
     _showPaymentSheet();
   }
 
+  /// Sheet Verifikasi Keaslian Struk Digital via GAGE Cloud
+  Future<void> _showReceiptVerificationSheet(String orderNumber) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    await GageFloatingSheet.show(
+      context: context,
+      title: 'Verifikasi Keaslian Struk',
+      child: FutureBuilder<Map<String, dynamic>?>(
+        future: GageApiClient.verifyOrderReceipt(orderNumber),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 28),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(
+                      color: GageTheme.primary,
+                      strokeWidth: 3,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Memverifikasi ke Cloud GAGE...',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Order #$orderNumber',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          final data = snapshot.data;
+          final isVerified = data != null && (data['valid'] == true || data['status'] != null);
+
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: isVerified
+                      ? const Color(0xFF10B981).withValues(alpha: 0.12)
+                      : const Color(0xFFEF4444).withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  isVerified ? Icons.verified_rounded : Icons.gpp_bad_rounded,
+                  color: isVerified
+                      ? const Color(0xFF10B981)
+                      : const Color(0xFFEF4444),
+                  size: 34,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                isVerified
+                    ? 'Struk Terverifikasi Asli'
+                    : 'Struk Tidak Dikenali',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.3,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                isVerified
+                    ? 'Order resmi tercatat di database cloud GAGE'
+                    : 'Order #$orderNumber tidak ditemukan atau struk tidak terdaftar resmi di cloud GAGE.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                ),
+              ),
+              if (isVerified) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? const Color(0xFF0F172A)
+                        : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      _buildVerifyReceiptRow(
+                        'Nomor Order',
+                        data['orderNumber']?.toString() ??
+                            data['order_number']?.toString() ??
+                            orderNumber,
+                        isDark,
+                        isMonospace: true,
+                      ),
+                      const SizedBox(height: 8),
+                      _buildVerifyReceiptRow(
+                        'Layanan',
+                        (data['service'] ??
+                                data['service_type'] ??
+                                'GAGE Order')
+                            .toString()
+                            .toUpperCase(),
+                        isDark,
+                      ),
+                      const SizedBox(height: 8),
+                      _buildVerifyReceiptRow(
+                        'Status',
+                        data['status']?.toString() ?? 'SELESAI',
+                        isDark,
+                        isBadge: true,
+                      ),
+                      const SizedBox(height: 8),
+                      _buildVerifyReceiptRow(
+                        'Waktu Transaksi',
+                        data['completedAt']?.toString() ??
+                            data['completed_at']?.toString() ??
+                            'Terkonfirmasi',
+                        isDark,
+                      ),
+                      const SizedBox(height: 8),
+                      _buildVerifyReceiptRow(
+                        'Total Pembayaran',
+                        currencyFormatter.format(
+                          data['totalAmount'] ??
+                              data['total_amount'] ??
+                              data['total'] ??
+                              0,
+                        ),
+                        isDark,
+                        isBold: true,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isVerified
+                        ? GageTheme.primary
+                        : const Color(0xFF475569),
+                    foregroundColor: Colors.white,
+                    shape: const StadiumBorder(),
+                    elevation: 0,
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text(
+                    'Tutup',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildVerifyReceiptRow(
+    String label,
+    String value,
+    bool isDark, {
+    bool isMonospace = false,
+    bool isBold = false,
+    bool isBadge = false,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: isDark ? Colors.white60 : const Color(0xFF64748B),
+          ),
+        ),
+        if (isBadge)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: const Color(0xFF10B981).withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF10B981),
+              ),
+            ),
+          )
+        else
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: isBold ? FontWeight.w900 : FontWeight.w600,
+              fontFamily: isMonospace ? 'monospace' : null,
+              color: isBold
+                  ? (isDark ? Colors.white : GageTheme.primary)
+                  : (isDark ? Colors.white : const Color(0xFF1E293B)),
+            ),
+          ),
+      ],
+    );
+  }
+
   Future<void> _pickQrFromGallery() async {
+    HapticFeedback.selectionClick();
     final picker = ImagePicker();
     final image = await picker.pickImage(source: ImageSource.gallery);
     if (image == null) return;
@@ -177,9 +471,17 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
     }
   }
 
+  void _toggleFlashlight() {
+    HapticFeedback.lightImpact();
+    _scannerController.toggleTorch();
+    setState(() => _isFlashOn = !_isFlashOn);
+  }
+
   /// Input Nominal Manual berbasis GageFloatingSheet (Full-Rounded Capsule Pill)
   void _showCustomAmountSheet(StateSetter? setModalState) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final ctrl = TextEditingController(text: _selectedAmount.toString());
+
     GageFloatingSheet.show(
       context: context,
       child: Column(
@@ -189,54 +491,89 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(7),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: GageTheme.primary.withValues(alpha: 0.1),
+                  color: GageTheme.primary.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.edit_note_rounded, color: GageTheme.primary, size: 20),
+                child: const Icon(
+                  Icons.edit_note_rounded,
+                  color: GageTheme.primary,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 10),
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Input Nominal Manual',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.5),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16.5,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.close_rounded, size: 20),
+                icon: Icon(
+                  Icons.close_rounded,
+                  size: 20,
+                  color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                ),
                 onPressed: () => Navigator.pop(context),
               ),
             ],
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             'Masukkan nominal belanja yang ingin Anda bayar ke merchant:',
-            style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
+            style: TextStyle(
+              fontSize: 12.5,
+              color: isDark ? Colors.white60 : const Color(0xFF64748B),
+            ),
           ),
           const SizedBox(height: 16),
           TextField(
             controller: ctrl,
             keyboardType: TextInputType.number,
             autofocus: true,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              fontSize: 19,
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+            ),
             decoration: InputDecoration(
               prefixText: 'Rp ',
-              prefixStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: GageTheme.primary),
+              prefixStyle: const TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 19,
+                color: GageTheme.primary,
+              ),
               filled: true,
-              fillColor: const Color(0xFFF8FAFC),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              fillColor: isDark
+                  ? const Color(0xFF1E293B)
+                  : const Color(0xFFF8FAFC),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 16,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(24),
-                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                borderSide: BorderSide(
+                  color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(24),
-                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                borderSide: BorderSide(
+                  color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(24),
-                borderSide: const BorderSide(color: GageTheme.primary, width: 1.5),
+                borderSide: const BorderSide(
+                  color: GageTheme.primary,
+                  width: 1.5,
+                ),
               ),
             ),
           ),
@@ -248,18 +585,26 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
               style: ElevatedButton.styleFrom(
                 backgroundColor: GageTheme.primary,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(28),
+                ),
                 elevation: 0,
               ),
               onPressed: () {
+                HapticFeedback.lightImpact();
                 final val = int.tryParse(ctrl.text.trim()) ?? _selectedAmount;
                 if (val > 0) {
                   setState(() => _selectedAmount = val);
-                  if (setModalState != null) setModalState(() => _selectedAmount = val);
+                  if (setModalState != null) {
+                    setModalState(() => _selectedAmount = val);
+                  }
                 }
                 Navigator.pop(context);
               },
-              child: const Text('Simpan Nominal', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5)),
+              child: const Text(
+                'Simpan Nominal',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
+              ),
             ),
           ),
         ],
@@ -277,30 +622,41 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
     }
 
     if (wallet.balance < amount) {
-      // Saldo Tidak Cukup via GageFloatingSheet
+      final isDark = Theme.of(context).brightness == Brightness.dark;
       GageFloatingSheet.show(
         context: context,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
-              decoration: const BoxDecoration(
-                color: Color(0xFFFEF3C7),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.14),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 36),
+              child: const Icon(
+                Icons.warning_amber_rounded,
+                color: Color(0xFFD97706),
+                size: 36,
+              ),
             ),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'Saldo GAGEPay Tidak Cukup',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.5),
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 16.5,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
               'Saldo Anda ${currencyFormatter.format(wallet.balance)}, sedangkan tagihan sebesar ${currencyFormatter.format(amount)}. Silakan lakukan Top Up via QRIS dinamis untuk melanjutkan.',
-              style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? Colors.white60 : const Color(0xFF64748B),
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
@@ -310,11 +666,23 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(context),
                     style: OutlinedButton.styleFrom(
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                      side: const BorderSide(color: Color(0xFFCBD5E1)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      side: BorderSide(
+                        color: isDark
+                            ? Colors.white24
+                            : const Color(0xFFCBD5E1),
+                      ),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
-                    child: const Text('Batal', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.bold)),
+                    child: Text(
+                      'Batal',
+                      style: TextStyle(
+                        color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -332,15 +700,21 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
                       TopupQrisDialog.showAsSheet(
                         context,
                         onTopupSuccess: (amt) {
-                          final uid = context.read<AuthProvider>().currentUser?.id ??
-                              (GageApiClient.useDevSeedData ? 'usr-cust-01' : '');
+                          final uid =
+                              context.read<AuthProvider>().currentUser?.id ??
+                                  (GageApiClient.useDevSeedData
+                                      ? 'usr-cust-01'
+                                      : '');
                           if (uid.isNotEmpty) {
                             wallet.fetchWallet(uid);
                           }
                         },
                       );
                     },
-                    child: const Text('Top Up Sekarang', style: TextStyle(fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      'Top Up Sekarang',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
               ],
@@ -351,14 +725,16 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
       return;
     }
 
-    // Deduksi saldo GAGEPay
+    HapticFeedback.heavyImpact();
     wallet.deductBalance(amount);
-    Navigator.pop(context); // Tutup bottom sheet
+    Navigator.pop(context);
     _completePayment(wallet);
   }
 
   void _completePayment(WalletProvider wallet) {
-    final invoiceNumber = 'QRIS-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final invoiceNumber =
+        'QRIS-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
     final now = DateFormat('dd MMM yyyy, HH:mm', 'id_ID').format(DateTime.now());
 
     GageFloatingSheet.show(
@@ -370,8 +746,8 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
           Container(
             width: 64,
             height: 64,
-            decoration: const BoxDecoration(
-              color: Color(0xFFDCFCE7),
+            decoration: BoxDecoration(
+              color: const Color(0xFF16A34A).withValues(alpha: 0.14),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -381,40 +757,71 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
             ),
           ),
           const SizedBox(height: 14),
-          const Text(
+          Text(
             'Pembayaran Berhasil!',
             style: TextStyle(
               fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF0F172A),
+              fontWeight: FontWeight.w900,
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Transaksi QRIS Terverifikasi Realtime',
-            style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+            style: TextStyle(
+              fontSize: 11.5,
+              color: isDark ? Colors.white60 : const Color(0xFF64748B),
+            ),
           ),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
+              color: isDark
+                  ? const Color(0xFF1E293B)
+                  : const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(
+                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+              ),
             ),
             child: Column(
               children: [
-                _buildReceiptRow('Nominal Bayar', currencyFormatter.format(_selectedAmount)),
+                _buildReceiptRow(
+                  'Nominal Bayar',
+                  currencyFormatter.format(_selectedAmount),
+                  isDark: isDark,
+                ),
                 const SizedBox(height: 6),
-                _buildReceiptRow('Merchant', _detectedMerchantName),
+                _buildReceiptRow(
+                  'Merchant',
+                  _detectedMerchantName,
+                  isDark: isDark,
+                ),
                 const SizedBox(height: 6),
-                _buildReceiptRow('NMID', _detectedMerchantNmid),
+                _buildReceiptRow(
+                  'NMID',
+                  _detectedMerchantNmid,
+                  isDark: isDark,
+                ),
                 const SizedBox(height: 6),
-                _buildReceiptRow('Metode', 'Saldo GAGEPay (0% Fee)'),
+                _buildReceiptRow(
+                  'Metode',
+                  'Saldo GAGEPay (0% Fee)',
+                  isDark: isDark,
+                ),
                 const SizedBox(height: 6),
-                _buildReceiptRow('No. Referensi', invoiceNumber),
+                _buildReceiptRow(
+                  'No. Referensi',
+                  invoiceNumber,
+                  isDark: isDark,
+                ),
                 const SizedBox(height: 6),
-                _buildReceiptRow('Waktu Transaksi', now),
+                _buildReceiptRow(
+                  'Waktu Transaksi',
+                  now,
+                  isDark: isDark,
+                ),
               ],
             ),
           ),
@@ -426,14 +833,19 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
               style: ElevatedButton.styleFrom(
                 backgroundColor: GageTheme.primary,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(28),
+                ),
                 elevation: 0,
               ),
               onPressed: () {
                 Navigator.pop(context);
                 Navigator.pop(context);
               },
-              child: const Text('Selesai', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5)),
+              child: const Text(
+                'Selesai',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
+              ),
             ),
           ),
         ],
@@ -441,15 +853,25 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
     );
   }
 
-  Widget _buildReceiptRow(String label, String value) {
+  Widget _buildReceiptRow(String label, String value, {bool isDark = false}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11.5,
+            color: isDark ? Colors.white60 : const Color(0xFF64748B),
+          ),
+        ),
         Flexible(
           child: Text(
             value,
-            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Colors.black87),
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
             textAlign: TextAlign.right,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -479,8 +901,8 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
                     'Konfirmasi Pembayaran QRIS',
                     style: TextStyle(
                       fontSize: 16.5,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black87,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
                     ),
                   ),
                   InkWell(
@@ -493,7 +915,9 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
                       width: 32,
                       height: 32,
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF27272A) : const Color(0xFFF3F4F6),
+                        color: isDark
+                            ? const Color(0xFF27272A)
+                            : const Color(0xFFF3F4F6),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
@@ -507,13 +931,19 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
               ),
               const SizedBox(height: 14),
 
-              // Merchant Card (Rounded 20px)
+              // Merchant Card
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                  color: isDark
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: isDark ? Colors.grey.shade800 : const Color(0xFFE2E8F0)),
+                  border: Border.all(
+                    color: isDark
+                        ? Colors.grey.shade800
+                        : const Color(0xFFE2E8F0),
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -524,7 +954,11 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
                         color: const Color(0xFF16A34A).withValues(alpha: 0.12),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.storefront_rounded, color: Color(0xFF16A34A), size: 24),
+                      child: const Icon(
+                        Icons.storefront_rounded,
+                        color: Color(0xFF16A34A),
+                        size: 24,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -539,7 +973,9 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 14.5,
-                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                    color: isDark
+                                        ? Colors.white
+                                        : const Color(0xFF0F172A),
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -547,9 +983,13 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
                               ),
                               const SizedBox(width: 6),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF16A34A).withValues(alpha: 0.15),
+                                  color: const Color(0xFF16A34A)
+                                      .withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: const Text(
@@ -566,14 +1006,21 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
                           const SizedBox(height: 2),
                           Text(
                             _detectedMerchantLocation,
-                            style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: isDark
+                                  ? Colors.white60
+                                  : const Color(0xFF64748B),
+                            ),
                           ),
                           Text(
                             'NMID: $_detectedMerchantNmid',
                             style: TextStyle(
                               fontSize: 10,
                               fontFamily: 'monospace',
-                              color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                              color: isDark
+                                  ? Colors.white38
+                                  : const Color(0xFF94A3B8),
                             ),
                           ),
                         ],
@@ -599,29 +1046,46 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
                   ),
                   InkWell(
                     onTap: () => _showCustomAmountSheet(setModalState),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.edit_note_rounded, size: 16, color: GageTheme.primary),
-                        SizedBox(width: 3),
-                        Text(
-                          'Ubah Nominal',
-                          style: TextStyle(fontSize: 11.5, color: GageTheme.primary, fontWeight: FontWeight.bold),
-                        ),
-                      ],
+                    borderRadius: BorderRadius.circular(12),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.edit_note_rounded,
+                            size: 16,
+                            color: GageTheme.primary,
+                          ),
+                          SizedBox(width: 3),
+                          Text(
+                            'Ubah Nominal',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: GageTheme.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
 
-              // Big Nominal Display Card (Rounded 20px)
+              // Big Nominal Display Card
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
-                  color: GageTheme.primary.withValues(alpha: 0.06),
+                  color: GageTheme.primary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: GageTheme.primary.withValues(alpha: 0.2)),
+                  border: Border.all(
+                    color: GageTheme.primary.withValues(alpha: 0.22),
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -636,15 +1100,26 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: isDark ? const Color(0xFF0F172A) : Colors.white,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        border: Border.all(
+                          color: isDark
+                              ? Colors.white12
+                              : const Color(0xFFE2E8F0),
+                        ),
                       ),
                       child: const Text(
                         'Bebas Admin',
-                        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF16A34A)),
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF16A34A),
+                        ),
                       ),
                     ),
                   ],
@@ -653,7 +1128,7 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
 
               const SizedBox(height: 10),
 
-              // Quick Amount Chips (Capsule Pill Rounded 20px)
+              // Quick Amount Chips
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
@@ -667,21 +1142,37 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
                           setModalState(() => _selectedAmount = amt);
                         },
                         borderRadius: BorderRadius.circular(999),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 13,
+                            vertical: 7,
+                          ),
                           decoration: BoxDecoration(
-                            color: isSelected ? GageTheme.primary : const Color(0xFFF1F5F9),
+                            color: isSelected
+                                ? GageTheme.primary
+                                : (isDark
+                                    ? const Color(0xFF1E293B)
+                                    : const Color(0xFFF1F5F9)),
                             borderRadius: BorderRadius.circular(999),
                             border: Border.all(
-                              color: isSelected ? GageTheme.primary : const Color(0xFFE2E8F0),
+                              color: isSelected
+                                  ? GageTheme.primary
+                                  : (isDark
+                                      ? Colors.white12
+                                      : const Color(0xFFE2E8F0)),
                             ),
                           ),
                           child: Text(
                             currencyFormatter.format(amt),
                             style: TextStyle(
                               fontSize: 11,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                              color: isSelected ? Colors.white : Colors.black87,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.w600,
+                              color: isSelected
+                                  ? Colors.white
+                                  : (isDark ? Colors.white70 : Colors.black87),
                             ),
                           ),
                         ),
@@ -693,39 +1184,55 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
 
               const SizedBox(height: 16),
 
-              // Sumber Dana: Eksklusif GAGEPay (Rounded 20px)
+              // Sumber Dana: Eksklusif GAGEPay
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                  color: isDark
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                  border: Border.all(
+                    color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                  ),
                 ),
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(6),
+                      padding: const EdgeInsets.all(7),
                       decoration: BoxDecoration(
                         color: GageTheme.primary.withValues(alpha: 0.12),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.account_balance_wallet_rounded, color: GageTheme.primary, size: 20),
+                      child: const Icon(
+                        Icons.account_balance_wallet_rounded,
+                        color: GageTheme.primary,
+                        size: 20,
+                      ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Sumber Dana: Saldo GAGEPay',
-                            style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: isDark
+                                  ? Colors.white60
+                                  : const Color(0xFF64748B),
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                           Text(
                             currencyFormatter.format(wallet.balance),
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
-                              color: wallet.balance < _selectedAmount ? const Color(0xFFDC2626) : Colors.black87,
+                              color: wallet.balance < _selectedAmount
+                                  ? const Color(0xFFEF4444)
+                                  : (isDark ? Colors.white : Colors.black87),
                             ),
                           ),
                         ],
@@ -737,8 +1244,13 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
                           TopupQrisDialog.showAsSheet(
                             context,
                             onTopupSuccess: (amt) {
-                              final uid = context.read<AuthProvider>().currentUser?.id ??
-                                  (GageApiClient.useDevSeedData ? 'usr-cust-01' : '');
+                              final uid = context
+                                      .read<AuthProvider>()
+                                      .currentUser
+                                      ?.id ??
+                                  (GageApiClient.useDevSeedData
+                                      ? 'usr-cust-01'
+                                      : '');
                               if (uid.isNotEmpty) {
                                 wallet.fetchWallet(uid);
                               }
@@ -746,14 +1258,21 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
                           );
                         },
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
                           decoration: BoxDecoration(
                             color: GageTheme.primary,
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: const Text(
                             '+ Top Up',
-                            style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
@@ -763,20 +1282,25 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
 
               const SizedBox(height: 20),
 
-              // CTA Konfirmasi Bayar (Stadium Pill 28px)
+              // CTA Konfirmasi Bayar
               SizedBox(
                 height: 48,
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: GageTheme.primary,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(28),
+                    ),
                     elevation: 0,
                   ),
                   icon: const Icon(Icons.lock_rounded, size: 18),
                   label: Text(
                     'Bayar ${currencyFormatter.format(_selectedAmount)}',
-                    style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   onPressed: () => _processPayment(wallet),
                 ),
@@ -790,422 +1314,551 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
     });
   }
 
+  /// Helper Widget untuk Frosted Glass Pill / Surface di atas Kamera
+  Widget _buildGlassSurface({
+    required Widget child,
+    BorderRadius borderRadius = const BorderRadius.all(Radius.circular(999)),
+    Color? tintColor,
+    Color? borderColor,
+    EdgeInsetsGeometry? padding,
+  }) {
+    return ClipRRect(
+      borderRadius: borderRadius,
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: Container(
+          padding: padding,
+          decoration: BoxDecoration(
+            color: tintColor ?? Colors.white.withValues(alpha: 0.14),
+            borderRadius: borderRadius,
+            border: Border.all(
+              color: borderColor ?? Colors.white.withValues(alpha: 0.22),
+              width: 1,
+            ),
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final wallet = context.watch<WalletProvider>();
-    final screenWidth = MediaQuery.of(context).size.width;
-    final reticleSize = math.min(screenWidth - 80, 270.0);
+    final media = MediaQuery.of(context);
+    final screenWidth = media.size.width;
+    final screenHeight = media.size.height;
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          child: Column(
-            children: [
-              // 1. TOP BAR: Circular Back (kiri), Center Title & QR Icon, Kanan Bersih (Tanpa Duplikasi)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Circular Back Button
-                  InkWell(
-                    onTap: () => Navigator.pop(context),
-                    borderRadius: BorderRadius.circular(24),
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFF1F5F9),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.arrow_back_rounded, color: Colors.black87, size: 20),
+    final cutoutSize = math.min(
+      screenWidth - 72,
+      math.min(screenHeight * 0.34, 276.0),
+    );
+
+    final isDetected = _isLockingOn || _isQrScanned;
+    final Color reticleColor = isDetected
+        ? const Color(0xFF10B981)
+        : (_isFlashOn ? const Color(0xFFFBBF24) : Colors.white);
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            // 1. FULL-BLEED IMMERSIVE CAMERA FEED (100% LAYAR)
+            MobileScanner(
+              controller: _scannerController,
+              onDetect: (capture) {
+                final barcodes = capture.barcodes;
+                for (final barcode in barcodes) {
+                  if (barcode.rawValue != null && barcode.rawValue!.isNotEmpty) {
+                    _handleQrCodeDetected(barcode.rawValue!);
+                    break;
+                  }
+                }
+              },
+              errorBuilder: (context, error) {
+                return Container(
+                  color: const Color(0xFF090D16),
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.08),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.videocam_off_rounded,
+                            color: Colors.white70,
+                            size: 36,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        const Text(
+                          'Izin Kamera Diperlukan',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Aktifkan akses kamera di pengaturan perangkat atau gunakan tombol Galeri di bawah untuk memindai gambar QR.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.65),
+                            fontSize: 12.5,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                );
+              },
+            ),
 
-                  // Center QR Icon & Title (Sesuai Referensi Gambar)
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: GageTheme.primary.withValues(alpha: 0.12),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.qr_code_scanner_rounded, color: GageTheme.primary, size: 26),
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'QRIS Merchant GAGE',
-                        style: TextStyle(
-                          color: Color(0xFF0F172A),
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -0.3,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      const Text(
-                        'Scan QR Meja/Kasir • 0% Biaya • Makan di Tempat',
-                        style: TextStyle(
-                          color: Color(0xFF64748B),
-                          fontSize: 11.5,
-                        ),
-                      ),
-                    ],
+            // 2. TRANSLUCENT DARK SCRIM DENGAN LUBANG SQUIRCLE DI TENGAH (TERKALIBRASI PRESISI)
+            IgnorePointer(
+              child: CustomPaint(
+                size: Size.infinite,
+                painter: _ScannerOverlayPainter(
+                  cutoutSize: cutoutSize,
+                  cutoutRadius: 34,
+                  verticalOffset: _kCalibratedVerticalOffset,
+                  scrimColor: Colors.black.withValues(
+                    alpha: _isFlashOn ? 0.42 : 0.56,
                   ),
-
-                  // Spacer Kanan Agar Simetris (Tanpa Duplikasi Ikon Galeri)
-                  const SizedBox(width: 44),
-                ],
-              ),
-
-              const Spacer(flex: 1),
-
-              // 2. VIEWFINDER BOX (Kamera Terpotong Rapi 28px di Tengah Layar Putih)
-              Container(
-                width: reticleSize,
-                height: reticleSize,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(28),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black12, blurRadius: 16, offset: Offset(0, 4)),
-                  ],
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(28),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    fit: StackFit.expand,
-                    children: [
-                      // Kamera Terbatas Hanya di Dalam Box
-                      MobileScanner(
-                        controller: _scannerController,
-                        onDetect: (capture) {
-                          final barcodes = capture.barcodes;
-                          for (final barcode in barcodes) {
-                            if (barcode.rawValue != null && barcode.rawValue!.isNotEmpty) {
-                              _handleQrCodeDetected(barcode.rawValue!);
-                              break;
-                            }
-                          }
-                        },
-                        errorBuilder: (context, error) {
-                          return Container(
-                            color: Colors.black87,
-                            padding: const EdgeInsets.all(16),
-                            child: const Center(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.videocam_off_rounded, color: Colors.white54, size: 36),
-                                  SizedBox(height: 8),
-                                  Text(
-                                    'Aktifkan Izin Kamera',
-                                    style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
+              ),
+            ),
 
-                      // 4 Sudut Minimalis Viewfinder
-                      Positioned.fill(
-                        child: QrViewfinderCorners(
-                          color: _isLockingOn || _isQrScanned ? const Color(0xFF10B981) : Colors.white,
-                          cornerLength: 28,
-                          cornerWidth: 3.5,
-                        ),
-                      ),
-
-                      // Garis Pemindai Halus Merah GAGE (Laser Pulse)
-                      if (!_isQrScanned && !_isLockingOn)
-                        Positioned.fill(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            // 3. RETICLE TERPISAH DENGAN CENTER + EXACT CALIBRATED OFFSET (100% KUNCI MATEMATIS DENGAN CUTOUT)
+            IgnorePointer(
+              child: Center(
+                child: Transform.translate(
+                  offset: const Offset(0, _kCalibratedVerticalOffset),
+                  child: AnimatedScale(
+                    scale: _isLockingOn ? 0.94 : 1.0,
+                    duration: const Duration(milliseconds: 240),
+                    curve: Curves.easeOutBack,
+                    child: SizedBox(
+                      width: cutoutSize,
+                      height: cutoutSize,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          // 4 Sudut Melengkung Presisi
+                          Positioned.fill(
                             child: AnimatedBuilder(
-                              animation: _laserAnimation,
-                              builder: (context, child) {
-                                return Align(
-                                  alignment: Alignment(0, (_laserAnimation.value * 2) - 1),
-                                  child: Container(
-                                    height: 2.5,
-                                    width: double.infinity,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(2),
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          Colors.transparent,
-                                          Color(0xFFE52320),
-                                          Colors.white,
-                                          Color(0xFFE52320),
-                                          Colors.transparent,
-                                        ],
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: const Color(0xFFE52320).withValues(alpha: 0.6),
-                                          blurRadius: 8,
-                                          spreadRadius: 1,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
+                              animation: _breatheAnimation,
+                              builder: (context, _) {
+                                return QrViewfinderCorners(
+                                  color: reticleColor,
+                                  cornerLength: isDetected
+                                      ? 42
+                                      : 34 + (_breatheAnimation.value * 4),
+                                  cornerWidth: isDetected ? 4.8 : 4.2,
+                                  cornerRadius: 22,
+                                  inset: 14,
                                 );
                               },
                             ),
                           ),
-                        ),
 
-                      // Status Badge saat QR Terdeteksi
-                      if (_isLockingOn || _isQrScanned)
-                        Center(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.8),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: const Color(0xFF10B981), width: 1.0),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 16),
-                                SizedBox(width: 6),
-                                Text(
-                                  'QR Terdeteksi',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 12.0,
-                                  ),
+                          // Horizon Laser Beam saat Scanning
+                          if (!isDetected)
+                            Positioned.fill(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 24,
                                 ),
-                              ],
+                                child: AnimatedBuilder(
+                                  animation: _laserAnimation,
+                                  builder: (context, _) {
+                                    return Align(
+                                      alignment: Alignment(
+                                        0,
+                                        (_laserAnimation.value * 2) - 1,
+                                      ),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Container(
+                                            height: 2.5,
+                                            width: double.infinity,
+                                            decoration: BoxDecoration(
+                                              borderRadius: BorderRadius.circular(99),
+                                              gradient: const LinearGradient(
+                                                colors: [
+                                                  Colors.transparent,
+                                                  Color(0xFFE52320),
+                                                  Color(0xFFFF8A80),
+                                                  Colors.white,
+                                                  Color(0xFFFF8A80),
+                                                  Color(0xFFE52320),
+                                                  Colors.transparent,
+                                                ],
+                                                stops: [0.0, 0.18, 0.42, 0.5, 0.58, 0.82, 1.0],
+                                              ),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: const Color(0xFFE52320).withValues(alpha: 0.85),
+                                                  blurRadius: 14,
+                                                  spreadRadius: 2,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          Container(
+                                            height: 22,
+                                            width: double.infinity,
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                begin: Alignment.topCenter,
+                                                end: Alignment.bottomCenter,
+                                                colors: [
+                                                  const Color(0xFFE52320).withValues(alpha: 0.25),
+                                                  Colors.transparent,
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
 
-              const Spacer(flex: 1),
-
-              // 3. "PILIH DARI GALERI" CARD PILL (Sesuai Referensi Gambar)
-              InkWell(
-                onTap: _pickQrFromGallery,
-                borderRadius: BorderRadius.circular(24),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.photo_library_outlined, color: Color(0xFF334155), size: 20),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Pilih dari Galeri',
-                          style: TextStyle(
-                            color: Color(0xFF1E293B),
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                          // Lock-On Badge saat Kode Terdeteksi
+                          if (isDetected)
+                            TweenAnimationBuilder<double>(
+                              tween: Tween(begin: 0.82, end: 1.0),
+                              duration: const Duration(milliseconds: 220),
+                              curve: Curves.easeOutBack,
+                              builder: (context, scale, child) => Transform.scale(
+                                scale: scale,
+                                child: child,
+                              ),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 9,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0F172A).withValues(alpha: 0.92),
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                    color: const Color(0xFF10B981),
+                                    width: 1.5,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF10B981).withValues(alpha: 0.4),
+                                      blurRadius: 16,
+                                    ),
+                                  ],
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.check_circle_rounded,
+                                      color: Color(0xFF10B981),
+                                      size: 18,
+                                    ),
+                                    SizedBox(width: 7),
+                                    Text(
+                                      'QR Terdeteksi',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 12.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                      Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8), size: 20),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // Divider "atau"
-              Row(
-                children: [
-                  Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text(
-                      'atau',
-                      style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
                     ),
                   ),
-                  Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
-                ],
-              ),
-
-              const SizedBox(height: 12),
-
-              // 4. GAGEPAY FUNDING CARD & ACTION PILLS (Rounded 24px)
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
+              ),
+            ),
+
+            // 4. FLOATING GLASS HUD LAYER (TOP BAR, HINT, SEGMENTED MODES, DOCK)
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
                 child: Column(
                   children: [
-                    // Row 1: Saldo GAGEPay & Quick Top Up
+                    // TOP BAR: Circular Glass Back | Brand Pill + Title | Circular Torch Toggle
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: GageTheme.primary.withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.account_balance_wallet_rounded, color: GageTheme.primary, size: 18),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Saldo GAGEPay',
-                                style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                        _buildGlassSurface(
+                          tintColor: Colors.black.withValues(alpha: 0.32),
+                          borderColor: Colors.white.withValues(alpha: 0.2),
+                          child: InkWell(
+                            onTap: () {
+                              HapticFeedback.lightImpact();
+                              Navigator.pop(context);
+                            },
+                            customBorder: const CircleBorder(),
+                            child: const SizedBox(
+                              width: 44,
+                              height: 44,
+                              child: Icon(
+                                Icons.arrow_back_rounded,
+                                color: Colors.white,
+                                size: 20,
                               ),
-                              Text(
-                                currencyFormatter.format(wallet.balance),
-                                style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
+                        _buildGlassSurface(
+                          tintColor: _isFlashOn
+                              ? const Color(0xFFF59E0B).withValues(alpha: 0.35)
+                              : Colors.black.withValues(alpha: 0.32),
+                          borderColor: _isFlashOn
+                              ? const Color(0xFFFBBF24)
+                              : Colors.white.withValues(alpha: 0.2),
+                          child: InkWell(
+                            onTap: _toggleFlashlight,
+                            customBorder: const CircleBorder(),
+                            child: SizedBox(
+                              width: 44,
+                              height: 44,
+                              child: Icon(
+                                _isFlashOn
+                                    ? Icons.flashlight_on_rounded
+                                    : Icons.flashlight_off_rounded,
+                                color: _isFlashOn
+                                    ? const Color(0xFFFDE68A)
+                                    : Colors.white,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const Spacer(),
+
+                    const SizedBox(height: 12),
+
+                    // BOTTOM THUMB-ZONE GLASS DOCK (Galeri, Nominal, Riwayat + Saldo GAGEPay)
+                    _buildGlassSurface(
+                      borderRadius: BorderRadius.circular(28),
+                      padding: const EdgeInsets.all(12),
+                      tintColor: const Color(0xFF0F172A).withValues(alpha: 0.55),
+                      borderColor: Colors.white.withValues(alpha: 0.18),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Row 1: Triple Action Pills (Galeri | Nominal | Riwayat)
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildDockActionPill(
+                                  icon: Icons.photo_library_outlined,
+                                  label: 'Galeri',
+                                  onTap: _pickQrFromGallery,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildDockActionPill(
+                                  icon: Icons.edit_note_rounded,
+                                  label: 'Nominal',
+                                  onTap: () {
+                                    HapticFeedback.selectionClick();
+                                    _showCustomAmountSheet(null);
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildDockActionPill(
+                                  icon: Icons.history_rounded,
+                                  label: 'Riwayat',
+                                  onTap: () {
+                                    HapticFeedback.selectionClick();
+                                    Navigator.pop(context);
+                                  },
+                                ),
                               ),
                             ],
                           ),
-                        ),
-                        InkWell(
-                          onTap: () {
-                            TopupQrisDialog.showAsSheet(
-                              context,
-                              onTopupSuccess: (amt) {
-                                final uid = context.read<AuthProvider>().currentUser?.id ??
-                                    (GageApiClient.useDevSeedData ? 'usr-cust-01' : '');
-                                if (uid.isNotEmpty) {
-                                  wallet.fetchWallet(uid);
-                                }
-                              },
-                            );
-                          },
-                          borderRadius: BorderRadius.circular(20),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+
+                          const SizedBox(height: 10),
+
+                          // Row 2: Integrated Saldo GAGEPay + Top Up CTA Capsule
+                          Container(
+                            padding: const EdgeInsets.fromLTRB(12, 9, 10, 9),
                             decoration: BoxDecoration(
-                              color: GageTheme.primary,
-                              borderRadius: BorderRadius.circular(20),
+                              color: Colors.black.withValues(alpha: 0.35),
+                              borderRadius: BorderRadius.circular(22),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.12),
+                              ),
                             ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
+                            child: Row(
                               children: [
-                                Icon(Icons.add, color: Colors.white, size: 14),
-                                SizedBox(width: 4),
-                                Text(
-                                  'Top Up',
-                                  style: TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold),
+                                Container(
+                                  width: 38,
+                                  height: 38,
+                                  decoration: BoxDecoration(
+                                    color: GageTheme.primary.withValues(alpha: 0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.account_balance_wallet_rounded,
+                                    color: GageTheme.primary,
+                                    size: 19,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Saldo GAGEPay',
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          color: Colors.white.withValues(alpha: 0.68),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 1),
+                                      Text(
+                                        currencyFormatter.format(wallet.balance),
+                                        style: const TextStyle(
+                                          fontSize: 15.5,
+                                          fontWeight: FontWeight.w900,
+                                          color: Colors.white,
+                                          letterSpacing: -0.3,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Material(
+                                  color: GageTheme.primary,
+                                  borderRadius: BorderRadius.circular(999),
+                                  child: InkWell(
+                                    onTap: () {
+                                      HapticFeedback.lightImpact();
+                                      TopupQrisDialog.showAsSheet(
+                                        context,
+                                        onTopupSuccess: (amt) {
+                                          final uid = context
+                                                  .read<AuthProvider>()
+                                                  .currentUser
+                                                  ?.id ??
+                                              (GageApiClient.useDevSeedData
+                                                  ? 'usr-cust-01'
+                                                  : '');
+                                          if (uid.isNotEmpty) {
+                                            wallet.fetchWallet(uid);
+                                          }
+                                        },
+                                      );
+                                    },
+                                    borderRadius: BorderRadius.circular(999),
+                                    child: const Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                        vertical: 8.5,
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.add_rounded,
+                                            color: Colors.white,
+                                            size: 16,
+                                          ),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'Top Up',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 10),
-                    const Divider(height: 1, color: Color(0xFFE2E8F0)),
-                    const SizedBox(height: 10),
-
-                    // Row 2: Action Pills ("Input Manual" & "Riwayat Transaksi")
-                    Row(
-                      children: [
-                        Expanded(
-                          child: InkWell(
-                            onTap: () => _showCustomAmountSheet(null),
-                            borderRadius: BorderRadius.circular(20),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 9),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: const Color(0xFFCBD5E1)),
-                              ),
-                              child: const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.edit_note_rounded, size: 16, color: Color(0xFF475569)),
-                                  SizedBox(width: 6),
-                                  Text(
-                                    'Input Manual',
-                                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: InkWell(
-                            onTap: () => Navigator.pop(context),
-                            borderRadius: BorderRadius.circular(20),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 9),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: const Color(0xFFCBD5E1)),
-                              ),
-                              child: const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.history_rounded, size: 16, color: Color(0xFF475569)),
-                                  SizedBox(width: 6),
-                                  Text(
-                                    'Riwayat Transaksi',
-                                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-              const SizedBox(height: 14),
-
-              // 5. BOTTOM CTA: Full Stadium Flashlight Button
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    _scannerController.toggleTorch();
-                    setState(() => _isFlashOn = !_isFlashOn);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: GageTheme.primary,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                  ),
-                  icon: Icon(_isFlashOn ? Icons.flash_on_rounded : Icons.flash_off_rounded, size: 18),
-                  label: Text(
-                    _isFlashOn ? 'Matikan Senter' : 'Aktifkan Senter',
-                    style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold),
+  Widget _buildDockActionPill({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.white.withValues(alpha: 0.14),
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.22),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: Colors.white),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
                   ),
                 ),
               ),
-
-              const SizedBox(height: 8),
             ],
           ),
         ),
@@ -1214,17 +1867,81 @@ class _QrisPayScreenState extends State<QrisPayScreen> with SingleTickerProvider
   }
 }
 
-/// Custom Painter 4 Sudut Pemindai (Reticle Frame)
+/// Custom Painter untuk Dark Scrim Full-Screen dengan Lubang Squircle di Tengah
+class _ScannerOverlayPainter extends CustomPainter {
+  final double cutoutSize;
+  final double cutoutRadius;
+  final double verticalOffset;
+  final Color scrimColor;
+
+  _ScannerOverlayPainter({
+    required this.cutoutSize,
+    required this.cutoutRadius,
+    required this.verticalOffset,
+    required this.scrimColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final fullRect = Offset.zero & size;
+    final center = Offset(size.width / 2, (size.height / 2) + verticalOffset);
+    final cutoutRect = Rect.fromCenter(
+      center: center,
+      width: cutoutSize,
+      height: cutoutSize,
+    );
+    final cutoutRRect = RRect.fromRectAndRadius(
+      cutoutRect,
+      Radius.circular(cutoutRadius),
+    );
+
+    final overlayPath = Path.combine(
+      PathOperation.difference,
+      Path()..addRect(fullRect),
+      Path()..addRRect(cutoutRRect),
+    );
+
+    canvas.drawPath(
+      overlayPath,
+      Paint()
+        ..color = scrimColor
+        ..style = PaintingStyle.fill,
+    );
+
+    // Subtle rim border di sekeliling lubang jendela bidik
+    canvas.drawRRect(
+      cutoutRRect,
+      Paint()
+        ..color = Colors.white.withValues(alpha: 0.18)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _ScannerOverlayPainter oldDelegate) {
+    return oldDelegate.cutoutSize != cutoutSize ||
+        oldDelegate.cutoutRadius != cutoutRadius ||
+        oldDelegate.verticalOffset != verticalOffset ||
+        oldDelegate.scrimColor != scrimColor;
+  }
+}
+
+/// Custom Painter 4 Sudut Pemindai dengan Lengkungan Geometris Presisi (Tactile Squircle Reticle)
 class QrViewfinderCorners extends StatelessWidget {
   final Color color;
   final double cornerLength;
   final double cornerWidth;
+  final double cornerRadius;
+  final double inset;
 
   const QrViewfinderCorners({
     super.key,
     required this.color,
-    this.cornerLength = 32,
-    this.cornerWidth = 4.5,
+    this.cornerLength = 34,
+    this.cornerWidth = 4.2,
+    this.cornerRadius = 22,
+    this.inset = 14,
   });
 
   @override
@@ -1234,6 +1951,8 @@ class QrViewfinderCorners extends StatelessWidget {
         color: color,
         cornerLength: cornerLength,
         cornerWidth: cornerWidth,
+        cornerRadius: cornerRadius,
+        inset: inset,
       ),
     );
   }
@@ -1243,46 +1962,92 @@ class _CornersPainter extends CustomPainter {
   final Color color;
   final double cornerLength;
   final double cornerWidth;
+  final double cornerRadius;
+  final double inset;
 
   _CornersPainter({
     required this.color,
     required this.cornerLength,
     required this.cornerWidth,
+    required this.cornerRadius,
+    required this.inset,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
+    final glowPaint = Paint()
+      ..color = color.withValues(alpha: 0.35)
+      ..strokeWidth = cornerWidth + 4
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+
     final paint = Paint()
       ..color = color
       ..strokeWidth = cornerWidth
       ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
 
-    final w = size.width;
-    final h = size.height;
+    final left = inset;
+    final top = inset;
+    final right = size.width - inset;
+    final bottom = size.height - inset;
+    final r = cornerRadius;
     final l = cornerLength;
 
-    // Top Left
-    canvas.drawLine(const Offset(0, 0), Offset(l, 0), paint);
-    canvas.drawLine(const Offset(0, 0), Offset(0, l), paint);
+    final path = Path();
 
-    // Top Right
-    canvas.drawLine(Offset(w, 0), Offset(w - l, 0), paint);
-    canvas.drawLine(Offset(w, 0), Offset(w, l), paint);
+    // Top-Left Corner Arc
+    path.moveTo(left, top + l);
+    path.lineTo(left, top + r);
+    path.arcToPoint(
+      Offset(left + r, top),
+      radius: Radius.circular(r),
+      clockwise: true,
+    );
+    path.lineTo(left + l, top);
 
-    // Bottom Left
-    canvas.drawLine(Offset(0, h), Offset(l, h), paint);
-    canvas.drawLine(Offset(0, h), Offset(0, h - l), paint);
+    // Top-Right Corner Arc
+    path.moveTo(right - l, top);
+    path.lineTo(right - r, top);
+    path.arcToPoint(
+      Offset(right, top + r),
+      radius: Radius.circular(r),
+      clockwise: true,
+    );
+    path.lineTo(right, top + l);
 
-    // Bottom Right
-    canvas.drawLine(Offset(w, h), Offset(w - l, h), paint);
-    canvas.drawLine(Offset(w, h), Offset(w, h - l), paint);
+    // Bottom-Left Corner Arc
+    path.moveTo(left, bottom - l);
+    path.lineTo(left, bottom - r);
+    path.arcToPoint(
+      Offset(left + r, bottom),
+      radius: Radius.circular(r),
+      clockwise: false,
+    );
+    path.lineTo(left + l, bottom);
+
+    // Bottom-Right Corner Arc
+    path.moveTo(right - l, bottom);
+    path.lineTo(right - r, bottom);
+    path.arcToPoint(
+      Offset(right, bottom - r),
+      radius: Radius.circular(r),
+      clockwise: false,
+    );
+    path.lineTo(right, bottom - l);
+
+    canvas.drawPath(path, glowPaint);
+    canvas.drawPath(path, paint);
   }
 
   @override
   bool shouldRepaint(covariant _CornersPainter oldDelegate) {
     return oldDelegate.color != color ||
         oldDelegate.cornerLength != cornerLength ||
-        oldDelegate.cornerWidth != cornerWidth;
+        oldDelegate.cornerWidth != cornerWidth ||
+        oldDelegate.cornerRadius != cornerRadius ||
+        oldDelegate.inset != inset;
   }
 }

@@ -88,3 +88,16 @@ Portal Customer ([`resto_detail_screen.dart`](../../gage-app/lib/features/food/p
 4. **Tier Pengiriman `Hemat` & Kartu Rincian Produk Customer**:
    - Syarat opsi ongkir `Hemat` diubah dari jarak menjadi minimal belanja subtotal (default **Rp 50.000**, dapat disinkronkan via `GagePricingService`), tanpa mengubah hak bersih harga produk merchant.
    - `CheckoutScreen` Customer kini menampilkan slider rekomendasi produk lain milik merchant; pastikan katalog produk aktif (`isAvailable`, `imageUrl`, `sold_count`, dan `promo_price`) tetap terawat rapi.
+
+---
+
+## 6. Kontrak Pembatalan Pesanan oleh Pelanggan (`canBeCancelledByCustomer`) & Struk Digital
+
+1. **Aturan Pembatalan Pelanggan pada Layanan Niaga (`food` / `shop` / `farm` / `build`)**:
+   - Pelanggan diizinkan membatalkan pesanan secara mandiri sebelum merchant mengonfirmasi pesanan (hanya ketika status masih `NEW`, `PAID`, atau `PENDING` / `WAITING_MERCHANT`).
+   - Begitu merchant menerima pesanan dan status berubah menjadi `COOKING` / `PREPARING` atau `READY_FOR_PICKUP`, tombol pembatalan mandiri pelanggan otomatis hilang untuk mencegah kerugian bahan baku dapur merchant.
+   - Endpoint: `PUT /api/orders/:id/status` dengan payload `{ "status": "CANCELLED", "cancellation_reason": "Dibatalkan oleh pelanggan" }`.
+   - Dasbor Merchant: Saat pesanan dibatalkan pelanggan sebelum dimasak, daftar pesanan masuk wajib segera menghapus kartu pesanan tersebut atau menandainya sebagai Dibatalkan.
+2. **Struk Digital Interaktif & Tiket Belanja**:
+   - Customer kini dapat membagikan struk transaksi digital lengkap dengan nomor pesanan, daftar menu, rincian pembayaran, dan QR verifikasi (`GageReceiptShareDialog`).
+   - Kasir/Merchant dapat mencocokkan struk digital ini saat pelanggan memilih opsi Ambil Sendiri (Pickup).

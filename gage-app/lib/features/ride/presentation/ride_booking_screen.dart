@@ -15,7 +15,7 @@ import 'package:gage_app/core/services/location_service.dart';
 import 'package:gage_app/core/services/gage_pricing_service.dart';
 import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
 import 'package:gage_app/core/services/user_address_service.dart';
-import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
+import 'package:gage_app/shared/widgets/full_screen_map_picker.dart';
 import 'package:gage_app/features/ride/presentation/ride_checkout_screen.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/core/services/dynamic_asset_service.dart';
@@ -23,10 +23,12 @@ import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 class RideBookingScreen extends StatefulWidget {
   final String initialTab; // 'ride' or 'car'
+  final bool autoStartLocationFlow;
 
   const RideBookingScreen({
     super.key,
     this.initialTab = 'ride',
+    this.autoStartLocationFlow = true,
   });
 
   @override
@@ -42,7 +44,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
   bool _driverAccepted = false;
   bool _isLoadingRoute = false;
 
-  LatLng _pickupLocation = const LatLng(-8.0895, 110.8492);
+  LatLng _pickupLocation = LocationService.cachedOrFallback;
   LatLng? _dropoffLocation;
   List<LatLng> _routePoints = [];
   double _distanceKm = 0.0;
@@ -76,6 +78,75 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
     _driverLocation = LatLng(_pickupLocation.latitude - 0.006, _pickupLocation.longitude - 0.004);
 
     _initRealGpsAndRoute();
+    if (widget.autoStartLocationFlow) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _startInitialLocationFlow());
+    }
+  }
+
+  Future<void> _startInitialLocationFlow() async {
+    if (!mounted) return;
+    final cached = LocationService.cachedLocation;
+    if (cached != null) {
+      _pickupLocation = cached;
+      _driverLocation = LatLng(cached.latitude - 0.006, cached.longitude - 0.004);
+    }
+    while (mounted) {
+      final pickup = await FullScreenMapPicker.open(
+        context,
+        title: 'Pilih Titik Jemput',
+        initialLocation: _pickupLocation,
+        initialTitle: _pickupController.text.isNotEmpty ? _pickupController.text : null,
+        confirmLabel: 'Pilih Titik Jemput',
+      );
+      if (!mounted) return;
+      if (pickup == null) {
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        }
+        return;
+      }
+
+      final matchedPickupFav = pickup.matchedFavorite ??
+          await UserAddressService.findMatchingFavorite(
+            location: pickup.location,
+            preferredName: pickup.title,
+          );
+      if (!mounted) return;
+      setState(() {
+        _hasExplicitPickup = true;
+        _pickupLocation = pickup.location;
+        _pickupController.text = pickup.title.isNotEmpty ? pickup.title : pickup.fullAddress;
+        _pickupFavoriteId = matchedPickupFav?.id;
+        _pickupFavoriteName = matchedPickupFav?.name;
+      });
+
+      final dropoff = await FullScreenMapPicker.open(
+        context,
+        title: 'Pilih Titik Antar',
+        initialLocation: _dropoffLocation ?? pickup.location,
+        initialTitle: _dropoffController.text.isNotEmpty ? _dropoffController.text : null,
+        confirmLabel: 'Pilih Titik Antar',
+      );
+      if (!mounted) return;
+      if (dropoff == null) {
+        continue;
+      }
+
+      final matchedDropoffFav = dropoff.matchedFavorite ??
+          await UserAddressService.findMatchingFavorite(
+            location: dropoff.location,
+            preferredName: dropoff.title,
+          );
+      if (!mounted) return;
+      setState(() {
+        _dropoffLocation = dropoff.location;
+        _dropoffController.text = dropoff.title.isNotEmpty ? dropoff.title : dropoff.fullAddress;
+        _dropoffFavoriteId = matchedDropoffFav?.id;
+        _dropoffFavoriteName = matchedDropoffFav?.name;
+      });
+      _initRoute();
+      return;
+    }
   }
 
   Future<void> _initRealGpsAndRoute() async {
@@ -270,43 +341,38 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
     });
   }
 
-  void _showAddressSearchSheet(bool isPickup) {
-    UserSavedAddress? pickedFavorite;
-    LocationPickerSheet.show(
+  Future<void> _showAddressSearchSheet(bool isPickup) async {
+    final result = await FullScreenMapPicker.open(
       context,
       title: isPickup ? 'Pilih Titik Jemput' : 'Pilih Titik Tujuan',
       initialLocation: (isPickup ? _pickupLocation : _dropoffLocation) ?? _pickupLocation,
-      initialLocationTitle: isPickup ? _pickupFavoriteName : _dropoffFavoriteName,
+      initialTitle: isPickup ? _pickupFavoriteName : _dropoffFavoriteName,
       selectedFavoriteId: isPickup ? _pickupFavoriteId : _dropoffFavoriteId,
-      onFavoriteSelected: (fav) {
-        pickedFavorite = fav;
-      },
-      showMiniMap: false,
+      confirmLabel: isPickup ? 'Pilih Titik Jemput' : 'Pilih Titik Antar',
       autoFocusSearch: true,
-      onSelected: (title, fullAddress, latLng) async {
-        final matched = pickedFavorite ??
-            await UserAddressService.findMatchingFavorite(
-              location: latLng,
-              preferredName: title,
-            );
-        if (!mounted) return;
-        setState(() {
-          if (isPickup) {
-            _hasExplicitPickup = true;
-            _pickupLocation = latLng;
-            _pickupController.text = title;
-            _pickupFavoriteId = matched?.id;
-            _pickupFavoriteName = matched?.name;
-          } else {
-            _dropoffLocation = latLng;
-            _dropoffController.text = title;
-            _dropoffFavoriteId = matched?.id;
-            _dropoffFavoriteName = matched?.name;
-          }
-        });
-        _initRoute();
-      },
     );
+    if (!mounted || result == null) return;
+    final matched = result.matchedFavorite ??
+        await UserAddressService.findMatchingFavorite(
+          location: result.location,
+          preferredName: result.title,
+        );
+    if (!mounted) return;
+    setState(() {
+      if (isPickup) {
+        _hasExplicitPickup = true;
+        _pickupLocation = result.location;
+        _pickupController.text = result.title;
+        _pickupFavoriteId = matched?.id;
+        _pickupFavoriteName = matched?.name;
+      } else {
+        _dropoffLocation = result.location;
+        _dropoffController.text = result.title;
+        _dropoffFavoriteId = matched?.id;
+        _dropoffFavoriteName = matched?.name;
+      }
+    });
+    _initRoute();
   }
 
   @override

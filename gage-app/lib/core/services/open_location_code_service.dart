@@ -96,4 +96,49 @@ class OpenLocationCodeService {
     final full = encode(location.latitude, location.longitude, codeLength: 11);
     return shorten(full, referencePoint: referencePoint);
   }
+
+  /// Mendekode full atau short Plus Code (misal `XR89+MHQ` atau `6P3GXR89+MHQ`) menjadi `LatLng`.
+  /// Mengembalikan `null` jika string bukan Plus Code yang valid.
+  static LatLng? tryDecode(String rawInput, {LatLng? referencePoint}) {
+    final firstToken = rawInput.trim().split(RegExp(r'[\s,]+')).first.toUpperCase();
+    if (!firstToken.contains('+')) return null;
+
+    String normalized = firstToken;
+    final plusIdx = normalized.indexOf('+');
+    if (plusIdx == 4) {
+      final ref = referencePoint ?? centerPracimantoro;
+      final refFull = encode(ref.latitude, ref.longitude, codeLength: 11);
+      normalized = '${refFull.substring(0, 4)}$normalized';
+    } else if (plusIdx != 8) {
+      return null;
+    }
+
+    final clean = normalized.replaceAll('+', '');
+    if (clean.length < 10) return null;
+    for (int i = 0; i < clean.length && i < 11; i++) {
+      if (!_alphabet.contains(clean[i])) return null;
+    }
+
+    double lat = -_latitudeMax;
+    double lon = -_longitudeMax;
+    double res = 400.0;
+    for (int i = 0; i < 5; i++) {
+      res /= _encodingBase;
+      lat += _alphabet.indexOf(clean[i * 2]) * res;
+      lon += _alphabet.indexOf(clean[i * 2 + 1]) * res;
+    }
+
+    if (clean.length >= 11) {
+      final gridIdx = _alphabet.indexOf(clean[10]);
+      final latStep = res / _gridRows;
+      final lonStep = res / _gridColumns;
+      lat += (gridIdx ~/ _gridColumns + 0.5) * latStep;
+      lon += (gridIdx % _gridColumns + 0.5) * lonStep;
+    } else {
+      lat += res / 2;
+      lon += res / 2;
+    }
+
+    return LatLng(lat, lon);
+  }
 }

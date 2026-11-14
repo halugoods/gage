@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/core/services/banner_manager_service.dart';
 import 'package:gage_app/shared/widgets/live_app_edit_scope.dart';
+import 'package:gage_app/features/wallet/presentation/qris_pay_screen.dart';
 
 /// Hero Banner 16:9 full-bleed mencapai batas atas status bar (edge-to-edge).
 /// Mendukung animasi fade out halus saat halaman di-scroll ke bawah dan WYSIWYG In-Place Edit.
@@ -534,12 +535,23 @@ class GageServiceStickyHeader extends StatelessWidget {
                                       ),
                                     ),
                                   )
-                                : (serviceIcon != null
-                                    ? Padding(
-                                        padding: const EdgeInsets.only(right: 14),
-                                        child: Icon(serviceIcon, color: GageTheme.primary, size: 19),
-                                      )
-                                    : null),
+                                : GestureDetector(
+                                    onTap: () {
+                                      HapticFeedback.lightImpact();
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(builder: (_) => const QrisPayScreen()),
+                                      );
+                                    },
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(right: 14),
+                                      child: Icon(
+                                        Icons.qr_code_scanner_rounded,
+                                        color: GageTheme.primary,
+                                        size: 19,
+                                      ),
+                                    ),
+                                  ),
                             suffixIconConstraints: const BoxConstraints(minWidth: 40, minHeight: 44),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(vertical: 12),

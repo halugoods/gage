@@ -51,7 +51,7 @@ void main() {
       addTearDown(() => tester.view.resetPhysicalSize());
 
       await tester.pumpWidget(
-        _wrapWithProviders(const RideBookingScreen(initialTab: 'ride')),
+        _wrapWithProviders(const RideBookingScreen(initialTab: 'ride', autoStartLocationFlow: false)),
       );
       await tester.pump(const Duration(milliseconds: 250));
 
@@ -110,7 +110,7 @@ void main() {
       GageApiClient.allowDevSeedFallback = false;
 
       await tester.pumpWidget(
-        _wrapWithProviders(const SendBookingScreen(), themeMode: ThemeMode.dark),
+        _wrapWithProviders(const SendBookingScreen(autoStartLocationFlow: false), themeMode: ThemeMode.dark),
       );
       await tester.pump(const Duration(milliseconds: 250));
 
@@ -149,6 +149,10 @@ void main() {
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 350));
+
+      // Send checkout renders Instant and Hemat options (bukan Reguler)
+      expect(find.text('Instant'), findsOneWidget);
+      expect(find.text('Hemat'), findsAtLeastNWidgets(1));
 
       // Send sameday initializes Hemat radio checked (color GageTheme.primary, aside from green pickup dot)
       final activeRadioIcons = tester

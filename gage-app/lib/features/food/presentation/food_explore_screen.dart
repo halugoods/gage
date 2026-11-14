@@ -12,7 +12,7 @@ import 'package:gage_app/features/food/presentation/favorite_resto_screen.dart';
 import 'package:gage_app/core/services/osm_geocoding_service.dart';
 import 'package:gage_app/core/services/location_service.dart';
 import 'package:gage_app/core/services/user_address_service.dart';
-import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
+import 'package:gage_app/shared/widgets/full_screen_map_picker.dart';
 import 'package:gage_app/shared/widgets/seamless_floating_cart_bar.dart';
 import 'package:gage_app/shared/widgets/gage_service_header.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
@@ -46,36 +46,39 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
     super.dispose();
   }
 
-  void _showAddressPicker() {
+  Future<void> _showAddressPicker() async {
     final cart = Provider.of<CartProvider?>(context, listen: false);
-    UserSavedAddress? pickedFavorite;
-    LocationPickerSheet.show(
+    final result = await FullScreenMapPicker.open(
       context,
       title: 'Pilih Lokasi Pengantaran',
       initialLocation: cart?.deliveryLocation,
-      initialLocationTitle: cart?.deliveryLocationLabel,
+      initialTitle: cart?.deliveryLocationLabel,
       selectedFavoriteId: cart?.deliveryFavoriteId,
-      onFavoriteSelected: (fav) {
-        pickedFavorite = fav;
-      },
-      onSelected: (title, fullAddress, latLng) {
-        final resolved = fullAddress.isNotEmpty ? fullAddress : title;
-        setState(() => _selectedLocation = title);
-        cart?.setDeliveryAddress(
-          resolved,
-          cart.distanceKm,
-          location: latLng,
-          locationLabel: pickedFavorite?.name ?? (title.isNotEmpty ? title : null),
-          favoriteId: pickedFavorite?.id,
+    );
+    if (!mounted || result == null) return;
+    final resolved =
+        result.fullAddress.isNotEmpty ? result.fullAddress : result.title;
+    final matched = result.matchedFavorite ??
+        await UserAddressService.findMatchingFavorite(
+          location: result.location,
+          preferredName: result.title,
         );
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lokasi diatur ke: $title'),
-            duration: const Duration(seconds: 2),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      },
+    if (!mounted) return;
+    setState(() => _selectedLocation = result.title);
+    cart?.setDeliveryAddress(
+      resolved,
+      cart.distanceKm,
+      location: result.location,
+      locationLabel:
+          matched?.name ?? (result.title.isNotEmpty ? result.title : null),
+      favoriteId: matched?.id,
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Lokasi diatur ke: ${result.title}'),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 

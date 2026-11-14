@@ -13,6 +13,8 @@ class UserSavedAddress {
   final double longitude;
   final String? notes; // Patokan / catatan khusus
   final int? iconCodePoint;
+  final String? recipientName; // Nama penerima / kontak
+  final String? recipientPhone; // Nomor WhatsApp / kontak yang dapat dihubungi
 
   const UserSavedAddress({
     required this.id,
@@ -23,6 +25,8 @@ class UserSavedAddress {
     required this.longitude,
     this.notes,
     this.iconCodePoint,
+    this.recipientName,
+    this.recipientPhone,
   });
 
   LatLng get location => LatLng(latitude, longitude);
@@ -43,6 +47,8 @@ class UserSavedAddress {
     'longitude': longitude,
     'notes': notes,
     'iconCodePoint': iconCodePoint,
+    'recipientName': recipientName,
+    'recipientPhone': recipientPhone,
   };
 
   factory UserSavedAddress.fromJson(Map<String, dynamic> map) {
@@ -55,6 +61,8 @@ class UserSavedAddress {
       longitude: (map['longitude'] as num?)?.toDouble() ?? 110.80889,
       notes: map['notes'] as String?,
       iconCodePoint: map['iconCodePoint'] as int?,
+      recipientName: map['recipientName'] as String?,
+      recipientPhone: map['recipientPhone'] as String?,
     );
   }
 }
@@ -62,6 +70,54 @@ class UserSavedAddress {
 class UserAddressService {
   static const String _keyFavorites = 'gage_saved_favorites_v1';
   static const String _keyRecents = 'gage_recent_addresses_v1';
+  static const String _keyLastRecipientName = 'gage_last_recipient_name_v1';
+  static const String _keyLastRecipientPhone = 'gage_last_recipient_phone_v1';
+
+  static String _cachedLastRecipientName = '';
+  static String _cachedLastRecipientPhone = '';
+
+  static String getLastRecipientNameSync() => _cachedLastRecipientName;
+  static String getLastRecipientPhoneSync() => _cachedLastRecipientPhone;
+
+  /// Mengambil nama penerima / kontak yang terakhir kali digunakan
+  static Future<String> getLastRecipientName() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _cachedLastRecipientName = prefs.getString(_keyLastRecipientName) ?? '';
+      return _cachedLastRecipientName;
+    } catch (_) {
+      return _cachedLastRecipientName;
+    }
+  }
+
+  /// Mengambil nomor WhatsApp / HP yang terakhir kali digunakan
+  static Future<String> getLastRecipientPhone() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _cachedLastRecipientPhone = prefs.getString(_keyLastRecipientPhone) ?? '';
+      return _cachedLastRecipientPhone;
+    } catch (_) {
+      return _cachedLastRecipientPhone;
+    }
+  }
+
+  /// Menyimpan nama penerima dan nomor WhatsApp terakhir untuk auto-fill cerdas
+  static Future<void> saveLastRecipient({
+    required String name,
+    required String phone,
+  }) async {
+    try {
+      _cachedLastRecipientName = name.trim();
+      _cachedLastRecipientPhone = phone.trim();
+      final prefs = await SharedPreferences.getInstance();
+      if (name.trim().isNotEmpty) {
+        await prefs.setString(_keyLastRecipientName, name.trim());
+      }
+      if (phone.trim().isNotEmpty) {
+        await prefs.setString(_keyLastRecipientPhone, phone.trim());
+      }
+    } catch (_) {}
+  }
 
   /// Mengambil daftar alamat favorit tersimpan (dapat difilter: 'personal' atau 'business')
   static Future<List<UserSavedAddress>> getFavorites({String? category}) async {
@@ -161,41 +217,62 @@ class UserAddressService {
     await prefs.setString(_keyRecents, encoded);
   }
 
-  /// Mencari alamat favorit yang cocok berdasarkan ID, nama, atau kedekatan koordinat (<= 35 meter).
+  /// Mencari alamat favorit yang cocok berdasarkan ID, nama, atau presisi koordinat ketat (<= 5 meter).
+  /// Menghindari false-positive atau pembajakan titik kustom di sekitar lokasi favorit.
   static UserSavedAddress? matchFavoriteInList(
     List<UserSavedAddress> favorites, {
     LatLng? location,
     String? preferredId,
     String? preferredName,
-    double maxDistanceMeters = 35.0,
+    double maxDistanceMeters = 5.0,
   }) {
     if (favorites.isEmpty) return null;
 
     final cleanId = preferredId?.trim() ?? '';
+    const distCalc = Distance();
+
+    // Jika location diberikan, kita HARUS memverifikasi bahwa titik tersebut
+    // benar-benar berada di dekat alamat favorit (<= maxDistanceMeters).
+    // Jangan pernah mengembalikan favorit yang jaraknya ratusan meter/kilometer
+    // hanya karena preferredId masih tersimpan dari state sebelumnya!
+    if (location != null) {
+      if (cleanId.isNotEmpty) {
+        for (final fav in favorites) {
+          if (fav.id == cleanId) {
+            final meters = distCalc.as(LengthUnit.Meter, fav.location, location);
+            if (meters <= maxDistanceMeters) {
+              return fav;
+            }
+          }
+        }
+      }
+
+      final cleanName = (preferredName ?? '')
+          .replaceFirst(RegExp(r'^Favorit:\s*', caseSensitive: false), '')
+          .trim()
+          .toLowerCase();
+
+      UserSavedAddress? exactCoordMatch;
+      for (final fav in favorites) {
+        final meters = distCalc.as(LengthUnit.Meter, fav.location, location);
+        if (meters <= maxDistanceMeters) {
+          if (cleanName.isNotEmpty && fav.name.trim().toLowerCase() == cleanName) {
+            return fav;
+          }
+          exactCoordMatch ??= fav;
+        }
+      }
+      return exactCoordMatch;
+    }
+
+    // Hanya jika location == null, cari murni berdasarkan preferredId
     if (cleanId.isNotEmpty) {
       for (final fav in favorites) {
         if (fav.id == cleanId) return fav;
       }
     }
 
-    if (location == null) return null;
-    final cleanName = (preferredName ?? '')
-        .replaceFirst(RegExp(r'^Favorit:\s*', caseSensitive: false), '')
-        .trim()
-        .toLowerCase();
-
-    const distCalc = Distance();
-    UserSavedAddress? firstCloseMatch;
-    for (final fav in favorites) {
-      final meters = distCalc.as(LengthUnit.Meter, fav.location, location);
-      if (meters <= maxDistanceMeters) {
-        if (cleanName.isNotEmpty && fav.name.trim().toLowerCase() == cleanName) {
-          return fav;
-        }
-        firstCloseMatch ??= fav;
-      }
-    }
-    return firstCloseMatch;
+    return null;
   }
 
   /// Mengambil dan mencocokkan alamat favorit dari penyimpanan lokal.
@@ -203,7 +280,7 @@ class UserAddressService {
     LatLng? location,
     String? preferredId,
     String? preferredName,
-    double maxDistanceMeters = 35.0,
+    double maxDistanceMeters = 5.0,
   }) async {
     final favs = await getFavorites();
     return matchFavoriteInList(

@@ -3,10 +3,14 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/core/constants/qris_engine.dart';
+import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/providers/auth_provider.dart';
+import 'package:gage_app/providers/wallet_provider.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/horizontal_ruler_picker.dart';
@@ -15,21 +19,25 @@ import 'package:gage_app/core/services/gage_security_service.dart';
 class TopupQrisDialog extends StatefulWidget {
   final Function(int addedBalance) onTopupSuccess;
   final bool isSheet;
+  final int? initialAmount;
 
   const TopupQrisDialog({
     super.key,
     required this.onTopupSuccess,
     this.isSheet = false,
+    this.initialAmount,
   });
 
   static Future<void> showAsSheet(
     BuildContext context, {
+    int? initialAmount,
     required Function(int addedBalance) onTopupSuccess,
   }) {
     return GageFloatingSheet.show(
       context: context,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
       builder: (sheetContext) => TopupQrisDialog(
+        initialAmount: initialAmount,
         onTopupSuccess: onTopupSuccess,
         isSheet: true,
       ),
@@ -44,11 +52,29 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
   int _selectedAmount = 50000;
   final TextEditingController _customController = TextEditingController();
   String? _qrisPayload;
+  String? _reference;
   bool _isQrGenerated = false;
   bool _isCustom = false;
-  int _uniqueCode = 0; // Kode unik 1 - 499 untuk verifikasi otomatis
+  int _uniqueCode = 0; // Kode unik 3 digit untuk verifikasi otomatis
   bool _isQrSaved = false;
+  bool _isExpired = false;
+  bool _isCompleted = false;
+  int _countdownSeconds = 15 * 60; // 15 menit hitung mundur
+  Timer? _countdownTimer;
+  Timer? _pollingTimer;
   Timer? _autoConfirmTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialAmount != null && widget.initialAmount! > 0) {
+      _selectedAmount = widget.initialAmount!;
+      _customController.text = _selectedAmount.toString();
+      if (!_nominalOptions.contains(_selectedAmount)) {
+        _isCustom = true;
+      }
+    }
+  }
 
   final List<int> _nominalOptions = [10000, 20000, 50000, 100000, 200000, 500000];
   final currencyFormatter = NumberFormat.currency(
@@ -122,8 +148,146 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
   @override
   void dispose() {
     _autoConfirmTimer?.cancel();
+    _pollingTimer?.cancel();
+    _countdownTimer?.cancel();
     _customController.dispose();
     super.dispose();
+  }
+
+  String _formatCountdown(int totalSeconds) {
+    final m = totalSeconds ~/ 60;
+    final s = totalSeconds % 60;
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
+
+  void _onPaymentSuccess(int finalAmount) {
+    if (_isCompleted) return;
+    _isCompleted = true;
+    _pollingTimer?.cancel();
+    _countdownTimer?.cancel();
+    _autoConfirmTimer?.cancel();
+
+    HapticFeedback.heavyImpact();
+
+    if (mounted) {
+      try {
+        final auth = Provider.of<AuthProvider>(context, listen: false);
+        final wallet = Provider.of<WalletProvider>(context, listen: false);
+        wallet.topUp(finalAmount);
+        final uid = auth.currentUser?.id ?? (GageApiClient.useDevSeedData ? 'usr-cust-01' : '');
+        if (uid.isNotEmpty) {
+          wallet.fetchWallet(uid);
+        }
+      } catch (_) {}
+    }
+
+    widget.onTopupSuccess(finalAmount);
+
+    if (mounted) {
+      _showSuccessDialog(finalAmount);
+    }
+  }
+
+  void _showSuccessDialog(int finalAmount) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dlgCtx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF16A34A).withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 48),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Top Up Berhasil!',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Saldo GAGEPay Anda telah bertambah +${currencyFormatter.format(finalAmount)} secara realtime.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 13, color: Colors.black54),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: GageTheme.primary,
+                    foregroundColor: Colors.white,
+                    shape: const StadiumBorder(),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    elevation: 0,
+                  ),
+                  onPressed: () {
+                    Navigator.of(dlgCtx).pop();
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Selesai', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _startCountdown(int finalAmount) {
+    _countdownTimer?.cancel();
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_countdownSeconds > 0) {
+        setState(() {
+          _countdownSeconds--;
+        });
+      } else {
+        timer.cancel();
+        _pollingTimer?.cancel();
+        _autoConfirmTimer?.cancel();
+        setState(() {
+          _isExpired = true;
+        });
+        GageToast.show(
+          context,
+          'Waktu pembayaran QRIS 15 menit telah berakhir. Silakan buat QRIS baru.',
+          type: GageToastType.warning,
+        );
+      }
+    });
+  }
+
+  void _startPolling(int finalAmount, String ref) {
+    _pollingTimer?.cancel();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
+      if (!mounted || _isExpired || _isCompleted) {
+        timer.cancel();
+        return;
+      }
+      try {
+        final statusRes = await GageApiClient.checkTopupStatus(ref);
+        if (statusRes != null) {
+          final status = (statusRes['status'] ?? statusRes['data']?['status'] ?? '').toString().toUpperCase();
+          if (status == 'SUCCESS') {
+            timer.cancel();
+            _onPaymentSuccess(finalAmount);
+          }
+        }
+      } catch (_) {}
+    });
   }
 
   Future<void> _generateQris() async {
@@ -154,30 +318,51 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
       return;
     }
 
-    // Kode unik acak 1-499 rupiah (prioritas angka rendah < 500 saat antrean normal untuk ShopeePay)
-    final generatedCode = math.Random().nextInt(499) + 1;
+    // Kode unik acak 3 digit (100 - 999) untuk verifikasi mutasi ShopeePay otomatis
+    final generatedCode = 100 + math.Random().nextInt(900);
     final totalTransfer = finalAmount + generatedCode;
+
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final uid = auth.currentUser?.id ?? (GageApiClient.useDevSeedData ? 'usr-cust-01' : 'usr-cust-01');
+
+    String dynamicQris = QrisEngine.generateDynamic(amount: totalTransfer);
+    String ref = 'topup-$uid-${DateTime.now().millisecondsSinceEpoch}-$generatedCode';
+
+    try {
+      final reqRes = await GageApiClient.requestTopupQris(uid, totalTransfer);
+      if (reqRes != null && reqRes['success'] == true && reqRes['data'] != null) {
+        if (reqRes['data']['reference'] != null) {
+          ref = reqRes['data']['reference'].toString();
+        }
+        if (reqRes['data']['qris_string'] != null) {
+          dynamicQris = reqRes['data']['qris_string'].toString();
+        }
+      }
+    } catch (_) {}
 
     setState(() {
       _selectedAmount = finalAmount;
       _uniqueCode = generatedCode;
-      _qrisPayload = QrisEngine.generateDynamic(amount: totalTransfer);
+      _qrisPayload = dynamicQris;
+      _reference = ref;
       _isQrGenerated = true;
       _isQrSaved = false;
+      _isExpired = false;
+      _isCompleted = false;
+      _countdownSeconds = 15 * 60;
     });
 
-    // Auto-confirm realtime timer: Sistem otomatis mengkonfirmasi pembayaran dalam ~5 detik
-    _autoConfirmTimer?.cancel();
-    _autoConfirmTimer = Timer(const Duration(seconds: 5), () {
-      if (!mounted) return;
-      widget.onTopupSuccess(finalAmount);
-      Navigator.of(context).pop();
-      GageToast.show(
-        context,
-        'Pembayaran QRIS Terkonfirmasi! Saldo +${currencyFormatter.format(finalAmount)}',
-        type: GageToastType.success,
-      );
-    });
+    _startCountdown(finalAmount);
+    _startPolling(finalAmount, ref);
+
+    // Auto-confirm fallback untuk dev-seed mode
+    if (GageApiClient.useDevSeedData) {
+      _autoConfirmTimer?.cancel();
+      _autoConfirmTimer = Timer(const Duration(seconds: 12), () {
+        if (!mounted || _isExpired || _isCompleted) return;
+        _onPaymentSuccess(finalAmount);
+      });
+    }
   }
 
   void _copyToClipboard(int amount) {
@@ -373,6 +558,8 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
                             tooltip: 'Ubah Nominal',
                             onPressed: () {
                               _autoConfirmTimer?.cancel();
+                              _pollingTimer?.cancel();
+                              _countdownTimer?.cancel();
                               setState(() {
                                 _isQrGenerated = false;
                               });
@@ -653,6 +840,41 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
                   Center(
                     child: Column(
                       children: [
+                        // Badge Hitung Mundur 15 Menit
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: _isExpired ? Colors.red.withValues(alpha: 0.1) : const Color(0xFFFEF3C7),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: _isExpired ? Colors.red.shade300 : const Color(0xFFF59E0B),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.timer_rounded,
+                                size: 15,
+                                color: _isExpired ? Colors.red : const Color(0xFFB45309),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                _isExpired
+                                    ? 'Waktu Pembayaran Habis'
+                                    : 'Batas Waktu Pembayaran: ${_formatCountdown(_countdownSeconds)}',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: _isExpired ? Colors.red : const Color(0xFF92400E),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
                         // Rincian Transfer Eksak Card
                         Container(
                           padding: const EdgeInsets.all(14),
@@ -737,6 +959,13 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
                           'NMID: ID1020038829 | GAGE PRACIMANTORO',
                           style: TextStyle(fontSize: 10.5, color: Colors.grey, fontWeight: FontWeight.bold),
                         ),
+                        if (_reference != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            'Ref: $_reference',
+                            style: const TextStyle(fontSize: 10, color: Colors.grey),
+                          ),
+                        ],
                         const SizedBox(height: 4),
                         const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 12),
@@ -829,9 +1058,9 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
                                       'Menunggu Pembayaran Terkonfirmasi Otomatis...',
                                       style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1E40AF)),
                                     ),
-                                    const Text(
-                                      'Sistem memeriksa pembayaran Anda secara realtime...',
-                                      style: TextStyle(fontSize: 10, color: Color(0xFF3B82F6)),
+                                    Text(
+                                      'Memeriksa status pembayaran ShopeePay / QRIS setiap 3 detik (${_formatCountdown(_countdownSeconds)})...',
+                                      style: const TextStyle(fontSize: 10, color: Color(0xFF3B82F6)),
                                     ),
                                   ],
                                 ),
@@ -850,19 +1079,10 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
                             backgroundColor: const Color(0xFF16A34A),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            shape: const StadiumBorder(),
                             elevation: 0,
                           ),
-                          onPressed: () {
-                            _autoConfirmTimer?.cancel();
-                            widget.onTopupSuccess(_selectedAmount);
-                            Navigator.pop(context);
-                            GageToast.show(
-                              context,
-                              'Top Up Berhasil! Saldo bertambah ${currencyFormatter.format(_selectedAmount)}',
-                              type: GageToastType.success,
-                            );
-                          },
+                          onPressed: () => _onPaymentSuccess(_selectedAmount),
                         ),
 
                         const SizedBox(height: 6),

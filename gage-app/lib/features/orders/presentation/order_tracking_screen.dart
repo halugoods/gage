@@ -18,6 +18,8 @@ import 'package:gage_app/core/services/location_service.dart';
 import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
 import 'package:gage_app/features/orders/presentation/order_success_review_screen.dart';
 import 'package:gage_app/shared/widgets/gage_avatar.dart';
+import 'package:gage_app/shared/widgets/gage_receipt_share_dialog.dart';
+import 'package:gage_app/shared/widgets/mini_location_preview_map.dart';
 
 /// Layar Pelacakan Pesanan Realtime (Live Order Tracking & Delivery Lifecycle)
 /// Didesain dengan standar industri terdepan (Clean-Room Flutter Code & $0 Infra)
@@ -35,8 +37,7 @@ class OrderTrackingScreen extends StatefulWidget {
   State<OrderTrackingScreen> createState() => _OrderTrackingScreenState();
 }
 
-class _OrderTrackingScreenState extends State<OrderTrackingScreen>
-    with SingleTickerProviderStateMixin {
+class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   final MapController _mapController = MapController();
   final NumberFormat _currencyFormatter =
       NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
@@ -52,7 +53,6 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
   int _estimatedMinutes = 12;
 
   // Driver Realtime Movement & OSRM Road Snapping
-  late AnimationController _driverPulseAnim;
   Timer? _driverMovementTimer;
   OrderProvider? _orderProvider;
   int _manualStep = 0; // Override testing hanya saat GageApiClient.useDevSeedData aktif
@@ -64,10 +64,6 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
   @override
   void initState() {
     super.initState();
-    _driverPulseAnim = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    )..repeat(reverse: true);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -86,7 +82,6 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
 
   @override
   void dispose() {
-    _driverPulseAnim.dispose();
     _driverMovementTimer?.cancel();
     _orderProvider?.stopTracking();
     super.dispose();
@@ -618,6 +613,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
       ),
       actions: [
         IconButton(
+          icon: Icon(Icons.share_outlined, color: fg),
+          tooltip: 'Bagikan Struk',
+          onPressed: () => GageReceiptShareDialog.show(context, order),
+        ),
+        IconButton(
           icon: Icon(Icons.refresh_rounded, color: fg),
           tooltip: 'Segarkan Status',
           onPressed: () {
@@ -719,34 +719,31 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
   }
 
   Widget _buildStoreMarker(OrderModel order) {
-    final svc = order.serviceType.toLowerCase();
     final markerLabel = order.isTransportService ? 'Jemput' : order.merchantName;
-    final avatar = order.merchantAvatar;
+    final resolvedAvatar = order.resolveMerchantAvatarAsset();
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: svc == 'ride' || svc == 'car' || svc == 'send'
-                ? const Color(0xFF16A34A)
-                : const Color(0xFFF97316),
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 2),
-            boxShadow: const [
-              BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
-            ],
+        if (!order.isTransportService)
+          MerchantLocationPin(
+            imagePath: resolvedAvatar,
+            size: 36,
+          )
+        else
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: const Color(0xFF16A34A),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+              boxShadow: const [
+                BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
+              ],
+            ),
+            child: const Icon(Icons.my_location_rounded, color: Colors.white, size: 18),
           ),
-          child: order.isTransportService
-              ? const Icon(Icons.my_location_rounded, color: Colors.white, size: 18)
-              : ClipOval(
-                  child: (avatar != null && avatar.isNotEmpty)
-                      ? GageAvatar(imageUrl: avatar, fallbackName: order.merchantName, radius: 18)
-                      : const Icon(Icons.storefront_rounded, color: Colors.white, size: 19),
-                ),
-        ),
         const SizedBox(height: 2),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
@@ -996,24 +993,13 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
               // Header Status Tahap Saat Ini
               Row(
                 children: [
-                  AnimatedBuilder(
-                    animation: _driverPulseAnim,
-                    builder: (context, child) {
-                      final scale = currentStage == 0 || currentStage == 5
-                          ? 1.0
-                          : 1.0 + (_driverPulseAnim.value * 0.08);
-                      return Transform.scale(
-                        scale: scale,
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: stageColor.withValues(alpha: 0.14),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(stageIcon, color: stageColor, size: 20),
-                        ),
-                      );
-                    },
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: stageColor.withValues(alpha: 0.14),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(stageIcon, color: stageColor, size: 20),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -1396,49 +1382,177 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: isDark ? GageTheme.darkBorder : Colors.grey.shade200),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: (currentStage == 0 ? Colors.red : GageTheme.primary).withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              currentStage == 0
-                  ? Icons.cancel_rounded
-                  : (order.isPickup ? Icons.store_mall_directory_rounded : Icons.radar_rounded),
-              color: currentStage == 0 ? Colors.red : GageTheme.primary,
-              size: 22,
-            ),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: (currentStage == 0 ? Colors.red : GageTheme.primary).withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  currentStage == 0
+                      ? Icons.cancel_rounded
+                      : (order.isPickup ? Icons.store_mall_directory_rounded : Icons.radar_rounded),
+                  color: currentStage == 0 ? Colors.red : GageTheme.primary,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      heading,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      sub,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: isDark ? Colors.white70 : Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          if (order.canBeCancelledByCustomer) ...[
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                backgroundColor: isDark ? Colors.red.withValues(alpha: 0.12) : const Color(0xFFFEF2F2),
+                foregroundColor: const Color(0xFFDC2626),
+                side: BorderSide(color: isDark ? Colors.red.shade800 : const Color(0xFFFECACA), width: 1.2),
+                shape: const StadiumBorder(),
+                padding: const EdgeInsets.symmetric(vertical: 9),
+              ),
+              onPressed: () => _confirmCancelOrder(order),
+              icon: const Icon(Icons.cancel_outlined, size: 16),
+              label: const Text('Batalkan Pesanan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmCancelOrder(OrderModel order) async {
+    HapticFeedback.mediumImpact();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        decoration: BoxDecoration(
+          color: isDark ? GageTheme.darkBackground : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.warning_amber_rounded, size: 36, color: Color(0xFFDC2626)),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Batalkan Pesanan Ini?',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              order.isTransportService
+                  ? 'Mitra driver belum ditugaskan. Apakah Anda yakin ingin membatalkan perjalanan/pengiriman ini?'
+                  : 'Merchant belum mengonfirmasi pesanan. Apakah Anda yakin ingin membatalkan pesanan ini?',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? Colors.white70 : Colors.grey.shade600,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
               children: [
-                Text(
-                  heading,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: BorderSide(color: isDark ? GageTheme.darkBorder : Colors.grey.shade300),
+                    ),
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: Text('Kembali', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontWeight: FontWeight.bold)),
                   ),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  sub,
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: isDark ? Colors.white70 : Colors.grey.shade600,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFDC2626),
+                      foregroundColor: Colors.white,
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      elevation: 0,
+                    ),
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('Ya, Batalkan', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
+
+    if (confirmed == true && mounted) {
+      final ok = await _orderProvider?.updateOrderStage(
+        order.id,
+        'CANCELLED',
+        reason: 'Dibatalkan oleh pelanggan',
+      );
+      if (!mounted) return;
+      if (ok == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Pesanan berhasil dibatalkan'),
+            backgroundColor: Color(0xFFDC2626),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    }
   }
 
   Widget _buildPoDActionButton(OrderModel order, int currentStage, bool isDark) {

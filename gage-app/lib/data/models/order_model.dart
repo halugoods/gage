@@ -181,6 +181,66 @@ class OrderModel {
     }
   }
 
+  /// Memeriksa apakah pesanan dapat dibatalkan oleh pelanggan secara aman:
+  /// - Transport (Ride, Car, Send): dapat dibatalkan sebelum mitra driver menerima
+  /// - Merchant (Food, Shop, Farm, Build): dapat dibatalkan sebelum merchant konfirmasi/menyiapkan
+  bool get canBeCancelledByCustomer {
+    if (status == 'CANCELLED' || status == 'COMPLETED') return false;
+    if (isTransportService) {
+      if (hasAssignedDriver ||
+          status == 'DRIVER_ASSIGNED' ||
+          status == 'AT_MERCHANT' ||
+          status == 'ON_DELIVERY') {
+        return false;
+      }
+      return status == 'NEW' ||
+          status == 'PAID' ||
+          status == 'PENDING' ||
+          status == 'PAYMENT_PENDING' ||
+          status == 'SEARCHING_DRIVER';
+    } else {
+      if (status == 'COOKING' ||
+          status == 'READY_FOR_PICKUP' ||
+          status == 'PICKED_UP' ||
+          status == 'ON_DELIVERY' ||
+          status == 'DRIVER_ASSIGNED') {
+        return false;
+      }
+      return status == 'NEW' ||
+          status == 'PAID' ||
+          status == 'PENDING' ||
+          status == 'PAYMENT_PENDING' ||
+          status == 'WAITING_MERCHANT';
+    }
+  }
+
+  /// Resolves the best merchant/service avatar asset or URL, never leaving store markers empty.
+  String resolveMerchantAvatarAsset([String? mName]) {
+    if (merchantAvatar != null && merchantAvatar!.trim().isNotEmpty) {
+      return merchantAvatar!.trim();
+    }
+    final svc = serviceType.toLowerCase();
+    if (svc == 'ride') return 'assets/icons/ic_ride.png';
+    if (svc == 'car') return 'assets/icons/ic_car.png';
+    if (svc == 'send') return 'assets/icons/ic_send.png';
+    final nameLower = (mName ?? merchantName).toLowerCase();
+    if (nameLower.contains('rocket') || nameLower.contains('chicken')) {
+      return 'assets/images/resto_rocket_chicken.png';
+    } else if (nameLower.contains('titoti') || nameLower.contains('bakso')) {
+      return 'assets/images/dish_bakso_urat.png';
+    } else if (nameLower.contains('sayur') ||
+        nameLower.contains('siti') ||
+        nameLower.contains('shop') ||
+        nameLower.contains('sembako')) {
+      return 'assets/images/prod_beras.png';
+    } else if (nameLower.contains('tani') || nameLower.contains('pupuk')) {
+      return 'assets/images/prod_pupuk.png';
+    } else if (nameLower.contains('ternak') || nameLower.contains('pakan')) {
+      return 'assets/images/prod_pakan.png';
+    }
+    return 'assets/images/resto_dimsum_sewu.png';
+  }
+
   OrderModel copyWith({
     String? status,
     String? paymentStatus,

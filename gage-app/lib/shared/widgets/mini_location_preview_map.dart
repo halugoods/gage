@@ -1,11 +1,10 @@
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/shared/widgets/storefront_image.dart';
 
-/// Teardrop pin marker displaying merchant profile photo inside its circular head.
+/// Standard location pin marker with a circular merchant profile photo centered inside its head.
 class MerchantLocationPin extends StatelessWidget {
   final String? imagePath;
   final IconData fallbackIcon;
@@ -20,45 +19,56 @@ class MerchantLocationPin extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final headSize = size * 0.78;
+    final pinSize = size * 1.26;
+    final avatarSize = pinSize * 0.44;
+    final topOffset = pinSize * 0.16;
     return SizedBox(
-      width: size,
-      height: size + 8,
+      width: pinSize,
+      height: pinSize,
       child: Stack(
         alignment: Alignment.topCenter,
         children: [
-          Positioned(
-            bottom: 0,
-            child: CustomPaint(
-              size: const Size(14, 10),
-              painter: _PinTipPainter(GageTheme.primary),
-            ),
+          Icon(
+            Icons.location_on_rounded,
+            size: pinSize,
+            color: GageTheme.primary,
+            shadows: [
+              Shadow(
+                color: Colors.black.withValues(alpha: 0.30),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-          Container(
-            width: headSize,
-            height: headSize,
-            padding: const EdgeInsets.all(2.5),
-            decoration: BoxDecoration(
-              color: GageTheme.primary,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.28),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: ClipOval(
-              child: Container(
+          Positioned(
+            top: topOffset,
+            child: Container(
+              width: avatarSize,
+              height: avatarSize,
+              padding: const EdgeInsets.all(1.5),
+              decoration: const BoxDecoration(
                 color: Colors.white,
-                child: (imagePath != null && imagePath!.trim().isNotEmpty)
-                    ? StorefrontImage(
-                        path: imagePath,
-                        fit: BoxFit.cover,
-                        fallback: Icon(fallbackIcon, color: GageTheme.primary, size: headSize * 0.52),
-                      )
-                    : Icon(fallbackIcon, color: GageTheme.primary, size: headSize * 0.52),
+                shape: BoxShape.circle,
+              ),
+              child: ClipOval(
+                child: Container(
+                  color: Colors.white,
+                  child: (imagePath != null && imagePath!.trim().isNotEmpty)
+                      ? StorefrontImage(
+                          path: imagePath,
+                          fit: BoxFit.cover,
+                          fallback: Icon(
+                            fallbackIcon,
+                            color: GageTheme.primary,
+                            size: avatarSize * 0.56,
+                          ),
+                        )
+                      : Icon(
+                          fallbackIcon,
+                          color: GageTheme.primary,
+                          size: avatarSize * 0.56,
+                        ),
+                ),
               ),
             ),
           ),
@@ -66,24 +76,6 @@ class MerchantLocationPin extends StatelessWidget {
       ),
     );
   }
-}
-
-class _PinTipPainter extends CustomPainter {
-  final Color color;
-  const _PinTipPainter(this.color);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final path = ui.Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width / 2, size.height)
-      ..lineTo(size.width, 0)
-      ..close();
-    canvas.drawPath(path, Paint()..color = color);
-  }
-
-  @override
-  bool shouldRepaint(covariant _PinTipPainter oldDelegate) => oldDelegate.color != color;
 }
 
 /// Mini preview map widget for delivery addresses & merchant location cards.

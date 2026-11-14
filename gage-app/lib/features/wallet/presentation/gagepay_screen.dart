@@ -11,6 +11,8 @@ import 'package:gage_app/features/wallet/presentation/qris_pay_screen.dart';
 import 'package:gage_app/features/wallet/presentation/withdraw_sheet.dart';
 import 'package:gage_app/features/wallet/presentation/widgets/gage_pocket_wallet.dart';
 import 'package:gage_app/features/wallet/presentation/widgets/gage_3d_flip_card_dialog.dart';
+import 'package:gage_app/features/wallet/presentation/gagepay_transfer_screen.dart';
+import 'package:gage_app/features/wallet/presentation/gagepay_receive_screen.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
@@ -134,9 +136,10 @@ class _GagePayScreenState extends State<GagePayScreen> {
     final filteredTxs = wallet.transactions.where((t) {
       if (_activeFilter == 'SEMUA') return true;
       final type = (t['type'] as String? ?? '').toUpperCase();
+      if (_activeFilter == 'TRANSFER') return type.contains('TRANSFER');
       if (_activeFilter == 'TOPUP') return type.contains('TOPUP');
       if (_activeFilter == 'WITHDRAWAL') return type.contains('WITHDRAWAL');
-      if (_activeFilter == 'BELANJA') return !type.contains('TOPUP') && !type.contains('WITHDRAWAL');
+      if (_activeFilter == 'BELANJA') return !type.contains('TOPUP') && !type.contains('WITHDRAWAL') && !type.contains('TRANSFER');
       return true;
     }).toList();
 
@@ -246,7 +249,13 @@ class _GagePayScreenState extends State<GagePayScreen> {
                   GageWithdrawSheet.show(context);
                 },
                 onExchangePointsTap: () => _showExchangePointsSheet(context, wallet),
+                accountNumber: wallet.accountNumber,
               ),
+
+              const SizedBox(height: 16),
+
+              // 1.5. Dua Tombol Aksi Kapsul Elegan: Kirim Saldo (Arrow Up) & Terima Saldo (Arrow Down)
+              _buildGagePayDualActionButtons(context, wallet, isDark),
 
               const SizedBox(height: 16),
 
@@ -379,6 +388,8 @@ class _GagePayScreenState extends State<GagePayScreen> {
                     children: [
                       _buildFilterChip('SEMUA', 'Semua', isDark),
                       const SizedBox(width: 8),
+                      _buildFilterChip('TRANSFER', 'Transfer', isDark),
+                      const SizedBox(width: 8),
                       _buildFilterChip('TOPUP', 'Pemasukan', isDark),
                       const SizedBox(width: 8),
                       _buildFilterChip('WITHDRAWAL', 'Penarikan', isDark),
@@ -459,7 +470,7 @@ class _GagePayScreenState extends State<GagePayScreen> {
                       final type = (t['type'] as String? ?? '').toUpperCase();
                       final amount = t['amount'] as int? ?? 0;
                       final date = t['date'] as String? ?? '';
-                      final isPlus = type.contains('TOPUP') || type.contains('COMMISSION');
+                      final isPlus = type.contains('TOPUP') || type.contains('COMMISSION') || type.contains('TRANSFER_IN');
 
                       IconData catIcon = Icons.payment_rounded;
                       Color catColor = const Color(0xFF64748B);
@@ -469,6 +480,14 @@ class _GagePayScreenState extends State<GagePayScreen> {
                         catIcon = Icons.add_card_rounded;
                         catColor = const Color(0xFF16A34A);
                         categoryLabel = 'Top Up';
+                      } else if (type.contains('TRANSFER_IN')) {
+                        catIcon = Icons.call_received_rounded;
+                        catColor = const Color(0xFF10B981);
+                        categoryLabel = 'Terima Saldo';
+                      } else if (type.contains('TRANSFER_OUT')) {
+                        catIcon = Icons.call_made_rounded;
+                        catColor = const Color(0xFF4F46E5);
+                        categoryLabel = 'Kirim Saldo';
                       } else if (type.contains('WITHDRAWAL')) {
                         catIcon = Icons.outbox_rounded;
                         catColor = const Color(0xFFEA580C);
@@ -1299,8 +1318,17 @@ class _GagePayScreenState extends State<GagePayScreen> {
     final amount = t['amount'] as int? ?? 0;
     final status = t['status'] as String? ?? 'BERHASIL';
     final date = t['date'] as String? ?? '';
-    final isPlus = type.contains('TOPUP') || type.contains('COMMISSION');
+    final isPlus = type.contains('TOPUP') || type.contains('COMMISSION') || type.contains('TRANSFER_IN');
     final trxId = 'TRX-${DateTime.now().year}${DateTime.now().month.toString().padLeft(2, '0')}-${(amount.hashCode % 9000 + 1000).abs()}';
+
+    String method = 'GAGEPay Saldo';
+    if (type.contains('TOPUP')) {
+      method = 'QRIS';
+    } else if (type.contains('TRANSFER_IN')) {
+      method = 'Terima Saldo P2P';
+    } else if (type.contains('TRANSFER_OUT')) {
+      method = 'Kirim Saldo P2P';
+    }
 
     GageFloatingSheet.show(
       context: context,
@@ -1356,7 +1384,7 @@ class _GagePayScreenState extends State<GagePayScreen> {
               const SizedBox(height: 10),
               _buildDetailRow('Waktu', date.isNotEmpty ? date : 'Hari ini', isDark),
               const SizedBox(height: 10),
-              _buildDetailRow('Metode', isPlus ? 'QRIS' : 'GAGEPay Saldo', isDark),
+              _buildDetailRow('Metode', method, isDark),
               const SizedBox(height: 10),
 
               Row(
@@ -1396,7 +1424,7 @@ class _GagePayScreenState extends State<GagePayScreen> {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: isDark ? Colors.white : Colors.black87,
                     side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: const StadiumBorder(),
                   ),
                   child: const Text('Tutup', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
@@ -1419,6 +1447,121 @@ class _GagePayScreenState extends State<GagePayScreen> {
             fontSize: 12,
             fontWeight: FontWeight.bold,
             color: isDark ? Colors.white : Colors.black87,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGagePayDualActionButtons(BuildContext context, WalletProvider wallet, bool isDark) {
+    return Row(
+      children: [
+        // 1. Tombol Kirim Saldo (Arrow Up) - Membuka Layar Penuh (Full Screen)
+        Expanded(
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const GagePayTransferScreen()),
+                );
+              },
+              borderRadius: BorderRadius.circular(999),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 16),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF4F46E5), Color(0xFF6366F1)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(999),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF4F46E5).withValues(alpha: 0.32),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.arrow_upward_rounded, color: Colors.white, size: 19),
+                    SizedBox(width: 8),
+                    Text(
+                      'Kirim',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13.5,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        // 2. Tombol Terima Saldo (Arrow Down) - Membuka Layar Penuh (Full Screen)
+        Expanded(
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                final auth = context.read<AuthProvider>();
+                final userName = auth.currentUser?.name ?? 'Pengguna GAGE';
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => GagePayReceiveScreen(
+                      accountNumber: wallet.accountNumber,
+                      userName: userName,
+                    ),
+                  ),
+                );
+              },
+              borderRadius: BorderRadius.circular(999),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 16),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF059669), Color(0xFF10B981)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(999),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF059669).withValues(alpha: 0.32),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.arrow_downward_rounded, color: Colors.white, size: 19),
+                    SizedBox(width: 8),
+                    Text(
+                      'Terima',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13.5,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
       ],

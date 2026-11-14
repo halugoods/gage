@@ -435,11 +435,40 @@ class OrderProvider extends ChangeNotifier {
   }
 
   // Update Kemajuan Tahap Pesanan
-  Future<bool> updateOrderStage(String orderId, String nextStage) async {
+  Future<bool> updateOrderStage(String orderId, String nextStage, {String? reason}) async {
     if (nextStage == 'COMPLETED' || nextStage == 'CANCELLED') {
       await QrisCodeService.instance.releaseCode(orderId);
     }
-    return simulateStage(orderId, nextStage);
+    final success = await simulateStage(orderId, nextStage);
+    if (success) {
+      if (reason != null && reason.trim().isNotEmpty) {
+        final idx = _allOrders.indexWhere((o) => o.id == orderId);
+        if (idx >= 0) {
+          _allOrders[idx] = _allOrders[idx].copyWith(cancellationReason: reason.trim());
+          if (_currentTrackedOrder?.id == orderId) {
+            _currentTrackedOrder = _currentTrackedOrder?.copyWith(cancellationReason: reason.trim());
+          }
+          notifyListeners();
+        }
+      }
+      return true;
+    }
+
+    // Fallback pembaruan status lokal (Dev Seed / Mode Offline)
+    final idx = _allOrders.indexWhere((o) => o.id == orderId);
+    if (idx >= 0) {
+      final updated = _allOrders[idx].copyWith(
+        status: nextStage,
+        cancellationReason: reason?.trim(),
+      );
+      _allOrders[idx] = updated;
+      if (_currentTrackedOrder?.id == orderId) {
+        _currentTrackedOrder = updated;
+      }
+      notifyListeners();
+      return true;
+    }
+    return false;
   }
 
   // Simulasi Kemajuan Tahap Pesanan (Testing status tracker)

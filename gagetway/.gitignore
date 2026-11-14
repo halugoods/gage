@@ -1,0 +1,18 @@
+# Executables
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+gage-gateway
+
+# Data & DB
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Environment & credentials
+.env
+*.local

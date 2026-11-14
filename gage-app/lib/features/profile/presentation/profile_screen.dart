@@ -14,6 +14,8 @@ import 'package:gage_app/core/services/gage_security_service.dart';
 import 'package:gage_app/features/auth/presentation/terms_and_privacy_screen.dart';
 import 'package:gage_app/features/profile/presentation/edit_profile_screen.dart';
 import 'package:gage_app/features/membership/presentation/membership_screen.dart';
+import 'package:gage_app/core/services/user_address_service.dart';
+import 'package:gage_app/shared/widgets/full_screen_map_picker.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/gage_bottom_nav_bar.dart';
@@ -160,6 +162,441 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  void _showSavedAddressesSheet(BuildContext context, bool isDark) {
+    HapticFeedback.lightImpact();
+    String activeCategory = 'personal';
+
+    GageFloatingSheet.show(
+      context: context,
+      title: 'Alamat Favorit Saya',
+      builder: (sheetCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            return FutureBuilder<List<UserSavedAddress>>(
+              future: UserAddressService.getFavorites(category: activeCategory),
+              builder: (context, snapshot) {
+                final addresses = snapshot.data ?? [];
+                final isLoading = snapshot.connectionState == ConnectionState.waiting;
+
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Full-Rounded Capsule Switcher: Personal vs Bisnis
+                    Container(
+                      height: 42,
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: InkWell(
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                setSheetState(() => activeCategory = 'personal');
+                              },
+                              borderRadius: BorderRadius.circular(999),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                curve: Curves.easeOutCubic,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: activeCategory == 'personal'
+                                      ? GageTheme.primary
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(999),
+                                  boxShadow: activeCategory == 'personal'
+                                      ? [
+                                          BoxShadow(
+                                            color: GageTheme.primary.withValues(alpha: 0.35),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ]
+                                      : null,
+                                ),
+                                child: Text(
+                                  'Personal',
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: activeCategory == 'personal' ? FontWeight.bold : FontWeight.w600,
+                                    color: activeCategory == 'personal'
+                                        ? Colors.white
+                                        : (isDark ? Colors.white70 : const Color(0xFF64748B)),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: InkWell(
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                setSheetState(() => activeCategory = 'business');
+                              },
+                              borderRadius: BorderRadius.circular(999),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                curve: Curves.easeOutCubic,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: activeCategory == 'business'
+                                      ? GageTheme.primary
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(999),
+                                  boxShadow: activeCategory == 'business'
+                                      ? [
+                                          BoxShadow(
+                                            color: GageTheme.primary.withValues(alpha: 0.35),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ]
+                                      : null,
+                                ),
+                                child: Text(
+                                  'Bisnis',
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: activeCategory == 'business' ? FontWeight.bold : FontWeight.w600,
+                                    color: activeCategory == 'business'
+                                        ? Colors.white
+                                        : (isDark ? Colors.white70 : const Color(0xFF64748B)),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    if (isLoading)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24.0),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: GageTheme.primary),
+                        ),
+                      )
+                    else if (addresses.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(
+                              activeCategory == 'personal' ? Icons.home_outlined : Icons.storefront_outlined,
+                              size: 40,
+                              color: isDark ? Colors.white38 : Colors.grey.shade400,
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              activeCategory == 'personal'
+                                  ? 'Belum ada alamat favorit personal'
+                                  : 'Belum ada alamat favorit bisnis',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white70 : const Color(0xFF334155),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Simpan alamat rumah atau kantor saat memilih lokasi di peta.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isDark ? Colors.white38 : Colors.grey.shade500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxHeight: MediaQuery.of(context).size.height * 0.45,
+                        ),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: addresses.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 10),
+                          itemBuilder: (itemCtx, index) {
+                            final addr = addresses[index];
+                            return Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(7),
+                                        decoration: BoxDecoration(
+                                          color: GageTheme.primary.withValues(alpha: 0.12),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(addr.icon, color: GageTheme.primary, size: 16),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          addr.name,
+                                          style: TextStyle(
+                                            fontSize: 13.5,
+                                            fontWeight: FontWeight.bold,
+                                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                          ),
+                                        ),
+                                      ),
+                                      // Edit Button
+                                      IconButton(
+                                        icon: const Icon(Icons.edit_outlined, size: 17, color: GageTheme.primary),
+                                        tooltip: 'Edit Alamat',
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        onPressed: () => _editSavedAddress(context, addr, isDark, () {
+                                          setSheetState(() {});
+                                        }),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      // Delete Button
+                                      IconButton(
+                                        icon: Icon(Icons.delete_outline_rounded, size: 17, color: Colors.red.shade400),
+                                        tooltip: 'Hapus Alamat',
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        onPressed: () async {
+                                          final confirm = await GageFloatingSheet.showConfirm(
+                                            context: context,
+                                            title: 'Hapus Alamat',
+                                            message: 'Apakah Anda yakin ingin menghapus "${addr.name}" dari alamat favorit?',
+                                            confirmLabel: 'Hapus',
+                                            cancelLabel: 'Batal',
+                                            confirmColor: Colors.red,
+                                          );
+                                          if (confirm == true) {
+                                            await UserAddressService.deleteFavorite(addr.id);
+                                            setSheetState(() {});
+                                            if (context.mounted) {
+                                              GageToast.show(context, 'Alamat favorit berhasil dihapus', type: GageToastType.info);
+                                            }
+                                          }
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    addr.address,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isDark ? Colors.white70 : const Color(0xFF475569),
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                  if (addr.notes != null && addr.notes!.trim().isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Icon(Icons.flag_outlined, size: 13, color: Colors.orange.shade700),
+                                        const SizedBox(width: 4),
+                                        Expanded(
+                                          child: Text(
+                                            'Patokan: ${addr.notes!.trim()}',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.orange.shade800,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                  if ((addr.recipientName != null && addr.recipientName!.trim().isNotEmpty) ||
+                                      (addr.recipientPhone != null && addr.recipientPhone!.trim().isNotEmpty)) ...[
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        Icon(Icons.person_outline_rounded, size: 13, color: isDark ? Colors.white60 : Colors.grey.shade600),
+                                        const SizedBox(width: 4),
+                                        Expanded(
+                                          child: Text(
+                                            'Kontak: ${addr.recipientName ?? ''} ${addr.recipientPhone != null && addr.recipientPhone!.isNotEmpty ? "(${addr.recipientPhone})" : ""}'.trim(),
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: isDark ? Colors.white60 : Colors.grey.shade600,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    const SizedBox(height: 14),
+                    ElevatedButton(
+                      onPressed: () async {
+                        HapticFeedback.selectionClick();
+                        final result = await FullScreenMapPicker.open(
+                          context,
+                          title: activeCategory == 'personal'
+                              ? 'Tambah Alamat Favorit Personal'
+                              : 'Tambah Alamat Favorit Bisnis',
+                          isAddFavoriteInitialMode: true,
+                        );
+                        if (result != null) {
+                          setSheetState(() {});
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: GageTheme.primary,
+                        foregroundColor: Colors.white,
+                        shape: const StadiumBorder(),
+                        minimumSize: const Size.fromHeight(46),
+                        elevation: 0,
+                      ),
+                      child: Text(
+                        activeCategory == 'personal'
+                            ? '+ Tambah Alamat Personal'
+                            : '+ Tambah Alamat Bisnis',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _editSavedAddress(BuildContext context, UserSavedAddress address, bool isDark, VoidCallback onSaved) {
+    HapticFeedback.lightImpact();
+    final nameCtrl = TextEditingController(text: address.name);
+    final notesCtrl = TextEditingController(text: address.notes ?? '');
+    final recipientCtrl = TextEditingController(text: address.recipientName ?? '');
+    final phoneCtrl = TextEditingController(text: address.recipientPhone ?? '');
+
+    GageFloatingSheet.show(
+      context: context,
+      title: 'Edit Alamat Favorit',
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: nameCtrl,
+              decoration: InputDecoration(
+                labelText: 'Label Alamat (cth: Rumah, Kantor, Toko)',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                prefixIcon: const Icon(Icons.bookmark_outline_rounded, size: 20),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: notesCtrl,
+              decoration: InputDecoration(
+                labelText: 'Catatan Patokan Driver / Kurir',
+                hintText: 'cth: Pagar hitam depan mushola',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                prefixIcon: const Icon(Icons.flag_outlined, size: 20),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: recipientCtrl,
+              decoration: InputDecoration(
+                labelText: 'Nama Penerima',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: phoneCtrl,
+              keyboardType: TextInputType.phone,
+              decoration: InputDecoration(
+                labelText: 'Nomor WhatsApp / HP',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+              ),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: GageTheme.primary,
+                  foregroundColor: Colors.white,
+                  shape: const StadiumBorder(),
+                  elevation: 0,
+                ),
+                onPressed: () async {
+                  final updated = UserSavedAddress(
+                    id: address.id,
+                    name: nameCtrl.text.trim().isNotEmpty ? nameCtrl.text.trim() : address.name,
+                    address: address.address,
+                    category: address.category,
+                    latitude: address.latitude,
+                    longitude: address.longitude,
+                    notes: notesCtrl.text.trim(),
+                    recipientName: recipientCtrl.text.trim(),
+                    recipientPhone: phoneCtrl.text.trim(),
+                    iconCodePoint: address.iconCodePoint,
+                  );
+                  await UserAddressService.saveFavorite(updated);
+                  if (ctx.mounted) {
+                    Navigator.pop(ctx);
+                  }
+                  onSaved();
+                  if (context.mounted) {
+                    GageToast.show(context, 'Alamat favorit diperbarui', type: GageToastType.success);
+                  }
+                },
+                child: const Text('Simpan Perubahan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1012,6 +1449,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                             ],
                           ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  // ==========================================
+                  // EKOSISTEM ALAMAT & LOKASI
+                  // ==========================================
+                  _buildSectionHeader('Alamat & Lokasi', isDark),
+                  const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        _buildSeamlessMenuTile(
+                          icon: Icons.location_on_rounded,
+                          iconColor: GageTheme.primary,
+                          title: 'Alamat Favorit Saya',
+                          subtitle: 'Rumah, kantor, patokan kurir, & kontak penerima',
+                          isDark: isDark,
+                          onTap: () => _showSavedAddressesSheet(context, isDark),
                         ),
                       ],
                     ),

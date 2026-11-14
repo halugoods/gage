@@ -27,6 +27,7 @@ import 'package:gage_app/shared/widgets/gage_digital_schedule_sheet.dart';
 import 'package:gage_app/shared/widgets/switch_merchant_dialog.dart';
 import 'package:gage_app/shared/widgets/gage_merchant_tier_badge.dart';
 import 'package:gage_app/data/models/cart_item_model.dart';
+import 'package:gage_app/features/wallet/presentation/qris_pay_screen.dart';
 
 /// Alias untuk mendukung navigasi generik lintas merchant domain (Food, Shop, Farm, Build)
 typedef MerchantDetailScreen = RestoDetailScreen;
@@ -1298,14 +1299,24 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                               hintStyle: TextStyle(fontSize: 12.5, color: Colors.grey.shade500),
                               prefixIcon: const Icon(Icons.search_rounded, size: 18, color: GageTheme.primary),
                               suffixIcon: _searchQuery.isNotEmpty
-                                   ? IconButton(
+                                  ? IconButton(
                                       icon: const Icon(Icons.close, size: 16),
                                       onPressed: () {
                                         _searchController.clear();
                                         setState(() => _searchQuery = '');
                                       },
                                     )
-                                  : null,
+                                  : IconButton(
+                                      icon: const Icon(Icons.qr_code_scanner_rounded, size: 17, color: GageTheme.primary),
+                                      tooltip: 'Pindai Barcode / QR',
+                                      onPressed: () {
+                                        HapticFeedback.lightImpact();
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(builder: (_) => const QrisPayScreen()),
+                                        );
+                                      },
+                                    ),
                               border: InputBorder.none,
                               contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                             ),

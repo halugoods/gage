@@ -2,12 +2,16 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/core/services/merchant_discount_tier_service.dart';
+import 'package:gage_app/core/services/pracimantoro_places_database.dart';
+import 'package:gage_app/core/services/user_address_service.dart';
 import 'package:gage_app/data/mock/gage_voucher_data.dart';
 import 'package:gage_app/providers/cart_provider.dart';
 import 'package:gage_app/features/checkout/presentation/checkout_screen.dart';
+import 'package:gage_app/shared/widgets/full_screen_map_picker.dart';
 import 'package:gage_app/shared/widgets/gage_cart_sheet.dart';
 
 /// Floating Cart Bar Seamless & Multi-Tier Diskon Bertahap (Standar Superapp GAGE)
@@ -30,6 +34,55 @@ class SeamlessFloatingCartBar extends StatefulWidget {
 }
 
 class _SeamlessFloatingCartBarState extends State<SeamlessFloatingCartBar> {
+  Future<void> _onBuyPressed(CartProvider cart) async {
+    HapticFeedback.lightImpact();
+    if (!cart.isPickup) {
+      final result = await FullScreenMapPicker.open(
+        context,
+        title: 'Pilih Titik Antar',
+        initialLocation: cart.deliveryLocation,
+        initialTitle: cart.deliveryLocationLabel ??
+            (cart.deliveryAddress.isNotEmpty ? cart.deliveryAddress : null),
+        selectedFavoriteId: cart.deliveryFavoriteId,
+        confirmLabel: 'Lanjut ke Checkout',
+      );
+      if (!mounted || result == null) return;
+
+      LatLng merchantLoc = PracimantoroPlacesDatabase.centerPracimantoro;
+      final merchantName = cart.merchantName;
+      if (merchantName != null && merchantName.trim().isNotEmpty) {
+        final matches = PracimantoroPlacesDatabase.searchLocalPlaces(merchantName);
+        if (matches.isNotEmpty) {
+          merchantLoc = matches.first.location;
+        }
+      }
+      final meters = const Distance().as(LengthUnit.Meter, merchantLoc, result.location);
+      final distKm = double.parse((meters / 1000.0).clamp(0.8, 25.0).toStringAsFixed(1));
+      final matchedFav = result.matchedFavorite ??
+          await UserAddressService.findMatchingFavorite(
+            location: result.location,
+            preferredName: result.title,
+          );
+      if (!mounted) return;
+      final resolvedAddress =
+          result.fullAddress.isNotEmpty ? result.fullAddress : result.title;
+      cart.setDeliveryAddress(
+        resolvedAddress,
+        distKm,
+        location: result.location,
+        locationLabel:
+            matchedFav?.name ?? (result.title.isNotEmpty ? result.title : null),
+        favoriteId: matchedFav?.id,
+      );
+    }
+
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (ctx) => const CheckoutScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cart = context.watch<CartProvider>();
@@ -313,13 +366,7 @@ class _SeamlessFloatingCartBarState extends State<SeamlessFloatingCartBar> {
                     Material(
                       color: Colors.transparent,
                       child: InkWell(
-                        onTap: () {
-                          HapticFeedback.lightImpact();
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (ctx) => const CheckoutScreen()),
-                          );
-                        },
+                        onTap: () => _onBuyPressed(cart),
                         borderRadius: BorderRadius.circular(24),
                         child: Container(
                           height: 38,

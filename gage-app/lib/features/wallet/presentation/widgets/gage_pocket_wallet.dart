@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:gage_app/core/utils/luhn_algorithm.dart';
+import 'package:gage_app/shared/widgets/gage_toast.dart';
 
 /// GagePocketWallet
 /// Widget Saku Dompet Kulit 3D (3D Leather Pocket Wallet):
@@ -12,6 +14,7 @@ import 'package:flutter/services.dart';
 class GagePocketWallet extends StatefulWidget {
   final int balance;
   final int points;
+  final String? accountNumber;
   final List<Map<String, dynamic>>? cards;
   final void Function(Map<String, dynamic> selectedCard)? onCardSelected;
   final void Function(Map<String, dynamic> card)? onCardDetailsTap;
@@ -26,6 +29,7 @@ class GagePocketWallet extends StatefulWidget {
     super.key,
     required this.balance,
     this.points = 100,
+    this.accountNumber,
     this.cards,
     this.onCardSelected,
     this.onCardDetailsTap,
@@ -468,7 +472,7 @@ class _GagePocketWalletState extends State<GagePocketWallet>
 
           // Konten di Permukaan Saku Depan
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 22, 16, 12),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -523,108 +527,138 @@ class _GagePocketWalletState extends State<GagePocketWallet>
 
                 const Spacer(),
 
-                // Baris 2 & 3: Kiri (Balance + Poin persis di atas Status Rekening Terpilih) & Kanan (4 Fitur Cepat Diperbesar)
+                // Baris 2 & 3: Kiri (Balance + Poin + No. Rekening terangkat ke atas) & Kanan (4 Fitur Cepat)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    // Sisi Kiri: Balance, Poin, dan Status Rekening Terpilih bertumpuk rapi di atas status penarikan
+                    // Sisi Kiri: Balance dan Poin terangkat naik ke atas, Nomor Rekening tetap di posisinya
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Nominal Saldo Besar + Icon Mata
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  _isBalanceVisible
-                                      ? 'Rp ${widget.balance.toString().replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (m) => "${m[1]}.")}'
-                                      : 'Rp ••••••',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 21,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 0.5,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              InkWell(
-                                onTap: () {
-                                  HapticFeedback.lightImpact();
-                                  setState(() => _isBalanceVisible = !_isBalanceVisible);
-                                  if (widget.onEyeToggle != null) widget.onEyeToggle!();
-                                },
-                                borderRadius: BorderRadius.circular(16),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(2),
-                                  child: Icon(
-                                    _isBalanceVisible ? Icons.visibility_rounded : Icons.visibility_off_rounded,
-                                    color: const Color(0xFFD4B996),
-                                    size: 18,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 3),
-                          // Indikator Poin tepat di atas status rekening penarikan terpilih
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.14),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: Colors.white24, width: 0.8),
-                            ),
-                            child: Row(
+                          // Saldo & Poin terangkat ke atas sesuai arahan pengguna
+                          Transform.translate(
+                            offset: const Offset(0, -16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.stars_rounded, color: Color(0xFFF59E0B), size: 11),
-                                const SizedBox(width: 3.5),
-                                Text(
-                                  '${widget.points} Poin',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.bold,
+                                // Nominal Saldo Besar + Icon Mata
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        _isBalanceVisible
+                                            ? 'Rp ${widget.balance.toString().replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (m) => "${m[1]}.")}'
+                                            : 'Rp ••••••',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 20.5,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: 0.5,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    InkWell(
+                                      onTap: () {
+                                        HapticFeedback.lightImpact();
+                                        setState(() => _isBalanceVisible = !_isBalanceVisible);
+                                        if (widget.onEyeToggle != null) widget.onEyeToggle!();
+                                      },
+                                      borderRadius: BorderRadius.circular(16),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(2),
+                                        child: Icon(
+                                          _isBalanceVisible ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+                                          color: const Color(0xFFD4B996),
+                                          size: 18,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 3),
+                                // Indikator Poin
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.14),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: Colors.white24, width: 0.8),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.stars_rounded, color: Color(0xFFF59E0B), size: 11),
+                                      const SizedBox(width: 3.5),
+                                      Text(
+                                        '${widget.points} Poin',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 6),
-                          // Status Rekening Terpilih tepat di bawah poin
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                animValue > 0.5 ? Icons.touch_app_rounded : Icons.credit_card_rounded,
-                                size: 12,
-                                color: const Color(0xFFD4B996),
-                              ),
-                              const SizedBox(width: 4),
-                              Flexible(
-                                child: Text(
-                                  animValue > 0.5
-                                      ? 'Pilih Kartu'
-                                      : '${selectedCard['bank']} ${selectedCard['maskedNumber'] ?? ''}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Color(0xFFD4B996),
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
+                          // Nomor Rekening GAGEPay 12 Digit Berbasis Luhn (Tetap di posisinya)
+                          if (widget.accountNumber != null && widget.accountNumber!.isNotEmpty)
+                            Transform.translate(
+                              offset: const Offset(0, -4),
+                              child: InkWell(
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  Clipboard.setData(ClipboardData(text: widget.accountNumber!));
+                                  GageToast.show(
+                                    context,
+                                    'Nomor rekening ${widget.accountNumber} disalin!',
+                                    type: GageToastType.success,
+                                  );
+                                },
+                                borderRadius: BorderRadius.circular(6),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 1),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.tag_rounded,
+                                        size: 11,
+                                        color: Color(0xFFD4B996),
+                                      ),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        LuhnAlgorithm.formatWithSpaces(widget.accountNumber!),
+                                        style: const TextStyle(
+                                          color: Color(0xFFD4B996),
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          fontFamily: 'monospace',
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      const Icon(
+                                        Icons.copy_rounded,
+                                        size: 9.5,
+                                        color: Color(0xFFD4B996),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
                         ],
                       ),
                     ),

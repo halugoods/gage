@@ -230,7 +230,7 @@ void main() {
           ],
           child: MaterialApp(
             theme: GageTheme.lightTheme,
-            home: const SendBookingScreen(),
+            home: const SendBookingScreen(autoStartLocationFlow: false),
           ),
         ),
       );

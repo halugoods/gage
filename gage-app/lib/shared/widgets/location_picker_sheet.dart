@@ -23,6 +23,7 @@ class LocationPickerSheet extends StatefulWidget {
   final ValueChanged<UserSavedAddress?>? onFavoriteSelected;
   final bool showMiniMap;
   final bool autoFocusSearch;
+  final bool initialAddMode;
 
   const LocationPickerSheet({
     super.key,
@@ -34,6 +35,7 @@ class LocationPickerSheet extends StatefulWidget {
     this.onFavoriteSelected,
     this.showMiniMap = true,
     this.autoFocusSearch = false,
+    this.initialAddMode = false,
   });
 
   static Future<void> show(
@@ -46,6 +48,7 @@ class LocationPickerSheet extends StatefulWidget {
     ValueChanged<UserSavedAddress?>? onFavoriteSelected,
     bool showMiniMap = true,
     bool autoFocusSearch = false,
+    bool initialAddMode = false,
   }) {
     HapticFeedback.lightImpact();
     return showModalBottomSheet(
@@ -71,6 +74,7 @@ class LocationPickerSheet extends StatefulWidget {
               onFavoriteSelected: onFavoriteSelected,
               showMiniMap: showMiniMap,
               autoFocusSearch: autoFocusSearch,
+              initialAddMode: initialAddMode,
             ),
           ),
         ),
@@ -138,6 +142,14 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
     _draftPin = _activePreviewLocation;
     _draftAddr = _activePreviewTitle;
     _draftFullAddr = _activePreviewFullAddr;
+    if (widget.initialAddMode) {
+      _isAddingNewAddress = true;
+      if (widget.initialLocationTitle != null &&
+          !widget.initialLocationTitle!.startsWith('Titik Lokasi') &&
+          widget.initialLocationTitle != 'Mendeteksi lokasi...') {
+        _newAddrNameCtrl.text = widget.initialLocationTitle!;
+      }
+    }
     _loadAddressData();
     _initPreviewAddress();
     if (widget.initialLocation == null) {
@@ -583,8 +595,14 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
 
     _safeMoveMap(_miniMapController, savedCoord, 16.5);
     await _loadAddressData();
+    if (widget.onFavoriteSelected != null) {
+      widget.onFavoriteSelected!(newAddr);
+    }
     if (mounted) {
       GageToast.show(context, 'Alamat $label berhasil disimpan ke favorit', type: GageToastType.success);
+    }
+    if (widget.initialAddMode && mounted) {
+      Navigator.pop(context);
     }
   }
 
@@ -1143,6 +1161,10 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                   ),
                   onPressed: () {
                     HapticFeedback.lightImpact();
+                    if (widget.initialAddMode && mounted) {
+                      Navigator.pop(context);
+                      return;
+                    }
                     setState(() {
                       _isAddingNewAddress = false;
                       _newAddrNameCtrl.clear();

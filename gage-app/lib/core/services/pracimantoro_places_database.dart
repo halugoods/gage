@@ -971,11 +971,12 @@ class PracimantoroPlacesDatabase {
   ];
 
   /// Algoritma Pencarian Cerdas Fundamental GAGE Pracimantoro:
-  /// - Memberikan Prioritas Tertinggi (#1) untuk titik di Kecamatan Pracimantoro
-  /// - Mendukung singkatan umum: 'sd', 'smp', 'sma', 'rs', 'camat', 'polsek', 'pasar'
+  /// - Dibatasi khusus wilayah operasional Kecamatan Pracimantoro secara default
+  /// - Mendukung singkatan umum, nama desa/dusun, jalan, kategori, dan fasilitas umum
   static List<OsmPlace> searchLocalPlaces(
     String query, {
     LatLng? userLocation,
+    bool includeNeighboringScopes = false,
   }) {
     final cleanQuery = query.trim().toLowerCase();
     if (cleanQuery.isEmpty) return [];
@@ -984,12 +985,15 @@ class PracimantoroPlacesDatabase {
     const Distance distCalc = Distance();
 
     final List<ScoredPlace> matches = [];
+    final queryWords = cleanQuery.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
 
     for (final p in allPlaces) {
+      if (!includeNeighboringScopes && !p.isPrimaryScope) continue;
       int score = p.prominence; // Base prominence weight (10 - 65)
       final nameLower = p.name.toLowerCase();
       final shortNameLower = p.shortName.toLowerCase();
       final catLower = p.category.toLowerCase();
+      final addrLower = p.address.toLowerCase();
 
       // 1. Exact Name / ShortName Matching
       if (shortNameLower == cleanQuery || nameLower == cleanQuery) {
@@ -1003,13 +1007,14 @@ class PracimantoroPlacesDatabase {
       else if (shortNameLower.startsWith(cleanQuery)) {
         score += 160;
       }
-      // 4. Word Boundary / Phrase Matching
+      // 4. Word Boundary / Phrase Matching (termasuk alamat & kategori agar selengkap Google Maps)
       else {
-        final queryWords = cleanQuery.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
         int matchedWords = 0;
         for (final w in queryWords) {
           if (shortNameLower.contains(w) ||
               nameLower.contains(w) ||
+              addrLower.contains(w) ||
+              catLower.contains(w) ||
               p.aliases.any((a) => a.contains(w))) {
             matchedWords++;
           }
@@ -1061,7 +1066,7 @@ class PracimantoroPlacesDatabase {
       return a.distanceMeters.compareTo(b.distanceMeters);
     });
 
-    return matches.map((m) {
+    final results = matches.map((m) {
       return OsmPlace(
         title: m.place.shortName,
         displayName: m.place.address,
@@ -1070,6 +1075,34 @@ class PracimantoroPlacesDatabase {
         category: m.place.category,
       );
     }).toList();
+
+    // Lengkapi dengan 17 Desa/Kelurahan resmi Kecamatan Pracimantoro agar desa/dusun selalu ditemukan instan
+    final seenTitles = results.map((e) => e.title.toLowerCase()).toSet();
+    for (final v in OsmGeocodingService.pracimantoroVillages) {
+      final villageName = v['name'] as String;
+      final villageLower = villageName.toLowerCase();
+      final loc = v['location'] as LatLng;
+      final fullTitle = 'Desa $villageName';
+      if (seenTitles.contains(fullTitle.toLowerCase()) ||
+          seenTitles.contains(villageLower)) {
+        continue;
+      }
+      final isMatch = villageLower.contains(cleanQuery) ||
+          'desa $villageLower'.contains(cleanQuery) ||
+          queryWords.every((w) => villageLower.contains(w) || 'desa'.contains(w) || 'pracimantoro'.contains(w));
+      if (isMatch) {
+        seenTitles.add(fullTitle.toLowerCase());
+        results.add(OsmPlace(
+          title: fullTitle,
+          displayName: 'Kelurahan/Desa $villageName, Kec. Pracimantoro, Kab. Wonogiri',
+          location: loc,
+          distanceMeters: distCalc.as(LengthUnit.Meter, refLocation, loc),
+          category: 'Desa / Kelurahan',
+        ));
+      }
+    }
+
+    return results;
   }
 }
 

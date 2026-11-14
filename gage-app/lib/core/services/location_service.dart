@@ -6,6 +6,7 @@ class LocationService {
 
   static LatLng? _cachedLocation;
 
+  static LatLng? get cachedLocation => _cachedLocation;
   static LatLng get cachedOrFallback => _cachedLocation ?? defaultLocation;
 
   /// Mendapatkan lokasi GPS riil perangkat secara cepat dan bebas hambatan (0ms cache-first)

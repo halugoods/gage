@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:gage_app/core/network/gage_api_client.dart';
+import 'package:gage_app/core/services/location_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/providers/auth_provider.dart';
 import 'package:gage_app/providers/wallet_provider.dart';
@@ -59,6 +60,9 @@ class _HomeScreenState extends State<HomeScreen> {
     if (userId.isNotEmpty) {
       wallet.fetchWallet(userId);
     }
+
+    // Pre-warm GPS location in background cache
+    LocationService.getCurrentLocation().ignore();
 
     // Fetch kuliner merchants khusus GAGE Food
     final list = await GageApiClient.getFoodMerchants();

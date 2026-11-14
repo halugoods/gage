@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:gage_app/core/services/pracimantoro_places_database.dart';
@@ -28,165 +29,269 @@ class OsmPlace {
   }
 }
 
+class _CachedSearchEntry {
+  final DateTime createdAt;
+  final List<OsmPlace> results;
+
+  const _CachedSearchEntry(this.createdAt, this.results);
+}
+
 class OsmGeocodingService {
   static const Distance _distanceCalc = Distance();
 
-  /// Algoritma Fundamental Pencarian Lokasi GAGE Pracimantoro:
-  /// 1. TIER 1 (Lokal Knowledge Base Pracimantoro): Cek database titik-titik lokasi resmi di Kecamatan Pracimantoro.
-  ///    - Prioritas tertinggi untuk fasilitas pendidikan (SD, SMP, SMA), kesehatan (RS, Puskesmas), kantor pemerintahan, pasar, dsb.
-  /// 2. TIER 2 (Photon Geocoding Terikat Radius Fokus): Untuk alamat jalan/wilayah tetangga (Giritontro, Eromoko, dll)
-  ///    dengan bounding box tertutup di sekitar Pracimantoro.
+  /// Batas geografis resmi wilayah operasional Kecamatan Pracimantoro, Kab. Wonogiri
+  static const double minLat = -8.165;
+  static const double maxLat = -8.002;
+  static const double minLon = 110.745;
+  static const double maxLon = 110.882;
+
+  static final LatLngBounds pracimantoroBounds = LatLngBounds(
+    const LatLng(minLat, minLon),
+    const LatLng(maxLat, maxLon),
+  );
+
+  static const Set<String> _excludedNeighborSubdistricts = {
+    'giritontro',
+    'eromoko',
+    'giriwoyo',
+    'baturetno',
+    'paranggupito',
+    'ponjong',
+    'rongkop',
+    'semin',
+    'prambanan',
+  };
+
+  static final Map<String, _CachedSearchEntry> _searchCache = {};
+
+  static bool isWithinPracimantoro(LatLng point) {
+    return point.latitude >= minLat &&
+        point.latitude <= maxLat &&
+        point.longitude >= minLon &&
+        point.longitude <= maxLon;
+  }
+
+  static bool _isAllowedAdministrativeArea(String textLower) {
+    if (textLower.contains('pracimantoro')) return true;
+    for (final other in _excludedNeighborSubdistricts) {
+      if (textLower.contains(other)) return false;
+    }
+    return true;
+  }
+
+  /// Pencarian lokal instan (<1ms, tanpa jaringan) agar daftar saran langsung muncul saat mengetik.
+  /// Mencakup Google Plus Code, database POI Kecamatan Pracimantoro, dan seluruh 17 Desa/Kelurahan.
+  static List<OsmPlace> searchLocalInstant(
+    String query, {
+    LatLng? proximityLocation,
+  }) {
+    final cleanQuery = query.trim();
+    if (cleanQuery.isEmpty) return [];
+    if (!_isAllowedAdministrativeArea(cleanQuery.toLowerCase())) return const [];
+
+    final center = proximityLocation != null && isWithinPracimantoro(proximityLocation)
+        ? proximityLocation
+        : PracimantoroPlacesDatabase.centerPracimantoro;
+
+    final results = <OsmPlace>[];
+    final seen = <String>{};
+
+    // 1. Plus Code lookup (mis. XR89+MHQ atau 6P3GXR89+MHQ)
+    final plusPoint = OpenLocationCodeService.tryDecode(cleanQuery, referencePoint: center);
+    if (plusPoint != null && isWithinPracimantoro(plusPoint)) {
+      final plusCode = OpenLocationCodeService.getShortPlusCode(plusPoint);
+      final village = getNearestVillage(plusPoint);
+      seen.add('plus:$plusCode');
+      results.add(OsmPlace(
+        title: 'Plus Code $plusCode',
+        displayName: '$plusCode, $village, Kec. Pracimantoro, Kab. Wonogiri',
+        location: plusPoint,
+        distanceMeters: _distanceCalc.as(LengthUnit.Meter, center, plusPoint),
+        category: 'Plus Code',
+      ));
+    }
+
+    // 2. Database POI & 17 Desa/Kelurahan Kecamatan Pracimantoro
+    final localMatches = PracimantoroPlacesDatabase.searchLocalPlaces(
+      cleanQuery,
+      userLocation: center,
+    );
+    for (final place in localMatches) {
+      if (!isWithinPracimantoro(place.location)) continue;
+      final key = place.title.toLowerCase().trim();
+      if (seen.add(key)) {
+        results.add(place);
+      }
+    }
+
+    return results;
+  }
+
+  /// Algoritma Pencarian Lokasi Lengkap GAGE Pracimantoro:
+  /// 1. Cache memori instan (0ms) + Tier 1 Database Lokal Pracimantoro & Plus Code.
+  /// 2. Tier 2 Paralel (Nominatim bounded + Photon bounded) dengan timeout singkat & filter ketat Kec. Pracimantoro.
   static Future<List<OsmPlace>> searchPlaces(
     String query, {
     LatLng? proximityLocation,
   }) async {
     final cleanQuery = query.trim();
     if (cleanQuery.isEmpty) return [];
+    if (!_isAllowedAdministrativeArea(cleanQuery.toLowerCase())) return const [];
 
-    // Pusat default: Pusat Kota Kecamatan Pracimantoro (-8.05517, 110.80889)
-    final center = proximityLocation ?? PracimantoroPlacesDatabase.centerPracimantoro;
+    final center = proximityLocation != null && isWithinPracimantoro(proximityLocation)
+        ? proximityLocation
+        : PracimantoroPlacesDatabase.centerPracimantoro;
 
-    final List<OsmPlace> finalResults = [];
-    final Set<String> seenNames = {};
+    final cacheKey = cleanQuery.toLowerCase();
+    final cached = _searchCache[cacheKey];
+    if (cached != null && DateTime.now().difference(cached.createdAt).inMinutes < 5) {
+      return cached.results;
+    }
 
-    // ─────────────────────────────────────────────────────────────
-    // 1. TIER 1: PENCARIAN DATABASE LOKAL PRACIMANTORO (INSTANT & AKURAT)
-    // ─────────────────────────────────────────────────────────────
+    final List<OsmPlace> finalResults = searchLocalInstant(cleanQuery, proximityLocation: center);
+    final Set<String> seenKeys = finalResults.map((p) => p.title.toLowerCase().trim()).toSet();
+
     try {
-      final localMatches = PracimantoroPlacesDatabase.searchLocalPlaces(
-        cleanQuery,
-        userLocation: center,
-      );
+      final parallel = await Future.wait([
+        _queryNominatimBounded(cleanQuery, center),
+        _queryPhotonBounded(cleanQuery, center),
+      ]);
 
-      for (final place in localMatches) {
-        final key = place.title.toLowerCase().trim();
-        if (!seenNames.contains(key)) {
-          seenNames.add(key);
-          finalResults.add(place);
+      final List<OsmPlace> remoteResults = [
+        ...parallel[0],
+        ...parallel[1],
+      ];
+
+      remoteResults.sort((a, b) => (a.distanceMeters ?? 999999).compareTo(b.distanceMeters ?? 999999));
+
+      for (final item in remoteResults) {
+        final key = item.title.toLowerCase().trim();
+        final nearExisting = finalResults.any(
+          (existing) =>
+              existing.title.toLowerCase().trim() == key ||
+              (_distanceCalc.as(LengthUnit.Meter, existing.location, item.location) < 25 &&
+                  existing.title.toLowerCase().contains(key)),
+        );
+        if (!nearExisting && seenKeys.add(key)) {
+          finalResults.add(item);
         }
       }
     } catch (_) {}
 
-    // Jika query adalah pencarian spesifik sekolah yang sudah cocok sempurna di lokal, kita prioritaskan
-    final isExactLocalHit = finalResults.isNotEmpty &&
-        (cleanQuery.toLowerCase().contains('muhammadiyah') ||
-         cleanQuery.toLowerCase().contains('maguan') ||
-         cleanQuery.toLowerCase() == 'sd' ||
-         cleanQuery.toLowerCase() == 'smp' ||
-         cleanQuery.toLowerCase() == 'sma' ||
-         cleanQuery.toLowerCase() == 'rs');
+    if (_searchCache.length >= 60) {
+      _searchCache.remove(_searchCache.keys.first);
+    }
+    _searchCache[cacheKey] = _CachedSearchEntry(DateTime.now(), finalResults);
+    return finalResults;
+  }
 
-    // ─────────────────────────────────────────────────────────────
-    // 2. TIER 2: PENCARIAN PHOTON OSM (RADIUS FOKUS PRACIMANTORO & TETANGGA)
-    // ─────────────────────────────────────────────────────────────
+  static Future<List<OsmPlace>> _queryNominatimBounded(String cleanQuery, LatLng center) async {
     try {
-      // Bounding Box fokus ~20 km di sekitar posisi aktif / Pracimantoro
-      const double delta = 0.22;
-      final minLon = (center.longitude - delta).toStringAsFixed(4);
-      final minLat = (center.latitude - delta).toStringAsFixed(4);
-      final maxLon = (center.longitude + delta).toStringAsFixed(4);
-      final maxLat = (center.latitude + delta).toStringAsFixed(4);
+      final nominatimUrl = Uri.parse(
+        'https://nominatim.openstreetmap.org/search'
+        '?format=jsonv2'
+        '&q=${Uri.encodeComponent('$cleanQuery, Pracimantoro')}'
+        '&viewbox=$minLon,$maxLat,$maxLon,$minLat'
+        '&bounded=1'
+        '&countrycodes=id'
+        '&addressdetails=1'
+        '&dedupe=1'
+        '&limit=18'
+        '&accept-language=id',
+      );
+      final res = await http.get(
+        nominatimUrl,
+        headers: {'User-Agent': 'GagePracimantoroApp/1.0'},
+      ).timeout(const Duration(milliseconds: 1200));
 
-      final urlStr = 'https://photon.komoot.io/api/?q=${Uri.encodeComponent(cleanQuery)}&limit=15'
+      if (res.statusCode != 200) return const [];
+      final List items = json.decode(res.body) as List? ?? const [];
+      final out = <OsmPlace>[];
+      for (final raw in items) {
+        final item = raw as Map<String, dynamic>? ?? const {};
+        final lat = double.tryParse(item['lat']?.toString() ?? '');
+        final lon = double.tryParse(item['lon']?.toString() ?? '');
+        if (lat == null || lon == null) continue;
+        final point = LatLng(lat, lon);
+        if (!isWithinPracimantoro(point)) continue;
+
+        final displayName = (item['display_name'] as String? ?? '').trim();
+        if (!_isAllowedAdministrativeArea(displayName.toLowerCase())) continue;
+
+        final addr = item['address'] as Map<String, dynamic>? ?? const {};
+        final name = (item['name'] as String? ?? '').trim();
+        final road = (addr['road'] as String? ?? '').trim();
+        final village = (addr['village'] as String? ?? addr['suburb'] as String? ?? addr['hamlet'] as String? ?? '').trim();
+        final title = name.isNotEmpty ? name : (road.isNotEmpty ? road : (village.isNotEmpty ? village : cleanQuery));
+
+        out.add(OsmPlace(
+          title: title,
+          displayName: displayName.isNotEmpty
+              ? displayName
+              : '$title, ${village.isNotEmpty ? '$village, ' : ''}Kec. Pracimantoro, Kab. Wonogiri',
+          location: point,
+          distanceMeters: _distanceCalc.as(LengthUnit.Meter, center, point),
+          category: item['type'] as String?,
+        ));
+      }
+      return out;
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  static Future<List<OsmPlace>> _queryPhotonBounded(String cleanQuery, LatLng center) async {
+    try {
+      final urlStr = 'https://photon.komoot.io/api/?q=${Uri.encodeComponent(cleanQuery)}&limit=18'
           '&lat=${center.latitude}&lon=${center.longitude}'
           '&bbox=$minLon,$minLat,$maxLon,$maxLat';
 
       final res = await http.get(
         Uri.parse(urlStr),
         headers: {'User-Agent': 'GagePracimantoroApp/1.0'},
-      ).timeout(const Duration(seconds: 4));
+      ).timeout(const Duration(milliseconds: 1200));
 
-      if (res.statusCode == 200) {
-        final data = json.decode(res.body);
-        final List features = data['features'] ?? [];
-        final List<OsmPlace> remoteResults = [];
+      if (res.statusCode != 200) return const [];
+      final data = json.decode(res.body);
+      final List features = data['features'] ?? [];
+      final List<OsmPlace> remoteResults = [];
 
-        for (final f in features) {
-          final props = f['properties'] as Map<String, dynamic>? ?? {};
-          final geom = f['geometry'] as Map<String, dynamic>? ?? {};
-          final coords = geom['coordinates'] as List? ?? [0.0, 0.0];
-          final lon = (coords[0] as num).toDouble();
-          final lat = (coords[1] as num).toDouble();
-          final point = LatLng(lat, lon);
+      for (final f in features) {
+        final props = f['properties'] as Map<String, dynamic>? ?? {};
+        final geom = f['geometry'] as Map<String, dynamic>? ?? {};
+        final coords = geom['coordinates'] as List? ?? [0.0, 0.0];
+        final lon = (coords[0] as num).toDouble();
+        final lat = (coords[1] as num).toDouble();
+        final point = LatLng(lat, lon);
+        if (!isWithinPracimantoro(point)) continue;
 
-          final country = (props['country'] as String? ?? '').toLowerCase();
-          final countryCode = (props['countrycode'] as String? ?? '').toUpperCase();
+        final country = (props['country'] as String? ?? '').toLowerCase();
+        final countryCode = (props['countrycode'] as String? ?? '').toUpperCase();
+        if (country.isNotEmpty && country != 'indonesia') continue;
+        if (countryCode.isNotEmpty && countryCode != 'ID') continue;
 
-          // Saring ketat: HANYA wilayah Indonesia
-          if (country.isNotEmpty && country != 'indonesia') continue;
-          if (countryCode.isNotEmpty && countryCode != 'ID') continue;
+        final name = props['name'] as String? ?? props['street'] as String? ?? cleanQuery;
+        final street = props['street'] as String? ?? '';
+        final district = props['district'] as String? ?? props['locality'] as String? ?? '';
+        final city = props['city'] as String? ?? props['county'] as String? ?? props['state'] as String? ?? '';
+        final adminText = '$district $city'.toLowerCase();
+        if (adminText.trim().isNotEmpty && !_isAllowedAdministrativeArea(adminText)) continue;
 
-          final name = props['name'] as String? ?? props['street'] as String? ?? cleanQuery;
-          final street = props['street'] as String? ?? '';
-          final city = props['city'] as String? ?? props['county'] as String? ?? props['district'] as String? ?? props['state'] as String? ?? '';
+        final parts = [name, street, district, city].where((s) => s.isNotEmpty).toSet().toList();
+        final display = parts.join(', ');
 
-          final parts = [name, street, city].where((s) => s.isNotEmpty).toSet().toList();
-          final display = parts.join(', ');
-
-          final dist = _distanceCalc.as(LengthUnit.Meter, center, point);
-
-          final key = name.toLowerCase().trim();
-          if (!seenNames.contains(key)) {
-            seenNames.add(key);
-            remoteResults.add(OsmPlace(
-              title: name,
-              displayName: display.isNotEmpty ? display : name,
-              location: point,
-              distanceMeters: dist,
-            ));
-          }
-        }
-
-        // Urutkan remote results dari yang terdekat
-        remoteResults.sort((a, b) => (a.distanceMeters ?? 999999).compareTo(b.distanceMeters ?? 999999));
-
-        // Jika ada pencarian umum seperti "sd", pastikan tempat lokal Pracimantoro tetap di posisi teratas
-        if (isExactLocalHit) {
-          finalResults.addAll(remoteResults);
-        } else {
-          // Gabungkan: tempat lokal tetap di Tier 1, disusul remote terdekat
-          finalResults.addAll(remoteResults);
-        }
+        remoteResults.add(OsmPlace(
+          title: name,
+          displayName: display.isNotEmpty ? display : '$name, Kec. Pracimantoro, Wonogiri',
+          location: point,
+          distanceMeters: _distanceCalc.as(LengthUnit.Meter, center, point),
+          category: props['osm_value'] as String?,
+        ));
       }
-    } catch (_) {}
-
-    // Fallback: Jika sama sekali tidak ada hasil, coba pencarian dengan nama kabupaten
-    if (finalResults.isEmpty) {
-      try {
-        final fallbackUrl = 'https://photon.komoot.io/api/?q=${Uri.encodeComponent('$cleanQuery Pracimantoro Wonogiri')}&limit=8&lat=${center.latitude}&lon=${center.longitude}';
-        final res = await http.get(
-          Uri.parse(fallbackUrl),
-          headers: {'User-Agent': 'GagePracimantoroApp/1.0'},
-        ).timeout(const Duration(seconds: 3));
-
-        if (res.statusCode == 200) {
-          final data = json.decode(res.body);
-          final List features = data['features'] ?? [];
-          for (final f in features) {
-            final props = f['properties'] as Map<String, dynamic>? ?? {};
-            final geom = f['geometry'] as Map<String, dynamic>? ?? {};
-            final coords = geom['coordinates'] as List? ?? [0.0, 0.0];
-            final point = LatLng((coords[1] as num).toDouble(), (coords[0] as num).toDouble());
-            final name = props['name'] as String? ?? cleanQuery;
-            final display = [name, props['street'], props['city']].where((s) => s != null && s.toString().isNotEmpty).join(', ');
-            final dist = _distanceCalc.as(LengthUnit.Meter, center, point);
-
-            final key = name.toLowerCase().trim();
-            if (!seenNames.contains(key)) {
-              seenNames.add(key);
-              finalResults.add(OsmPlace(
-                title: name,
-                displayName: display,
-                location: point,
-                distanceMeters: dist,
-              ));
-            }
-          }
-        }
-      } catch (_) {}
+      return remoteResults;
+    } catch (_) {
+      return const [];
     }
-
-    return finalResults;
   }
 
   /// Daftar 17 Desa/Kelurahan Resmi di Kecamatan Pracimantoro beserta koordinat pusatnya

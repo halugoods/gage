@@ -70,7 +70,22 @@ Hasil audit menunjukkan beberapa field penting dari Customer belum tersedia di `
    - Seluruh tombol WhatsApp Customer ke Driver telah diganti ke `InAppChatScreen` (`recipientRole: 'driver'`) dan `tel:` (hanya aktif bila `driverPhone` valid). Pastikan Driver mengandalkan chat in-app dan pembaruan foto/status valid.
 3. **Kontrak Layanan Transport (`Ride`, `Car`, `Send`) & Paket Berat (`weightKg`)**:
    - Customer `SendBookingScreen` dan `RideCheckoutScreen` kini mendukung pengisian rincian paket yang dapat diedit (`package_details_json`: jenis, estimasi berat `weight_kg`, catatan kurir, dan penyesuaian tarif berat).
+   - Layanan GAGE Send menggunakan tier **`INSTAN`** dan **`HEMAT`** (bukan `REGULER`). Driver radar dan rincian penawaran wajib menampilkan tier ini (`deliveryOption`) secara konsisten.
+   - Informasi penerima paket (`recipient_name` dan `recipient_phone`) diisi otomatis oleh Customer dari riwayat kontak terakhir atau favorit tersimpan, dan diteruskan dalam payload `package_details` agar Driver/Kurir dapat langsung melihat nama dan nomor telepon/WhatsApp penerima saat tiba di tujuan.
    - Driver `DriverOrderOffer` / trip screen wajib menampilkan `packageDetails` / `weight_kg`, koordinat lengkap `pickupLat`/`pickupLng` & `deliveryLat`/`deliveryLng`, serta `driverTip` agar kurir siap membawa kapasitas barang yang sesuai.
 4. **Pembersihan Referensi Lama**:
    - Hapus referensi lama non-aktif di `driver_screen.dart` (`Lapak BaBe & Kios Sedayu` di L63) pada gelombang kerja Portal Driver agar selaras dengan penghapusan GAGE BaBe di Customer.
    - `driver_order_provider.dart` saat ini belum mengimpor/memeriksa `GageApiClient.useDevSeedData`; wajib ditambahkan guard sebelum rilis produksi Driver.
+
+---
+
+## 5. Kontrak Pembatalan Pesanan oleh Pelanggan (`canBeCancelledByCustomer`) & Struk Digital
+
+1. **Aturan Pembatalan Pelanggan pada Transport (`Ride`, `Car`, `Send`)**:
+   - Pelanggan diizinkan membatalkan pesanan secara mandiri selama driver belum ditetapkan (`!hasAssignedDriver` atau status `SEARCHING_DRIVER`, `PAID`, `PENDING`).
+   - Begitu driver menerima pesanan (`DRIVER_ASSIGNED`, `ON_THE_WAY`), opsi pembatalan langsung pelanggan terkunci untuk melindungi hak perjalanan driver.
+   - Endpoint: `PUT /api/orders/:id/status` dengan payload `{ "status": "CANCELLED", "cancellation_reason": "Dibatalkan oleh pelanggan" }`.
+   - Radar Driver: Saat status order menjadi `CANCELLED`, radar driver wajib segera menarik kartu penawaran aktif agar driver tidak menerima order yang sudah dibatalkan.
+2. **Struk Digital Interaktif & Verifikasi Lapangan**:
+   - Customer kini dapat membagikan struk/bukti bayar digital berbentuk gambar tiket perforasi lengkap dengan QR Code (`GageReceiptShareDialog`).
+   - Driver/Kurir dapat mencocokkan nomor pesanan atau memindai QR Code struk pelanggan untuk konfirmasi serah terima barang di tempat.

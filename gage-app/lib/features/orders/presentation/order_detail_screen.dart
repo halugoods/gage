@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:gage_app/core/services/pracimantoro_places_database.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/data/models/order_model.dart';
 import 'package:gage_app/data/models/cart_item_model.dart';
@@ -14,7 +15,10 @@ import 'package:gage_app/features/orders/presentation/order_tracking_screen.dart
 import 'package:gage_app/features/orders/presentation/widgets/rating_review_sheet.dart';
 import 'package:gage_app/features/checkout/presentation/checkout_screen.dart';
 import 'package:gage_app/shared/widgets/gage_avatar.dart';
+import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
+import 'package:gage_app/shared/widgets/gage_receipt_share_dialog.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
+import 'package:gage_app/shared/widgets/mini_location_preview_map.dart';
 
 class OrderDetailScreen extends StatefulWidget {
   final OrderModel order;
@@ -25,11 +29,28 @@ class OrderDetailScreen extends StatefulWidget {
   State<OrderDetailScreen> createState() => _OrderDetailScreenState();
 }
 
-class _OrderDetailScreenState extends State<OrderDetailScreen> {
+class _OrderDetailScreenState extends State<OrderDetailScreen>
+    with SingleTickerProviderStateMixin {
   bool _isLoading = false;
   int _selectedStar = 0;
   bool _isReviewed = false;
   late OrderModel _currentOrder = widget.order;
+  late final AnimationController _dotsCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _dotsCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _dotsCtrl.dispose();
+    super.dispose();
+  }
 
   OrderModel get order => _currentOrder;
 
@@ -71,15 +92,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.share_outlined),
-            tooltip: 'Bagikan',
-            onPressed: () async {
-              final text = 'Detail Pesanan GAGE #${order.orderNumber} di ${order.merchantName}.\nTotal: Rp ${order.totalAmount}';
-              await SharePlus.instance.share(
-                ShareParams(
-                  text: text,
-                  subject: 'Struk Pesanan GAGE #${order.orderNumber}',
-                ),
-              );
+            tooltip: 'Bagikan Struk',
+            onPressed: () {
+              GageReceiptShareDialog.show(context, order);
             },
           ),
         ],
@@ -107,8 +122,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     _buildMerchantSection(isDark),
                     const SizedBox(height: 14),
 
-                    // Card 4: Rincian Produk / Menu / Paket
-                    if (order.items.isNotEmpty || (order.packageDetails != null && order.packageDetails!.isNotEmpty)) ...[
+                    // Card 4: Rincian Produk / Menu atau Layanan Transport/Pengiriman
+                    if (order.isTransportService ||
+                        order.items.isNotEmpty ||
+                        (order.packageDetails != null && order.packageDetails!.isNotEmpty)) ...[
                       _buildItemsSection(currencyFormatter, isDark),
                       const SizedBox(height: 14),
                     ],
@@ -266,11 +283,36 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       }.contains(s);
       final onTrip = const {'PICKED_UP', 'ON_DELIVERY', 'COMPLETED'}.contains(s);
       return [
-        {'title': 'Dipesan', 'done': paidOrPast, 'active': s == 'PAYMENT_PENDING' || s == 'PENDING'},
-        {'title': 'Cari Driver', 'done': driverAssigned, 'active': paidOrPast && !driverAssigned},
-        {'title': 'Dijemput', 'done': onTrip, 'active': s == 'DRIVER_ASSIGNED' || s == 'AT_MERCHANT'},
-        {'title': 'Perjalanan', 'done': s == 'COMPLETED', 'active': s == 'PICKED_UP' || s == 'ON_DELIVERY'},
-        {'title': 'Selesai', 'done': s == 'COMPLETED', 'active': false},
+        {
+          'title': 'Dipesan',
+          'icon': Icons.receipt_long_rounded,
+          'done': paidOrPast,
+          'active': s == 'PAYMENT_PENDING' || s == 'PENDING',
+        },
+        {
+          'title': 'Cari Driver',
+          'icon': Icons.person_search_rounded,
+          'done': driverAssigned,
+          'active': paidOrPast && !driverAssigned,
+        },
+        {
+          'title': 'Dijemput',
+          'icon': Icons.location_on_rounded,
+          'done': onTrip,
+          'active': s == 'DRIVER_ASSIGNED' || s == 'AT_MERCHANT',
+        },
+        {
+          'title': 'Perjalanan',
+          'icon': svc == 'car' ? Icons.directions_car_rounded : Icons.two_wheeler_rounded,
+          'done': s == 'COMPLETED',
+          'active': s == 'PICKED_UP' || s == 'ON_DELIVERY',
+        },
+        {
+          'title': 'Selesai',
+          'icon': Icons.flag_rounded,
+          'done': s == 'COMPLETED',
+          'active': false,
+        },
       ];
     }
 
@@ -284,11 +326,36 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       }.contains(s);
       final inTransit = const {'PICKED_UP', 'ON_DELIVERY', 'COMPLETED'}.contains(s);
       return [
-        {'title': 'Dipesan', 'done': paidOrPast, 'active': s == 'PAYMENT_PENDING' || s == 'PENDING'},
-        {'title': 'Cari Kurir', 'done': kurirAssigned, 'active': paidOrPast && !kurirAssigned},
-        {'title': 'Dijemput', 'done': inTransit, 'active': s == 'DRIVER_ASSIGNED' || s == 'AT_MERCHANT'},
-        {'title': 'Dikirim', 'done': s == 'COMPLETED', 'active': s == 'PICKED_UP' || s == 'ON_DELIVERY'},
-        {'title': 'Selesai', 'done': s == 'COMPLETED', 'active': false},
+        {
+          'title': 'Dipesan',
+          'icon': Icons.receipt_long_rounded,
+          'done': paidOrPast,
+          'active': s == 'PAYMENT_PENDING' || s == 'PENDING',
+        },
+        {
+          'title': 'Cari Kurir',
+          'icon': Icons.person_search_rounded,
+          'done': kurirAssigned,
+          'active': paidOrPast && !kurirAssigned,
+        },
+        {
+          'title': 'Dijemput',
+          'icon': Icons.location_on_rounded,
+          'done': inTransit,
+          'active': s == 'DRIVER_ASSIGNED' || s == 'AT_MERCHANT',
+        },
+        {
+          'title': 'Dikirim',
+          'icon': Icons.local_shipping_rounded,
+          'done': s == 'COMPLETED',
+          'active': s == 'PICKED_UP' || s == 'ON_DELIVERY',
+        },
+        {
+          'title': 'Selesai',
+          'icon': Icons.task_alt_rounded,
+          'done': s == 'COMPLETED',
+          'active': false,
+        },
       ];
     }
 
@@ -296,11 +363,36 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       final merchantConfirmed = const {'COOKING', 'READY_FOR_PICKUP', 'COMPLETED'}.contains(s);
       final readyPickup = const {'READY_FOR_PICKUP', 'COMPLETED'}.contains(s);
       return [
-        {'title': 'Dipesan', 'done': paidOrPast, 'active': s == 'PAYMENT_PENDING' || s == 'PENDING'},
-        {'title': 'Konfirmasi', 'done': merchantConfirmed, 'active': const {'NEW', 'PAID'}.contains(s)},
-        {'title': 'Disiapkan', 'done': readyPickup, 'active': s == 'COOKING'},
-        {'title': 'Siap Ambil', 'done': s == 'COMPLETED', 'active': s == 'READY_FOR_PICKUP'},
-        {'title': 'Selesai', 'done': s == 'COMPLETED', 'active': false},
+        {
+          'title': 'Dipesan',
+          'icon': Icons.receipt_long_rounded,
+          'done': paidOrPast,
+          'active': s == 'PAYMENT_PENDING' || s == 'PENDING',
+        },
+        {
+          'title': 'Konfirmasi',
+          'icon': Icons.storefront_rounded,
+          'done': merchantConfirmed,
+          'active': const {'NEW', 'PAID'}.contains(s),
+        },
+        {
+          'title': 'Disiapkan',
+          'icon': Icons.inventory_2_rounded,
+          'done': readyPickup,
+          'active': s == 'COOKING',
+        },
+        {
+          'title': 'Siap Ambil',
+          'icon': Icons.location_on_rounded,
+          'done': s == 'COMPLETED',
+          'active': s == 'READY_FOR_PICKUP',
+        },
+        {
+          'title': 'Selesai',
+          'icon': Icons.task_alt_rounded,
+          'done': s == 'COMPLETED',
+          'active': false,
+        },
       ];
     }
 
@@ -318,11 +410,36 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     final prepFinished = const {'READY_FOR_PICKUP', 'PICKED_UP', 'ON_DELIVERY', 'COMPLETED'}.contains(s);
     final outForDelivery = const {'PICKED_UP', 'ON_DELIVERY', 'COMPLETED'}.contains(s);
     return [
-      {'title': 'Dipesan', 'done': paidOrPast, 'active': s == 'PAYMENT_PENDING' || s == 'PENDING'},
-      {'title': 'Konfirmasi', 'done': merchantConfirmed, 'active': const {'NEW', 'PAID'}.contains(s)},
-      {'title': 'Disiapkan', 'done': prepFinished, 'active': const {'SEARCHING_DRIVER', 'DRIVER_ASSIGNED', 'AT_MERCHANT', 'COOKING'}.contains(s)},
-      {'title': 'Diantar', 'done': s == 'COMPLETED', 'active': outForDelivery && s != 'COMPLETED'},
-      {'title': 'Selesai', 'done': s == 'COMPLETED', 'active': false},
+      {
+        'title': 'Dipesan',
+        'icon': Icons.receipt_long_rounded,
+        'done': paidOrPast,
+        'active': s == 'PAYMENT_PENDING' || s == 'PENDING',
+      },
+      {
+        'title': 'Konfirmasi',
+        'icon': Icons.storefront_rounded,
+        'done': merchantConfirmed,
+        'active': const {'NEW', 'PAID'}.contains(s),
+      },
+      {
+        'title': 'Disiapkan',
+        'icon': Icons.soup_kitchen_rounded,
+        'done': prepFinished,
+        'active': const {'SEARCHING_DRIVER', 'DRIVER_ASSIGNED', 'AT_MERCHANT', 'COOKING'}.contains(s),
+      },
+      {
+        'title': 'Diantar',
+        'icon': Icons.delivery_dining_rounded,
+        'done': s == 'COMPLETED',
+        'active': outForDelivery && s != 'COMPLETED',
+      },
+      {
+        'title': 'Selesai',
+        'icon': Icons.location_on_rounded,
+        'done': s == 'COMPLETED',
+        'active': false,
+      },
     ];
   }
 
@@ -372,11 +489,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     }
 
     final stages = _buildSequentialStages();
-    final sectionTitle = order.isPickup
-        ? 'Tahapan Ambil Sendiri'
-        : order.isTransportService
-            ? 'Tahapan Perjalanan'
-            : 'Tahapan Pesanan';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
@@ -389,60 +501,46 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                sectionTitle,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13.5,
-                  color: isDark ? Colors.white : Colors.black87,
-                ),
-              ),
-              Text(
-                order.statusLabel,
-                style: const TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w700,
-                  color: GageTheme.primary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
             children: List.generate(stages.length, (idx) {
               final s = stages[idx];
               final isDone = s['done'] as bool;
               final isCurrent = s['active'] as bool;
+              final stageIcon = s['icon'] as IconData;
               final isLast = idx == stages.length - 1;
-              final dotColor = isDone
+              final stageColor = isDone
                   ? GageTheme.primary
-                  : (isCurrent ? GageTheme.primary.withValues(alpha: 0.16) : (isDark ? Colors.white12 : Colors.grey.shade300));
+                  : (isCurrent
+                      ? GageTheme.primary.withValues(alpha: 0.14)
+                      : (isDark ? Colors.white12 : Colors.grey.shade200));
+              final stageWidget = AnimatedContainer(
+                duration: const Duration(milliseconds: 280),
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: stageColor,
+                  border: isCurrent && !isDone
+                      ? Border.all(color: GageTheme.primary, width: 1.8)
+                      : null,
+                ),
+                child: Icon(
+                  stageIcon,
+                  color: isDone
+                      ? Colors.white
+                      : (isCurrent
+                          ? GageTheme.primary
+                          : (isDark ? Colors.white54 : Colors.grey.shade500)),
+                  size: 15,
+                ),
+              );
+
               return Expanded(
                 child: Row(
                   children: [
                     Expanded(
                       child: Column(
                         children: [
-                          Container(
-                            width: 24,
-                            height: 24,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: dotColor,
-                              border: isCurrent && !isDone
-                                  ? Border.all(color: GageTheme.primary, width: 2)
-                                  : null,
-                            ),
-                            child: Icon(
-                              isDone ? Icons.check : Icons.circle,
-                              color: isDone
-                                  ? Colors.white
-                                  : (isCurrent ? GageTheme.primary : (isDark ? Colors.white38 : Colors.white)),
-                              size: isDone ? 14 : 7,
-                            ),
-                          ),
+                          stageWidget,
                           const SizedBox(height: 6),
                           Text(
                             s['title'] as String,
@@ -461,14 +559,18 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       ),
                     ),
                     if (!isLast)
-                      Container(
-                        width: 14,
-                        height: 2,
-                        color: ((stages[idx + 1]['done'] as bool) || (stages[idx + 1]['active'] as bool)) && isDone
-                            ? GageTheme.primary
-                            : (isDark ? Colors.white12 : Colors.grey.shade300),
-                        margin: const EdgeInsets.only(bottom: 18),
-                      ),
+                      if (isCurrent && !isDone)
+                        _buildWalkingDotsConnector(isDark)
+                      else
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 280),
+                          width: 14,
+                          height: 2,
+                          color: ((stages[idx + 1]['done'] as bool) || (stages[idx + 1]['active'] as bool)) && isDone
+                              ? GageTheme.primary
+                              : (isDark ? Colors.white12 : Colors.grey.shade300),
+                          margin: const EdgeInsets.only(bottom: 18),
+                        ),
                   ],
                 ),
               );
@@ -499,11 +601,141 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     );
   }
 
+  LatLng _resolveMerchantLocation(String mName) {
+    if (order.pickupLat != null && order.pickupLng != null) {
+      return LatLng(order.pickupLat!, order.pickupLng!);
+    }
+    if (mName.trim().isNotEmpty) {
+      final matches = PracimantoroPlacesDatabase.searchLocalPlaces(mName);
+      if (matches.isNotEmpty) {
+        return matches.first.location;
+      }
+    }
+    return PracimantoroPlacesDatabase.centerPracimantoro;
+  }
+
+  Widget _buildWalkingDotsConnector(bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: AnimatedBuilder(
+        animation: _dotsCtrl,
+        builder: (context, _) {
+          final step = (_dotsCtrl.value * 3).floor() % 3;
+          return SizedBox(
+            width: 18,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: List.generate(3, (dotIdx) {
+                final isLit = dotIdx == step;
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  width: 4,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isLit
+                        ? GageTheme.primary
+                        : GageTheme.primary.withValues(alpha: isDark ? 0.35 : 0.25),
+                  ),
+                );
+              }),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showMerchantMapDialog(BuildContext context, String merchantName, String address, LatLng location) {
+    GageFloatingSheet.show(
+      context: context,
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        order.isTransportService ? 'Lokasi Penjemputan' : 'Lokasi Toko Mitra',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        merchantName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? Colors.white60 : Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 20),
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            AspectRatio(
+              aspectRatio: 1.0,
+              child: MiniLocationPreviewMap(
+                location: location,
+                width: double.infinity,
+                height: double.infinity,
+                borderRadius: 16,
+                zoom: 16.8,
+                markerImagePath: order.isTransportService ? null : order.resolveMerchantAvatarAsset(merchantName),
+                useMerchantPin: !order.isTransportService,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              address,
+              style: TextStyle(fontSize: 12.5, color: isDark ? Colors.white70 : Colors.black87),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: GageTheme.primary,
+                  foregroundColor: Colors.white,
+                  shape: const StadiumBorder(),
+                ),
+                onPressed: () => Navigator.pop(ctx),
+                icon: const Icon(Icons.check, size: 18),
+                label: const Text('Tutup', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildMerchantSection(bool isDark) {
     final merchants = order.merchantNamesList;
     final headerTitle = order.isTransportService
         ? 'Layanan GAGE'
         : (merchants.length > 1 ? 'Mitra Toko (${merchants.length} Toko)' : 'Mitra Toko');
+    final displayAddress = order.isTransportService
+        ? (order.pickupAddress ?? order.merchantAddress)
+        : order.merchantAddress;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -540,71 +772,231 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          ...merchants.map((mName) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    GageAvatar(
-                      imageUrl: _resolveMerchantAvatarAsset(mName),
-                      fallbackName: mName,
-                      radius: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            mName,
+          ...merchants.map((mName) {
+            final avatarAsset = order.resolveMerchantAvatarAsset(mName);
+            final merchantLoc = _resolveMerchantLocation(mName);
+            final modeLabel = order.isPickup
+                ? 'Ambil di Toko Mitra'
+                : (order.isTransportService
+                    ? 'Layanan ${order.serviceType.toUpperCase()}'
+                    : 'GAGE ${order.serviceType.toUpperCase()}');
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  GageAvatar(
+                    imageUrl: avatarAsset,
+                    fallbackName: mName,
+                    radius: 22,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: order.isPickup
+                                ? (isDark ? Colors.green.withValues(alpha: 0.2) : const Color(0xFFDCFCE7))
+                                : (isDark ? GageTheme.darkElevated : const Color(0xFFF1F5F9)),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            modeLabel,
                             style: TextStyle(
+                              fontSize: 9.5,
                               fontWeight: FontWeight.bold,
-                              fontSize: 13.5,
-                              color: isDark ? Colors.white : Colors.black87,
+                              color: order.isPickup
+                                  ? (isDark ? Colors.green.shade300 : const Color(0xFF166534))
+                                  : (isDark ? Colors.white70 : const Color(0xFF475569)),
                             ),
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            order.merchantAddress,
-                            style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.grey.shade600),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          mName,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13.5,
+                            color: isDark ? Colors.white : Colors.black87,
                           ),
-                        ],
-                      ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          displayAddress,
+                          style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.grey.shade600),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              )),
+                  ),
+                  const SizedBox(width: 10),
+                  Stack(
+                    children: [
+                      MiniLocationPreviewMap(
+                        location: merchantLoc,
+                        size: 58,
+                        borderRadius: 10,
+                        zoom: 16.5,
+                        markerImagePath: order.isTransportService ? null : avatarAsset,
+                        onTap: () => _showMerchantMapDialog(context, mName, displayAddress, merchantLoc),
+                      ),
+                      Positioned(
+                        bottom: 3,
+                        right: 3,
+                        child: IgnorePointer(
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.fullscreen_rounded, color: Colors.white, size: 11),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }),
         ],
       ),
     );
   }
 
-  String _resolveMerchantAvatarAsset(String mName) {
-    if (order.merchantAvatar != null && order.merchantAvatar!.trim().isNotEmpty) {
-      return order.merchantAvatar!.trim();
-    }
-    final svc = order.serviceType.toLowerCase();
-    if (svc == 'ride') return 'assets/icons/ic_ride.png';
-    if (svc == 'car') return 'assets/icons/ic_car.png';
-    if (svc == 'send') return 'assets/icons/ic_send.png';
-    final nameLower = mName.toLowerCase();
-    if (nameLower.contains('rocket') || nameLower.contains('chicken')) {
-      return 'assets/images/resto_rocket_chicken.png';
-    } else if (nameLower.contains('titoti') || nameLower.contains('bakso')) {
-      return 'assets/images/dish_bakso_urat.png';
-    } else if (nameLower.contains('sayur') || nameLower.contains('siti') || nameLower.contains('shop') || nameLower.contains('sembako')) {
-      return 'assets/images/prod_beras.png';
-    } else if (nameLower.contains('tani') || nameLower.contains('pupuk')) {
-      return 'assets/images/prod_pupuk.png';
-    } else if (nameLower.contains('ternak') || nameLower.contains('pakan')) {
-      return 'assets/images/prod_pakan.png';
-    }
-    return 'assets/images/resto_dimsum_sewu.png';
-  }
-
   Widget _buildItemsSection(NumberFormat formatter, bool isDark) {
     final pkg = order.packageDetails;
+    if (order.isTransportService) {
+      final svc = order.serviceType.toLowerCase();
+      final isSend = svc == 'send';
+      final serviceLabel = isSend
+          ? 'GAGE Send'
+          : (svc == 'car' ? 'GAGE Car' : 'GAGE Ride');
+      final baseFare = order.itemsSubtotal > 0
+          ? order.itemsSubtotal
+          : (order.shippingFee > 0
+              ? order.shippingFee
+              : (order.items.isNotEmpty ? order.items.first.price : order.totalAmount));
+      final pkgType = (pkg?['package_type'] ?? pkg?['category'] ?? '').toString().trim();
+      final weightTier = (pkg?['weight_tier'] ?? pkg?['weight'] ?? '').toString().trim();
+      final desc = (pkg?['description'] ?? pkg?['item_name'] ?? '').toString().trim();
+      final recipientName = (pkg?['recipient_name'] ?? '').toString().trim();
+      final recipientPhone = (pkg?['recipient_phone'] ?? '').toString().trim();
+
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? GageTheme.darkSurface : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: isDark ? GageTheme.darkBorder : Colors.grey.shade200),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  isSend
+                      ? Icons.local_shipping_outlined
+                      : (svc == 'car' ? Icons.directions_car_rounded : Icons.two_wheeler_rounded),
+                  size: 18,
+                  color: GageTheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    isSend ? 'Detail Pengiriman & Barang' : 'Rincian Perjalanan',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13.5,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: isDark ? GageTheme.darkElevated : const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    isSend
+                        ? (order.deliveryOption.toUpperCase().contains('HEMAT') ? 'Hemat' : 'Instant')
+                        : order.deliveryOption,
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white70 : const Color(0xFF475569),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _buildRowDetail(
+              'Layanan',
+              isSend
+                  ? '$serviceLabel (${order.deliveryOption.toUpperCase().contains('HEMAT') ? 'Hemat' : 'Instant'})'
+                  : '$serviceLabel (${order.deliveryOption})',
+              isDark: isDark,
+            ),
+            const SizedBox(height: 6),
+            _buildRowDetail(
+              isSend ? 'Jarak Pengiriman' : 'Jarak Perjalanan',
+              '${order.distanceKm.toStringAsFixed(1)} km',
+              isDark: isDark,
+            ),
+            const SizedBox(height: 6),
+            _buildRowDetail(
+              isSend ? 'Tarif Ongkir' : 'Tarif Perjalanan',
+              formatter.format(baseFare),
+              isDark: isDark,
+            ),
+            if (isSend) ...[
+              if (pkgType.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                _buildRowDetail('Jenis Barang', pkgType, isDark: isDark),
+              ],
+              if (weightTier.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                _buildRowDetail('Berat Paket', weightTier, isDark: isDark),
+              ],
+              if (desc.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                _buildRowDetail('Deskripsi Barang', desc, isDark: isDark),
+              ],
+              if (recipientName.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                _buildRowDetail('Penerima', recipientName, isDark: isDark),
+              ],
+              if (recipientPhone.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                _buildRowDetail('No. HP Penerima', recipientPhone, isDark: isDark),
+              ],
+            ],
+            if (order.notes != null && order.notes!.trim().isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Catatan Driver: ${order.notes!.trim()}',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontStyle: FontStyle.italic,
+                  color: isDark ? Colors.white70 : Colors.black54,
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
     final totalQty = order.items.fold<int>(0, (prev, e) => prev + e.quantity);
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1235,6 +1627,120 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     );
   }
 
+  Future<void> _confirmCancelOrder(BuildContext context) async {
+    HapticFeedback.mediumImpact();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        decoration: BoxDecoration(
+          color: isDark ? GageTheme.darkBackground : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.warning_amber_rounded, size: 36, color: Color(0xFFDC2626)),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Batalkan Pesanan Ini?',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              order.isTransportService
+                  ? 'Mitra driver belum ditugaskan. Apakah Anda yakin ingin membatalkan perjalanan/pengiriman ini?'
+                  : 'Merchant belum mengonfirmasi pesanan. Apakah Anda yakin ingin membatalkan pesanan ini?',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? Colors.white70 : Colors.grey.shade600,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: BorderSide(color: isDark ? GageTheme.darkBorder : Colors.grey.shade300),
+                    ),
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: Text('Kembali', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFDC2626),
+                      foregroundColor: Colors.white,
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      elevation: 0,
+                    ),
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('Ya, Batalkan', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final orderProvider = this.context.read<OrderProvider>();
+      final ok = await orderProvider.updateOrderStage(
+        order.id,
+        'CANCELLED',
+        reason: 'Dibatalkan oleh pelanggan',
+      );
+      if (!mounted) return;
+      if (ok) {
+        setState(() {
+          _currentOrder = _currentOrder.copyWith(
+            status: 'CANCELLED',
+            cancellationReason: 'Dibatalkan oleh pelanggan',
+          );
+        });
+        ScaffoldMessenger.of(this.context).showSnackBar(
+          const SnackBar(
+            content: Text('Pesanan berhasil dibatalkan'),
+            backgroundColor: Color(0xFFDC2626),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
   void _openSupportChat(BuildContext context) {
     Navigator.push(
       context,
@@ -1255,6 +1761,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         order.status != 'PAYMENT_PENDING' &&
         order.status != 'PENDING';
     final trackLabel = order.isTransportService ? 'Lacak Driver' : 'Pantau Pengantaran';
+    final canCancel = order.canBeCancelledByCustomer;
 
     if (order.isActive) {
       return SafeArea(
@@ -1264,8 +1771,26 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           color: Colors.transparent,
           child: Row(
             children: [
+              if (canCancel) ...[
+                Expanded(
+                  flex: 3,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: isDark ? Colors.red.withValues(alpha: 0.12) : const Color(0xFFFEF2F2),
+                      foregroundColor: const Color(0xFFDC2626),
+                      side: BorderSide(color: isDark ? Colors.red.shade800 : const Color(0xFFFECACA), width: 1.4),
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () => _confirmCancelOrder(context),
+                    icon: const Icon(Icons.cancel_outlined, size: 16),
+                    label: const Text('Batalkan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
               Expanded(
-                flex: canTrack ? 1 : 2,
+                flex: canTrack ? 2 : (canCancel ? 3 : 2),
                 child: OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
                     backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
@@ -1280,9 +1805,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 ),
               ),
               if (canTrack) ...[
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
-                  flex: 2,
+                  flex: 4,
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: GageTheme.primary,
@@ -1324,8 +1849,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               child: OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
                   backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
-                  foregroundColor: GageTheme.primary,
-                  side: const BorderSide(color: GageTheme.primary, width: 1.5),
+                  foregroundColor: isDark ? Colors.white70 : Colors.black87,
+                  side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300, width: 1.2),
                   shape: const StadiumBorder(),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
@@ -1334,24 +1859,35 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 label: const Text('Bantuan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
               ),
             ),
-            if (order.items.isNotEmpty && !order.isTransportService) ...[
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: GageTheme.primary,
-                    foregroundColor: Colors.white,
-                    shape: const StadiumBorder(),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    elevation: 2,
-                  ),
-                  onPressed: () {
-                    _reorder(context, order);
-                  },
-                  child: const Text('Pesan Lagi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
-                ),
-              ),
-            ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: (order.items.isNotEmpty && !order.isTransportService)
+                  ? ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: GageTheme.primary,
+                        foregroundColor: Colors.white,
+                        shape: const StadiumBorder(),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        elevation: 2,
+                      ),
+                      onPressed: () {
+                        _reorder(context, order);
+                      },
+                      child: const Text('Pesan Lagi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                    )
+                  : ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: GageTheme.primary,
+                        foregroundColor: Colors.white,
+                        shape: const StadiumBorder(),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        elevation: 2,
+                      ),
+                      onPressed: () => GageReceiptShareDialog.show(context, order),
+                      icon: const Icon(Icons.receipt_long_rounded, size: 18),
+                      label: const Text('Struk Gambar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                    ),
+            ),
           ],
         ),
       ),

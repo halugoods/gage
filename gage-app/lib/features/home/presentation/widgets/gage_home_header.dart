@@ -8,6 +8,10 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/providers/auth_provider.dart';
+import 'package:gage_app/providers/cart_provider.dart';
+import 'package:gage_app/core/services/location_service.dart';
+import 'package:gage_app/core/services/user_address_service.dart';
+import 'package:gage_app/shared/widgets/full_screen_map_picker.dart';
 import 'package:gage_app/features/profile/presentation/edit_profile_screen.dart';
 import 'package:gage_app/features/profile/presentation/widgets/gage_account_switcher_sheet.dart';
 import 'package:gage_app/data/mock/gage_mock_registry.dart';
@@ -22,6 +26,7 @@ import 'package:gage_app/features/ride/presentation/send_booking_screen.dart';
 import 'package:gage_app/core/services/banner_manager_service.dart';
 import 'package:gage_app/shared/widgets/live_app_edit_scope.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
+import 'package:gage_app/features/wallet/presentation/qris_pay_screen.dart';
 
 /// 1. Banner Hero Beranda: 1 banner tunggal 16:9 statis tanpa slide/PageView dan tanpa dots indicator.
 /// Menyatu edge-to-edge dari puncak layar (y = 0) ke bawah status bar.
@@ -309,6 +314,106 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Baris Alamat Pengantaran (Harmonisasi FullScreenMapPicker)
+            if (!_isSearchActive) ...[
+              Consumer<CartProvider>(
+                builder: (context, cart, _) {
+                  final displayAddress = (cart.deliveryLocationLabel != null && cart.deliveryLocationLabel!.isNotEmpty)
+                      ? cart.deliveryLocationLabel!
+                      : (cart.deliveryAddress.trim().isNotEmpty
+                          ? cart.deliveryAddress.trim()
+                          : 'Kec. Pracimantoro, Wonogiri');
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 6, left: 2, right: 2),
+                    child: InkWell(
+                      onTap: () async {
+                        HapticFeedback.lightImpact();
+                        final result = await FullScreenMapPicker.open(
+                          context,
+                          title: 'Pilih Alamat Pengantaran',
+                          initialLocation: cart.deliveryLocation ?? LocationService.cachedOrFallback,
+                          initialTitle: cart.deliveryLocationLabel,
+                          initialFullAddress: cart.deliveryAddress.isNotEmpty ? cart.deliveryAddress : null,
+                          selectedFavoriteId: cart.deliveryFavoriteId,
+                        );
+                        if (result != null && context.mounted) {
+                          final resolvedAddr = result.fullAddress.isNotEmpty ? result.fullAddress : result.title;
+                          final matched = result.matchedFavorite ??
+                              await UserAddressService.findMatchingFavorite(
+                                location: result.location,
+                                preferredName: result.title,
+                              );
+                          cart.setDeliveryAddress(
+                            resolvedAddr,
+                            cart.distanceKm,
+                            location: result.location,
+                            locationLabel: matched?.name ?? (result.title.isNotEmpty ? result.title : null),
+                            favoriteId: matched?.id,
+                          );
+                          if (matched != null && (matched.notes?.trim().isNotEmpty ?? false)) {
+                            cart.setAddressNotes(matched.notes!.trim());
+                          }
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(999),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.location_on_rounded,
+                            size: 15,
+                            color: GageTheme.primary,
+                          ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              displayAddress,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: isDark
+                                    ? Colors.white
+                                    : (fade > 0.4 ? GageTheme.textPrimary : Colors.white),
+                                shadows: fade <= 0.4
+                                    ? [
+                                        Shadow(
+                                          color: Colors.black.withValues(alpha: 0.6),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 1),
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 3),
+                          Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 16,
+                            color: isDark
+                                ? Colors.white70
+                                : (fade > 0.4 ? GageTheme.textSecondary : Colors.white),
+                            shadows: fade <= 0.4
+                                ? [
+                                    Shadow(
+                                      color: Colors.black.withValues(alpha: 0.6),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 1),
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+
             // Baris Atas: Input Search & Avatar Profil
             Row(
               children: [
@@ -416,6 +521,24 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
                               child: Icon(Icons.close_rounded, size: 18, color: Colors.grey),
                             ),
                           ),
+                        InkWell(
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const QrisPayScreen()),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(16),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                            child: Icon(
+                              Icons.qr_code_scanner_rounded,
+                              size: 19,
+                              color: GageTheme.primary,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),

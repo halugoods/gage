@@ -6,7 +6,7 @@ import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/core/services/location_service.dart';
 import 'package:gage_app/core/services/osm_geocoding_service.dart';
 import 'package:gage_app/core/services/user_address_service.dart';
-import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
+import 'package:gage_app/shared/widgets/full_screen_map_picker.dart';
 import 'package:gage_app/core/services/banner_manager_service.dart';
 import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
 import 'package:gage_app/shared/widgets/seamless_floating_cart_bar.dart';
@@ -139,31 +139,34 @@ class _FarmScreenState extends State<FarmScreen> {
     } catch (_) {}
   }
 
-  void _showDeliveryLocationPicker() {
+  Future<void> _showDeliveryLocationPicker() async {
     final cart = Provider.of<CartProvider?>(context, listen: false);
-    UserSavedAddress? pickedFavorite;
-    LocationPickerSheet.show(
+    final result = await FullScreenMapPicker.open(
       context,
       title: 'Pilih Lokasi Pengantaran Kebutuhan Tani & Ternak',
       initialLocation: cart?.deliveryLocation,
-      initialLocationTitle: cart?.deliveryLocationLabel,
+      initialTitle: cart?.deliveryLocationLabel,
       selectedFavoriteId: cart?.deliveryFavoriteId,
-      onFavoriteSelected: (fav) {
-        pickedFavorite = fav;
-      },
-      onSelected: (title, fullAddress, latLng) {
-        final resolved = fullAddress.isNotEmpty ? fullAddress : title;
-        setState(() {
-          _deliveryLocation = '$title - $fullAddress';
-        });
-        cart?.setDeliveryAddress(
-          resolved,
-          cart.distanceKm,
-          location: latLng,
-          locationLabel: pickedFavorite?.name ?? (title.isNotEmpty ? title : null),
-          favoriteId: pickedFavorite?.id,
+    );
+    if (!mounted || result == null) return;
+    final resolved =
+        result.fullAddress.isNotEmpty ? result.fullAddress : result.title;
+    final matched = result.matchedFavorite ??
+        await UserAddressService.findMatchingFavorite(
+          location: result.location,
+          preferredName: result.title,
         );
-      },
+    if (!mounted) return;
+    setState(() {
+      _deliveryLocation = '${result.title} - ${result.fullAddress}';
+    });
+    cart?.setDeliveryAddress(
+      resolved,
+      cart.distanceKm,
+      location: result.location,
+      locationLabel:
+          matched?.name ?? (result.title.isNotEmpty ? result.title : null),
+      favoriteId: matched?.id,
     );
   }
 

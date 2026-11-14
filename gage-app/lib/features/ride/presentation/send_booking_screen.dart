@@ -4,7 +4,6 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:intl/intl.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
-import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/services/location_service.dart';
 import 'package:gage_app/core/services/osm_geocoding_service.dart';
 import 'package:gage_app/core/services/osrm_routing_service.dart';
@@ -13,16 +12,21 @@ import 'package:gage_app/features/ride/presentation/ride_checkout_screen.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/core/services/user_address_service.dart';
-import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
+import 'package:gage_app/shared/widgets/full_screen_map_picker.dart';
 
 /// Screen utama pemesanan pengantaran barang GAGE Send.
 /// Mengadopsi arsitektur 1:1 Ride/Car:
+/// - Langsung memandu 2 tahap pemilihan titik jemput & titik antar lewat peta + search
 /// - Peta retina fullscreen dengan polyline rute dan 2 marker (Jemput & Antar)
 /// - Top bar terpadu dengan card alamat 2 baris (Titik Jemput & Titik Antar)
-/// - 1-Click search instan langsung ke LocationPickerSheet
-/// - Bottom sheet pemilihan layanan (Instant vs Sameday) dan rincian penerima/paket
+/// - Bottom sheet pemilihan layanan (Instant vs Hemat)
 class SendBookingScreen extends StatefulWidget {
-  const SendBookingScreen({super.key});
+  final bool autoStartLocationFlow;
+
+  const SendBookingScreen({
+    super.key,
+    this.autoStartLocationFlow = true,
+  });
 
   @override
   State<SendBookingScreen> createState() => _SendBookingScreenState();
@@ -34,20 +38,11 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
   final TextEditingController _senderAddressCtrl = TextEditingController(
     text: '',
   );
-  final TextEditingController _recipientNameCtrl = TextEditingController(
-    text: GageApiClient.useDevSeedData ? 'Penerima Paket' : '',
-  );
-  final TextEditingController _recipientPhoneCtrl = TextEditingController(
-    text: GageApiClient.useDevSeedData ? '081226001000' : '',
-  );
   final TextEditingController _recipientAddressCtrl = TextEditingController(
     text: '',
   );
-  final TextEditingController _packageDescCtrl = TextEditingController(
-    text: '',
-  );
 
-  LatLng _senderLatLng = const LatLng(-8.0895, 110.8492);
+  LatLng _senderLatLng = LocationService.cachedOrFallback;
   LatLng? _recipientLatLng;
   bool _hasExplicitSender = false;
   String? _senderFavoriteId;
@@ -58,39 +53,89 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
   double _distanceKm = 0.0;
   bool _isLoadingRoute = false;
 
-  String _selectedPackageType = 'Barang Dagangan';
-  String _selectedWeight = '1 - 5 kg';
+  final String _selectedPackageType = 'Barang Dagangan';
+  final String _selectedWeight = '1 - 5 kg';
   String _serviceType = 'instant'; // 'instant' (Reguler) or 'sameday' (Hemat)
   final String _paymentMethod = 'gagepay';
-
-  final List<String> _packageTypes = [
-    'Barang Dagangan',
-    'Dokumen',
-    'Makanan / Minuman',
-    'Pakaian & Tekstil',
-    'Elektronik',
-  ];
-
-  final List<String> _weightOptions = [
-    '< 1 kg',
-    '1 - 5 kg',
-    '5 - 10 kg',
-    '10 - 20 kg',
-  ];
 
   @override
   void initState() {
     super.initState();
     _initSenderGps();
+    if (widget.autoStartLocationFlow) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _startInitialLocationFlow());
+    }
+  }
+
+  Future<void> _startInitialLocationFlow() async {
+    if (!mounted) return;
+    final cached = LocationService.cachedLocation;
+    if (cached != null) {
+      _senderLatLng = cached;
+    }
+    while (mounted) {
+      final pickup = await FullScreenMapPicker.open(
+        context,
+        title: 'Pilih Titik Jemput',
+        initialLocation: _senderLatLng,
+        initialTitle: _senderAddressCtrl.text.isNotEmpty ? _senderAddressCtrl.text : null,
+        confirmLabel: 'Pilih Titik Jemput',
+      );
+      if (!mounted) return;
+      if (pickup == null) {
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        }
+        return;
+      }
+
+      final matchedSenderFav = pickup.matchedFavorite ??
+          await UserAddressService.findMatchingFavorite(
+            location: pickup.location,
+            preferredName: pickup.title,
+          );
+      if (!mounted) return;
+      setState(() {
+        _hasExplicitSender = true;
+        _senderLatLng = pickup.location;
+        _senderAddressCtrl.text = pickup.title.isNotEmpty ? pickup.title : pickup.fullAddress;
+        _senderFavoriteId = matchedSenderFav?.id;
+        _senderFavoriteName = matchedSenderFav?.name;
+      });
+
+      final dropoff = await FullScreenMapPicker.open(
+        context,
+        title: 'Pilih Titik Antar',
+        initialLocation: _recipientLatLng ?? pickup.location,
+        initialTitle: _recipientAddressCtrl.text.isNotEmpty ? _recipientAddressCtrl.text : null,
+        confirmLabel: 'Pilih Titik Antar',
+      );
+      if (!mounted) return;
+      if (dropoff == null) {
+        continue;
+      }
+
+      final matchedRecipientFav = dropoff.matchedFavorite ??
+          await UserAddressService.findMatchingFavorite(
+            location: dropoff.location,
+            preferredName: dropoff.title,
+          );
+      if (!mounted) return;
+      setState(() {
+        _recipientLatLng = dropoff.location;
+        _recipientAddressCtrl.text = dropoff.title.isNotEmpty ? dropoff.title : dropoff.fullAddress;
+        _recipientFavoriteId = matchedRecipientFav?.id;
+        _recipientFavoriteName = matchedRecipientFav?.name;
+      });
+      _updateRoute();
+      return;
+    }
   }
 
   @override
   void dispose() {
     _senderAddressCtrl.dispose();
-    _recipientNameCtrl.dispose();
-    _recipientPhoneCtrl.dispose();
     _recipientAddressCtrl.dispose();
-    _packageDescCtrl.dispose();
     _mapController.dispose();
     super.dispose();
   }
@@ -191,71 +236,63 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
     );
   }
 
-  void _pickSenderAddress() {
-    UserSavedAddress? pickedFavorite;
-    LocationPickerSheet.show(
+  Future<void> _pickSenderAddress() async {
+    final result = await FullScreenMapPicker.open(
       context,
       title: 'Pilih Titik Jemput',
       initialLocation: _senderLatLng,
-      initialLocationTitle: _senderFavoriteName,
+      initialTitle: _senderFavoriteName,
       selectedFavoriteId: _senderFavoriteId,
-      onFavoriteSelected: (fav) {
-        pickedFavorite = fav;
-      },
-      showMiniMap: false,
+      confirmLabel: 'Pilih Titik Jemput',
       autoFocusSearch: true,
-      onSelected: (title, fullAddress, latLng) async {
-        final matched = pickedFavorite ??
-            await UserAddressService.findMatchingFavorite(
-              location: latLng,
-              preferredName: title,
-            );
-        if (!mounted) return;
-        setState(() {
-          _hasExplicitSender = true;
-          _senderLatLng = latLng;
-          _senderAddressCtrl.text = title.isNotEmpty ? title : fullAddress;
-          _senderFavoriteId = matched?.id;
-          _senderFavoriteName = matched?.name;
-        });
-        if (_recipientLatLng != null) {
-          _updateRoute();
-        } else {
-          _mapController.move(latLng, 16.0);
-        }
-      },
     );
+    if (!mounted || result == null) return;
+    final matched = result.matchedFavorite ??
+        await UserAddressService.findMatchingFavorite(
+          location: result.location,
+          preferredName: result.title,
+        );
+    if (!mounted) return;
+    setState(() {
+      _hasExplicitSender = true;
+      _senderLatLng = result.location;
+      _senderAddressCtrl.text =
+          result.title.isNotEmpty ? result.title : result.fullAddress;
+      _senderFavoriteId = matched?.id;
+      _senderFavoriteName = matched?.name;
+    });
+    if (_recipientLatLng != null) {
+      _updateRoute();
+    } else {
+      _mapController.move(result.location, 16.0);
+    }
   }
 
-  void _pickRecipientAddress() {
-    UserSavedAddress? pickedFavorite;
-    LocationPickerSheet.show(
+  Future<void> _pickRecipientAddress() async {
+    final result = await FullScreenMapPicker.open(
       context,
       title: 'Pilih Titik Antar',
       initialLocation: _recipientLatLng ?? _senderLatLng,
-      initialLocationTitle: _recipientFavoriteName,
+      initialTitle: _recipientFavoriteName,
       selectedFavoriteId: _recipientFavoriteId,
-      onFavoriteSelected: (fav) {
-        pickedFavorite = fav;
-      },
-      showMiniMap: false,
+      confirmLabel: 'Pilih Titik Antar',
       autoFocusSearch: true,
-      onSelected: (title, fullAddress, latLng) async {
-        final matched = pickedFavorite ??
-            await UserAddressService.findMatchingFavorite(
-              location: latLng,
-              preferredName: title,
-            );
-        if (!mounted) return;
-        setState(() {
-          _recipientLatLng = latLng;
-          _recipientAddressCtrl.text = title.isNotEmpty ? title : fullAddress;
-          _recipientFavoriteId = matched?.id;
-          _recipientFavoriteName = matched?.name;
-        });
-        _updateRoute();
-      },
     );
+    if (!mounted || result == null) return;
+    final matched = result.matchedFavorite ??
+        await UserAddressService.findMatchingFavorite(
+          location: result.location,
+          preferredName: result.title,
+        );
+    if (!mounted) return;
+    setState(() {
+      _recipientLatLng = result.location;
+      _recipientAddressCtrl.text =
+          result.title.isNotEmpty ? result.title : result.fullAddress;
+      _recipientFavoriteId = matched?.id;
+      _recipientFavoriteName = matched?.name;
+    });
+    _updateRoute();
   }
 
   double get _parsedWeightKg {
@@ -305,11 +342,11 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
           dropoffAddress: _recipientAddressCtrl.text,
           distanceKm: _distanceKm,
           baseFare: _calculateShippingFee(),
-          recipientName: _recipientNameCtrl.text.trim(),
-          recipientPhone: _recipientPhoneCtrl.text.trim(),
+          recipientName: '',
+          recipientPhone: '',
           packageType: _selectedPackageType,
           weightTier: _selectedWeight,
-          itemDescription: _packageDescCtrl.text.trim(),
+          itemDescription: '',
         ),
       ),
     );
@@ -708,49 +745,6 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
 
             const SizedBox(height: 12),
 
-            // Ringkasan rincian paket saat titik antar sudah dipilih
-            if (_recipientLatLng != null) ...[
-              InkWell(
-                onTap: _showPackageDetailsFloatingSheet,
-                borderRadius: BorderRadius.circular(999),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.inventory_2_outlined,
-                        size: 16,
-                        color: isDark ? Colors.white70 : Colors.black87,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Detail: $_selectedPackageType ($_selectedWeight)',
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : Colors.black87,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const Icon(
-                        Icons.tune_rounded,
-                        size: 17,
-                        color: GageTheme.primary,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-            ],
-
             // Action Button CTA (2-Step Lokasi & Full Rounded)
             SizedBox(
               width: double.infinity,
@@ -880,247 +874,6 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  void _showPackageDetailsFloatingSheet() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setSheetState) {
-          return Container(
-            padding: EdgeInsets.only(
-              top: 14,
-              left: 20,
-              right: 20,
-              bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-            ),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0F172A) : Colors.white,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-              boxShadow: const [
-                BoxShadow(color: Colors.black26, blurRadius: 16, offset: Offset(0, -4)),
-              ],
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 36,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.white24 : Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      const Icon(Icons.inventory_2_rounded, color: GageTheme.primary, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Rincian Barang & Penerima',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : Colors.black87,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  _buildPackageDetailsForm(isDark),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: GageTheme.primary,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                      ),
-                      onPressed: () {
-                        setState(() {});
-                        Navigator.pop(ctx);
-                      },
-                      child: const Text('Simpan & Lanjutkan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildPackageDetailsForm(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isDark ? Colors.white10 : Colors.grey.shade200,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF0F172A) : Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade300),
-                  ),
-                  child: TextField(
-                    controller: _recipientNameCtrl,
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87),
-                    decoration: const InputDecoration(
-                      icon: Icon(Icons.person_outline_rounded, size: 16, color: Colors.grey),
-                      hintText: 'Nama Penerima',
-                      hintStyle: TextStyle(fontSize: 11, color: Colors.grey),
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: EdgeInsets.symmetric(vertical: 8),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF0F172A) : Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade300),
-                  ),
-                  child: TextField(
-                    controller: _recipientPhoneCtrl,
-                    keyboardType: TextInputType.phone,
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87),
-                    decoration: const InputDecoration(
-                      icon: Icon(Icons.phone_outlined, size: 16, color: Colors.grey),
-                      hintText: 'No. HP Penerima',
-                      hintStyle: TextStyle(fontSize: 11, color: Colors.grey),
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: EdgeInsets.symmetric(vertical: 8),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          const Text('Kategori Paket', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Colors.grey)),
-          const SizedBox(height: 6),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: _packageTypes.map((type) {
-                final isSelected = _selectedPackageType == type;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: ChoiceChip(
-                    label: Text(type),
-                    selected: isSelected,
-                    showCheckmark: false,
-                    onSelected: (_) {
-                      HapticFeedback.selectionClick();
-                      setState(() => _selectedPackageType = type);
-                    },
-                    backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-                    selectedColor: GageTheme.primary,
-                    labelStyle: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.bold,
-                      color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
-                    ),
-                    shape: const StadiumBorder(),
-                    side: BorderSide.none,
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text('Estimasi Berat', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Colors.grey)),
-          const SizedBox(height: 6),
-          Row(
-            children: _weightOptions.map((w) {
-              final isSelected = _selectedWeight == w;
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
-                  child: InkWell(
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      setState(() => _selectedWeight = w);
-                    },
-                    borderRadius: BorderRadius.circular(999),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 7),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? GageTheme.primary
-                            : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9)),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Center(
-                        child: Text(
-                          w,
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0F172A) : Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade300),
-            ),
-            child: TextField(
-              controller: _packageDescCtrl,
-              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500, color: isDark ? Colors.white : Colors.black87),
-              decoration: const InputDecoration(
-                icon: Icon(Icons.notes_rounded, size: 16, color: Colors.grey),
-                hintText: 'Deskripsi barang / instruksi kurir...',
-                hintStyle: TextStyle(fontSize: 11, color: Colors.grey),
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(vertical: 8),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

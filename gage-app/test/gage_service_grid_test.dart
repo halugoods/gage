@@ -107,10 +107,13 @@ void main() {
       await tester.tap(find.text('GAGE Ride'));
       await tester.pump();
 
-      expect(observer.pushedRoutes.length, equals(2));
-      final pushedRoute = observer.pushedRoutes.last as MaterialPageRoute;
-      final builtWidget = pushedRoute.builder(tester.element(find.byType(GageServiceGrid)));
+      expect(observer.pushedRoutes.length, equals(3));
+      final bookingRoute = observer.pushedRoutes[1] as MaterialPageRoute;
+      final builtWidget = bookingRoute.builder(tester.element(find.byType(GageServiceGrid)));
       expect(builtWidget, isA<RideBookingScreen>());
+      final mapRoute = observer.pushedRoutes[2] as MaterialPageRoute;
+      final builtMap = mapRoute.builder(tester.element(find.byType(GageServiceGrid)));
+      expect(builtMap.runtimeType.toString(), contains('FullScreenMapPicker'));
     });
 
     testWidgets('Tapping GAGE Car pushes RideBookingScreen with car tab', (WidgetTester tester) async {
@@ -144,10 +147,13 @@ void main() {
       await tester.tap(find.text('GAGE Car'));
       await tester.pump();
 
-      expect(observer.pushedRoutes.length, equals(2));
-      final pushedRoute = observer.pushedRoutes.last as MaterialPageRoute;
-      final builtWidget = pushedRoute.builder(tester.element(find.byType(GageServiceGrid)));
+      expect(observer.pushedRoutes.length, equals(3));
+      final bookingRoute = observer.pushedRoutes[1] as MaterialPageRoute;
+      final builtWidget = bookingRoute.builder(tester.element(find.byType(GageServiceGrid)));
       expect(builtWidget, isA<RideBookingScreen>());
+      final mapRoute = observer.pushedRoutes[2] as MaterialPageRoute;
+      final builtMap = mapRoute.builder(tester.element(find.byType(GageServiceGrid)));
+      expect(builtMap.runtimeType.toString(), contains('FullScreenMapPicker'));
     });
 
     testWidgets('Tapping GAGE Cuan pushes AffiliateHubScreen', (WidgetTester tester) async {

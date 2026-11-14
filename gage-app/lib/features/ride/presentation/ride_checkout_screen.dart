@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -18,8 +19,9 @@ import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 import 'package:gage_app/shared/widgets/mini_location_preview_map.dart';
+import 'package:gage_app/shared/widgets/gage_split_payment_banner.dart';
 import 'package:gage_app/core/services/user_address_service.dart';
-import 'package:gage_app/shared/widgets/location_picker_sheet.dart';
+import 'package:gage_app/shared/widgets/full_screen_map_picker.dart';
 import 'package:gage_app/features/wallet/presentation/gagepay_screen.dart';
 import 'package:gage_app/core/services/merchant_discount_tier_service.dart';
 import 'package:gage_app/data/mock/gage_voucher_data.dart';
@@ -76,8 +78,8 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
   UserSavedAddress? _matchedDropoffFavorite;
   UserSavedAddress? _matchedPickupFavorite;
 
-  // Selected Payment Method: 'GAGEPAY', 'GAGEPAY_COD', 'GAGEPAY_QRIS', 'QRIS', 'COD'
-  String _selectedPaymentMethod = 'GAGEPAY';
+  // Selected Payment Method: '', 'GAGEPAY', 'GAGEPAY_COD', 'GAGEPAY_QRIS', 'QRIS', 'COD'
+  String _selectedPaymentMethod = '';
   bool _isLoadingPreference = true;
 
   // Driver Tip
@@ -89,7 +91,8 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
   bool _voucherManuallyDismissed = false;
   bool _isVoucherManualSelection = false;
 
-  // Driver notes controller
+  // Driver notes controllers
+  final TextEditingController _pickupNoteController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
   late final TextEditingController _recipientNameCtrl;
   late final TextEditingController _recipientPhoneCtrl;
@@ -131,8 +134,17 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
     _currentDropoffAddress = widget.dropoffAddress;
     _currentDistanceKm = widget.distanceKm;
 
-    _recipientNameCtrl = TextEditingController(text: widget.recipientName ?? '');
-    _recipientPhoneCtrl = TextEditingController(text: widget.recipientPhone ?? '');
+    final savedName = UserAddressService.getLastRecipientNameSync();
+    final savedPhone = UserAddressService.getLastRecipientPhoneSync();
+    final initialRecipientName = (widget.recipientName != null && widget.recipientName!.trim().isNotEmpty)
+        ? widget.recipientName!
+        : savedName;
+    final initialRecipientPhone = (widget.recipientPhone != null && widget.recipientPhone!.trim().isNotEmpty)
+        ? widget.recipientPhone!
+        : savedPhone;
+
+    _recipientNameCtrl = TextEditingController(text: initialRecipientName);
+    _recipientPhoneCtrl = TextEditingController(text: initialRecipientPhone);
     _packageDescCtrl = TextEditingController(text: widget.itemDescription ?? '');
     _packageType = widget.packageType ?? 'Barang Dagangan';
     _weightTier = widget.weightTier ?? '< 1 kg';
@@ -141,6 +153,8 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
     final lowerOpt = widget.rideOption.toLowerCase();
     _selectedTier = (lowerOpt.contains('hemat') || lowerOpt.contains('sameday')) ? 'HEMAT' : 'REGULER';
 
+    final initialBalance = context.read<WalletProvider>().balance;
+    _selectedPaymentMethod = initialBalance <= 0 ? '' : 'GAGEPAY';
     _loadPaymentPreference();
     _syncAutoDeliveryVoucher(notify: false);
     _resolveFavoriteMatches();
@@ -202,6 +216,7 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
 
   @override
   void dispose() {
+    _pickupNoteController.dispose();
     _noteController.dispose();
     _recipientNameCtrl.dispose();
     _recipientPhoneCtrl.dispose();
@@ -213,12 +228,19 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
     final prefs = await SharedPreferences.getInstance();
     final lastMethod = prefs.getString('last_ride_payment_method');
     if (mounted) {
+      final walletBalance = context.read<WalletProvider>().balance;
       setState(() {
         if (lastMethod != null && lastMethod.isNotEmpty) {
-          _selectedPaymentMethod = lastMethod.toUpperCase();
-          if (_selectedPaymentMethod == 'TUNAI') _selectedPaymentMethod = 'COD';
+          var normalized = lastMethod.toUpperCase();
+          if (normalized == 'TUNAI') normalized = 'COD';
+          // Jangan pilih GAGEPay atau split secara otomatis ketika saldo GAGEPay Rp 0.
+          if (walletBalance <= 0 && normalized.startsWith('GAGEPAY')) {
+            _selectedPaymentMethod = '';
+          } else {
+            _selectedPaymentMethod = normalized;
+          }
         } else {
-          _selectedPaymentMethod = 'GAGEPAY';
+          _selectedPaymentMethod = walletBalance <= 0 ? '' : 'GAGEPAY';
         }
         _isLoadingPreference = false;
       });
@@ -284,17 +306,21 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
     };
   }
 
-  void _editAddressNote() async {
+  void _editAddressNote({
+    TextEditingController? controller,
+    String title = 'Catatan Patokan Driver',
+  }) async {
+    final activeController = controller ?? _noteController;
     final text = await GageFloatingSheet.showNoteInput(
       context: context,
-      title: 'Catatan Patokan Driver',
+      title: title,
       subtitle: 'Beri petunjuk lokasi agar driver mudah menemukan alamat',
-      initialValue: _noteController.text,
+      initialValue: activeController.text,
       hintText: 'Contoh: pagar hitam depan balai desa, sebelah masjid...',
     );
     if (text != null && mounted) {
       setState(() {
-        _noteController.text = text;
+        activeController.text = text;
       });
       GageToast.show(context, 'Catatan patokan disimpan', type: GageToastType.success);
     }
@@ -385,10 +411,49 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                 iconColor: const Color(0xFF0284C7),
                 title: 'GAGEPay',
                 subtitle: 'Saldo Anda: ${currencyFormatter.format(wallet.balance)} • Bebas Biaya Admin',
-                badge: wallet.balance < totalPay ? 'Kurang ${currencyFormatter.format(totalPay - wallet.balance)}' : 'CUKUP',
+                badge: wallet.balance <= 0
+                    ? 'SALDO RP 0'
+                    : (wallet.balance < totalPay
+                        ? 'Kurang ${currencyFormatter.format(totalPay - wallet.balance)}'
+                        : 'CUKUP'),
                 badgeColor: wallet.balance < totalPay ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                trailingAction: wallet.balance < totalPay
+                    ? InkWell(
+                        onTap: () async {
+                          HapticFeedback.selectionClick();
+                          Navigator.pop(ctx);
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const GagePayScreen()),
+                          );
+                          if (mounted) setState(() {});
+                        },
+                        borderRadius: BorderRadius.circular(999),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: GageTheme.primary,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: const Text(
+                            'Top Up',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      )
+                    : null,
                 onTap: () {
-                  if (wallet.balance < totalPay) {
+                  if (wallet.balance <= 0) {
+                    GageToast.show(
+                      context,
+                      'Saldo GAGEPay Rp 0. Silakan Top Up atau pilih QRIS / COD.',
+                      type: GageToastType.warning,
+                    );
+                  } else if (wallet.balance < totalPay) {
                     GageToast.show(
                       context,
                       'Saldo GAGEPay kurang. Gunakan opsi GAGEPay + QRIS atau GAGEPay + COD.',
@@ -506,6 +571,7 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
     required String subtitle,
     String? badge,
     Color? badgeColor,
+    Widget? trailingAction,
     required VoidCallback onTap,
   }) {
     return Container(
@@ -520,57 +586,73 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
           width: isSelected ? 1.5 : 1.0,
         ),
       ),
-      child: ListTile(
-        onTap: onTap,
-        leading: Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: iconColor.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, color: iconColor, size: 20),
-        ),
-        title: Row(
-          children: [
-            Text(
-              title,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 13.5,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: ListTile(
+          onTap: onTap,
+          leading: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
             ),
-            if (badge != null) ...[
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: (badgeColor ?? GageTheme.primary).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
+            child: Icon(icon, color: iconColor, size: 20),
+          ),
+          title: Row(
+            children: [
+              Flexible(
                 child: Text(
-                  badge,
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 9.5,
                     fontWeight: FontWeight.bold,
-                    color: badgeColor ?? GageTheme.primary,
+                    fontSize: 13.5,
+                    color: isDark ? Colors.white : Colors.black87,
                   ),
                 ),
               ),
+              if (badge != null) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: (badgeColor ?? GageTheme.primary).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    badge,
+                    style: TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.bold,
+                      color: badgeColor ?? GageTheme.primary,
+                    ),
+                  ),
+                ),
+              ],
             ],
-          ],
-        ),
-        subtitle: Text(
-          subtitle,
-          style: TextStyle(
-            fontSize: 11,
-            color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+          ),
+          subtitle: Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 11,
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+            ),
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (trailingAction != null) ...[
+                trailingAction,
+                const SizedBox(width: 8),
+              ],
+              isSelected
+                  ? const Icon(Icons.check_circle_rounded, color: GageTheme.primary, size: 20)
+                  : Icon(Icons.circle_outlined, color: isDark ? Colors.white24 : Colors.grey.shade400, size: 20),
+            ],
           ),
         ),
-        trailing: isSelected
-            ? const Icon(Icons.check_circle_rounded, color: GageTheme.primary, size: 20)
-            : Icon(Icons.circle_outlined, color: isDark ? Colors.white24 : Colors.grey.shade400, size: 20),
       ),
     );
   }
@@ -672,13 +754,34 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
 
     final wallet = context.read<WalletProvider>();
 
-    if (_selectedPaymentMethod == 'GAGEPAY' && wallet.balance < _totalAmount) {
+    if (_selectedPaymentMethod.trim().isEmpty) {
       GageToast.show(
         context,
-        'Saldo GAGEPay kurang. Pilih opsi GAGEPay + QRIS atau GAGEPay + COD.',
+        'Pilih metode pembayaran terlebih dahulu (COD, QRIS, atau Top Up GAGEPay).',
         type: GageToastType.warning,
       );
+      _showPaymentMethodSheet(context, wallet);
       return;
+    }
+
+    if (_selectedPaymentMethod == 'GAGEPAY') {
+      if (wallet.balance <= 0) {
+        GageToast.show(
+          context,
+          'Saldo GAGEPay Rp 0. Silakan Top Up atau pilih COD / QRIS.',
+          type: GageToastType.warning,
+        );
+        _showPaymentMethodSheet(context, wallet);
+        return;
+      }
+      if (wallet.balance < _totalAmount) {
+        GageToast.show(
+          context,
+          'Saldo GAGEPay kurang. Pilih opsi GAGEPay + QRIS atau GAGEPay + COD.',
+          type: GageToastType.warning,
+        );
+        return;
+      }
     }
 
     if (_selectedPaymentMethod == 'QRIS') {
@@ -715,21 +818,38 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
       }
     }
 
+    final sendTierLabel = _selectedTier == 'HEMAT' ? 'Hemat' : 'Instant';
     String itemName = 'Layanan Antar Jemput Motor ($_selectedTier)';
     if (isCar) itemName = 'Layanan Mobil Penumpang ($_selectedTier)';
-    if (isSend) itemName = 'Pengiriman Paket GAGE Send ($_selectedTier)';
+    if (isSend) itemName = 'Pengiriman Paket GAGE Send ($sendTierLabel)';
 
     final recipientNameVal = _recipientNameCtrl.text.trim();
     final recipientPhoneVal = _recipientPhoneCtrl.text.trim();
+    if (recipientNameVal.isNotEmpty || recipientPhoneVal.isNotEmpty) {
+      UserAddressService.saveLastRecipient(
+        name: recipientNameVal,
+        phone: recipientPhoneVal,
+      );
+    }
     final pkgDescVal = _packageDescCtrl.text.trim();
+    final pickupNote = _pickupNoteController.text.trim();
+    final dropoffNote = _noteController.text.trim();
+    final combinedNotes = [
+      if (pickupNote.isNotEmpty) 'Jemput: $pickupNote',
+      if (dropoffNote.isNotEmpty) 'Tujuan: $dropoffNote',
+    ].join(' | ');
     final normalizedPayMethod = _selectedPaymentMethod == 'COD' ? 'CASH_COD' : _selectedPaymentMethod;
+
+    final resolvedTier = isSend
+        ? (_selectedTier == 'HEMAT' ? 'HEMAT' : 'INSTANT')
+        : _selectedTier;
 
     final orderData = {
       'id': invoiceNumber,
       'user_id': auth.currentUser?.id ?? '',
       'service_type': widget.serviceType,
-      'delivery_option': _selectedTier,
-      'tier': _selectedTier,
+      'delivery_option': resolvedTier,
+      'tier': resolvedTier,
       'status': 'SEARCHING_DRIVER',
       'payment_status': normalizedPayMethod == 'CASH_COD' ? 'PENDING' : 'PAID',
       'pickup_address': _currentPickupAddress,
@@ -762,7 +882,7 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
       'tip_amount': _driverTip,
       'total_amount': _totalAmount,
       'merchant_name': serviceName,
-      'notes': _noteController.text.trim(),
+      'notes': combinedNotes,
       'items': [
         {
           'id': 'item-transport-01',
@@ -770,8 +890,8 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
           'price': _tierBaseFare,
           'quantity': 1,
           'subtotal': _tierBaseFare,
-          'notes': _noteController.text.isNotEmpty
-              ? _noteController.text
+          'notes': combinedNotes.isNotEmpty
+              ? combinedNotes
               : (isSend
                   ? 'Penerima: ${recipientNameVal.isNotEmpty ? recipientNameVal : "-"} (${recipientPhoneVal.isNotEmpty ? recipientPhoneVal : "-"}) • $_packageType ($weightLabelSafe)'
                   : 'Jemput sesuai titik peta'),
@@ -808,68 +928,103 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
     final pickupFav = await UserAddressService.findMatchingFavorite(
       location: _currentPickupLocation,
     );
+    final lastRecName = await UserAddressService.getLastRecipientName();
+    final lastRecPhone = await UserAddressService.getLastRecipientPhone();
     if (!mounted) return;
     setState(() {
       _matchedDropoffFavorite = dropoffFav;
       _matchedPickupFavorite = pickupFav;
+      if (dropoffFav != null && (dropoffFav.notes?.trim().isNotEmpty ?? false)) {
+        if (_noteController.text.trim().isEmpty) {
+          _noteController.text = dropoffFav.notes!.trim();
+        }
+      }
+      if (pickupFav != null && (pickupFav.notes?.trim().isNotEmpty ?? false)) {
+        if (_pickupNoteController.text.trim().isEmpty) {
+          _pickupNoteController.text = pickupFav.notes!.trim();
+        }
+      }
+      if (dropoffFav != null && (dropoffFav.recipientName?.trim().isNotEmpty ?? false)) {
+        if (_recipientNameCtrl.text.trim().isEmpty) {
+          _recipientNameCtrl.text = dropoffFav.recipientName!.trim();
+        }
+        if (_recipientPhoneCtrl.text.trim().isEmpty && (dropoffFav.recipientPhone?.trim().isNotEmpty ?? false)) {
+          _recipientPhoneCtrl.text = dropoffFav.recipientPhone!.trim();
+        }
+      } else {
+        if (_recipientNameCtrl.text.trim().isEmpty && lastRecName.isNotEmpty) {
+          _recipientNameCtrl.text = lastRecName;
+        }
+        if (_recipientPhoneCtrl.text.trim().isEmpty && lastRecPhone.isNotEmpty) {
+          _recipientPhoneCtrl.text = lastRecPhone;
+        }
+      }
     });
   }
 
-  void _openLocationPicker({required bool isDropoff}) {
+  Future<void> _openLocationPicker({required bool isDropoff}) async {
     final activeFav = isDropoff ? _matchedDropoffFavorite : _matchedPickupFavorite;
-    UserSavedAddress? pickedFavorite;
-    LocationPickerSheet.show(
+    final result = await FullScreenMapPicker.open(
       context,
       title: isDropoff ? 'Ubah Alamat Pengantaran' : 'Ubah Titik Jemput',
       initialLocation: isDropoff ? _currentDropoffLocation : _currentPickupLocation,
-      initialLocationTitle: activeFav?.name,
+      initialTitle: activeFav?.name,
       selectedFavoriteId: activeFav?.id,
-      onFavoriteSelected: (fav) {
-        pickedFavorite = fav;
-      },
-      onSelected: (title, fullAddress, latLng) async {
-        final resolvedAddr = fullAddress.isNotEmpty ? fullAddress : title;
-        final matched = pickedFavorite ??
-            await UserAddressService.findMatchingFavorite(
-              location: latLng,
-              preferredName: title,
-            );
-        if (!mounted) return;
-        final fallbackKm = const Distance().as(
-          LengthUnit.Kilometer,
-          isDropoff ? _currentPickupLocation : latLng,
-          isDropoff ? latLng : _currentDropoffLocation,
+    );
+    if (!mounted || result == null) return;
+    final resolvedAddr =
+        result.fullAddress.isNotEmpty ? result.fullAddress : result.title;
+    final matched = result.matchedFavorite ??
+        await UserAddressService.findMatchingFavorite(
+          location: result.location,
+          preferredName: result.title,
         );
+    if (!mounted) return;
+    final fallbackKm = const Distance().as(
+      LengthUnit.Kilometer,
+      isDropoff ? _currentPickupLocation : result.location,
+      isDropoff ? result.location : _currentDropoffLocation,
+    );
+    setState(() {
+      if (isDropoff) {
+        _currentDropoffLocation = result.location;
+        _currentDropoffAddress = resolvedAddr;
+        _matchedDropoffFavorite = matched;
+        if (matched?.notes != null && matched!.notes!.trim().isNotEmpty) {
+          _noteController.text = matched.notes!.trim();
+        }
+        if (matched?.recipientName != null && matched!.recipientName!.trim().isNotEmpty) {
+          _recipientNameCtrl.text = matched.recipientName!.trim();
+        }
+        if (matched?.recipientPhone != null && matched!.recipientPhone!.trim().isNotEmpty) {
+          _recipientPhoneCtrl.text = matched.recipientPhone!.trim();
+        }
+      } else {
+        _currentPickupLocation = result.location;
+        _currentPickupAddress = resolvedAddr;
+        _matchedPickupFavorite = matched;
+        if (matched?.notes != null && matched!.notes!.trim().isNotEmpty) {
+          _pickupNoteController.text = matched.notes!.trim();
+        }
+      }
+      if (fallbackKm > 0) {
+        _currentDistanceKm = fallbackKm;
+      }
+      _syncAutoDeliveryVoucher(notify: false);
+    });
+
+    try {
+      final route = await OsrmRoutingService.getRoute(
+        _currentPickupLocation,
+        _currentDropoffLocation,
+      );
+      if (mounted && route.distanceKm > 0) {
         setState(() {
-          if (isDropoff) {
-            _currentDropoffLocation = latLng;
-            _currentDropoffAddress = resolvedAddr;
-            _matchedDropoffFavorite = matched;
-          } else {
-            _currentPickupLocation = latLng;
-            _currentPickupAddress = resolvedAddr;
-            _matchedPickupFavorite = matched;
-          }
-          if (fallbackKm > 0) {
-            _currentDistanceKm = fallbackKm;
-          }
+          _currentDistanceKm = route.distanceKm;
           _syncAutoDeliveryVoucher(notify: false);
         });
-
-        try {
-          final route = await OsrmRoutingService.getRoute(
-            _currentPickupLocation,
-            _currentDropoffLocation,
-          );
-          if (mounted && route.distanceKm > 0) {
-            setState(() {
-              _currentDistanceKm = route.distanceKm;
-              _syncAutoDeliveryVoucher(notify: false);
-            });
-          }
-        } catch (_) {}
-      },
-    );
+      }
+    } catch (_) {}
   }
 
   Widget _buildTipChip(int amount, String label) {
@@ -970,10 +1125,10 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Opsi Reguler
+                            // Opsi Reguler / Instant
                             _buildTierRadioOption(
                               id: 'REGULER',
-                              title: 'Reguler',
+                              title: isSend ? 'Instant' : 'Reguler',
                               badge: isSend ? 'Langsung' : '~${_realisticEstimates["pickup"] ?? 4} min',
                               badgeColor: const Color(0xFF3B82F6),
                               desc: isSend
@@ -1023,6 +1178,12 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                               location: _currentPickupLocation,
                               matchedFavorite: _matchedPickupFavorite,
                               onPickLocation: () => _openLocationPicker(isDropoff: false),
+                              showDriverNoteButton: true,
+                              noteText: _pickupNoteController.text,
+                              onEditNote: () => _editAddressNote(
+                                controller: _pickupNoteController,
+                                title: isSend ? 'Catatan Alamat Pengirim' : 'Catatan Titik Jemput',
+                              ),
                             ),
                             Padding(
                               padding: const EdgeInsets.symmetric(vertical: 2),
@@ -1057,6 +1218,11 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                               matchedFavorite: _matchedDropoffFavorite,
                               onPickLocation: () => _openLocationPicker(isDropoff: true),
                               showDriverNoteButton: true,
+                              noteText: _noteController.text,
+                              onEditNote: () => _editAddressNote(
+                                controller: _noteController,
+                                title: isSend ? 'Catatan Alamat Penerima' : 'Catatan Titik Tujuan',
+                              ),
                             ),
                           ],
                         ),
@@ -1368,18 +1534,18 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                     visualDensity: VisualDensity.compact,
                                   ),
-                                  child: const Row(
+                                  child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text(
-                                        'Ganti',
-                                        style: TextStyle(
+                                        _selectedPaymentMethod.isEmpty ? 'Pilih' : 'Ganti',
+                                        style: const TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.bold,
                                           color: GageTheme.primary,
                                         ),
                                       ),
-                                      Icon(Icons.chevron_right_rounded, size: 16, color: GageTheme.primary),
+                                      const Icon(Icons.chevron_right_rounded, size: 16, color: GageTheme.primary),
                                     ],
                                   ),
                                 ),
@@ -1387,182 +1553,121 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                             ),
                             const SizedBox(height: 12),
                             // Selected Payment Method Display
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                              decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    _selectedPaymentMethod == 'GAGEPAY'
-                                        ? Icons.account_balance_wallet_rounded
-                                        : (_selectedPaymentMethod == 'GAGEPAY_QRIS'
-                                            ? Icons.qr_code_scanner_rounded
-                                            : (_selectedPaymentMethod == 'GAGEPAY_COD'
-                                                ? Icons.payments_outlined
-                                                : (_selectedPaymentMethod == 'QRIS'
-                                                    ? Icons.qr_code_2_rounded
-                                                    : Icons.payments_rounded))),
-                                    color: _selectedPaymentMethod.startsWith('GAGEPAY')
-                                        ? const Color(0xFF0284C7)
-                                        : (_selectedPaymentMethod == 'QRIS'
-                                            ? GageTheme.primary
-                                            : const Color(0xFF16A34A)),
-                                    size: 22,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          _selectedPaymentMethod == 'GAGEPAY'
-                                              ? 'GAGEPay'
-                                              : (_selectedPaymentMethod == 'GAGEPAY_QRIS'
-                                                  ? 'GAGEPay + QRIS'
-                                                  : (_selectedPaymentMethod == 'GAGEPAY_COD'
-                                                      ? 'GAGEPay + COD'
-                                                      : (_selectedPaymentMethod == 'QRIS'
-                                                          ? 'QRIS'
-                                                          : 'Tunai ke Driver (COD)'))),
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 13,
-                                            color: isDark ? Colors.white : Colors.black87,
-                                          ),
-                                        ),
-                                        Text(
-                                          _selectedPaymentMethod == 'GAGEPAY'
-                                              ? 'Saldo Anda: ${currencyFormatter.format(wallet.balance)}'
-                                              : (_selectedPaymentMethod == 'GAGEPAY_QRIS'
-                                                  ? 'GAGEPay ${currencyFormatter.format(wallet.balance)} + QRIS ${currencyFormatter.format(_totalAmount - wallet.balance)}'
-                                                  : (_selectedPaymentMethod == 'GAGEPAY_COD'
-                                                      ? 'GAGEPay ${currencyFormatter.format(wallet.balance)} + Tunai ${currencyFormatter.format(_totalAmount - wallet.balance)}'
-                                                      : (_selectedPaymentMethod == 'QRIS'
-                                                          ? 'ShopeePay, GoPay, BCA, Mandiri'
-                                                          : 'Bayar tunai ke driver'))),
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: isDark ? Colors.white60 : Colors.grey.shade600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            // Deficit Box (Image 3)
-                            if (_selectedPaymentMethod == 'GAGEPAY' && wallet.balance < _totalAmount) ...[
-                              const SizedBox(height: 10),
-                              Container(
-                                padding: const EdgeInsets.all(10),
+                            InkWell(
+                              onTap: () => _showPaymentMethodSheet(context, wallet),
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                                 decoration: BoxDecoration(
-                                  color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEF2F2),
+                                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: isDark ? const Color(0xFF991B1B) : const Color(0xFFFECACA),
+                                    color: _selectedPaymentMethod.isEmpty
+                                        ? GageTheme.primary.withValues(alpha: 0.45)
+                                        : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
                                   ),
                                 ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                child: Row(
                                   children: [
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Flexible(
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              const Icon(Icons.info_outline_rounded, color: Color(0xFFDC2626), size: 16),
-                                              const SizedBox(width: 6),
-                                              Flexible(
-                                                child: Text(
-                                                  'Saldo GAGEPay kurang ${currencyFormatter.format(_totalAmount - wallet.balance)}',
-                                                  style: TextStyle(
-                                                    fontSize: 11.5,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B),
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        InkWell(
-                                          onTap: () async {
-                                            await Navigator.push(
-                                              context,
-                                              MaterialPageRoute(builder: (_) => const GagePayScreen()),
-                                            );
-                                            setState(() {});
-                                          },
-                                          borderRadius: BorderRadius.circular(8),
-                                          child: const Padding(
-                                            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Text(
-                                                  'Top Up',
-                                                  style: TextStyle(
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: GageTheme.primary,
-                                                  ),
-                                                ),
-                                                SizedBox(width: 2),
-                                                Icon(Icons.chevron_right_rounded, size: 16, color: GageTheme.primary),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ],
+                                    Icon(
+                                      _selectedPaymentMethod.isEmpty
+                                          ? Icons.account_balance_wallet_outlined
+                                          : (_selectedPaymentMethod == 'GAGEPAY'
+                                              ? Icons.account_balance_wallet_rounded
+                                              : (_selectedPaymentMethod == 'GAGEPAY_QRIS'
+                                                  ? Icons.qr_code_scanner_rounded
+                                                  : (_selectedPaymentMethod == 'GAGEPAY_COD'
+                                                      ? Icons.payments_outlined
+                                                      : (_selectedPaymentMethod == 'QRIS'
+                                                          ? Icons.qr_code_2_rounded
+                                                          : Icons.payments_rounded)))),
+                                      color: _selectedPaymentMethod.isEmpty
+                                          ? GageTheme.primary
+                                          : (_selectedPaymentMethod.startsWith('GAGEPAY')
+                                              ? const Color(0xFF0284C7)
+                                              : (_selectedPaymentMethod == 'QRIS'
+                                                  ? GageTheme.primary
+                                                  : const Color(0xFF16A34A))),
+                                      size: 22,
                                     ),
-                                    const SizedBox(height: 10),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: OutlinedButton(
-                                            style: OutlinedButton.styleFrom(
-                                              foregroundColor: GageTheme.primary,
-                                              side: const BorderSide(color: GageTheme.primary),
-                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                              padding: const EdgeInsets.symmetric(vertical: 7),
-                                              visualDensity: VisualDensity.compact,
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            _selectedPaymentMethod.isEmpty
+                                                ? 'Pilih Metode Pembayaran'
+                                                : (_selectedPaymentMethod == 'GAGEPAY'
+                                                    ? 'GAGEPay'
+                                                    : (_selectedPaymentMethod == 'GAGEPAY_QRIS'
+                                                        ? 'GAGEPay + QRIS'
+                                                        : (_selectedPaymentMethod == 'GAGEPAY_COD'
+                                                            ? 'GAGEPay + COD'
+                                                            : (_selectedPaymentMethod == 'QRIS'
+                                                                ? 'QRIS'
+                                                                : 'Tunai ke Driver (COD)')))),
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                              color: isDark ? Colors.white : Colors.black87,
                                             ),
-                                            onPressed: () {
-                                              _savePaymentPreference('GAGEPAY_COD');
-                                            },
-                                            child: const Text('GAGEPay + COD', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                                           ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: OutlinedButton(
-                                            style: OutlinedButton.styleFrom(
-                                              foregroundColor: const Color(0xFF0284C7),
-                                              side: const BorderSide(color: Color(0xFF0284C7)),
-                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                              padding: const EdgeInsets.symmetric(vertical: 7),
-                                              visualDensity: VisualDensity.compact,
+                                          Text(
+                                            _selectedPaymentMethod.isEmpty
+                                                ? (wallet.balance <= 0
+                                                    ? 'Saldo GAGEPay Rp 0 • Ketuk untuk memilih metode pembayaran'
+                                                    : 'Ketuk untuk memilih GAGEPay, QRIS, atau COD')
+                                                : (_selectedPaymentMethod == 'GAGEPAY'
+                                                    ? 'Saldo Anda: ${currencyFormatter.format(wallet.balance)}'
+                                                    : (_selectedPaymentMethod == 'GAGEPAY_QRIS'
+                                                        ? 'GAGEPay ${currencyFormatter.format(wallet.balance)} + QRIS ${currencyFormatter.format(_totalAmount - wallet.balance)}'
+                                                        : (_selectedPaymentMethod == 'GAGEPAY_COD'
+                                                            ? 'GAGEPay ${currencyFormatter.format(wallet.balance)} + Tunai ${currencyFormatter.format(_totalAmount - wallet.balance)}'
+                                                            : (_selectedPaymentMethod == 'QRIS'
+                                                                ? 'ShopeePay, GoPay, BCA, Mandiri'
+                                                                : 'Bayar tunai ke driver')))),
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: isDark ? Colors.white60 : Colors.grey.shade600,
                                             ),
-                                            onPressed: () {
-                                              _savePaymentPreference('GAGEPAY_QRIS');
-                                            },
-                                            child: const Text('GAGEPay + QRIS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   ],
                                 ),
+                              ),
+                            ),
+
+                            // Banner Split Payment hanya saat saldo > 0 tapi < _totalAmount dan user memilih GAGEPay
+                            if (_selectedPaymentMethod == 'GAGEPAY' &&
+                                wallet.balance > 0 &&
+                                wallet.balance < _totalAmount) ...[
+                              const SizedBox(height: 10),
+                              GageSplitPaymentBanner(
+                                walletBalance: wallet.balance,
+                                totalAmount: _totalAmount,
+                                currencyFormatter: currencyFormatter,
+                                onTopUp: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => const GagePayScreen()),
+                                  );
+                                  if (mounted) setState(() {});
+                                },
+                                onSelectCodSplit: () {
+                                  _savePaymentPreference('GAGEPAY_COD');
+                                },
+                                onSelectQrisSplit: () {
+                                  _savePaymentPreference('GAGEPAY_QRIS');
+                                },
+                                onSelectPureCod: () {
+                                  _savePaymentPreference('COD');
+                                },
+                                onSelectPureQris: () {
+                                  _savePaymentPreference('QRIS');
+                                },
                               ),
                             ],
                           ],
@@ -1885,7 +1990,10 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
     required UserSavedAddress? matchedFavorite,
     required VoidCallback onPickLocation,
     bool showDriverNoteButton = false,
+    String? noteText,
+    VoidCallback? onEditNote,
   }) {
+    final effectiveNote = noteText ?? _noteController.text;
     final favName = matchedFavorite?.name;
     final isFav = favName != null && favName.isNotEmpty;
 
@@ -1903,111 +2011,108 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black87,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: isFav
-                          ? (isDark
-                              ? GageTheme.primary.withValues(alpha: 0.22)
-                              : const Color(0xFFFFEBEE))
-                          : (isDark ? Colors.white10 : const Color(0xFFF1F5F9)),
-                      borderRadius: BorderRadius.circular(999),
-                      border: isFav
-                          ? Border.all(color: GageTheme.primary.withValues(alpha: 0.35))
-                          : null,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (isFav) ...[
-                          const Icon(Icons.bookmark_rounded, size: 11, color: GageTheme.primary),
-                          const SizedBox(width: 3),
-                        ],
-                        Text(
-                          isFav ? 'Favorit • $favName' : defaultBadgeLabel,
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: isFav
-                                ? (isDark ? Colors.white : GageTheme.primary)
-                                : (isDark ? Colors.white70 : const Color(0xFF64748B)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 3),
               Text(
                 address,
                 style: TextStyle(
-                  fontSize: 12.5,
+                  fontSize: 12,
                   color: isDark ? Colors.grey.shade300 : Colors.black87,
                   fontWeight: FontWeight.w500,
+                  height: 1.25,
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
               if (showDriverNoteButton) ...[
-                const SizedBox(height: 8),
-                InkWell(
-                  onTap: _editAddressNote,
-                  borderRadius: BorderRadius.circular(14),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF27272A) : const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          _noteController.text.isNotEmpty
-                              ? Icons.edit_note_rounded
-                              : Icons.add_comment_outlined,
-                          size: 14,
-                          color: GageTheme.primary,
-                        ),
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            _noteController.text.isNotEmpty
-                                ? 'Catatan: "${_noteController.text}"'
-                                : '+ Tambah catatan / patokan driver',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: _noteController.text.isNotEmpty
-                                  ? (isDark ? Colors.white : Colors.black87)
-                                  : (isDark ? Colors.white60 : Colors.grey.shade600),
-                              fontWeight: FontWeight.w600,
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: onEditNote ?? () => _editAddressNote(),
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF27272A) : const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                effectiveNote.isNotEmpty
+                                    ? Icons.edit_note_rounded
+                                    : Icons.add_comment_outlined,
+                                size: 14,
+                                color: GageTheme.primary,
+                              ),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  effectiveNote.isNotEmpty
+                                      ? 'Catatan: "$effectiveNote"'
+                                      : '+ Tambah catatan / patokan driver',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: effectiveNote.isNotEmpty
+                                        ? (isDark ? Colors.white : Colors.black87)
+                                        : (isDark ? Colors.white60 : Colors.grey.shade600),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
+                      ),
                     ),
-                  ),
+                    if (isFav) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? GageTheme.primary.withValues(alpha: 0.22)
+                              : const Color(0xFFFFEBEE),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: GageTheme.primary.withValues(alpha: 0.35)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.bookmark_rounded, size: 10, color: GageTheme.primary),
+                            const SizedBox(width: 3),
+                            Text(
+                              'Favorit • $favName',
+                              style: TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : GageTheme.primary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ],
@@ -2111,7 +2216,7 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Rincian Barang & Penerima',
+          'Detail Barang',
           style: TextStyle(
             fontSize: 12.5,
             fontWeight: FontWeight.w700,
@@ -2338,15 +2443,13 @@ class _RouteDotsConnectorState extends State<_RouteDotsConnector>
       child: AnimatedBuilder(
         animation: _controller,
         builder: (context, _) {
-          final phase = disableAnimations ? 1.5 : _controller.value * _dotCount;
+          final t = disableAnimations ? 0.0 : _controller.value * 2 * math.pi;
           return Column(
             mainAxisSize: MainAxisSize.min,
             children: List.generate(_dotCount, (i) {
-              var dist = phase - i;
-              if (dist < 0) dist += _dotCount;
-              final pulse = disableAnimations
+              final wave = disableAnimations
                   ? (1.0 - (i / (_dotCount * 1.5)))
-                  : (1.0 - (dist / 1.4).clamp(0.0, 1.0));
+                  : (0.5 + 0.5 * math.sin(t - (i * 0.9)));
               final routeColor = Color.lerp(
                 const Color(0xFF16A34A),
                 GageTheme.primary,
@@ -2355,11 +2458,11 @@ class _RouteDotsConnectorState extends State<_RouteDotsConnector>
               final idleColor = widget.isDark
                   ? Colors.white24
                   : const Color(0xFFCBD5E1);
-              final dotColor = Color.lerp(idleColor, routeColor, 0.35 + (0.65 * pulse))!;
-              final size = 4.0 + (1.8 * pulse);
+              final dotColor = Color.lerp(idleColor, routeColor, 0.4 + (0.6 * wave))!;
+              final size = 4.0 + (1.5 * wave);
 
               return Padding(
-                padding: EdgeInsets.only(bottom: i < _dotCount - 1 ? 3.5 : 0),
+                padding: EdgeInsets.only(bottom: i < _dotCount - 1 ? 3.0 : 0),
                 child: SizedBox(
                   width: 8,
                   height: 6,
@@ -2370,11 +2473,11 @@ class _RouteDotsConnectorState extends State<_RouteDotsConnector>
                       decoration: BoxDecoration(
                         color: dotColor,
                         shape: BoxShape.circle,
-                        boxShadow: pulse > 0.45
+                        boxShadow: wave > 0.65
                             ? [
                                 BoxShadow(
-                                  color: routeColor.withValues(alpha: 0.35 * pulse),
-                                  blurRadius: 4,
+                                  color: routeColor.withValues(alpha: 0.3 * wave),
+                                  blurRadius: 3,
                                   spreadRadius: 0.5,
                                 ),
                               ]
