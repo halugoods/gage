@@ -20,6 +20,7 @@ class GagePocketWallet extends StatefulWidget {
   final void Function(Map<String, dynamic> card)? onCardDetailsTap;
   final VoidCallback? onEyeToggle;
   final VoidCallback? onAddAccountTap;
+  final VoidCallback? onRefreshTap;
   final VoidCallback? onTopUpTap;
   final VoidCallback? onPayQrisTap;
   final VoidCallback? onWithdrawTap;
@@ -35,6 +36,7 @@ class GagePocketWallet extends StatefulWidget {
     this.onCardDetailsTap,
     this.onEyeToggle,
     this.onAddAccountTap,
+    this.onRefreshTap,
     this.onTopUpTap,
     this.onPayQrisTap,
     this.onWithdrawTap,
@@ -497,14 +499,18 @@ class _GagePocketWalletState extends State<GagePocketWallet>
                         ),
                       ],
                     ),
-                    // Tombol Tambah Rekening (+) diturunkan lebih ke bawah sesuai arahan
-                    if (widget.onAddAccountTap != null)
+                    // Tombol Segarkan Saldo (Refresh) di pojok saku dompet kulit sesuai arahan
+                    if (widget.onRefreshTap != null || widget.onAddAccountTap != null)
                       Transform.translate(
                         offset: const Offset(0, 6),
                         child: InkWell(
                           onTap: () {
                             HapticFeedback.lightImpact();
-                            widget.onAddAccountTap!();
+                            if (widget.onRefreshTap != null) {
+                              widget.onRefreshTap!();
+                            } else if (widget.onAddAccountTap != null) {
+                              widget.onAddAccountTap!();
+                            }
                           },
                           borderRadius: BorderRadius.circular(16),
                           child: Container(
@@ -515,7 +521,7 @@ class _GagePocketWalletState extends State<GagePocketWallet>
                               border: Border.all(color: Colors.white24, width: 0.9),
                             ),
                             child: const Icon(
-                              Icons.add_rounded,
+                              Icons.refresh_rounded,
                               color: Color(0xFFD4B996),
                               size: 16,
                             ),

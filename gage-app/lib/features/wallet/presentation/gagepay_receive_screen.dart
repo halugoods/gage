@@ -9,6 +9,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/core/utils/luhn_algorithm.dart';
+import 'package:gage_app/features/wallet/presentation/widgets/gage_qris_receipt_widget.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 
 /// Layar Penuh Terima Saldo GAGEPay
@@ -59,7 +60,7 @@ class _GagePayReceiveScreenState extends State<GagePayReceiveScreen> {
     );
   }
 
-  /// Menangkap visual Kartu ATM 2.5D dari off-screen render dan membagikannya dengan teks ringkas
+  /// Menangkap visual Lembar Tagihan QRIS Resmi dari off-screen render dan membagikannya dengan teks ringkas
   Future<void> _shareAccountCard() async {
     HapticFeedback.lightImpact();
     setState(() => _isSharingCard = true);
@@ -82,7 +83,7 @@ class _GagePayReceiveScreenState extends State<GagePayReceiveScreen> {
         final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
         if (byteData != null) {
           final pngBytes = byteData.buffer.asUint8List();
-          final filePath = '${tempDir.path}/kartu_gagepay_${widget.accountNumber}.png';
+          final filePath = '${tempDir.path}/struk_qris_gagepay_${widget.accountNumber}.png';
           final file = File(filePath);
           await file.writeAsBytes(pngBytes);
           files.add(XFile(file.path, mimeType: 'image/png'));
@@ -95,14 +96,14 @@ class _GagePayReceiveScreenState extends State<GagePayReceiveScreen> {
       await SharePlus.instance.share(
         ShareParams(
           text: shareText,
-          subject: 'Nomor Rekening GAGEPay ${widget.userName}',
+          subject: 'Tagihan QRIS GAGEPay - ${widget.userName}',
           files: files,
         ),
       );
     } catch (_) {
       if (!mounted) return;
       setState(() => _isSharingCard = false);
-      GageToast.show(context, 'Gagal membagikan kartu rekening.', type: GageToastType.error);
+      GageToast.show(context, 'Gagal membagikan struk tagihan QRIS.', type: GageToastType.error);
     }
   }
 
@@ -132,19 +133,16 @@ class _GagePayReceiveScreenState extends State<GagePayReceiveScreen> {
       ),
       body: Stack(
         children: [
-          // 0. Off-screen 2.5D ATM Card Widget (HANYA dirender di background untuk kebutuhan share gambar)
+          // 0. Off-screen Lembar Tagihan QRIS Resmi GAGE (dirender di background khusus untuk kebutuhan share gambar)
           Positioned(
             left: -9999,
             top: -9999,
             child: RepaintBoundary(
               key: _cardBoundaryKey,
-              child: SizedBox(
-                width: 320,
-                child: GageAtmCardWidget(
-                  accountNumber: widget.accountNumber,
-                  userName: widget.userName,
-                  requestedAmount: _requestedAmount,
-                ),
+              child: GageQrisReceiptWidget(
+                accountNumber: widget.accountNumber,
+                userName: widget.userName,
+                requestedAmount: _requestedAmount,
               ),
             ),
           ),
@@ -427,7 +425,7 @@ class _GagePayReceiveScreenState extends State<GagePayReceiveScreen> {
                                 )
                               : const Icon(Icons.share_rounded, size: 19),
                           label: const Text(
-                            'Bagikan Detail',
+                            'Bagikan',
                             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
                           ),
                         ),

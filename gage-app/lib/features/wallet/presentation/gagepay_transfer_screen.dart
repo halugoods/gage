@@ -185,11 +185,7 @@ class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
   }
 
   void _sortAccounts(List<SavedGageAccount> list) {
-    list.sort((a, b) {
-      if (a.isFavorite && !b.isFavorite) return -1;
-      if (!a.isFavorite && b.isFavorite) return 1;
-      return b.lastUsedTimestamp.compareTo(a.lastUsedTimestamp);
-    });
+    list.sort((a, b) => b.lastUsedTimestamp.compareTo(a.lastUsedTimestamp));
   }
 
   Future<void> _persistAccounts() async {

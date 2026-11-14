@@ -241,5 +241,25 @@ CREATE TABLE IF NOT EXISTS receipt_settings (
 2. **Pembaruan Konfigurasi oleh Admin (`PUT /api/admin/receipt/config`)**:
    - Membutuhkan role admin token. Mengupdate field konfigurasi struk di tabel D1.
 
+---
+
+## 9. Handoff Wave 3 Iteration 4: Compact Auto-Detect Invoice Number & GAGEPay Enhancements
+
+### 9.1. Format Baru Nomor Invoice (`InvoiceNumberGenerator`)
+- **Format**: `INV-{BASE36_TIMESTAMP}-{NODE_SEQ}{CHECKSUM}` (contoh: `INV-K9X2B7Q1-P018`, ~16-17 karakter).
+- **Spesifikasi Teknis**:
+  - `BASE36_TIMESTAMP`: 8 karakter encoding milidetik sejak epoch dalam Radix 36.
+  - `NODE_SEQ`: 1 digit ID node cluster + 2 digit counter sequence heksadesimal (`00`-`FF`).
+  - `CHECKSUM`: 1 digit check digit Luhn variant Modulo 36 untuk deteksi typo dan integritas tanpa query D1.
+- **Auto-Detection DateTime**:
+  - Backend/Admin tidak perlu menyimpan redundansi kolom tanggal terpisah untuk audit cepat. Cukup parse segmen Base36 untuk mengekstrak timestamp milidetik persis transaksi dibuat.
+- **Anti-Collision**:
+  - Aman dari tabrakan ID saat migrasi server, database multi-region D1, atau burst checkout bersamaan.
+
+### 9.2. GAGEPay Poin Loyalty & QRIS Official Billing Receipt
+- Penambahan loyalty tier, konversi poin ke saldo, voucher UMKM, dan donasi sosial.
+- Lembar tagihan QRIS resmi standar ASPI/BI (`GageQrisReceiptWidget`) menggantikan mockup visual kartu pada fitur Terima Saldo. Detail kartu 2.5D kini berada di menu Pengaturan GAGEPay.
+
+
 
 

@@ -101,3 +101,10 @@ Portal Customer ([`resto_detail_screen.dart`](../../gage-app/lib/features/food/p
 2. **Struk Digital Interaktif & Tiket Belanja**:
    - Customer kini dapat membagikan struk transaksi digital lengkap dengan nomor pesanan, daftar menu, rincian pembayaran, dan QR verifikasi (`GageReceiptShareDialog`).
    - Kasir/Merchant dapat mencocokkan struk digital ini saat pelanggan memilih opsi Ambil Sendiri (Pickup).
+
+---
+
+## 4. Handoff Wave 3 Iteration 4: Compact Auto-Detect Invoice Number Format
+- Nomor invoice pesanan pelanggan kini beralih ke format kompak advance: `INV-{BASE36_TIMESTAMP}-{NODE_SEQ}{CHECKSUM}` (contoh: `INV-K9X2B7Q1-P018`).
+- Kasir Merchant dapat memvalidasi keaslian nomor invoice secara instan menggunakan algoritma check digit Modulo 36 (Luhn variant) serta mengekstrak waktu transaksi tanpa lookup ke backend.
+

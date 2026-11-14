@@ -112,7 +112,7 @@ void main() {
 
       // Tombol aksi berdampingan
       expect(find.text('Set Nominal'), findsOneWidget);
-      expect(find.text('Bagikan Detail'), findsOneWidget);
+      expect(find.text('Bagikan'), findsOneWidget);
 
       // Kartu 2.5D tidak boleh terlihat di area layar utama
       // Bebas istilah "p2p" dan badge ISO

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:gage_app/core/utils/invoice_number_generator.dart';
 
 typedef MerchantOrder = OrderModel;
 typedef MerchantOrderItem = OrderItemModel;
@@ -352,13 +353,7 @@ class OrderModel {
     required String userName,
     DateTime? timestamp,
   }) {
-    final time = timestamp ?? DateTime.now();
-    final dateStr = '${time.year}${time.month.toString().padLeft(2, '0')}${time.day.toString().padLeft(2, '0')}';
-    final userClean = userName.trim().toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
-    final userCode = userClean.length >= 4 ? userClean.substring(0, 4) : userClean.padRight(4, 'X');
-    final hash = time.millisecondsSinceEpoch.toString().substring(8);
-    final sCode = serviceType.toUpperCase();
-    return 'INV/GG/$dateStr/$sCode/$userCode-$hash';
+    return InvoiceNumberGenerator.generate(timestamp: timestamp);
   }
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
@@ -373,13 +368,7 @@ class OrderModel {
       final createdAtRaw = json['created_at'];
       final createdAtSec = createdAtRaw is num ? createdAtRaw.toInt() : (createdAtRaw is String ? int.tryParse(createdAtRaw) ?? 0 : 0);
       final ts = createdAtSec > 0 ? DateTime.fromMillisecondsSinceEpoch(createdAtSec * 1000) : DateTime.now();
-      final digits = ordNum.replaceAll(RegExp(r'[^0-9]'), '');
-      final hashSuffix = digits.isNotEmpty ? digits.padLeft(4, '0') : '8821';
-      final uId = (json['user_id'] as String?) ?? 'CUST';
-      final uClean = uId.replaceAll(RegExp(r'[^A-Z0-9]'), '').toUpperCase();
-      final userTag = uClean.length >= 4 ? uClean.substring(0, 4) : 'CUST';
-      final dStr = '${ts.year}${ts.month.toString().padLeft(2, '0')}${ts.day.toString().padLeft(2, '0')}';
-      ordNum = 'INV/GG/$dStr/FD/$userTag-$hashSuffix';
+      ordNum = InvoiceNumberGenerator.generate(timestamp: ts);
     }
 
     final rawStatus = (json['status'] ?? json['stage'] ?? 'PAID').toString().trim().toUpperCase();

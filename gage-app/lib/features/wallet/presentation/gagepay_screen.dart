@@ -13,6 +13,8 @@ import 'package:gage_app/features/wallet/presentation/widgets/gage_pocket_wallet
 import 'package:gage_app/features/wallet/presentation/widgets/gage_3d_flip_card_dialog.dart';
 import 'package:gage_app/features/wallet/presentation/gagepay_transfer_screen.dart';
 import 'package:gage_app/features/wallet/presentation/gagepay_receive_screen.dart';
+import 'package:gage_app/features/wallet/presentation/gage_points_reward_screen.dart';
+import 'package:gage_app/features/wallet/presentation/gagepay_settings_screen.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
@@ -102,6 +104,20 @@ class _GagePayScreenState extends State<GagePayScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final auth = context.read<AuthProvider>();
+      final userName = auth.currentUser?.name ?? 'Pengguna GAGE';
+      for (final acc in _userAccounts) {
+        acc['holder'] = userName.toUpperCase();
+      }
+      final uid = auth.currentUser?.id ??
+          (GageApiClient.useDevSeedData ? 'usr-cust-01' : '');
+      if (uid.isNotEmpty) {
+        context.read<WalletProvider>().fetchWallet(uid);
+      }
+      setState(() {});
+    });
     if (widget.initialAction != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -160,15 +176,19 @@ class _GagePayScreenState extends State<GagePayScreen> {
         elevation: 0.5,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Segarkan Saldo',
+            icon: const Icon(Icons.add_card_rounded),
+            tooltip: 'Tambah Rekening Penarikan',
+            onPressed: () => _showAccountSelectionSheet(context),
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Pengaturan GAGEPay',
             onPressed: () {
-              final uid = context.read<AuthProvider>().currentUser?.id ??
-                  (GageApiClient.useDevSeedData ? 'usr-cust-01' : '');
-              if (uid.isNotEmpty) {
-                wallet.fetchWallet(uid);
-              }
-              GageToast.show(context, 'Saldo GAGEPay diperbarui', type: GageToastType.info);
+              HapticFeedback.lightImpact();
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const GagePaySettingsScreen()),
+              );
             },
           ),
         ],
@@ -219,6 +239,14 @@ class _GagePayScreenState extends State<GagePayScreen> {
                     },
                   );
                 },
+                onRefreshTap: () {
+                  final uid = context.read<AuthProvider>().currentUser?.id ??
+                      (GageApiClient.useDevSeedData ? 'usr-cust-01' : '');
+                  if (uid.isNotEmpty) {
+                    wallet.fetchWallet(uid);
+                  }
+                  GageToast.show(context, 'Saldo GAGEPay diperbarui', type: GageToastType.info);
+                },
                 onAddAccountTap: () => _showAccountSelectionSheet(context),
                 onTopUpTap: () {
                   TopupQrisDialog.showAsSheet(
@@ -248,7 +276,13 @@ class _GagePayScreenState extends State<GagePayScreen> {
                   }
                   GageWithdrawSheet.show(context);
                 },
-                onExchangePointsTap: () => _showExchangePointsSheet(context, wallet),
+                onExchangePointsTap: () {
+                  HapticFeedback.lightImpact();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const GagePointsRewardScreen()),
+                  );
+                },
                 accountNumber: wallet.accountNumber,
               ),
 

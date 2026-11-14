@@ -89,3 +89,10 @@ Hasil audit menunjukkan beberapa field penting dari Customer belum tersedia di `
 2. **Struk Digital Interaktif & Verifikasi Lapangan**:
    - Customer kini dapat membagikan struk/bukti bayar digital berbentuk gambar tiket perforasi lengkap dengan QR Code (`GageReceiptShareDialog`).
    - Driver/Kurir dapat mencocokkan nomor pesanan atau memindai QR Code struk pelanggan untuk konfirmasi serah terima barang di tempat.
+
+---
+
+## 4. Handoff Wave 3 Iteration 4: Compact Auto-Detect Invoice Number Format
+- Nomor invoice pada order delivery kini menggunakan format kompak advance: `INV-{BASE36_TIMESTAMP}-{NODE_SEQ}{CHECKSUM}` (contoh: `INV-K9X2B7Q1-P018`).
+- Driver/Kurir dapat mencocokkan nomor invoice ini secara presisi pada rincian pesanan dan struk belanja pelanggan.
+
