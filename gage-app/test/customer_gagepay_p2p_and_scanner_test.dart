@@ -126,17 +126,15 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Kirim Saldo'), findsOneWidget);
-      expect(find.text('Terakhir'), findsOneWidget);
-      expect(find.text('Favorit'), findsOneWidget);
-      expect(find.text('Cari penerima di sini'), findsOneWidget);
-
-      // Tap recipient to transition to step 2
-      await tester.tap(find.text('Dnid Selvi Agus'));
-      await tester.pumpAndSettle();
-
+      expect(find.text('Nomor Rekening / HP Penerima'), findsOneWidget);
+      expect(find.text('Cek'), findsOneWidget);
       expect(find.text('Nominal Transfer'), findsOneWidget);
       expect(find.text('Kirim Sekarang'), findsOneWidget);
       expect(find.text('Rp 10.000'), findsOneWidget);
+      expect(find.text('Rekening Tersimpan'), findsOneWidget);
+      expect(find.text('Terakhir'), findsOneWidget);
+      expect(find.text('Favorit'), findsOneWidget);
+      expect(find.text('Cari penerima di sini'), findsOneWidget);
     });
   });
 }

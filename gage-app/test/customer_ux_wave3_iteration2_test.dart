@@ -37,43 +37,57 @@ void main() {
   });
 
   group('Wave 3 Iteration 3 UX Tests (Full Screen Transfer & Receive)', () {
-    testWidgets('GagePayTransferScreen renders segmented tabs, search bar, and contact list', (tester) async {
+    testWidgets('GagePayTransferScreen renders full transfer form and real saved accounts section', (tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 2.0;
       addTearDown(() => tester.view.resetPhysicalSize());
 
+      final wallet = WalletProvider();
+      wallet.topUp(50000);
+      await wallet.transferBalance(
+        recipientAccount: '890812345678',
+        recipientName: 'Siti Rahmawati',
+        amount: 15000,
+        note: 'Uang makan',
+      );
+
       await tester.pumpWidget(_wrap(
         const GagePayTransferScreen(),
+        walletProvider: wallet,
       ));
       await tester.pumpAndSettle();
 
+      // Form Utama Kirim Saldo
       expect(find.text('Kirim Saldo'), findsOneWidget);
+      expect(find.text('Nomor Rekening / HP Penerima'), findsOneWidget);
+      expect(find.text('Cek'), findsOneWidget);
+      expect(find.text('Nominal Transfer'), findsOneWidget);
+      expect(find.text('Kirim Sekarang'), findsOneWidget);
+
+      // Section Rekening Tersimpan (Terakhir vs Favorit)
+      expect(find.text('Rekening Tersimpan'), findsOneWidget);
       expect(find.text('Terakhir'), findsOneWidget);
       expect(find.text('Favorit'), findsOneWidget);
       expect(find.text('Cari penerima di sini'), findsOneWidget);
 
-      // Pastikan ada kontak tersimpan dari seed dev
-      expect(find.text('Dnid Selvi Agus'), findsOneWidget);
-      expect(find.textContaining('8908'), findsWidgets);
+      // Rekening dari riwayat transaksi nyata muncul
+      expect(find.text('Siti Rahmawati'), findsOneWidget);
 
-      // Pastikan ada icon bintang favorit (emas)
-      expect(find.byIcon(Icons.star_rounded), findsWidgets);
-      expect(find.byIcon(Icons.star_outline_rounded), findsWidgets);
-
-      // Test tap bintang untuk toggle tanpa batas
+      // Tap icon bintang untuk toggle favorit tanpa batas
       final starOutlines = find.byIcon(Icons.star_outline_rounded);
       if (starOutlines.evaluate().isNotEmpty) {
         await tester.tap(starOutlines.first);
         await tester.pumpAndSettle();
       }
 
-      // Test tap kontak berpindah ke Step 2 (Nominal)
-      await tester.tap(find.text('Dnid Selvi Agus'));
+      // Tap rekening tersimpan mengisi input rekening di atas (auto-fill)
+      await tester.tap(find.text('Siti Rahmawati'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Nominal Transfer'), findsOneWidget);
-      expect(find.text('Kirim Sekarang'), findsOneWidget);
-      expect(find.text('Ganti'), findsOneWidget);
+      final accountField = tester.widget<TextField>(
+        find.ancestor(of: find.text('Contoh: 8908 1234 5678 / 08123...'), matching: find.byType(TextField)),
+      );
+      expect(accountField.controller?.text, equals('890812345678'));
     });
 
     testWidgets('GagePayReceiveScreen renders clean QR code and side-by-side action buttons', (tester) async {

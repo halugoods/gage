@@ -145,6 +145,8 @@ class WalletProvider extends ChangeNotifier {
       'id': 'tx-tf-${DateTime.now().millisecondsSinceEpoch}',
       'type': 'TRANSFER_OUT',
       'amount': amount,
+      'destination': recipientAccount,
+      'recipient_name': recipientName,
       'description': 'Transfer ke $recipientName ($recipientAccount)${note != null && note.isNotEmpty ? ": $note" : ""}',
       'created_at': DateTime.now().millisecondsSinceEpoch ~/ 1000,
       'status': 'SUCCESS',

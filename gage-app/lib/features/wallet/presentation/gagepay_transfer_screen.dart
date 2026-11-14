@@ -55,13 +55,11 @@ class SavedGageAccount {
 }
 
 /// Layar Penuh Kirim Saldo GAGEPay
-/// - Mengadopsi tata letak referensi transaksi (Tab Terakhir vs Favorit + Search Bar)
-/// - Segmented capsule switch penuh (BorderRadius.circular(999), merah aktif GageTheme.primary)
-/// - Search Bar "Cari penerima di sini"
-/// - List kontak penerima dengan Avatar inisial, Nama, "GAGEPay: 8908 XXXX XXXX", dan Bintang Favorit
-/// - Bintang favorit tanpa batasan kuota (unlimited)
-/// - Auto-save rekening baru saat transaksi berhasil
-/// - Mendukung prefill `initialAccount` dan `initialAmount` dari Universal Scanner (QR dinamis)
+/// - Menggabungkan form transfer lengkap (Saldo, Input Rekening Tujuan + Cek, Input Nominal + Chips, Catatan, Kirim Sekarang)
+/// - Dilengkapi section referensi Rekening Tersimpan (Tab Terakhir vs Favorit, Search Bar, dan bintang favorit tanpa batas)
+/// - Menggunakan data riwayat transaksi asli pengguna (tanpa dummy hardcode palsu)
+/// - Auto-fill saat memilih rekening dari riwayat tersimpan
+/// - Auto-save nomor rekening tujuan baru saat transfer berhasil
 class GagePayTransferScreen extends StatefulWidget {
   final String? initialAccount;
   final int? initialAmount;
@@ -77,18 +75,20 @@ class GagePayTransferScreen extends StatefulWidget {
 }
 
 class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
-  int _selectedTab = 0; // 0 = Terakhir, 1 = Favorit
-  final TextEditingController _searchCtrl = TextEditingController();
-  String _searchQuery = '';
-
-  // Step 2 Controller
-  SavedGageAccount? _selectedRecipient;
+  final TextEditingController _accountCtrl = TextEditingController();
   final TextEditingController _amountCtrl = TextEditingController();
   final TextEditingController _noteCtrl = TextEditingController();
+  final TextEditingController _searchCtrl = TextEditingController();
+
+  final ScrollController _scrollController = ScrollController();
 
   bool _isCheckingAccount = false;
   bool _isSubmitting = false;
+  Map<String, dynamic>? _verifiedRecipient;
+  String? _accountError;
 
+  int _selectedTab = 0; // 0 = Terakhir, 1 = Favorit
+  String _searchQuery = '';
   List<SavedGageAccount> _savedAccounts = [];
 
   final List<int> _quickNominals = [10000, 20000, 50000, 100000];
@@ -109,15 +109,18 @@ class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
     }
 
     if (widget.initialAccount != null && widget.initialAccount!.isNotEmpty) {
-      _checkAndSetInitialAccount(widget.initialAccount!);
+      _accountCtrl.text = widget.initialAccount!;
+      _checkRecipientAccount();
     }
   }
 
   @override
   void dispose() {
-    _searchCtrl.dispose();
+    _accountCtrl.dispose();
     _amountCtrl.dispose();
     _noteCtrl.dispose();
+    _searchCtrl.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -129,50 +132,49 @@ class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
 
   Future<void> _loadSavedAccounts() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
       final key = _getStorageKey();
+      final wallet = context.read<WalletProvider>();
+
+      final prefs = await SharedPreferences.getInstance();
       final rawJson = prefs.getString(key);
 
       List<SavedGageAccount> loaded = [];
       if (rawJson != null && rawJson.isNotEmpty) {
         final List decoded = jsonDecode(rawJson);
         loaded = decoded.map((e) => SavedGageAccount.fromJson(e as Map<String, dynamic>)).toList();
-      } else if (GageApiClient.useDevSeedData) {
-        // Seed default kontak dev agar daftar langsung terisi menyerupai referensi
-        loaded = [
-          SavedGageAccount(
-            accountNumber: '890811223348',
-            name: 'Dnid Selvi Agus',
-            isFavorite: true,
-            lastUsedTimestamp: DateTime.now().millisecondsSinceEpoch,
-          ),
-          SavedGageAccount(
-            accountNumber: '890855667780',
-            name: 'Dnid Dwi Purwanto',
-            isFavorite: true,
-            lastUsedTimestamp: DateTime.now().subtract(const Duration(hours: 2)).millisecondsSinceEpoch,
-          ),
-          SavedGageAccount(
-            accountNumber: '890899887765',
-            name: 'Heri Susanto',
-            isFavorite: false,
-            lastUsedTimestamp: DateTime.now().subtract(const Duration(hours: 8)).millisecondsSinceEpoch,
-          ),
-          SavedGageAccount(
-            accountNumber: '890825812191',
-            name: 'Indah Lestari',
-            isFavorite: false,
-            lastUsedTimestamp: DateTime.now().subtract(const Duration(days: 1)).millisecondsSinceEpoch,
-          ),
-          SavedGageAccount(
-            accountNumber: '890818840100',
-            name: 'Aan Adhi Pratama',
-            isFavorite: false,
-            lastUsedTimestamp: DateTime.now().subtract(const Duration(days: 2)).millisecondsSinceEpoch,
-          ),
-        ];
-        await prefs.setString(key, jsonEncode(loaded.map((e) => e.toJson()).toList()));
       }
+
+      // Gabungkan dengan transaksi transfer nyata dari wallet jika ada yang belum tercatat
+      for (final tx in wallet.transactions) {
+        if (tx['type'] == 'TRANSFER_OUT') {
+          var dest = (tx['destination'] ?? '').toString();
+          var rName = (tx['recipient_name'] ?? '').toString();
+          if (dest.isEmpty || rName.isEmpty) {
+            final desc = (tx['description'] ?? '').toString();
+            final match = RegExp(r'Transfer ke (.*?) \((\d+)\)').firstMatch(desc);
+            if (match != null) {
+              if (rName.isEmpty) rName = match.group(1) ?? 'Penerima GAGEPay';
+              if (dest.isEmpty) dest = match.group(2) ?? '';
+            }
+          }
+          final ts = tx['timestamp'] is int
+              ? (tx['timestamp'] as int) * 1000
+              : (tx['created_at'] is int
+                  ? (tx['created_at'] as int) * 1000
+                  : DateTime.now().millisecondsSinceEpoch);
+
+          if (dest.isNotEmpty && !loaded.any((a) => a.accountNumber == dest)) {
+            loaded.add(SavedGageAccount(
+              accountNumber: dest,
+              name: rName.isNotEmpty ? rName : 'Penerima GAGEPay',
+              isFavorite: false,
+              lastUsedTimestamp: ts,
+            ));
+          }
+        }
+      }
+
+      _sortAccounts(loaded);
 
       if (mounted) {
         setState(() {
@@ -180,6 +182,14 @@ class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
         });
       }
     } catch (_) {}
+  }
+
+  void _sortAccounts(List<SavedGageAccount> list) {
+    list.sort((a, b) {
+      if (a.isFavorite && !b.isFavorite) return -1;
+      if (!a.isFavorite && b.isFavorite) return 1;
+      return b.lastUsedTimestamp.compareTo(a.lastUsedTimestamp);
+    });
   }
 
   Future<void> _persistAccounts() async {
@@ -199,87 +209,85 @@ class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
       if (idx != -1) {
         final current = _savedAccounts[idx];
         _savedAccounts[idx] = current.copyWith(isFavorite: !current.isFavorite);
+        _sortAccounts(_savedAccounts);
         _persistAccounts();
       }
     });
   }
 
-  Future<void> _checkAndSetInitialAccount(String rawAccount) async {
-    setState(() => _isCheckingAccount = true);
-    try {
-      final res = await GageApiClient.getGagePayAccount(rawAccount);
-      if (!mounted) return;
-      if (res != null) {
-        final accNum = (res['account_number'] ?? rawAccount).toString();
-        final name = (res['name'] ?? 'Penerima GAGEPay').toString();
-        setState(() {
-          _selectedRecipient = SavedGageAccount(
-            accountNumber: accNum,
-            name: name,
-            lastUsedTimestamp: DateTime.now().millisecondsSinceEpoch,
-          );
-          _isCheckingAccount = false;
-        });
-      } else {
-        setState(() {
-          _isCheckingAccount = false;
-        });
-        GageToast.show(context, 'Akun GAGEPay tujuan tidak ditemukan.', type: GageToastType.error);
-      }
-    } catch (_) {
-      if (mounted) setState(() => _isCheckingAccount = false);
+  /// Memilih rekening dari riwayat untuk auto-fill form di atas
+  void _selectSavedAccountToForm(SavedGageAccount account) {
+    HapticFeedback.selectionClick();
+    _accountCtrl.text = account.accountNumber;
+    _checkRecipientAccount();
+    // Scroll ke atas agar pengguna dapat langsung memasukkan nominal
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
     }
   }
 
-  Future<void> _selectCustomAccount(String raw) async {
-    final digitsOnly = raw.replaceAll(RegExp(r'\D'), '');
-    if (digitsOnly.length == 12 && digitsOnly.startsWith('89') && !LuhnAlgorithm.validate(digitsOnly)) {
-      GageToast.show(
-        context,
-        'Nomor rekening tidak valid (kesalahan digit check Luhn).',
-        type: GageToastType.warning,
-      );
+  Future<void> _checkRecipientAccount() async {
+    final raw = _accountCtrl.text.trim();
+    if (raw.isEmpty) {
+      setState(() {
+        _accountError = 'Masukkan nomor rekening atau HP tujuan';
+        _verifiedRecipient = null;
+      });
       return;
     }
 
-    setState(() => _isCheckingAccount = true);
+    final digitsOnly = raw.replaceAll(RegExp(r'\D'), '');
+    // Jika format nomor rekening 12 digit, validasi dengan Algoritma Luhn Mod 10
+    if (digitsOnly.length == 12 && digitsOnly.startsWith('89') && !LuhnAlgorithm.validate(digitsOnly)) {
+      setState(() {
+        _accountError = 'Nomor rekening tidak valid (kesalahan digit check Luhn). Periksa kembali.';
+        _verifiedRecipient = null;
+        _isCheckingAccount = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isCheckingAccount = true;
+      _accountError = null;
+      _verifiedRecipient = null;
+    });
+
     try {
       final res = await GageApiClient.getGagePayAccount(raw);
       if (!mounted) return;
       if (res != null) {
-        final accNum = (res['account_number'] ?? raw).toString();
-        final name = (res['name'] ?? 'Penerima GAGEPay').toString();
-        HapticFeedback.selectionClick();
         setState(() {
-          _selectedRecipient = SavedGageAccount(
-            accountNumber: accNum,
-            name: name,
-            lastUsedTimestamp: DateTime.now().millisecondsSinceEpoch,
-          );
+          _verifiedRecipient = res;
           _isCheckingAccount = false;
-          _searchCtrl.clear();
-          _searchQuery = '';
         });
+        HapticFeedback.selectionClick();
       } else {
-        setState(() => _isCheckingAccount = false);
-        GageToast.show(context, 'Akun GAGEPay tidak ditemukan.', type: GageToastType.error);
+        setState(() {
+          _accountError = 'Akun GAGEPay tidak ditemukan. Periksa kembali nomor tujuan.';
+          _isCheckingAccount = false;
+        });
       }
     } catch (_) {
-      if (mounted) setState(() => _isCheckingAccount = false);
-      GageToast.show(context, 'Gagal memeriksa akun.', type: GageToastType.error);
+      if (!mounted) return;
+      setState(() {
+        _accountError = 'Gagal memeriksa akun tujuan.';
+        _isCheckingAccount = false;
+      });
     }
   }
 
-  void _selectSavedRecipient(SavedGageAccount account) {
-    HapticFeedback.selectionClick();
-    setState(() {
-      _selectedRecipient = account;
-    });
-  }
-
   Future<void> _submitTransfer(WalletProvider wallet, AuthProvider auth) async {
-    if (_selectedRecipient == null) return;
     HapticFeedback.mediumImpact();
+    if (_verifiedRecipient == null) {
+      await _checkRecipientAccount();
+      if (!mounted) return;
+      if (_verifiedRecipient == null) return;
+    }
 
     final rawAmount = int.tryParse(_amountCtrl.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
     if (rawAmount < 1000) {
@@ -296,8 +304,8 @@ class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
 
     try {
       final fromUid = auth.currentUser?.id ?? (GageApiClient.useDevSeedData ? 'usr-cust-01' : '');
-      final targetAccount = _selectedRecipient!.accountNumber;
-      final targetName = _selectedRecipient!.name;
+      final targetAccount = _verifiedRecipient!['account_number'] ?? _accountCtrl.text.trim();
+      final targetName = _verifiedRecipient!['name'] ?? 'Penerima GAGEPay';
       final note = _noteCtrl.text.trim();
 
       // Panggil backend transfer API
@@ -318,7 +326,7 @@ class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
         note: note,
       );
 
-      // Auto-save rekening ke persistent storage
+      // Auto-save rekening ke riwayat tersimpan lokal
       final now = DateTime.now().millisecondsSinceEpoch;
       final existingIdx = _savedAccounts.indexWhere((a) => a.accountNumber == targetAccount);
       if (existingIdx != -1) {
@@ -334,6 +342,7 @@ class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
           ),
         );
       }
+      _sortAccounts(_savedAccounts);
       await _persistAccounts();
 
       if (!mounted) return;
@@ -341,7 +350,7 @@ class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
 
       HapticFeedback.heavyImpact();
 
-      // Dialog sukses transfer
+      // Tampilkan dialog sukses transfer
       await showDialog(
         context: context,
         barrierDismissible: false,
@@ -407,46 +416,426 @@ class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text(
-          'Kirim Saldo',
-          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
-        ),
-        centerTitle: true,
-        elevation: 0,
+        title: const Text('Kirim Saldo', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
         backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         foregroundColor: isDark ? Colors.white : const Color(0xFF0F172A),
+        elevation: 0,
+        centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () {
-            if (_selectedRecipient != null) {
-              setState(() => _selectedRecipient = null);
-            } else {
-              Navigator.pop(context);
-            }
-          },
+          onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: _selectedRecipient != null
-          ? _buildStep2Nominal(wallet, auth, isDark)
-          : _buildStep1RecipientList(isDark),
+      body: SingleChildScrollView(
+        controller: _scrollController,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // 1. Kartu Saldo Pengirim
+            _buildSenderBalanceCard(wallet, isDark),
+
+            const SizedBox(height: 16),
+
+            // 2. Card Input Rekening / HP Penerima + Tombol Cek
+            _buildRecipientInputCard(isDark),
+
+            const SizedBox(height: 16),
+
+            // 3. Card Input Nominal & Catatan Transfer
+            _buildNominalAndNoteCard(wallet, isDark),
+
+            const SizedBox(height: 20),
+
+            // 4. Tombol Kirim Sekarang
+            ElevatedButton(
+              onPressed: _isSubmitting ? null : () => _submitTransfer(wallet, auth),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: GageTheme.primary,
+                foregroundColor: Colors.white,
+                shape: const StadiumBorder(),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                elevation: 0,
+              ),
+              child: _isSubmitting
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                    )
+                  : const Text(
+                      'Kirim Sekarang',
+                      style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
+                    ),
+            ),
+
+            const SizedBox(height: 28),
+
+            // 5. Section Rekening Tersimpan (Referensi Tab Terakhir vs Favorit)
+            _buildSavedRecipientsSection(isDark),
+          ],
+        ),
+      ),
     );
   }
 
-  /// Step 1: Daftar Rekening Tersimpan (Sesuai Referensi Gambar)
-  Widget _buildStep1RecipientList(bool isDark) {
-    // Filter berdasarkan tab
+  /// 1. Kartu Saldo Pengirim
+  Widget _buildSenderBalanceCard(WalletProvider wallet, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Saldo GAGEPay Anda',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                currencyFormatter.format(wallet.balance),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+              ),
+            ],
+          ),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: GageTheme.primary.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.account_balance_wallet_rounded, color: GageTheme.primary, size: 22),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 2. Card Input Rekening Penerima
+  Widget _buildRecipientInputCard(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Nomor Rekening / HP Penerima',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: isDark ? Colors.white70 : const Color(0xFF334155),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _accountCtrl,
+                  keyboardType: TextInputType.number,
+                  onChanged: (val) {
+                    if (_verifiedRecipient != null) {
+                      setState(() => _verifiedRecipient = null);
+                    }
+                  },
+                  style: TextStyle(
+                    fontSize: 14.5,
+                    fontFamily: 'monospace',
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Contoh: 8908 1234 5678 / 08123...',
+                    hintStyle: TextStyle(
+                      fontSize: 12.5,
+                      color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                    ),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    filled: true,
+                    fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: GageTheme.primary, width: 1.5),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              ElevatedButton(
+                onPressed: _isCheckingAccount ? null : _checkRecipientAccount,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: GageTheme.primary,
+                  foregroundColor: Colors.white,
+                  shape: const StadiumBorder(),
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  elevation: 0,
+                ),
+                child: _isCheckingAccount
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                    : const Text('Cek', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              ),
+            ],
+          ),
+
+          if (_accountError != null) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.error_outline_rounded, size: 14, color: Colors.redAccent),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    _accountError!,
+                    style: const TextStyle(color: Colors.redAccent, fontSize: 11.5, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          ],
+
+          // Tampilan Akun Terverifikasi
+          if (_verifiedRecipient != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0FDF4),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFF86EFAC)),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundColor: const Color(0xFF16A34A),
+                    child: Text(
+                      (_verifiedRecipient!['name'] ?? 'G').toString()[0].toUpperCase(),
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _verifiedRecipient!['name'] ?? 'Penerima GAGEPay',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13.5,
+                            color: Color(0xFF14532D),
+                          ),
+                        ),
+                        Text(
+                          'GAGEPay: ${LuhnAlgorithm.formatWithSpaces((_verifiedRecipient!['account_number'] ?? _accountCtrl.text).toString())}',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontFamily: 'monospace',
+                            color: Color(0xFF166534),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.verified_rounded, color: Color(0xFF16A34A), size: 20),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// 3. Card Input Nominal & Catatan
+  Widget _buildNominalAndNoteCard(WalletProvider wallet, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Nominal Transfer',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: isDark ? Colors.white70 : const Color(0xFF334155),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: GageTheme.primary, width: 1.5),
+            ),
+            child: TextField(
+              controller: _amountCtrl,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+              decoration: const InputDecoration(
+                prefixText: 'Rp ',
+                prefixStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: GageTheme.primary),
+                hintText: '0',
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(vertical: 10),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          // Quick Nominal Chips
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _quickNominals.map((nom) {
+              return ActionChip(
+                backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                shape: const StadiumBorder(),
+                side: BorderSide(
+                  color: _amountCtrl.text == nom.toString()
+                      ? GageTheme.primary
+                      : (isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                ),
+                label: Text(
+                  currencyFormatter.format(nom),
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: _amountCtrl.text == nom.toString()
+                        ? GageTheme.primary
+                        : (isDark ? Colors.white70 : const Color(0xFF475569)),
+                  ),
+                ),
+                onPressed: () {
+                  HapticFeedback.selectionClick();
+                  setState(() => _amountCtrl.text = nom.toString());
+                },
+              );
+            }).toList(),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Catatan Transfer (Opsional)
+          Text(
+            'Catatan (Opsional)',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: isDark ? Colors.white70 : const Color(0xFF334155),
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _noteCtrl,
+            maxLength: 60,
+            decoration: InputDecoration(
+              hintText: 'Contoh: Bayar makan siang',
+              hintStyle: TextStyle(
+                fontSize: 12.5,
+                color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+              ),
+              counterText: '',
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              filled: true,
+              fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: GageTheme.primary, width: 1.5),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 5. Section Rekening Tersimpan (Referensi Tab Terakhir vs Favorit)
+  Widget _buildSavedRecipientsSection(bool isDark) {
+    // Filter list berdasarkan tab
     List<SavedGageAccount> listToShow;
     if (_selectedTab == 0) {
-      // Tab Terakhir: Urutkan berdasarkan waktu terakhir digunakan
       listToShow = List.of(_savedAccounts)
         ..sort((a, b) => b.lastUsedTimestamp.compareTo(a.lastUsedTimestamp));
     } else {
-      // Tab Favorit: Hanya yang berbintang
       listToShow = _savedAccounts.where((a) => a.isFavorite).toList()
         ..sort((a, b) => b.lastUsedTimestamp.compareTo(a.lastUsedTimestamp));
     }
 
-    // Filter pencarian
+    // Filter berdasarkan kolom pencarian
     if (_searchQuery.isNotEmpty) {
       final q = _searchQuery.toLowerCase();
       listToShow = listToShow.where((a) {
@@ -455,10 +844,35 @@ class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
     }
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 1. Segmented Capsule Tab: "Terakhir" vs "Favorit"
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Rekening Tersimpan',
+              style: TextStyle(
+                fontSize: 14.5,
+                fontWeight: FontWeight.w900,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
+            ),
+            if (_savedAccounts.isNotEmpty)
+              Text(
+                '${_savedAccounts.length} Rekening',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                ),
+              ),
+          ],
+        ),
+
+        const SizedBox(height: 10),
+
+        // Segmented Capsule Tab: "Terakhir" vs "Favorit"
         Container(
-          margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
@@ -472,9 +886,10 @@ class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
           ),
         ),
 
-        // 2. Search Bar: "Cari penerima di sini"
+        const SizedBox(height: 10),
+
+        // Search Bar: "Cari penerima di sini"
         Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
@@ -484,7 +899,7 @@ class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
             controller: _searchCtrl,
             onChanged: (val) => setState(() => _searchQuery = val.trim()),
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 13.5,
               color: isDark ? Colors.white : const Color(0xFF0F172A),
             ),
             decoration: InputDecoration(
@@ -496,14 +911,14 @@ class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
               hintText: 'Cari penerima di sini',
               hintStyle: TextStyle(
                 color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
-                fontSize: 13.5,
+                fontSize: 13,
               ),
               border: InputBorder.none,
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(vertical: 10),
               suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear_rounded, size: 18),
+                      icon: const Icon(Icons.clear_rounded, size: 16),
                       onPressed: () {
                         _searchCtrl.clear();
                         setState(() => _searchQuery = '');
@@ -514,84 +929,66 @@ class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
           ),
         ),
 
-        const SizedBox(height: 6),
+        const SizedBox(height: 10),
 
-        // 3. Opsi Transfer ke Nomor Rekening Baru (Jika Sedang Mencari)
-        if (_searchQuery.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Material(
+        // List Rekening Tersimpan
+        if (listToShow.isEmpty)
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1E293B) : Colors.white,
               borderRadius: BorderRadius.circular(16),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: _isCheckingAccount ? null : () => _selectCustomAccount(_searchQuery),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: GageTheme.primary.withValues(alpha: 0.12),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.send_rounded, color: GageTheme.primary, size: 20),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Kirim ke "$_searchQuery"',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Ketik nomor rekening GAGEPay (12 digit)',
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                color: isDark ? Colors.white54 : const Color(0xFF64748B),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (_isCheckingAccount)
-                        const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      else
-                        const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
-                    ],
-                  ),
-                ),
-              ),
+              border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
             ),
-          ),
-
-        // 4. Daftar Penerima (Sesuai Referensi Gambar)
-        Expanded(
-          child: listToShow.isEmpty
-              ? _buildEmptyState(isDark)
-              : ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  itemCount: listToShow.length,
-                  separatorBuilder: (context, index) => Divider(
-                    height: 1,
-                    thickness: 0.8,
-                    indent: 62,
-                    color: isDark ? Colors.white10 : const Color(0xFFF1F5F9),
-                  ),
-                  itemBuilder: (ctx, idx) {
-                    final acc = listToShow[idx];
-                    return _buildRecipientTile(acc, isDark);
-                  },
+            child: Column(
+              children: [
+                Icon(
+                  _selectedTab == 1 ? Icons.star_outline_rounded : Icons.history_rounded,
+                  size: 38,
+                  color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
                 ),
-        ),
+                const SizedBox(height: 8),
+                Text(
+                  _selectedTab == 1
+                      ? 'Belum ada rekening favorit'
+                      : 'Belum ada riwayat transfer',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white70 : const Color(0xFF475569),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _selectedTab == 1
+                      ? 'Ketuk ikon bintang pada rekening di tab Terakhir untuk menyimpannya sebagai favorit.'
+                      : 'Lakukan transfer pertama Anda menggunakan formulir di atas untuk menyimpan riwayat otomatis.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: listToShow.length,
+            separatorBuilder: (context, index) => Divider(
+              height: 1,
+              thickness: 0.8,
+              indent: 58,
+              color: isDark ? Colors.white10 : const Color(0xFFF1F5F9),
+            ),
+            itemBuilder: (ctx, idx) {
+              final acc = listToShow[idx];
+              return _buildSavedAccountTile(acc, isDark);
+            },
+          ),
       ],
     );
   }
@@ -610,7 +1007,7 @@ class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 9),
+          padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
             color: isSelected ? GageTheme.primary : Colors.transparent,
             borderRadius: BorderRadius.circular(999),
@@ -619,7 +1016,7 @@ class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
           child: Text(
             label,
             style: TextStyle(
-              fontSize: 13.5,
+              fontSize: 13,
               fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
               color: isSelected
                   ? Colors.white
@@ -631,11 +1028,10 @@ class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
     );
   }
 
-  Widget _buildRecipientTile(SavedGageAccount acc, bool isDark) {
+  Widget _buildSavedAccountTile(SavedGageAccount acc, bool isDark) {
     final formatted = LuhnAlgorithm.formatWithSpaces(acc.accountNumber);
     final initial = acc.name.isNotEmpty ? acc.name[0].toUpperCase() : 'G';
 
-    // Warna avatar berganti dinamis berdasarkan nama
     final colors = [
       const Color(0xFF0284C7),
       const Color(0xFFEA580C),
@@ -646,27 +1042,25 @@ class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
     final avatarColor = colors[acc.name.hashCode.abs() % colors.length];
 
     return InkWell(
-      onTap: () => _selectSavedRecipient(acc),
+      onTap: () => _selectSavedAccountToForm(acc),
       borderRadius: BorderRadius.circular(14),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
         child: Row(
           children: [
-            // Avatar inisial bulat
             CircleAvatar(
-              radius: 21,
+              radius: 19,
               backgroundColor: avatarColor,
               child: Text(
                 initial,
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w900,
-                  fontSize: 15,
+                  fontSize: 14,
                 ),
               ),
             ),
-            const SizedBox(width: 14),
-            // Nama & Nomor Rekening
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -675,17 +1069,17 @@ class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
                     acc.name,
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
-                      fontSize: 14.5,
+                      fontSize: 13.5,
                       color: isDark ? Colors.white : const Color(0xFF0F172A),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 2),
                   Text(
                     'GAGEPay: $formatted',
                     style: TextStyle(
-                      fontSize: 12.5,
+                      fontSize: 11.5,
                       fontFamily: 'monospace',
                       fontWeight: FontWeight.w500,
                       color: isDark ? Colors.white54 : const Color(0xFF64748B),
@@ -694,277 +1088,16 @@ class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
                 ],
               ),
             ),
-            // Tombol Bintang Favorit (Emas) - Tanpa batas kuota
             IconButton(
               icon: Icon(
                 acc.isFavorite ? Icons.star_rounded : Icons.star_outline_rounded,
                 color: const Color(0xFFF59E0B),
-                size: 26,
+                size: 24,
               ),
               onPressed: () => _toggleFavorite(acc),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(bool isDark) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              _selectedTab == 1 ? Icons.star_outline_rounded : Icons.history_rounded,
-              size: 54,
-              color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              _selectedTab == 1
-                  ? 'Belum ada penerima favorit'
-                  : 'Belum ada riwayat penerima',
-              style: TextStyle(
-                fontSize: 14.5,
-                fontWeight: FontWeight.w800,
-                color: isDark ? Colors.white70 : const Color(0xFF475569),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              _selectedTab == 1
-                  ? 'Ketuk ikon bintang pada penerima untuk menandai kontak favorit tanpa batas.'
-                  : 'Gunakan kolom pencarian di atas untuk mulai mengirim ke rekening GAGEPay baru.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
-                color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Step 2: Input Nominal & Konfirmasi Pengiriman Saldo
-  Widget _buildStep2Nominal(WalletProvider wallet, AuthProvider auth, bool isDark) {
-    final acc = _selectedRecipient!;
-    final formatted = LuhnAlgorithm.formatWithSpaces(acc.accountNumber);
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Card Penerima Terpilih
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 22,
-                  backgroundColor: GageTheme.primary,
-                  child: Text(
-                    acc.name.isNotEmpty ? acc.name[0].toUpperCase() : 'G',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        acc.name,
-                        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'GAGEPay: $formatted',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontFamily: 'monospace',
-                          color: isDark ? Colors.white60 : const Color(0xFF64748B),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => setState(() => _selectedRecipient = null),
-                  style: TextButton.styleFrom(
-                    foregroundColor: GageTheme.primary,
-                    minimumSize: Size.zero,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  ),
-                  child: const Text('Ganti', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 18),
-
-          // Saldo Dompet Pengirim
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Saldo GAGEPay Anda',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    color: isDark ? Colors.white60 : const Color(0xFF64748B),
-                  ),
-                ),
-                Text(
-                  currencyFormatter.format(wallet.balance),
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Input Nominal
-          Text(
-            'Nominal Transfer',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
-              color: isDark ? Colors.white70 : const Color(0xFF334155),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: GageTheme.primary, width: 1.5),
-            ),
-            child: TextField(
-              controller: _amountCtrl,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
-              decoration: const InputDecoration(
-                prefixText: 'Rp ',
-                prefixStyle: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: GageTheme.primary),
-                hintText: '0',
-                border: InputBorder.none,
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          // Quick Nominal Chips
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _quickNominals.map((nom) {
-              return ActionChip(
-                backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                shape: const StadiumBorder(),
-                side: BorderSide(
-                  color: _amountCtrl.text == nom.toString()
-                      ? GageTheme.primary
-                      : (isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-                ),
-                label: Text(
-                  currencyFormatter.format(nom),
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: _amountCtrl.text == nom.toString()
-                        ? GageTheme.primary
-                        : (isDark ? Colors.white70 : const Color(0xFF475569)),
-                  ),
-                ),
-                onPressed: () {
-                  HapticFeedback.selectionClick();
-                  setState(() => _amountCtrl.text = nom.toString());
-                },
-              );
-            }).toList(),
-          ),
-
-          const SizedBox(height: 20),
-
-          // Catatan Transfer (Opsional)
-          Text(
-            'Catatan (Opsional)',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
-              color: isDark ? Colors.white70 : const Color(0xFF334155),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
-            ),
-            child: TextField(
-              controller: _noteCtrl,
-              maxLength: 60,
-              decoration: const InputDecoration(
-                hintText: 'Contoh: Bayar makan siang',
-                border: InputBorder.none,
-                counterText: '',
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 32),
-
-          // Tombol Kirim Sekarang
-          ElevatedButton(
-            onPressed: _isSubmitting ? null : () => _submitTransfer(wallet, auth),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: GageTheme.primary,
-              foregroundColor: Colors.white,
-              shape: const StadiumBorder(),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              elevation: 0,
-            ),
-            child: _isSubmitting
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
-                  )
-                : const Text(
-                    'Kirim Sekarang',
-                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
-                  ),
-          ),
-        ],
       ),
     );
   }
