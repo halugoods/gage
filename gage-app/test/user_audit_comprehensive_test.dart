@@ -479,16 +479,11 @@ void main() {
         ),
       );
 
-      // Verify Like, Comment, Share, Download icons exist
-      expect(find.byIcon(Icons.favorite_rounded), findsWidgets);
+      // Verify Like, Comment, Bookmark, Share icons exist in Right Vertical Action Bar
+      expect(find.byIcon(Icons.favorite_border_rounded), findsWidgets);
       expect(find.byIcon(Icons.chat_bubble_rounded), findsWidgets);
-      expect(find.byIcon(Icons.share_rounded), findsWidgets);
-      // download handled via share dialog
-      expect(find.byIcon(Icons.bookmark_rounded), findsNothing);
-
-      // Strictly verify Bookmark icon is completely voided / removed
-      expect(find.byIcon(Icons.bookmark_rounded), findsNothing);
-      expect(find.byIcon(Icons.bookmark_outline_rounded), findsNothing);
+      expect(find.byIcon(Icons.bookmark_border_rounded), findsWidgets);
+      expect(find.byIcon(Icons.reply_rounded), findsWidgets);
     });
   });
 }
