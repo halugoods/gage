@@ -148,7 +148,7 @@ void main() {
       expect(find.text('Top Up'), findsAtLeastNWidgets(1));
       expect(find.textContaining('QRIS'), findsAtLeastNWidgets(1));
       expect(find.textContaining('COD'), findsAtLeastNWidgets(1));
-      expect(find.textContaining('Tunai ke Driver'), findsAtLeastNWidgets(1));
+      expect(find.textContaining('Tunai (COD)'), findsAtLeastNWidgets(1));
 
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(seconds: 3));

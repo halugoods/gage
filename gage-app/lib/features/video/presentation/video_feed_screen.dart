@@ -882,6 +882,43 @@ class _VideoFeedItemState extends State<_VideoFeedItem> {
             ),
           ),
 
+        // Watermark Teks Asli Proporsional (Tanpa Kapsul, bayangan kontras lembut)
+        Positioned(
+          top: MediaQuery.of(context).padding.top + 10,
+          left: 16,
+          child: IgnorePointer(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'GAGE',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5,
+                    color: GageTheme.primary,
+                    shadows: [
+                      Shadow(color: Colors.black87, blurRadius: 4, offset: Offset(0, 1)),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Video • ${video['author']}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    shadows: [
+                      Shadow(color: Colors.black87, blurRadius: 4, offset: Offset(0, 1)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
         // Gradient overlay for high legibility
         Positioned.fill(
           child: DecoratedBox(
@@ -891,8 +928,8 @@ class _VideoFeedItemState extends State<_VideoFeedItem> {
                 end: Alignment.bottomCenter,
                 colors: [
                   Colors.transparent,
-                  Colors.black.withOpacity(0.1),
-                  Colors.black.withOpacity(0.85),
+                  Colors.black.withValues(alpha: 0.1),
+                  Colors.black.withValues(alpha: 0.85),
                 ],
                 stops: const [0.4, 0.7, 1.0],
               ),
@@ -958,14 +995,31 @@ class _VideoFeedItemState extends State<_VideoFeedItem> {
               ),
               const SizedBox(height: 18),
 
-              // Share & Download Action
+              // Share Action
               _buildActionButton(
                 icon: Icons.share_rounded,
                 iconColor: Colors.white,
                 label: '${video['shares_count']}',
                 onTap: widget.onShare,
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: 18),
+
+              // Simpan Video Action (dengan Watermark GAGE)
+              _buildActionButton(
+                icon: Icons.download_rounded,
+                iconColor: Colors.white,
+                label: 'Simpan',
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Video ${video['product_name']} disimpan dengan watermark GAGE!'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 20),
 
               // Spinning Disc / Audio Icon
               Container(
@@ -991,56 +1045,7 @@ class _VideoFeedItemState extends State<_VideoFeedItem> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Creator Handle & Verified Icon
-              Row(
-                children: [
-                  Text(
-                    video['author'] as String,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      shadows: [Shadow(color: Colors.black, blurRadius: 4)],
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.verified_rounded, color: GageTheme.accentGreen, size: 16),
-                ],
-              ),
-              const SizedBox(height: 6),
-
-              // Caption / Description
-              Text(
-                video['title'] as String,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  height: 1.35,
-                  shadows: [Shadow(color: Colors.black, blurRadius: 4)],
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              // Audio Title Marquee
-              Row(
-                children: [
-                  const Icon(Icons.music_note, color: Colors.white70, size: 14),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      video['audio'] as String,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.white70, fontSize: 11.5),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-
-              // Yellow Product Pill ("Beli Sekarang / Tambah ke Keranjang")
+              // 1. Keranjang Kuning (DI ATAS NAMA AKUN KREATOR!)
               InkWell(
                 onTap: widget.onOrder,
                 borderRadius: BorderRadius.circular(14),
@@ -1051,7 +1056,7 @@ class _VideoFeedItemState extends State<_VideoFeedItem> {
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
+                        color: Colors.black.withValues(alpha: 0.3),
                         blurRadius: 6,
                         offset: const Offset(0, 2),
                       ),
@@ -1108,6 +1113,55 @@ class _VideoFeedItemState extends State<_VideoFeedItem> {
                     ],
                   ),
                 ),
+              ),
+              const SizedBox(height: 10),
+
+              // 2. Creator Handle (@author) & Verified Icon
+              Row(
+                children: [
+                  Text(
+                    video['author'] as String,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      shadows: [Shadow(color: Colors.black, blurRadius: 4)],
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.verified_rounded, color: GageTheme.accentGreen, size: 16),
+                ],
+              ),
+              const SizedBox(height: 6),
+
+              // 3. Caption / Description
+              Text(
+                video['title'] as String,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  height: 1.35,
+                  shadows: [Shadow(color: Colors.black, blurRadius: 4)],
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // 4. Audio Title Marquee
+              Row(
+                children: [
+                  const Icon(Icons.music_note, color: Colors.white70, size: 14),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      video['audio'] as String,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white70, fontSize: 11.5),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

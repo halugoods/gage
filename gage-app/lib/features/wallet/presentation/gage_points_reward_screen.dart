@@ -3,8 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
-import 'package:gage_app/core/utils/luhn_algorithm.dart';
-import 'package:gage_app/providers/auth_provider.dart';
 import 'package:gage_app/providers/wallet_provider.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 
@@ -1032,7 +1030,20 @@ class _GagePointsRewardScreenState extends State<GagePointsRewardScreen> {
                       color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
                     ),
                     prefixIcon: const Icon(Icons.account_balance_wallet_outlined, size: 20),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                    filled: true,
+                    fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: GageTheme.primary, width: 1.5),
+                    ),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   ),
                 ),
@@ -1055,7 +1066,20 @@ class _GagePointsRewardScreenState extends State<GagePointsRewardScreen> {
                       color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
                     ),
                     prefixIcon: const Icon(Icons.stars_rounded, color: Color(0xFFD97706), size: 20),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                    filled: true,
+                    fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: GageTheme.primary, width: 1.5),
+                    ),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   ),
                 ),

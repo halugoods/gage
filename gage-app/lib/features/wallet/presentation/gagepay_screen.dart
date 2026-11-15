@@ -40,7 +40,7 @@ class _GagePayScreenState extends State<GagePayScreen> {
   String _activeFilter = 'SEMUA'; // 'SEMUA', 'TOPUP', 'WITHDRAWAL', 'BELANJA'
   Map<String, dynamic>? _selectedWithdrawCard;
 
-  bool _isPromoBannerVisible = true;
+  final bool _isPromoBannerVisible = true;
 
   final List<Map<String, dynamic>> _userAccounts = [
     {
@@ -1011,11 +1011,11 @@ class _GagePayScreenState extends State<GagePayScreen> {
 
               // 3. Nomor Rekening dengan Validasi Khas Bank
               Text(
-                'Nomor Rekening / No. HP E-Wallet:',
+                'Nomor Rekening',
                 style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white70 : const Color(0xFF475569),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? Colors.white70 : const Color(0xFF334155),
                 ),
               ),
               const SizedBox(height: 6),
@@ -1036,8 +1036,9 @@ class _GagePayScreenState extends State<GagePayScreen> {
                               ? 'Masukkan 10 digit nomor rekening BCA'
                               : 'Masukkan nomor HP akun e-wallet terdaftar',
                   hintStyle: TextStyle(
-                    fontSize: 12,
-                    color: isDark ? Colors.white30 : Colors.black38,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.normal,
+                    color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
                     letterSpacing: 0,
                   ),
                   errorText: validationError,
@@ -1046,7 +1047,15 @@ class _GagePayScreenState extends State<GagePayScreen> {
                   fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                    borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: GageTheme.primary, width: 1.5),
                   ),
                 ),
                 onChanged: (val) {
@@ -1059,11 +1068,11 @@ class _GagePayScreenState extends State<GagePayScreen> {
 
               // 4. Nama Pemilik Rekening
               Text(
-                'Nama Pemilik Rekening:',
+                'Nama Pemilik Rekening',
                 style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white70 : const Color(0xFF475569),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? Colors.white70 : const Color(0xFF334155),
                 ),
               ),
               const SizedBox(height: 6),
@@ -1077,15 +1086,24 @@ class _GagePayScreenState extends State<GagePayScreen> {
                 decoration: InputDecoration(
                   hintText: 'Nama sesuai buku tabungan / e-wallet',
                   hintStyle: TextStyle(
-                    fontSize: 12,
-                    color: isDark ? Colors.white30 : Colors.black38,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.normal,
+                    color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
                   ),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   filled: true,
                   fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                    borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: GageTheme.primary, width: 1.5),
                   ),
                 ),
               ),
@@ -1182,167 +1200,6 @@ class _GagePayScreenState extends State<GagePayScreen> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  // Floating Sheet: Tukar Poin GAGE
-  void _showExchangePointsSheet(BuildContext context, WalletProvider wallet) {
-    HapticFeedback.lightImpact();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    GageFloatingSheet.show(
-      context: context,
-      title: 'Tukar Poin GAGE',
-      builder: (sheetContext) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFFEF3C7),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.stars_rounded, color: Color(0xFFD97706), size: 24),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Poin GAGE Anda',
-                          style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          '${wallet.points} Poin',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                            color: isDark ? Colors.white : Colors.black87,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Pilih Voucher Diskon yang Ingin Ditukar:',
-                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 10),
-
-              _buildPointVoucherOption(
-                sheetContext: sheetContext,
-                wallet: wallet,
-                requiredPoints: 50,
-                voucherName: 'Gratis Ongkir Xtra s/d Rp7.000',
-                desc: 'Bisa digunakan untuk GAGE Food & Shop',
-                isDark: isDark,
-              ),
-              const SizedBox(height: 10),
-              _buildPointVoucherOption(
-                sheetContext: sheetContext,
-                wallet: wallet,
-                requiredPoints: 75,
-                voucherName: 'Diskon Kuliner Rp 10.000',
-                desc: 'Potongan langsung untuk resto mitra GAGE Food',
-                isDark: isDark,
-              ),
-              const SizedBox(height: 10),
-              _buildPointVoucherOption(
-                sheetContext: sheetContext,
-                wallet: wallet,
-                requiredPoints: 40,
-                voucherName: 'Diskon Perjalanan Rp 5.000',
-                desc: 'Hemat biaya antar untuk ojek motor GAGE Ride',
-                isDark: isDark,
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildPointVoucherOption({
-    required BuildContext sheetContext,
-    required WalletProvider wallet,
-    required int requiredPoints,
-    required String voucherName,
-    required String desc,
-    required bool isDark,
-  }) {
-    final canRedeem = wallet.points >= requiredPoints;
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: canRedeem ? const Color(0xFFF59E0B) : (isDark ? Colors.white12 : Colors.grey.shade300)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  voucherName,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  desc,
-                  style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.black54),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '$requiredPoints Poin Cuan GAGE',
-                  style: const TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFFD97706),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          ElevatedButton(
-            onPressed: canRedeem
-                ? () {
-                    HapticFeedback.lightImpact();
-                    Navigator.pop(sheetContext);
-                    GageToast.show(
-                      context,
-                      'Berhasil menukar $requiredPoints poin dengan $voucherName! Kupon langsung terpasang.',
-                      type: GageToastType.success,
-                    );
-                  }
-                : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: GageTheme.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              shape: const StadiumBorder(),
-              elevation: 0,
-            ),
-            child: Text(
-              canRedeem ? 'Tukar' : 'Poin Kurang',
-              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
       ),
     );
   }

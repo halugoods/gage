@@ -2,20 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:gage_app/core/services/affiliate_commission_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/providers/wallet_provider.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
 
-/// AffiliateHubScreen - GAGE Cuan: Portal Resmi Kreator & Affiliator Video
-/// 
-/// Didesain khusus untuk kreator konten & affiliator TikTok KW:
-/// - Header obsidian glassmorphism dengan saldo komisi siap tarik
-/// - 1-Klik tarik saldo komisi ke GAGEPay (instan, Rp 0 biaya admin)
-/// - Tab 1: Konten VT Saya & Status Kurasi Keranjang Kuning (Kerkun)
-/// - Tab 2: Katalog Produk Komisi Tinggi Siap Dipromosikan (Salin Tagar Kerkun)
-/// - Tab 3: Riwayat Penarikan Dana Transparan
+/// AffiliateHubScreen - GAGE Cuan: Ekosistem Afiliasi & Kreator Video
+///
+/// Menggunakan GAGE Clean White Design System:
+/// - AppBar putih bersih dengan aksen merah GageTheme.primary
+/// - Header kartu saldo komisi siap tarik + tombol kapsul 1-klik ke GAGEPay
+/// - Pilar 1: Kartu Ajak Teman (Referral WhatsApp & Kode Unik)
+/// - Segmented Tab Switcher Kapsul Penuh (BorderRadius.circular(999))
+/// - Tab 1: Video Saya (Konten Kreator, views, pesanan, dan status kurasi)
+/// - Tab 2: Katalog Cuan (Produk komisi tinggi & simulasi markup merchant 100% utuh)
+/// - Tab 3: Riwayat Komisi (Mutasi komisi masuk dan pencairan dana)
 class AffiliateHubScreen extends StatefulWidget {
   const AffiliateHubScreen({super.key});
 
@@ -34,7 +37,7 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
   int _availableCommission = 148500;
   final String _referralCode = 'GAGE-CUAN-RATIH';
 
-  // Daftar Konten VT Kreator dengan Status Kerkun Riil
+  // Daftar Konten Video Kreator dengan Status Kerkun Riil
   final List<Map<String, dynamic>> _creatorVideos = [
     {
       'id': 'vt-01',
@@ -95,7 +98,7 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
     },
   ];
 
-  // Daftar Produk Komisi Tinggi Siap Di-tagar
+  // Daftar Produk Komisi Tinggi Siap Di-share & Dibuat Video
   final List<Map<String, dynamic>> _highCommissionProducts = [
     {
       'id': 'cuan-rc-01',
@@ -103,6 +106,7 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
       'merchant': 'Rocket Chicken Pracimantoro',
       'category': 'Kuliner',
       'price': 16000,
+      'offlinePrice': 12800,
       'commission': 1600,
       'rate': '10%',
       'sold': '1.4k+ terjual',
@@ -124,6 +128,7 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
       'merchant': 'Mie Ayam & Bakso Pak Kumis',
       'category': 'Kuliner',
       'price': 15000,
+      'offlinePrice': 12000,
       'commission': 1800,
       'rate': '12%',
       'sold': '890+ terjual',
@@ -145,6 +150,7 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
       'merchant': 'Seblak Prasmanan Teh Eneng',
       'category': 'Kuliner',
       'price': 18000,
+      'offlinePrice': 14400,
       'commission': 2000,
       'rate': '11%',
       'sold': '650+ terjual',
@@ -166,6 +172,7 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
       'merchant': 'Toko Sembako Berkah Fajar',
       'category': 'Sembako',
       'price': 68000,
+      'offlinePrice': 54400,
       'commission': 3500,
       'rate': '5%',
       'sold': '420+ terjual',
@@ -187,6 +194,7 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
       'merchant': 'Kios Tani Subur Makmur',
       'category': 'Pertanian',
       'price': 18000,
+      'offlinePrice': 14400,
       'commission': 1500,
       'rate': '8%',
       'sold': '310+ terjual',
@@ -208,6 +216,7 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
       'merchant': 'TB Bangkit Pracimantoro',
       'category': 'Bangunan',
       'price': 54000,
+      'offlinePrice': 43200,
       'commission': 2500,
       'rate': '5%',
       'sold': '560+ terjual',
@@ -225,31 +234,43 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
     },
   ];
 
-  // Riwayat Penarikan Dana Komisi
+  // Riwayat Penarikan Dana & Komisi Masuk
   final List<Map<String, dynamic>> _withdrawalHistory = [
     {
-      'id': 'WD-77291',
-      'date': '07 Nov 2026, 14:22 WIB',
-      'destination': 'Saldo GAGEPay (0812***4321)',
+      'id': 'WD-98421',
+      'date': '05 Nov 2026, 14:20 WIB',
+      'destination': 'Saldo GAGEPay (Instan)',
       'amount': 150000,
       'status': 'Berhasil Ditransfer',
       'isSuccess': true,
+      'type': 'WITHDRAW',
     },
     {
-      'id': 'WD-76410',
+      'id': 'KM-88123',
+      'date': '04 Nov 2026, 19:12 WIB',
+      'destination': 'Komisi Pesanan #ORD-98214 (Rocket Chicken)',
+      'amount': 3600,
+      'status': 'Komisi Masuk',
+      'isSuccess': true,
+      'type': 'EARNING',
+    },
+    {
+      'id': 'KM-88102',
+      'date': '03 Nov 2026, 12:45 WIB',
+      'destination': 'Komisi Pesanan #ORD-97812 (Dimsum Sewu)',
+      'amount': 2000,
+      'status': 'Komisi Masuk',
+      'isSuccess': true,
+      'type': 'EARNING',
+    },
+    {
+      'id': 'WD-82104',
       'date': '02 Nov 2026, 09:15 WIB',
-      'destination': 'Saldo GAGEPay (0812***4321)',
+      'destination': 'Saldo GAGEPay (Instan)',
       'amount': 350000,
       'status': 'Berhasil Ditransfer',
       'isSuccess': true,
-    },
-    {
-      'id': 'WD-75019',
-      'date': '28 Okt 2026, 16:40 WIB',
-      'destination': 'Rekening BCA (***7890)',
-      'amount': 200000,
-      'status': 'Berhasil Ditransfer',
-      'isSuccess': true,
+      'type': 'WITHDRAW',
     },
   ];
 
@@ -266,7 +287,7 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
   }
 
   void _copyReferralCode() {
-    HapticFeedback.lightImpact();
+    HapticFeedback.selectionClick();
     Clipboard.setData(ClipboardData(text: _referralCode));
     GageToast.show(
       context,
@@ -275,19 +296,41 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
     );
   }
 
-  void _copyHashtag(String tag) {
-    HapticFeedback.lightImpact();
-    final text = '$tag #GAGE_AFFILIATE #GAGE_KULINER';
-    Clipboard.setData(ClipboardData(text: text));
+  void _shareReferralToWhatsApp() {
+    HapticFeedback.selectionClick();
+    final message = AffiliateCommissionService.generateReferralShareText(
+      referralCode: _referralCode,
+      userName: 'Ratih Pracimantoro',
+    );
+    Clipboard.setData(ClipboardData(text: message));
     GageToast.show(
       context,
-      'Tagar Kerkun disalin: $text',
+      'Teks ajakan berhasil disalin! Buka WhatsApp untuk membagikan ke teman.',
       type: GageToastType.success,
     );
   }
 
+  void _copyProductLink(Map<String, dynamic> product) {
+    HapticFeedback.selectionClick();
+    final link = 'https://gage.co.id/item/${product['slug']}?ref=$_referralCode';
+    final shareText = AffiliateCommissionService.generateProductShareText(
+      productName: product['name'] as String,
+      merchantName: product['merchant'] as String,
+      price: product['price'] as int,
+      affiliateLink: link,
+    );
+    Clipboard.setData(ClipboardData(text: shareText));
+    GageToast.show(
+      context,
+      'Link afiliasi disalin! Bagikan ke WhatsApp atau media sosial Anda.',
+      type: GageToastType.success,
+    );
+  }
+
+
   void _showTestKerkunDialog(Map<String, dynamic> video) {
-    HapticFeedback.mediumImpact();
+    HapticFeedback.selectionClick();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
@@ -296,11 +339,17 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: const Color(0xFF0F172A),
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFFE52320).withValues(alpha: 0.4), width: 1.5),
-            boxShadow: const [
-              BoxShadow(color: Colors.black87, blurRadius: 24, offset: Offset(0, 10)),
+            border: Border.all(
+              color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
             ],
           ),
           child: Column(
@@ -315,7 +364,7 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFEF08A),
+                          color: const Color(0xFFFEF3C7),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Row(
@@ -323,16 +372,34 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
                           children: [
                             Icon(Icons.shopping_bag_rounded, size: 14, color: Color(0xFF854D0E)),
                             SizedBox(width: 4),
-                            Text('KERANJANG KUNING', style: TextStyle(color: Color(0xFF854D0E), fontSize: 10, fontWeight: FontWeight.w900)),
+                            Text(
+                              'KERANJANG KUNING',
+                              style: TextStyle(
+                                color: Color(0xFF854D0E),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
                           ],
                         ),
                       ),
                       const SizedBox(width: 8),
-                      const Text('Simulasi VT', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
+                      Text(
+                        'Simulasi Video',
+                        style: TextStyle(
+                          color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ],
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close_rounded, color: Colors.white70, size: 20),
+                    icon: Icon(
+                      Icons.close_rounded,
+                      color: isDark ? Colors.white70 : Colors.black54,
+                      size: 20,
+                    ),
                     onPressed: () => Navigator.pop(ctx),
                   ),
                 ],
@@ -340,21 +407,30 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
               const SizedBox(height: 14),
               Text(
                 video['title'] ?? 'Judul Video',
-                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800),
+                style: TextStyle(
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               const SizedBox(height: 4),
               Text(
                 'Tagar Terverifikasi: ${video['hashtag']}',
-                style: const TextStyle(color: Color(0xFF38BDF8), fontSize: 12, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  color: Color(0xFF0284C7),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 16),
-              // Yellow Basket Interactive Card
+
+              // Yellow Basket Card
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E293B),
+                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFFFFBEB),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFFACC15).withValues(alpha: 0.5), width: 1.2),
+                  border: Border.all(color: const Color(0xFFF59E0B), width: 1.2),
                 ),
                 child: Row(
                   children: [
@@ -362,14 +438,14 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
                       borderRadius: BorderRadius.circular(10),
                       child: Image.asset(
                         video['image'] ?? 'assets/images/culinary_mart.png',
-                        width: 56,
-                        height: 56,
+                        width: 52,
+                        height: 52,
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) => Container(
-                          width: 56,
-                          height: 56,
-                          color: Colors.grey.shade800,
-                          child: const Icon(Icons.fastfood, color: Colors.white54),
+                          width: 52,
+                          height: 52,
+                          color: Colors.grey.shade200,
+                          child: const Icon(Icons.fastfood, color: Colors.grey),
                         ),
                       ),
                     ),
@@ -380,21 +456,32 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
                         children: [
                           Text(
                             video['productName'] ?? 'Nama Produk',
-                            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 2),
                           Text(
                             video['merchant'] ?? 'Mitra GAGE',
-                            style: const TextStyle(color: Colors.white60, fontSize: 11),
+                            style: TextStyle(
+                              color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                              fontSize: 11,
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),
                           Text(
                             _currencyFormat.format(video['productPrice'] ?? 16000),
-                            style: const TextStyle(color: Color(0xFFFACC15), fontSize: 13, fontWeight: FontWeight.w900),
+                            style: const TextStyle(
+                              color: Color(0xFFD97706),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w900,
+                            ),
                           ),
                         ],
                       ),
@@ -402,15 +489,19 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
                     const SizedBox(width: 8),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFE52320),
+                        backgroundColor: GageTheme.primary,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        shape: const StadiumBorder(),
                         elevation: 0,
                       ),
                       onPressed: () {
                         Navigator.pop(ctx);
-                        GageToast.show(context, 'Alur Kerkun Valid! Pesanan otomatis mengunci komisi affiliator Anda.', type: GageToastType.success);
+                        GageToast.show(
+                          context,
+                          'Alur Kerkun Valid! Pesanan otomatis mengunci komisi affiliator Anda.',
+                          type: GageToastType.success,
+                        );
                       },
                       child: const Text('Beli', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                     ),
@@ -418,9 +509,13 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
                 ),
               ),
               const SizedBox(height: 14),
-              const Text(
-                '✓ Terkunci ke kode affiliator: GAGE-CUAN-RATIH\n✓ Komisi otomatis cair saat pesanan dinyatakan SELESAI oleh customer.',
-                style: TextStyle(color: Colors.white60, fontSize: 11.5, height: 1.4),
+              Text(
+                '✓ Terkunci ke kode affiliator: $_referralCode\n✓ Komisi otomatis cair saat pesanan dinyatakan SELESAI oleh customer.',
+                style: TextStyle(
+                  color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                  fontSize: 11.5,
+                  height: 1.4,
+                ),
               ),
             ],
           ),
@@ -430,291 +525,228 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
   }
 
   void _showSubmitVideoSheet() {
-    HapticFeedback.lightImpact();
+    HapticFeedback.selectionClick();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final urlCtrl = TextEditingController();
     final titleCtrl = TextEditingController();
     String selectedProduct = _highCommissionProducts.first['name'];
 
     GageFloatingSheet.show(
       context: context,
-      title: 'Submit Video TikTok / VT',
-      child: StatefulBuilder(
-        builder: (ctx, setSheetState) {
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Tautkan video TikTok atau unggah konten Anda agar disematkan Keranjang Kuning resmi.',
-                style: TextStyle(fontSize: 12.5, color: Colors.grey),
-              ),
-              const SizedBox(height: 14),
-              const Text('Judul / Deskripsi Video', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 6),
-              TextField(
-                controller: titleCtrl,
-                decoration: InputDecoration(
-                  hintText: 'Misal: Review Renyah Rocket Chicken!',
-                  hintStyle: const TextStyle(fontSize: 13, color: Colors.grey),
-                  filled: true,
-                  fillColor: Colors.grey.shade100,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Text('Link Video TikTok (Opsional)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 6),
-              TextField(
-                controller: urlCtrl,
-                decoration: InputDecoration(
-                  hintText: 'https://vt.tiktok.com/...',
-                  hintStyle: const TextStyle(fontSize: 13, color: Colors.grey),
-                  filled: true,
-                  fillColor: Colors.grey.shade100,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Text('Pilih Produk Mitra yang Dipromosikan', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    isExpanded: true,
-                    value: selectedProduct,
-                    items: _highCommissionProducts.map((p) {
-                      return DropdownMenuItem<String>(
-                        value: p['name'] as String,
-                        child: Text(p['name'] as String, style: const TextStyle(fontSize: 12.5), maxLines: 1, overflow: TextOverflow.ellipsis),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) setSheetState(() => selectedProduct = val);
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(height: 18),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: GageTheme.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    elevation: 0,
-                  ),
-                  onPressed: () {
-                    final t = titleCtrl.text.trim();
-                    if (t.isEmpty) {
-                      GageToast.show(context, 'Judul video tidak boleh kosong', type: GageToastType.warning);
-                      return;
-                    }
-                    Navigator.pop(ctx);
-                    setState(() {
-                      _creatorVideos.insert(0, {
-                        'id': 'vt-${DateTime.now().millisecondsSinceEpoch}',
-                        'title': t,
-                        'productName': selectedProduct,
-                        'merchant': 'Mitra GAGE Terverifikasi',
-                        'hashtag': '#GAGE_VIRAL #GAGE_AFFILIATE',
-                        'views': '0',
-                        'clicks': 0,
-                        'orders': 0,
-                        'commission': 0,
-                        'status': 'REVIEW',
-                        'image': 'assets/images/culinary_mart.png',
-                        'productPrice': 16000,
-                      });
-                    });
-                    GageToast.show(context, 'Video berhasil disubmit! Sedang direview kurator.', type: GageToastType.success);
-                  },
-                  child: const Text('Kirim untuk Kurasi Kerkun', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  void _showWithdrawSheet() {
-    HapticFeedback.lightImpact();
-    if (_availableCommission <= 0) {
-      GageToast.show(context, 'Saldo komisi Anda belum mencukupi untuk ditarik', type: GageToastType.warning);
-      return;
-    }
-
-    String selectedMethod = 'GAGEPay';
-
-    GageFloatingSheet.show(
-      context: context,
-      title: 'Tarik Saldo Komisi',
-      child: StatefulBuilder(
-        builder: (ctx, setSheetState) {
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Saldo Tersedia: ${_currencyFormat.format(_availableCommission)}',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: GageTheme.primary,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Metode Pencairan',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              Row(
+      title: 'Upload Konten Video Baru',
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setSheetState(() => selectedMethod = 'GAGEPay'),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          color: selectedMethod == 'GAGEPay'
-                              ? GageTheme.primary.withValues(alpha: 0.1)
-                              : Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: selectedMethod == 'GAGEPay'
-                                ? GageTheme.primary
-                                : Colors.grey.shade300,
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.account_balance_wallet_rounded,
-                              color: selectedMethod == 'GAGEPay'
-                                  ? GageTheme.primary
-                                  : Colors.grey.shade600,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'GAGEPay (Instan)',
+                  Text(
+                    'Tautkan link video atau unggah kreasi Anda agar disematkan Keranjang Kuning resmi.',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Judul / Deskripsi Video',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: titleCtrl,
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Contoh: Review Renyah Paket Geprek Rocket Chicken!',
+                      hintStyle: TextStyle(
+                        fontSize: 12.5,
+                        color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                      ),
+                      filled: true,
+                      fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Link Video TikTok / Reels (Opsional)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: urlCtrl,
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Contoh: https://vt.tiktok.com/ZS.../',
+                      hintStyle: TextStyle(
+                        fontSize: 12.5,
+                        color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                      ),
+                      filled: true,
+                      fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Pilih Produk Mitra yang Dipromosikan',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: selectedProduct,
+                        dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        items: _highCommissionProducts.map((p) {
+                          return DropdownMenuItem<String>(
+                            value: p['name'] as String,
+                            child: Text(
+                              p['name'] as String,
                               style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: selectedMethod == 'GAGEPay'
-                                    ? GageTheme.primary
-                                    : Colors.black87,
+                                fontSize: 12.5,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            const Text(
-                              'Biaya Rp 0',
-                              style: TextStyle(fontSize: 9.5, color: Colors.green, fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) setSheetState(() => selectedProduct = val);
+                        },
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setSheetState(() => selectedMethod = 'Bank'),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          color: selectedMethod == 'Bank'
-                              ? GageTheme.primary.withValues(alpha: 0.1)
-                              : Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: selectedMethod == 'Bank'
-                                ? GageTheme.primary
-                                : Colors.grey.shade300,
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.account_balance_rounded,
-                              color: selectedMethod == 'Bank'
-                                  ? GageTheme.primary
-                                  : Colors.grey.shade600,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Rekening Bank',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: selectedMethod == 'Bank'
-                                    ? GageTheme.primary
-                                    : Colors.black87,
-                              ),
-                            ),
-                            const Text(
-                              '1-2 Hari Kerja',
-                              style: TextStyle(fontSize: 9.5, color: Colors.grey),
-                            ),
-                          ],
-                        ),
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 46,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: GageTheme.primary,
+                        foregroundColor: Colors.white,
+                        shape: const StadiumBorder(),
+                        elevation: 0,
                       ),
+                      onPressed: () {
+                        final t = titleCtrl.text.trim();
+                        if (t.isEmpty) {
+                          GageToast.show(context, 'Judul video tidak boleh kosong', type: GageToastType.warning);
+                          return;
+                        }
+                        Navigator.pop(sheetContext);
+                        setState(() {
+                          _creatorVideos.insert(0, {
+                            'id': 'vt-${DateTime.now().millisecondsSinceEpoch}',
+                            'title': t,
+                            'productName': selectedProduct,
+                            'merchant': 'Mitra GAGE Terverifikasi',
+                            'hashtag': '#GAGE_VIRAL #GAGE_AFFILIATE',
+                            'views': '0',
+                            'clicks': 0,
+                            'orders': 0,
+                            'commission': 0,
+                            'status': 'REVIEW',
+                            'image': 'assets/images/culinary_mart.png',
+                            'productPrice': 16000,
+                          });
+                        });
+                        GageToast.show(
+                          context,
+                          'Video berhasil disubmit! Sedang dikurasi oleh tim GAGE.',
+                          type: GageToastType.success,
+                        );
+                      },
+                      child: const Text('Kirim untuk Kurasi Kerkun', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: GageTheme.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    elevation: 0,
-                  ),
-                  onPressed: () {
-                    final amount = _availableCommission;
-                    if (selectedMethod == 'GAGEPay') {
-                      try {
-                        context.read<WalletProvider>().topUp(amount);
-                      } catch (_) {}
-                    }
-                    Navigator.pop(ctx);
-                    setState(() {
-                      _withdrawalHistory.insert(0, {
-                        'id': 'WD-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
-                        'date': 'Hari ini, ${DateFormat('HH:mm').format(DateTime.now())} WIB',
-                        'destination': selectedMethod == 'GAGEPay' ? 'Saldo GAGEPay (Instan)' : 'Rekening Bank BCA',
-                        'amount': amount,
-                        'status': 'Berhasil Ditransfer',
-                        'isSuccess': true,
-                      });
-                      _availableCommission = 0;
-                    });
-                    GageToast.show(
-                      context,
-                      'Penarikan ${_currencyFormat.format(amount)} ke $selectedMethod berhasil diproses!',
-                      type: GageToastType.success,
-                    );
-                  },
-                  child: const Text('Konfirmasi Penarikan', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _withdrawToGagePay() {
+    HapticFeedback.selectionClick();
+    if (_availableCommission <= 0) {
+      GageToast.show(
+        context,
+        'Saldo komisi Anda belum mencukupi untuk ditarik',
+        type: GageToastType.warning,
+      );
+      return;
+    }
+
+    final amount = _availableCommission;
+    try {
+      context.read<WalletProvider>().topUp(amount);
+    } catch (_) {}
+
+    setState(() {
+      _withdrawalHistory.insert(0, {
+        'id': 'WD-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
+        'date': 'Hari ini, ${DateFormat('HH:mm').format(DateTime.now())} WIB',
+        'destination': 'Saldo GAGEPay (Instan)',
+        'amount': amount,
+        'status': 'Berhasil Ditransfer',
+        'isSuccess': true,
+        'type': 'WITHDRAW',
+      });
+      _availableCommission = 0;
+    });
+
+    GageToast.show(
+      context,
+      'Penarikan ${_currencyFormat.format(amount)} langsung masuk ke GAGEPay Anda!',
+      type: GageToastType.success,
     );
   }
 
@@ -725,21 +757,39 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF090D16) : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Column(
+        elevation: 0,
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        foregroundColor: isDark ? Colors.white : const Color(0xFF0F172A),
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('GAGE Cuan', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
-            Text('Mitra Affiliator Resmi', style: TextStyle(fontSize: 11, color: Colors.white70)),
+            Text(
+              'GAGE Cuan',
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 18,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
+            ),
+            Text(
+              'Pusat Afiliasi & Kreator',
+              style: TextStyle(
+                fontSize: 11,
+                color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ],
         ),
-        backgroundColor: const Color(0xFF0F172A),
-        foregroundColor: Colors.white,
-        elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.help_outline_rounded, size: 22),
+            icon: const Icon(Icons.help_outline_rounded, size: 22, color: GageTheme.primary),
             onPressed: () {
-              GageToast.show(context, 'Panduan: Upload video, sematkan tagar kerkun, dan cairkan komisi!', type: GageToastType.info);
+              GageToast.show(
+                context,
+                'Panduan: Bagikan link referral, salin link produk, atau upload video berkoleksi keranjang kuning!',
+                type: GageToastType.info,
+              );
             },
           ),
         ],
@@ -748,7 +798,7 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
         headerSliverBuilder: (context, innerBoxIsScrolled) {
           return [
             SliverToBoxAdapter(
-              child: _buildObsidianHeader(isDark),
+              child: _buildCleanWhiteHeader(isDark),
             ),
             SliverPersistentHeader(
               pinned: true,
@@ -756,7 +806,7 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                   padding: const EdgeInsets.all(3),
-                  height: 40,
+                  height: 42,
                   decoration: BoxDecoration(
                     color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
                     borderRadius: BorderRadius.circular(999),
@@ -771,16 +821,16 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
                     indicatorSize: TabBarIndicatorSize.tab,
                     dividerColor: Colors.transparent,
                     labelColor: Colors.white,
-                    unselectedLabelColor: isDark ? Colors.white60 : Colors.grey.shade600,
-                    labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                    unselectedLabelColor: isDark ? Colors.white60 : const Color(0xFF64748B),
+                    labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
                     tabs: const [
+                      Tab(text: 'Video Saya'),
                       Tab(text: 'Katalog Cuan'),
-                      Tab(text: 'Performa & CVR'),
-                      Tab(text: 'Riwayat Penarikan'),
+                      Tab(text: 'Riwayat Komisi'),
                     ],
                   ),
                 ),
-                isDark ? const Color(0xFF0F172A) : Colors.white,
+                isDark ? const Color(0xFF090D16) : const Color(0xFFF8FAFC),
               ),
             ),
           ];
@@ -788,8 +838,8 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
         body: TabBarView(
           controller: _tabController,
           children: [
-            _buildProductsTab(isDark),
             _buildCreatorVideosTab(isDark),
+            _buildProductsTab(isDark),
             _buildWithdrawalHistoryTab(isDark),
           ],
         ),
@@ -797,77 +847,29 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
     );
   }
 
-  Widget _buildObsidianHeader(bool isDark) {
+  /// Header Bersih GAGE Cuan (White Theme)
+  Widget _buildCleanWhiteHeader(bool isDark) {
     return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: const BoxDecoration(
-        color: Color(0xFF0F172A),
-        border: Border(bottom: BorderSide(color: Color(0xFF1E293B))),
-      ),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      color: isDark ? const Color(0xFF090D16) : const Color(0xFFF8FAFC),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Referral Code Pill
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE52320).withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFFE52320).withValues(alpha: 0.4)),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.verified_rounded, color: Color(0xFFE52320), size: 14),
-                        SizedBox(width: 5),
-                        Text('Kreator Level: Gold', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              InkWell(
-                onTap: _copyReferralCode,
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1E293B),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white12),
-                  ),
-                  child: Row(
-                    children: [
-                      Text(
-                        _referralCode,
-                        style: const TextStyle(color: Color(0xFF38BDF8), fontSize: 11, fontWeight: FontWeight.w800),
-                      ),
-                      const SizedBox(width: 4),
-                      const Icon(Icons.copy_rounded, color: Color(0xFF38BDF8), size: 12),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          // Main Balance Card
+          // 1. Kartu Saldo Komisi
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
               ),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFE52320).withValues(alpha: 0.3)),
-              boxShadow: const [
-                BoxShadow(color: Colors.black45, blurRadius: 10, offset: Offset(0, 4)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
               ],
             ),
             child: Column(
@@ -876,51 +878,206 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Saldo Komisi Siap Tarik',
-                          style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w500),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _currencyFormat.format(_availableCommission),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 26,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                      ],
+                    Text(
+                      'Saldo Komisi Siap Tarik',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                      ),
                     ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDCFCE7),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.check_circle_rounded, size: 12, color: Color(0xFF16A34A)),
+                          SizedBox(width: 4),
+                          Text(
+                            'Instan Rp 0 Admin',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF16A34A),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _currencyFormat.format(_availableCommission),
+                        style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.5,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: GageTheme.primary,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        shape: const StadiumBorder(),
                         elevation: 0,
                       ),
-                      onPressed: _showWithdrawSheet,
-                      icon: const Icon(Icons.payments_rounded, size: 16),
-                      label: const Text('Tarik Saldo', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+                      onPressed: _withdrawToGagePay,
+                      icon: const Icon(Icons.account_balance_wallet_rounded, size: 15),
+                      label: const Text(
+                        'Tarik ke GAGEPay',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
-                const Divider(color: Colors.white12, height: 1),
-                const SizedBox(height: 14),
+                Divider(
+                  height: 1,
+                  color: isDark ? Colors.white10 : const Color(0xFFF1F5F9),
+                ),
+                const SizedBox(height: 12),
                 // Analytics Row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildStatItem('12.4k', 'Total Views VT'),
-                    _buildStatItem('348', 'Klik Kerkun'),
-                    _buildStatItem('42', 'Pesanan Selesai'),
-                    _buildStatItem('12.1%', 'Rasio CVR'),
+                    _buildStatItem('12.4k', 'Views Konten', isDark),
+                    _buildStatItem('348', 'Klik Kerkun', isDark),
+                    _buildStatItem('42', 'Pesanan Cair', isDark),
+                    _buildStatItem('12', 'Teman Diajak', isDark),
                   ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // 2. Pilar 1: Kartu Ajak Teman (Referral)
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: isDark ? Colors.white10 : const Color(0xFFFEE2E2),
+                width: 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: GageTheme.primary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.group_add_rounded, color: GageTheme.primary, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'Ajak Teman Cuan',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEF3C7),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'Voucher 10rb',
+                              style: TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFFB45309),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Bagikan kode referral Anda ke WhatsApp',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                InkWell(
+                  onTap: _copyReferralCode,
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _referralCode,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                            color: GageTheme.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.copy_rounded, size: 13, color: GageTheme.primary),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                InkWell(
+                  onTap: _shareReferralToWhatsApp,
+                  borderRadius: BorderRadius.circular(999),
+                  child: Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF25D366),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.share_rounded, size: 15, color: Colors.white),
+                  ),
                 ),
               ],
             ),
@@ -930,56 +1087,77 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
     );
   }
 
-  Widget _buildStatItem(String value, String label) {
+  Widget _buildStatItem(String value, String label, bool isDark) {
     return Column(
       children: [
-        Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 15)),
+        Text(
+          value,
+          style: TextStyle(
+            color: isDark ? Colors.white : const Color(0xFF0F172A),
+            fontWeight: FontWeight.w900,
+            fontSize: 15,
+          ),
+        ),
         const SizedBox(height: 2),
-        Text(label, style: const TextStyle(color: Colors.white60, fontSize: 10.5)),
+        Text(
+          label,
+          style: TextStyle(
+            color: isDark ? Colors.white60 : const Color(0xFF64748B),
+            fontSize: 10.5,
+          ),
+        ),
       ],
     );
   }
 
-  // TAB 1: Konten VT Saya & Status Kurasi Kerkun
+  // TAB 1: Konten Video Saya
   Widget _buildCreatorVideosTab(bool isDark) {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Feed Konten & Keranjang Kuning',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : Colors.black87,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Feed Konten Video Kreator',
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
                   ),
-                ),
-                Text(
-                  'Daftar video yang aktif dipromosikan di GAGE',
-                  style: TextStyle(fontSize: 11.5, color: isDark ? Colors.grey.shade400 : Colors.black54),
-                ),
-              ],
+                  Text(
+                    'Daftar video yang aktif berkoleksi Keranjang Kuning',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
+            const SizedBox(width: 8),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: GageTheme.primary,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                shape: const StadiumBorder(),
                 elevation: 0,
               ),
               onPressed: _showSubmitVideoSheet,
               icon: const Icon(Icons.add_rounded, size: 16),
-              label: const Text('Submit VT', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+              label: const Text('Upload Video', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
         ..._creatorVideos.map((v) => _buildVideoCard(v, isDark)),
       ],
     );
@@ -993,18 +1171,18 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
     IconData statusIcon;
 
     if (status == 'APPROVED') {
-      statusBg = const Color(0xFF16A34A).withValues(alpha: 0.15);
-      statusColor = const Color(0xFF22C55E);
-      statusLabel = '✓ LOLOS KERKUN (Aktif)';
+      statusBg = const Color(0xFFDCFCE7);
+      statusColor = const Color(0xFF16A34A);
+      statusLabel = '✓ LOLOS KERKUN';
       statusIcon = Icons.check_circle_rounded;
     } else if (status == 'REVIEW') {
-      statusBg = const Color(0xFFD97706).withValues(alpha: 0.15);
-      statusColor = const Color(0xFFF59E0B);
+      statusBg = const Color(0xFFFEF3C7);
+      statusColor = const Color(0xFFD97706);
       statusLabel = '⏳ SEDANG DIREVIEW';
       statusIcon = Icons.hourglass_top_rounded;
     } else {
-      statusBg = const Color(0xFFE11D48).withValues(alpha: 0.15);
-      statusColor = const Color(0xFFF43F5E);
+      statusBg = const Color(0xFFFFE4E6);
+      statusColor = const Color(0xFFE11D48);
       statusLabel = '✕ DITOLAK';
       statusIcon = Icons.cancel_rounded;
     }
@@ -1013,11 +1191,15 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF131B2E) : Colors.white,
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+        border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6, offset: const Offset(0, 2)),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
         ],
       ),
       child: Column(
@@ -1035,8 +1217,8 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
                   errorBuilder: (context, error, stackTrace) => Container(
                     width: 50,
                     height: 50,
-                    color: Colors.grey.shade800,
-                    child: const Icon(Icons.videocam_rounded, color: Colors.white54),
+                    color: Colors.grey.shade200,
+                    child: const Icon(Icons.videocam_rounded, color: Colors.grey),
                   ),
                 ),
               ),
@@ -1050,7 +1232,7 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
                       style: TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black87,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -1058,7 +1240,10 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
                     const SizedBox(height: 2),
                     Text(
                       'Produk: ${v['productName']}',
-                      style: TextStyle(fontSize: 11, color: isDark ? Colors.grey.shade400 : Colors.black54),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -1081,7 +1266,7 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
             ],
           ),
           const SizedBox(height: 10),
-          const Divider(height: 1),
+          Divider(height: 1, color: isDark ? Colors.white10 : const Color(0xFFF1F5F9)),
           const SizedBox(height: 8),
           if (status == 'APPROVED') ...[
             Row(
@@ -1089,23 +1274,29 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
               children: [
                 Text(
                   '${v['views']} views • ${v['clicks']} klik • ${v['orders']} pesanan',
-                  style: TextStyle(fontSize: 11, color: isDark ? Colors.grey.shade400 : Colors.black54),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+                  ),
                 ),
                 InkWell(
                   onTap: () => _showTestKerkunDialog(v),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(999),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFEF08A),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFCA8A04)),
+                      color: const Color(0xFFFEF3C7),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: const Color(0xFFF59E0B)),
                     ),
                     child: const Row(
                       children: [
                         Icon(Icons.play_circle_fill_rounded, size: 12, color: Color(0xFF854D0E)),
                         SizedBox(width: 4),
-                        Text('Uji Keranjang Kuning', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900, color: Color(0xFF854D0E))),
+                        Text(
+                          'Uji Kerkun',
+                          style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900, color: Color(0xFF854D0E)),
+                        ),
                       ],
                     ),
                   ),
@@ -1114,13 +1305,13 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
             ),
           ] else if (status == 'REVIEW') ...[
             const Text(
-              '⏳ Tim GAGE sedang mencocokkan tagar produk. Diperkirakan tayang dalam 2 jam.',
-              style: TextStyle(fontSize: 11, color: Color(0xFFF59E0B)),
+              '⏳ Tim kurasi GAGE sedang meninjau tautan video Anda.',
+              style: TextStyle(fontSize: 11, color: Color(0xFFD97706)),
             ),
           ] else ...[
             Text(
               v['rejectReason'] as String? ?? 'Konten tidak memenuhi syarat kurasi.',
-              style: const TextStyle(fontSize: 11, color: Color(0xFFF43F5E)),
+              style: const TextStyle(fontSize: 11, color: Color(0xFFE11D48)),
             ),
           ],
         ],
@@ -1131,19 +1322,25 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
   // TAB 2: Katalog Produk Komisi
   Widget _buildProductsTab(bool isDark) {
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       itemCount: _highCommissionProducts.length,
       itemBuilder: (ctx, idx) {
         final p = _highCommissionProducts[idx];
+        final offlinePrice = p['offlinePrice'] as int? ?? ((p['price'] as int) * 0.8).round();
+
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF131B2E) : Colors.white,
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+            border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
             boxShadow: [
-              BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6, offset: const Offset(0, 2)),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
             ],
           ),
           child: Row(
@@ -1159,8 +1356,8 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
                   errorBuilder: (context, error, stackTrace) => Container(
                     width: 72,
                     height: 72,
-                    color: Colors.grey.shade800,
-                    child: const Icon(Icons.storefront_rounded, color: Colors.white54),
+                    color: Colors.grey.shade200,
+                    child: const Icon(Icons.storefront_rounded, color: Colors.grey),
                   ),
                 ),
               ),
@@ -1174,7 +1371,7 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black87,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -1182,7 +1379,10 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
                     const SizedBox(height: 2),
                     Text(
                       p['merchant'] as String,
-                      style: TextStyle(fontSize: 11, color: isDark ? Colors.grey.shade400 : Colors.black54),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+                      ),
                     ),
                     const SizedBox(height: 6),
                     Row(
@@ -1190,30 +1390,39 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
                         Text(
                           _currencyFormat.format(p['price']),
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: 13.5,
                             fontWeight: FontWeight.w900,
-                            color: isDark ? Colors.white : Colors.black87,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF16A34A).withValues(alpha: 0.15),
+                            color: const Color(0xFFDCFCE7),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
                             '+${_currencyFormat.format(p['commission'])} (${p['rate']})',
                             style: const TextStyle(
                               fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w800,
                               color: Color(0xFF16A34A),
                             ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Pencairan merchant utuh: ${_currencyFormat.format(offlinePrice)} (100%)',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
                     Row(
                       children: [
                         Expanded(
@@ -1222,22 +1431,22 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
                               foregroundColor: GageTheme.primary,
                               side: const BorderSide(color: GageTheme.primary),
                               padding: const EdgeInsets.symmetric(vertical: 4),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              shape: const StadiumBorder(),
                               visualDensity: VisualDensity.compact,
                             ),
-                            onPressed: () => _copyHashtag(p['hashtag'] as String),
-                            icon: const Icon(Icons.tag_rounded, size: 14),
-                            label: const Text('Salin Tagar', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                            onPressed: () => _copyProductLink(p),
+                            icon: const Icon(Icons.share_rounded, size: 13),
+                            label: const Text('Salin Link', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         Expanded(
                           child: ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF0F172A),
+                              backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFF1E293B),
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 4),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              shape: const StadiumBorder(),
                               visualDensity: VisualDensity.compact,
                               elevation: 0,
                             ),
@@ -1250,7 +1459,7 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
                                 );
                               }
                             },
-                            icon: const Icon(Icons.storefront_rounded, size: 14),
+                            icon: const Icon(Icons.storefront_rounded, size: 13),
                             label: const Text('Buka Toko', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                           ),
                         ),
@@ -1266,30 +1475,38 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
     );
   }
 
-  // TAB 3: Riwayat Penarikan Dana
+  // TAB 3: Riwayat Komisi & Penarikan Dana
   Widget _buildWithdrawalHistoryTab(bool isDark) {
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       itemCount: _withdrawalHistory.length,
       itemBuilder: (ctx, idx) {
         final w = _withdrawalHistory[idx];
+        final isWithdrawal = w['type'] == 'WITHDRAW';
+
         return Container(
           margin: const EdgeInsets.only(bottom: 10),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF131B2E) : Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
           ),
           child: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF16A34A).withValues(alpha: 0.12),
+                  color: isWithdrawal
+                      ? GageTheme.primary.withValues(alpha: 0.1)
+                      : const Color(0xFFDCFCE7),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.arrow_downward_rounded, color: Color(0xFF16A34A), size: 18),
+                child: Icon(
+                  isWithdrawal ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+                  color: isWithdrawal ? GageTheme.primary : const Color(0xFF16A34A),
+                  size: 18,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1301,13 +1518,16 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black87,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       '${w['id']} • ${w['date']}',
-                      style: TextStyle(fontSize: 11, color: isDark ? Colors.grey.shade400 : Colors.black54),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+                      ),
                     ),
                   ],
                 ),
@@ -1316,11 +1536,22 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> with SingleTick
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    _currencyFormat.format(w['amount']),
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF16A34A)),
+                    '${isWithdrawal ? '-' : '+'}${_currencyFormat.format(w['amount'])}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      color: isWithdrawal ? GageTheme.primary : const Color(0xFF16A34A),
+                    ),
                   ),
                   const SizedBox(height: 2),
-                  const Text('✓ Sukses', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF16A34A))),
+                  Text(
+                    w['status'] as String,
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.bold,
+                      color: isWithdrawal ? GageTheme.primary : const Color(0xFF16A34A),
+                    ),
+                  ),
                 ],
               ),
             ],

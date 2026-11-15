@@ -108,3 +108,36 @@ Portal Customer ([`resto_detail_screen.dart`](../../gage-app/lib/features/food/p
 - Nomor invoice pesanan pelanggan kini beralih ke format kompak advance: `INV-{BASE36_TIMESTAMP}-{NODE_SEQ}{CHECKSUM}` (contoh: `INV-K9X2B7Q1-P018`).
 - Kasir Merchant dapat memvalidasi keaslian nomor invoice secara instan menggunakan algoritma check digit Modulo 36 (Luhn variant) serta mengekstrak waktu transaksi tanpa lookup ke backend.
 
+---
+
+## 7. Handoff Ekosistem GAGE Cuan & Video: Formula Rekomendasi Markup Harga Merchant & Pencairan 100% Utuh
+
+1. **Latar Belakang & Prinsip Utama**:
+   - Merchant yang mengaktifkan fitur promosi afiliasi (GAGE Cuan & Keranjang Kuning Video) memberikan hak komisi kepada kreator/affiliator untuk mendongkrak omzet penjualan.
+   - Skema potongan total adalah **20%** (10% platform fee GAGE + 10% komisi affiliator).
+   - **Prinsip Bebas Rugi bagi Merchant**: Pencairan bersih (*net payout*) ke saldo kasir merchant **wajib 100% utuh sama persis dengan harga offline outlet ($P_{\text{offline}}$)**.
+
+2. **Formula Rekomendasi Markup Harga Online (*Net Payout Divisor*)**:
+   - Formula yang dipakai:
+     $$P_{\text{online}} = \frac{P_{\text{offline}}}{1 - (PlatformRate + AffiliateRate)} = \frac{P_{\text{offline}}}{1 - 0.20} = \frac{P_{\text{offline}}}{0.80}$$
+   - Contoh Perhitungan:
+     - Harga offline outlet: **Rp 10.000**
+     - Harga online aplikasi rekomendasi: $10.000 / 0.80 =$ **Rp 12.500**
+     - Potongan komisi total 20%: $20\% \times 12.500 =$ **Rp 2.500**
+     - **Pencairan bersih ke Merchant**: $12.500 - 2.500 =$ **Rp 10.000 (100% Utuh!)**
+
+3. **Alokasi Pembagian Hasil Transaksi**:
+   - **Transaksi dengan Affiliator (via Link / Keranjang Kuning)**:
+     - Merchant: Rp 10.000 (80%)
+     - Affiliator: Rp 1.250 (10%)
+     - Kas Platform GAGE: Rp 1.250 (10%)
+   - **Transaksi Organik (Customer Belanja Langsung Tanpa Affiliator)**:
+     - Merchant: Rp 10.000 (80%, tetap utuh!)
+     - Affiliator: Rp 0
+     - Kas Platform GAGE: Rp 2.500 (20%, margin ganda untuk platform GAGE)
+
+4. **Service Helper di Codebase**:
+   - Telah tersedia di `AffiliateCommissionService` (`gage-app/lib/core/services/affiliate_commission_service.dart`).
+   - Portal Merchant dapat mengimpor service ini pada layar manajemen menu (`merchant_menu_screen.dart`) untuk menampilkan fitur kalkulator rekomendasi harga otomatis saat merchant menginput harga offline.
+
+

@@ -103,14 +103,39 @@ class FloatingWalletCard extends StatelessWidget {
                         FittedBox(
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerLeft,
-                          child: Text(
-                            currencyFormatter.format(wallet.balance),
-                            style: TextStyle(
-                              fontSize: 18.5,
-                              fontWeight: FontWeight.w900,
-                              color: isDark ? Colors.white : Colors.black87,
-                              letterSpacing: -0.2,
-                            ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                !wallet.isBalanceHidden
+                                    ? currencyFormatter.format(wallet.balance)
+                                    : 'Rp ••••••',
+                                style: TextStyle(
+                                  fontSize: 18.5,
+                                  fontWeight: FontWeight.w900,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              InkWell(
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  wallet.setBalanceHidden(!wallet.isBalanceHidden);
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.all(3),
+                                  child: Icon(
+                                    !wallet.isBalanceHidden
+                                        ? Icons.visibility_rounded
+                                        : Icons.visibility_off_rounded,
+                                    size: 15,
+                                    color: isDark ? Colors.white54 : Colors.black45,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 3),

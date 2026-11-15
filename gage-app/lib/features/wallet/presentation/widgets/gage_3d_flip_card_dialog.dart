@@ -470,11 +470,11 @@ class _Gage3DFlipCardDialogState extends State<Gage3DFlipCardDialog>
 
                     // 3. Nomor Rekening & Validasi Spesifik Bank
                     Text(
-                      'Nomor Rekening / E-Wallet:',
+                      'Nomor Rekening',
                       style: TextStyle(
-                        color: isDark ? Colors.white70 : const Color(0xFF475569),
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: isDark ? Colors.white70 : const Color(0xFF334155),
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -495,18 +495,27 @@ class _Gage3DFlipCardDialogState extends State<Gage3DFlipCardDialog>
                                     ? '10 digit angka (cth: 8210394812)'
                                     : 'Nomor HP e-wallet (cth: 081234567890)',
                         hintStyle: TextStyle(
-                          fontSize: 12,
-                          color: isDark ? Colors.white30 : Colors.black38,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.normal,
+                          color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
                           letterSpacing: 0,
                         ),
                         errorText: validationError,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                          borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: GageTheme.primary, width: 1.5),
                         ),
                         filled: true,
-                        fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF8FAFC),
+                        fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                       ),
                       onChanged: (val) {
                         setSheetState(() {
@@ -518,11 +527,11 @@ class _Gage3DFlipCardDialogState extends State<Gage3DFlipCardDialog>
 
                     // 4. Nama Pemilik Rekening
                     Text(
-                      'Nama Pemilik Akun:',
+                      'Nama Pemilik Rekening',
                       style: TextStyle(
-                        color: isDark ? Colors.white70 : const Color(0xFF475569),
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: isDark ? Colors.white70 : const Color(0xFF334155),
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -536,16 +545,25 @@ class _Gage3DFlipCardDialogState extends State<Gage3DFlipCardDialog>
                       decoration: InputDecoration(
                         hintText: 'Nama sesuai buku tabungan / e-wallet',
                         hintStyle: TextStyle(
-                          fontSize: 12,
-                          color: isDark ? Colors.white30 : Colors.black38,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.normal,
+                          color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
                         ),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                          borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: GageTheme.primary, width: 1.5),
                         ),
                         filled: true,
-                        fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF8FAFC),
+                        fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                       ),
                     ),
                     const SizedBox(height: 18),

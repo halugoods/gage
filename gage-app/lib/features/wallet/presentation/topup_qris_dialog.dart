@@ -780,8 +780,8 @@ class _TopupQrisDialogState extends State<TopupQrisDialog> {
                               border: InputBorder.none,
                               hintText: 'Ketik nominal lain...',
                               hintStyle: TextStyle(
-                                fontSize: 13,
-                                color: isDark ? Colors.white38 : Colors.grey.shade400,
+                                fontSize: 12.5,
+                                color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
                                 fontWeight: FontWeight.normal,
                               ),
                               isDense: true,

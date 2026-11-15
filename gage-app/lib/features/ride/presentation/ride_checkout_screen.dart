@@ -410,7 +410,7 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                 icon: Icons.account_balance_wallet_rounded,
                 iconColor: const Color(0xFF0284C7),
                 title: 'GAGEPay',
-                subtitle: 'Saldo Anda: ${currencyFormatter.format(wallet.balance)} • Bebas Biaya Admin',
+                subtitle: 'Saldo: ${currencyFormatter.format(wallet.balance)}',
                 badge: wallet.balance <= 0
                     ? 'SALDO RP 0'
                     : (wallet.balance < totalPay
@@ -532,8 +532,8 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                 isSelected: _selectedPaymentMethod == 'QRIS',
                 icon: Icons.qr_code_2_rounded,
                 iconColor: GageTheme.primary,
-                title: 'QRIS Real-Time',
-                subtitle: 'Scan via BCA Mobile, GoPay, ShopeePay, OVO, Dana',
+                title: 'QRIS',
+                subtitle: null,
                 onTap: () {
                   _savePaymentPreference('QRIS');
                   Navigator.pop(ctx);
@@ -547,8 +547,8 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                 isSelected: _selectedPaymentMethod == 'COD',
                 icon: Icons.payments_rounded,
                 iconColor: const Color(0xFF16A34A),
-                title: widget.serviceType == 'send' ? 'Tunai ke Kurir (COD)' : 'Tunai ke Driver (COD)',
-                subtitle: 'Bayar uang tunai langsung ke pengemudi saat perjalanan selesai',
+                title: 'Tunai (COD)',
+                subtitle: null,
                 onTap: () {
                   _savePaymentPreference('COD');
                   Navigator.pop(ctx);
@@ -568,7 +568,7 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
     required IconData icon,
     required Color iconColor,
     required String title,
-    required String subtitle,
+    String? subtitle,
     String? badge,
     Color? badgeColor,
     Widget? trailingAction,
@@ -633,13 +633,15 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
               ],
             ],
           ),
-          subtitle: Text(
-            subtitle,
-            style: TextStyle(
-              fontSize: 11,
-              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-            ),
-          ),
+          subtitle: (subtitle != null && subtitle.isNotEmpty)
+              ? Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                  ),
+                )
+              : null,
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1606,7 +1608,7 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                                                             ? 'GAGEPay + COD'
                                                             : (_selectedPaymentMethod == 'QRIS'
                                                                 ? 'QRIS'
-                                                                : 'Tunai ke Driver (COD)')))),
+                                                                : 'Tunai (COD)')))),
                                             style: TextStyle(
                                               fontWeight: FontWeight.bold,
                                               fontSize: 13,

@@ -4,11 +4,9 @@ import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/core/services/user_address_service.dart';
 import 'package:gage_app/data/models/order_model.dart';
-import 'package:gage_app/data/models/cart_item_model.dart';
 import 'package:gage_app/providers/auth_provider.dart';
 import 'package:gage_app/providers/cart_provider.dart';
 import 'package:gage_app/providers/order_provider.dart';
@@ -207,7 +205,6 @@ void main() {
       tester.view.devicePixelRatio = 2.0;
       addTearDown(() => tester.view.resetPhysicalSize());
 
-      bool topUpCalled = false;
       await tester.pumpWidget(
         _wrap(
           Scaffold(
@@ -215,7 +212,7 @@ void main() {
               walletBalance: 10000,
               totalAmount: 25000,
               currencyFormatter: NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0),
-              onTopUp: () => topUpCalled = true,
+              onTopUp: () {},
               onSelectCodSplit: () {},
               onSelectQrisSplit: () {},
             ),
