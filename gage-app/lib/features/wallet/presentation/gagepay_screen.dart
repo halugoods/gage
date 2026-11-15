@@ -214,6 +214,10 @@ class _GagePayScreenState extends State<GagePayScreen> {
                 balance: wallet.balance,
                 points: wallet.points,
                 cards: _userAccounts,
+                isBalanceVisible: !wallet.isBalanceHidden,
+                onEyeToggle: () {
+                  wallet.setBalanceHidden(!wallet.isBalanceHidden);
+                },
                 onCardSelected: (card) {
                   setState(() => _selectedWithdrawCard = card);
                 },

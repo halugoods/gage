@@ -90,6 +90,7 @@ class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
   int _selectedTab = 0; // 0 = Terakhir, 1 = Favorit
   String _searchQuery = '';
   List<SavedGageAccount> _savedAccounts = [];
+  String? _showDeleteIconForAccount;
 
   final List<int> _quickNominals = [10000, 20000, 50000, 100000];
 
@@ -144,6 +145,12 @@ class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
         loaded = decoded.map((e) => SavedGageAccount.fromJson(e as Map<String, dynamic>)).toList();
       }
 
+      // Bersihkan jika ada residual akun dummy lama dari tes pengembang
+      loaded.removeWhere((a) {
+        final lower = a.name.toLowerCase();
+        return lower.contains('selxx') || lower.contains('aguxxxx') || lower.contains('purxxxx');
+      });
+
       // Gabungkan dengan transaksi transfer nyata dari wallet jika ada yang belum tercatat
       for (final tx in wallet.transactions) {
         if (tx['type'] == 'TRANSFER_OUT') {
@@ -195,6 +202,79 @@ class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
       final data = jsonEncode(_savedAccounts.map((e) => e.toJson()).toList());
       await prefs.setString(key, data);
     } catch (_) {}
+  }
+
+  /// Menampilkan dialog konfirmasi untuk menghapus rekening tersimpan
+  void _confirmDeleteAccount(SavedGageAccount account) {
+    HapticFeedback.heavyImpact();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final formatted = LuhnAlgorithm.formatWithSpaces(account.accountNumber);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Hapus Rekening',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Hapus ${account.name} ($formatted) dari daftar rekening tersimpan?',
+          style: TextStyle(
+            fontSize: 13,
+            color: isDark ? Colors.white70 : const Color(0xFF475569),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'Batal',
+              style: TextStyle(color: isDark ? Colors.white60 : Colors.grey.shade600, fontWeight: FontWeight.bold),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: const StadiumBorder(),
+              elevation: 0,
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _deleteAccount(account);
+            },
+            child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _deleteAccount(SavedGageAccount account) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _showDeleteIconForAccount = null;
+      _savedAccounts.removeWhere((a) => a.accountNumber == account.accountNumber);
+      _persistAccounts();
+    });
+    GageToast.show(context, 'Rekening ${account.name} berhasil dihapus.', type: GageToastType.success);
   }
 
   /// Toggle status favorit tanpa batasan kuota (unlimited)
@@ -279,6 +359,17 @@ class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
 
   Future<void> _submitTransfer(WalletProvider wallet, AuthProvider auth) async {
     HapticFeedback.mediumImpact();
+
+    if (wallet.isCardLocked) {
+      HapticFeedback.heavyImpact();
+      GageToast.show(
+        context,
+        'Kartu GAGEPay Anda sedang dikunci sementara. Buka kunci di Pengaturan GAGEPay untuk melakukan transfer.',
+        type: GageToastType.warning,
+      );
+      return;
+    }
+
     if (_verifiedRecipient == null) {
       await _checkRecipientAccount();
       if (!mounted) return;
@@ -549,7 +640,7 @@ class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Nomor Rekening / HP Penerima',
+            'Nomor Rekening',
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w800,
@@ -1027,6 +1118,7 @@ class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
   Widget _buildSavedAccountTile(SavedGageAccount acc, bool isDark) {
     final formatted = LuhnAlgorithm.formatWithSpaces(acc.accountNumber);
     final initial = acc.name.isNotEmpty ? acc.name[0].toUpperCase() : 'G';
+    final isDeleting = _showDeleteIconForAccount == acc.accountNumber;
 
     final colors = [
       const Color(0xFF0284C7),
@@ -1038,7 +1130,19 @@ class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
     final avatarColor = colors[acc.name.hashCode.abs() % colors.length];
 
     return InkWell(
-      onTap: () => _selectSavedAccountToForm(acc),
+      onTap: () {
+        if (isDeleting) {
+          setState(() => _showDeleteIconForAccount = null);
+        } else {
+          _selectSavedAccountToForm(acc);
+        }
+      },
+      onLongPress: () {
+        HapticFeedback.heavyImpact();
+        setState(() {
+          _showDeleteIconForAccount = acc.accountNumber;
+        });
+      },
       borderRadius: BorderRadius.circular(14),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
@@ -1046,15 +1150,17 @@ class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
           children: [
             CircleAvatar(
               radius: 19,
-              backgroundColor: avatarColor,
-              child: Text(
-                initial,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 14,
-                ),
-              ),
+              backgroundColor: isDeleting ? Colors.red.shade700 : avatarColor,
+              child: isDeleting
+                  ? const Icon(Icons.delete_outline_rounded, color: Colors.white, size: 20)
+                  : Text(
+                      initial,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14,
+                      ),
+                    ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1084,14 +1190,27 @@ class _GagePayTransferScreenState extends State<GagePayTransferScreen> {
                 ],
               ),
             ),
-            IconButton(
-              icon: Icon(
-                acc.isFavorite ? Icons.star_rounded : Icons.star_outline_rounded,
-                color: const Color(0xFFF59E0B),
-                size: 24,
+            if (isDeleting) ...[
+              IconButton(
+                icon: const Icon(Icons.delete_rounded, color: Colors.red, size: 24),
+                tooltip: 'Hapus Rekening',
+                onPressed: () => _confirmDeleteAccount(acc),
               ),
-              onPressed: () => _toggleFavorite(acc),
-            ),
+              IconButton(
+                icon: Icon(Icons.close_rounded, color: isDark ? Colors.white54 : Colors.grey.shade600, size: 20),
+                tooltip: 'Batal',
+                onPressed: () => setState(() => _showDeleteIconForAccount = null),
+              ),
+            ] else ...[
+              IconButton(
+                icon: Icon(
+                  acc.isFavorite ? Icons.star_rounded : Icons.star_outline_rounded,
+                  color: const Color(0xFFF59E0B),
+                  size: 24,
+                ),
+                onPressed: () => _toggleFavorite(acc),
+              ),
+            ],
           ],
         ),
       ),

@@ -1,12 +1,9 @@
-import 'dart:io';
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/core/utils/luhn_algorithm.dart';
 import 'package:gage_app/providers/auth_provider.dart';
@@ -32,10 +29,8 @@ class GagePaySettingsScreen extends StatefulWidget {
 class _GagePaySettingsScreenState extends State<GagePaySettingsScreen> {
   final GlobalKey _cardBoundaryKey = GlobalKey();
   bool _isSharingCard = false;
-  bool _isCardFrozen = false;
   bool _isBiometricEnabled = true;
   bool _isPushNotificationEnabled = true;
-  bool _isPrivacyModeEnabled = false;
 
   final currencyFormatter = NumberFormat.currency(
     locale: 'id_ID',
@@ -43,31 +38,13 @@ class _GagePaySettingsScreenState extends State<GagePaySettingsScreen> {
     decimalDigits: 0,
   );
 
-  /// Menangkap visual Kartu ATM 2.5D dan membagikannya sebagai PNG dengan teks ringkas
+  /// Membagikan teks ringkas nomor rekening dan nama pemilik
   Future<void> _shareAtmCard(String accountNumber, String userName) async {
     HapticFeedback.lightImpact();
     setState(() => _isSharingCard = true);
 
     try {
-      final boundary = _cardBoundaryKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-      final tempDir = await getTemporaryDirectory();
-
-      final shareText = 'Kartu GAGEPay: $accountNumber\n'
-          'a.n. $userName\n'
-          'Status: ${_isCardFrozen ? "Dibekukan Sementara" : "Aktif & Terverifikasi"}';
-
-      List<XFile> files = [];
-      if (boundary != null) {
-        final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-        final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-        if (byteData != null) {
-          final pngBytes = byteData.buffer.asUint8List();
-          final filePath = '${tempDir.path}/kartu_gagepay_$accountNumber.png';
-          final file = File(filePath);
-          await file.writeAsBytes(pngBytes);
-          files.add(XFile(file.path, mimeType: 'image/png'));
-        }
-      }
+      final shareText = 'Rekening GAGEPay: $accountNumber\na.n. $userName';
 
       if (!mounted) return;
       setState(() => _isSharingCard = false);
@@ -75,86 +52,229 @@ class _GagePaySettingsScreenState extends State<GagePaySettingsScreen> {
       await SharePlus.instance.share(
         ShareParams(
           text: shareText,
-          subject: 'Kartu ATM Digital GAGEPay - $userName',
-          files: files,
+          subject: 'Rekening GAGEPay - $userName',
         ),
       );
     } catch (_) {
       if (!mounted) return;
       setState(() => _isSharingCard = false);
-      GageToast.show(context, 'Gagal membagikan kartu rekening.', type: GageToastType.error);
+      GageToast.show(context, 'Gagal membagikan nomor rekening.', type: GageToastType.error);
     }
   }
 
-  // Dialog Ubah PIN Transaksi
-  void _showChangePinDialog(BuildContext context) {
+  // Floating Bottom Sheet Ubah PIN Transaksi
+  void _showChangePinSheet(BuildContext context) {
     HapticFeedback.lightImpact();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final pinCtrl = TextEditingController();
     final confirmPinCtrl = TextEditingController();
+    final auth = context.read<AuthProvider>();
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        title: const Text('Ubah PIN GAGEPay', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Masukkan 6 digit PIN baru untuk otorisasi transaksi belanja & transfer.',
-              style: TextStyle(fontSize: 12.5, color: Colors.black54),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: pinCtrl,
-              keyboardType: TextInputType.number,
-              obscureText: true,
-              maxLength: 6,
-              decoration: InputDecoration(
-                labelText: 'PIN Baru (6 Digit)',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: confirmPinCtrl,
-              keyboardType: TextInputType.number,
-              obscureText: true,
-              maxLength: 6,
-              decoration: InputDecoration(
-                labelText: 'Konfirmasi PIN Baru',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: GageTheme.primary,
-              foregroundColor: Colors.white,
-              shape: const StadiumBorder(),
-              elevation: 0,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.15),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
-            onPressed: () {
-              if (pinCtrl.text.length != 6 || pinCtrl.text != confirmPinCtrl.text) {
-                GageToast.show(context, 'PIN harus 6 digit dan cocok.', type: GageToastType.warning);
-                return;
-              }
-              Navigator.pop(ctx);
-              HapticFeedback.heavyImpact();
-              GageToast.show(context, 'PIN GAGEPay berhasil diperbarui!', type: GageToastType.success);
-            },
-            child: const Text('Simpan', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: GageTheme.primary.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.lock_reset_rounded, color: GageTheme.primary, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'Ubah PIN GAGEPay',
+                        style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Masukkan 6 digit angka untuk otorisasi transaksi belanja & transfer.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'PIN Baru',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white70 : const Color(0xFF334155),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: pinCtrl,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  obscureText: true,
+                  maxLength: 6,
+                  style: const TextStyle(fontSize: 16, letterSpacing: 4, fontWeight: FontWeight.bold),
+                  decoration: InputDecoration(
+                    hintText: '6 digit angka',
+                    hintStyle: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.normal,
+                      letterSpacing: 0,
+                      color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                    ),
+                    counterText: '',
+                    filled: true,
+                    fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: GageTheme.primary, width: 1.5),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Konfirmasi PIN Baru',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white70 : const Color(0xFF334155),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: confirmPinCtrl,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  obscureText: true,
+                  maxLength: 6,
+                  style: const TextStyle(fontSize: 16, letterSpacing: 4, fontWeight: FontWeight.bold),
+                  decoration: InputDecoration(
+                    hintText: 'Ulangi 6 digit angka',
+                    hintStyle: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.normal,
+                      letterSpacing: 0,
+                      color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                    ),
+                    counterText: '',
+                    filled: true,
+                    fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: GageTheme.primary, width: 1.5),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
+                          foregroundColor: isDark ? Colors.white70 : const Color(0xFF475569),
+                          shape: const StadiumBorder(),
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                        ),
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: GageTheme.primary,
+                          foregroundColor: Colors.white,
+                          shape: const StadiumBorder(),
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          elevation: 0,
+                        ),
+                        onPressed: () async {
+                          final p1 = pinCtrl.text.trim();
+                          final p2 = confirmPinCtrl.text.trim();
+                          if (p1.length != 6 || p1 != p2) {
+                            HapticFeedback.heavyImpact();
+                            GageToast.show(context, 'PIN harus 6 digit angka dan cocok.', type: GageToastType.warning);
+                            return;
+                          }
+                          try {
+                            final prefs = await SharedPreferences.getInstance();
+                            final uid = auth.currentUser?.id ?? 'usr-cust-01';
+                            await prefs.setString('gage_user_pin_$uid', p1);
+                          } catch (_) {}
+                          Navigator.pop(ctx);
+                          HapticFeedback.selectionClick();
+                          GageToast.show(context, 'PIN GAGEPay berhasil diperbarui!', type: GageToastType.success);
+                        },
+                        child: const Text('Simpan PIN', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -198,6 +318,7 @@ class _GagePaySettingsScreenState extends State<GagePaySettingsScreen> {
                   child: GageAtmCardWidget(
                     accountNumber: accountNumber,
                     userName: userName,
+                    isLocked: wallet.isCardLocked,
                   ),
                 ),
               ),
@@ -243,7 +364,7 @@ class _GagePaySettingsScreenState extends State<GagePaySettingsScreen> {
                             child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                           )
                         : const Icon(Icons.share_rounded, size: 16),
-                    label: const Text('Bagikan Kartu 2.5D', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+                    label: const Text('Bagikan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
                   ),
                 ),
               ],
@@ -272,11 +393,11 @@ class _GagePaySettingsScreenState extends State<GagePaySettingsScreen> {
                     'Cegah transaksi keluar sementara waktu saat kartu tidak digunakan.',
                     style: TextStyle(fontSize: 11, color: Colors.grey),
                   ),
-                  value: _isCardFrozen,
+                  value: wallet.isCardLocked,
                   activeColor: GageTheme.primary,
                   onChanged: (val) {
                     HapticFeedback.selectionClick();
-                    setState(() => _isCardFrozen = val);
+                    wallet.setCardLocked(val);
                     GageToast.show(
                       context,
                       val ? 'Kartu GAGEPay berhasil dibekukan sementara.' : 'Kartu GAGEPay kembali aktif.',
@@ -309,7 +430,7 @@ class _GagePaySettingsScreenState extends State<GagePaySettingsScreen> {
                       title: const Text('Ubah PIN GAGEPay', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
                       subtitle: const Text('Perbarui 6 digit PIN transaksi Anda', style: TextStyle(fontSize: 11, color: Colors.grey)),
                       trailing: const Icon(Icons.chevron_right_rounded, color: Colors.grey),
-                      onTap: () => _showChangePinDialog(context),
+                      onTap: () => _showChangePinSheet(context),
                     ),
                     Divider(height: 1, color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
                     SwitchListTile(
@@ -385,11 +506,16 @@ class _GagePaySettingsScreenState extends State<GagePaySettingsScreen> {
                       secondary: const Icon(Icons.visibility_off_outlined, color: Color(0xFF7C3AED)),
                       title: const Text('Mode Privasi Saldo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
                       subtitle: const Text('Sembunyikan angka saldo saat pertama kali membuka dompet', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                      value: _isPrivacyModeEnabled,
+                      value: wallet.isBalanceHidden,
                       activeColor: GageTheme.primary,
                       onChanged: (val) {
                         HapticFeedback.selectionClick();
-                        setState(() => _isPrivacyModeEnabled = val);
+                        wallet.setBalanceHidden(val);
+                        GageToast.show(
+                          context,
+                          val ? 'Mode privasi saldo diaktifkan.' : 'Mode privasi saldo dinonaktifkan.',
+                          type: GageToastType.info,
+                        );
                       },
                     ),
                   ],

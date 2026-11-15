@@ -26,12 +26,15 @@ class GagePocketWallet extends StatefulWidget {
   final VoidCallback? onWithdrawTap;
   final VoidCallback? onExchangePointsTap;
 
+  final bool? isBalanceVisible;
+
   const GagePocketWallet({
     super.key,
     required this.balance,
     this.points = 100,
     this.accountNumber,
     this.cards,
+    this.isBalanceVisible,
     this.onCardSelected,
     this.onCardDetailsTap,
     this.onEyeToggle,
@@ -100,6 +103,7 @@ class _GagePocketWalletState extends State<GagePocketWallet>
   @override
   void initState() {
     super.initState();
+    _isBalanceVisible = widget.isBalanceVisible ?? true;
     _animCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 320),
@@ -109,6 +113,14 @@ class _GagePocketWalletState extends State<GagePocketWallet>
       curve: Curves.easeOutCubic,
       reverseCurve: Curves.easeInCubic,
     );
+  }
+
+  @override
+  void didUpdateWidget(GagePocketWallet oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isBalanceVisible != null && widget.isBalanceVisible != oldWidget.isBalanceVisible) {
+      _isBalanceVisible = widget.isBalanceVisible!;
+    }
   }
 
   @override

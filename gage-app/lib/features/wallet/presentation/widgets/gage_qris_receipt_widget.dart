@@ -46,10 +46,8 @@ class GageQrisReceiptWidget extends StatelessWidget {
 
     return Container(
       width: 340,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
-        boxShadow: const [
+      decoration: const BoxDecoration(
+        boxShadow: [
           BoxShadow(
             color: Color(0x24000000),
             blurRadius: 18,
@@ -61,187 +59,198 @@ class GageQrisReceiptWidget extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Garis aksen merah atas
-          Container(
-            height: 6,
-            decoration: const BoxDecoration(
-              color: GageTheme.primary,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-            ),
-          ),
+          // Badan Struk Utama dengan Sudut Lengkung Atas Mulus & Anti-Alias Sempurna
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+            clipBehavior: Clip.antiAlias,
+            child: Container(
+              color: Colors.white,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Garis aksen merah atas menyatu mulus tanpa celah/bolong
+                  Container(
+                    height: 8,
+                    color: GageTheme.primary,
+                  ),
 
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Baris Atas: Logo GAGE & Badge QRIS Standar
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        const Text(
-                          'GAGE',
+                        // Baris Atas: Logo GAGE & Badge QRIS Standar
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'GAGE',
+                                  style: TextStyle(
+                                    color: GageTheme.primary,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 1.2,
+                                  ),
+                                ),
+                                Text(
+                                  'by Halu Goods Indonesia',
+                                  style: TextStyle(
+                                    color: Colors.grey.shade700,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            // Badge QRIS Standar Nasional
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: Colors.black,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'QRIS',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 13,
+                                      letterSpacing: 1.2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 14),
+
+                        // Garis putus-putus pembatas
+                        CustomPaint(
+                          size: const Size(double.infinity, 1),
+                          painter: _DottedLinePainter(),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        // Info NMID & Tipe Transaksi
+                        Text(
+                          'PEMBAYARAN QRIS DINAMIS GAGEPAY',
                           style: TextStyle(
-                            color: GageTheme.primary,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.2,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.grey.shade600,
+                            letterSpacing: 0.8,
                           ),
                         ),
+                        const SizedBox(height: 2),
                         Text(
-                          'by Halu Goods Indonesia',
+                          'NMID: ID102008908123',
                           style: TextStyle(
-                            color: Colors.grey.shade700,
-                            fontSize: 9,
+                            fontSize: 9.5,
+                            fontFamily: 'monospace',
                             fontWeight: FontWeight.w600,
-                            letterSpacing: 0.3,
+                            color: Colors.grey.shade500,
                           ),
+                        ),
+
+                        const SizedBox(height: 14),
+
+                        // Kontainer QR Code Tajam
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.grey.shade300, width: 1.2),
+                            boxShadow: const [
+                              BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 3)),
+                            ],
+                          ),
+                          child: QrImageView(
+                            data: qrPayload,
+                            version: QrVersions.auto,
+                            size: 190,
+                            backgroundColor: Colors.white,
+                            errorCorrectionLevel: QrErrorCorrectLevel.H,
+                            gapless: true,
+                          ),
+                        ),
+
+                        const SizedBox(height: 14),
+
+                        // Card Rincian Penerima & Nominal
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Column(
+                            children: [
+                              _buildReceiptRow('PENERIMA', userName.toUpperCase(), isBold: true),
+                              const SizedBox(height: 6),
+                              _buildReceiptRow('NO. REKENING', formattedAcc, isMonospace: true),
+                              const SizedBox(height: 6),
+                              _buildReceiptRow(
+                                'TOTAL TAGIHAN',
+                                (requestedAmount != null && requestedAmount! > 0)
+                                    ? currencyFormatter.format(requestedAmount)
+                                    : 'Nominal Bebas',
+                                isBold: true,
+                                valueColor: (requestedAmount != null && requestedAmount! > 0)
+                                    ? GageTheme.primary
+                                    : const Color(0xFF16A34A),
+                              ),
+                              const SizedBox(height: 6),
+                              _buildReceiptRow('WAKTU CETAK', '$dateStr WIB'),
+                              const SizedBox(height: 6),
+                              _buildReceiptRow('REFERENSI', refCode, isMonospace: true, fontSize: 9.5),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        // Badge Keamanan Bank Indonesia & ASPI
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.verified_rounded, size: 14, color: Color(0xFF16A34A)),
+                            const SizedBox(width: 5),
+                            Flexible(
+                              child: Text(
+                                'Terverifikasi Standar Nasional BI & ASPI',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.grey.shade700,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-
-                    // Badge QRIS Standar Nasional
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: Colors.black,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'QRIS',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 13,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 14),
-
-                // Garis putus-putus pembatas
-                CustomPaint(
-                  size: const Size(double.infinity, 1),
-                  painter: _DottedLinePainter(),
-                ),
-
-                const SizedBox(height: 12),
-
-                // Info NMID & Tipe Transaksi
-                Text(
-                  'PEMBAYARAN QRIS DINAMIS GAGEPAY',
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.grey.shade600,
-                    letterSpacing: 0.8,
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'NMID: ID102008908123',
-                  style: TextStyle(
-                    fontSize: 9.5,
-                    fontFamily: 'monospace',
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade500,
-                  ),
-                ),
-
-                const SizedBox(height: 14),
-
-                // Kontainer QR Code Tajam
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.shade300, width: 1.2),
-                    boxShadow: const [
-                      BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 3)),
-                    ],
-                  ),
-                  child: QrImageView(
-                    data: qrPayload,
-                    version: QrVersions.auto,
-                    size: 190,
-                    backgroundColor: Colors.white,
-                    errorCorrectionLevel: QrErrorCorrectLevel.H,
-                    gapless: true,
-                  ),
-                ),
-
-                const SizedBox(height: 14),
-
-                // Card Rincian Penerima & Nominal
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: Column(
-                    children: [
-                      _buildReceiptRow('PENERIMA', userName.toUpperCase(), isBold: true),
-                      const SizedBox(height: 6),
-                      _buildReceiptRow('NO. REKENING', formattedAcc, isMonospace: true),
-                      const SizedBox(height: 6),
-                      _buildReceiptRow(
-                        'TOTAL TAGIHAN',
-                        (requestedAmount != null && requestedAmount! > 0)
-                            ? currencyFormatter.format(requestedAmount)
-                            : 'Nominal Bebas',
-                        isBold: true,
-                        valueColor: (requestedAmount != null && requestedAmount! > 0)
-                            ? GageTheme.primary
-                            : const Color(0xFF16A34A),
-                      ),
-                      const SizedBox(height: 6),
-                      _buildReceiptRow('WAKTU CETAK', '$dateStr WIB'),
-                      const SizedBox(height: 6),
-                      _buildReceiptRow('REFERENSI', refCode, isMonospace: true, fontSize: 9.5),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                // Badge Keamanan Bank Indonesia & ASPI
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.verified_rounded, size: 14, color: Color(0xFF16A34A)),
-                    const SizedBox(width: 5),
-                    Flexible(
-                      child: Text(
-                        'Terverifikasi Standar Nasional BI & ASPI',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.grey.shade700,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                ],
+              ),
             ),
           ),
 

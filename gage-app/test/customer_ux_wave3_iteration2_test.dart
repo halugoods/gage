@@ -59,7 +59,7 @@ void main() {
 
       // Form Utama Kirim Saldo
       expect(find.text('Kirim Saldo'), findsOneWidget);
-      expect(find.text('Nomor Rekening / HP Penerima'), findsOneWidget);
+      expect(find.text('Nomor Rekening'), findsOneWidget);
       expect(find.text('Cek'), findsOneWidget);
       expect(find.text('Nominal Transfer'), findsOneWidget);
       expect(find.text('Kirim Sekarang'), findsOneWidget);

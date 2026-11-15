@@ -329,6 +329,11 @@ class _GagePayReceiveScreenState extends State<GagePayReceiveScreen> {
                                   style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                                   decoration: InputDecoration(
                                     hintText: 'Contoh: 50000',
+                                    hintStyle: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.normal,
+                                      color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                                    ),
                                     prefixText: 'Rp ',
                                     isDense: true,
                                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

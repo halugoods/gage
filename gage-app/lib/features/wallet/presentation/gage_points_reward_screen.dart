@@ -1019,9 +1019,19 @@ class _GagePointsRewardScreenState extends State<GagePointsRewardScreen> {
                 TextField(
                   controller: _transferRecipientCtrl,
                   decoration: InputDecoration(
-                    labelText: 'Nomor Rekening / HP Penerima',
+                    labelText: 'Nomor Rekening',
+                    labelStyle: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.normal,
+                      color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                    ),
                     hintText: 'Contoh: 8908 1234 5678',
-                    prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
+                    hintStyle: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.normal,
+                      color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                    ),
+                    prefixIcon: const Icon(Icons.account_balance_wallet_outlined, size: 20),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   ),
@@ -1033,7 +1043,17 @@ class _GagePointsRewardScreenState extends State<GagePointsRewardScreen> {
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
                     labelText: 'Jumlah Poin',
+                    labelStyle: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.normal,
+                      color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                    ),
                     hintText: 'Minimal 10 Poin',
+                    hintStyle: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.normal,
+                      color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                    ),
                     prefixIcon: const Icon(Icons.stars_rounded, color: Color(0xFFD97706), size: 20),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

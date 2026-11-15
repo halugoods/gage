@@ -10,12 +10,16 @@ class WalletProvider extends ChangeNotifier {
   List<Map<String, dynamic>> _transactions = [];
   bool _isLoading = false;
   String? _activeUserId;
+  bool _isCardLocked = false;
+  bool _isBalanceHidden = false;
 
   int get balance => _balance;
   int get points => _points;
   List<Map<String, dynamic>> get transactions => _transactions;
   bool get isLoading => _isLoading;
   String? get activeUserId => _activeUserId;
+  bool get isCardLocked => _isCardLocked;
+  bool get isBalanceHidden => _isBalanceHidden;
 
   /// Nomor rekening resmi GAGEPay 12 digit berbasis standar ISO/IEC 7812 (Algoritma LUHN Mod 10):
   /// - Prefix BIN: 8908 (89 = GAGE Ecosystem, 08 = Customer Wallet)
@@ -43,6 +47,8 @@ class WalletProvider extends ChangeNotifier {
   static String _balanceKey(String userId) => 'gage_wallet_balance_$userId';
   static String _pointsKey(String userId) => 'gage_wallet_points_$userId';
   static String _txsKey(String userId) => 'gage_wallet_txs_$userId';
+  static String _cardLockedKey(String userId) => 'gage_card_locked_$userId';
+  static String _balanceHiddenKey(String userId) => 'gage_balance_hidden_$userId';
 
   // Memulihkan data saldo & transaksi dari SharedPreferences lokal
   Future<void> restoreCachedWallet(String userId) async {
@@ -52,6 +58,8 @@ class WalletProvider extends ChangeNotifier {
       final cachedBal = prefs.getInt(_balanceKey(userId));
       final cachedPts = prefs.getInt(_pointsKey(userId));
       final cachedTxsRaw = prefs.getString(_txsKey(userId));
+      final cachedLocked = prefs.getBool(_cardLockedKey(userId));
+      final cachedHidden = prefs.getBool(_balanceHiddenKey(userId));
 
       bool changed = false;
       if (cachedBal != null) {
@@ -60,6 +68,14 @@ class WalletProvider extends ChangeNotifier {
       }
       if (cachedPts != null) {
         _points = cachedPts;
+        changed = true;
+      }
+      if (cachedLocked != null) {
+        _isCardLocked = cachedLocked;
+        changed = true;
+      }
+      if (cachedHidden != null) {
+        _isBalanceHidden = cachedHidden;
         changed = true;
       }
       if (cachedTxsRaw != null && cachedTxsRaw.isNotEmpty) {
@@ -77,6 +93,28 @@ class WalletProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error restoring cached wallet for $userId: $e');
     }
+  }
+
+  /// Mengunci atau membuka kunci kartu sementara
+  Future<void> setCardLocked(bool locked) async {
+    _isCardLocked = locked;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final uid = _activeUserId ?? 'usr-cust-01';
+      await prefs.setBool(_cardLockedKey(uid), locked);
+    } catch (_) {}
+    notifyListeners();
+  }
+
+  /// Mengatur preferensi privasi tampilan saldo
+  Future<void> setBalanceHidden(bool hidden) async {
+    _isBalanceHidden = hidden;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final uid = _activeUserId ?? 'usr-cust-01';
+      await prefs.setBool(_balanceHiddenKey(uid), hidden);
+    } catch (_) {}
+    notifyListeners();
   }
 
   // Menyimpan data saldo & transaksi ke SharedPreferences per userId
@@ -139,6 +177,7 @@ class WalletProvider extends ChangeNotifier {
     required int amount,
     String? note,
   }) async {
+    if (_isCardLocked) return false;
     if (_balance < amount) return false;
     _balance -= amount;
     final tx = {

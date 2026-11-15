@@ -9,12 +9,14 @@ class GageAtmCardWidget extends StatelessWidget {
   final String accountNumber;
   final String userName;
   final int? requestedAmount;
+  final bool isLocked;
 
   const GageAtmCardWidget({
     super.key,
     required this.accountNumber,
     required this.userName,
     this.requestedAmount,
+    this.isLocked = false,
   });
 
   @override
@@ -113,18 +115,27 @@ class GageAtmCardWidget extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.12),
+                            color: isLocked ? Colors.red.withValues(alpha: 0.25) : Colors.white.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(999),
-                            border: Border.all(color: Colors.white24, width: 0.8),
+                            border: Border.all(color: isLocked ? Colors.redAccent : Colors.white24, width: 0.8),
                           ),
-                          child: const Text(
-                            'REKENING UTAMA',
-                            style: TextStyle(
-                              color: Color(0xFFFDE047),
-                              fontSize: 8,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.4,
-                            ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (isLocked) ...[
+                                const Icon(Icons.lock_rounded, size: 9, color: Colors.redAccent),
+                                const SizedBox(width: 3),
+                              ],
+                              Text(
+                                isLocked ? 'KARTU DIKUNCI' : 'REKENING UTAMA',
+                                style: TextStyle(
+                                  color: isLocked ? Colors.redAccent : const Color(0xFFFDE047),
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],

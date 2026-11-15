@@ -142,13 +142,16 @@ void main() {
       tester.view.devicePixelRatio = 2.0;
       addTearDown(() => tester.view.resetPhysicalSize());
 
-      await tester.pumpWidget(_wrap(const GagePaySettingsScreen()));
+      final wallet = WalletProvider();
+
+      await tester.pumpWidget(_wrap(const GagePaySettingsScreen(), walletProvider: wallet));
       await tester.pumpAndSettle();
 
       expect(find.text('Pengaturan GAGEPay'), findsOneWidget);
       expect(find.text('DETAIL KARTU DIGITAL'), findsOneWidget);
       expect(find.text('Salin Rekening'), findsOneWidget);
-      expect(find.text('Bagikan Kartu 2.5D'), findsOneWidget);
+      expect(find.text('Bagikan'), findsOneWidget);
+      expect(find.text('Bagikan Kartu 2.5D'), findsNothing);
       expect(find.text('Kunci Kartu Sementara'), findsOneWidget);
 
       expect(find.text('KEAMANAN & AUTENTIKASI'), findsOneWidget);
@@ -158,6 +161,13 @@ void main() {
       expect(find.text('LIMIT TRANSAKSI HARIAN'), findsOneWidget);
       expect(find.text('PREFERENSI & PRIVASI'), findsOneWidget);
       expect(find.text('INFORMASI & BANTUAN'), findsOneWidget);
+
+      // Buka Ubah PIN: verifikasi membuka Floating Bottom Sheet
+      await tester.tap(find.text('Ubah PIN GAGEPay'));
+      await tester.pumpAndSettle();
+      expect(find.text('Simpan PIN'), findsOneWidget);
+      expect(find.text('PIN Baru'), findsOneWidget);
+      expect(find.text('Konfirmasi PIN Baru'), findsOneWidget);
     });
 
     testWidgets('GagePayReceiveScreen renders official QRIS receipt off-screen and Bagikan button', (tester) async {
@@ -241,11 +251,53 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Kirim Saldo'), findsOneWidget);
+      expect(find.text('Nomor Rekening'), findsOneWidget);
+      expect(find.text('Nomor Rekening / HP Penerima'), findsNothing);
       expect(find.text('Terakhir'), findsOneWidget);
       expect(find.text('Favorit'), findsOneWidget);
 
       // Verifikasi kemunculan akun terkini
       expect(find.text('Akun Terkini Non-Fav'), findsOneWidget);
+
+      // Long press akun untuk memunculkan ikon sampah
+      await tester.longPress(find.text('Akun Terkini Non-Fav'));
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.delete_rounded), findsOneWidget);
+
+      // Tap ikon sampah dan konfirmasi hapus
+      await tester.tap(find.byIcon(Icons.delete_rounded));
+      await tester.pumpAndSettle();
+      expect(find.text('Hapus Rekening'), findsOneWidget);
+      await tester.tap(find.text('Hapus'));
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 3)); // Drain GageToast timer
+
+      // Rekening terhapus
+      expect(find.text('Akun Terkini Non-Fav'), findsNothing);
+    });
+
+    testWidgets('GagePayTransferScreen blocks transfer when card is locked', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      final wallet = WalletProvider();
+      wallet.topUp(50000);
+      await wallet.setCardLocked(true);
+
+      await tester.pumpWidget(_wrap(
+        const GagePayTransferScreen(),
+        walletProvider: wallet,
+      ));
+      await tester.pumpAndSettle();
+
+      // Tap Kirim Sekarang saat kartu dikunci
+      await tester.tap(find.text('Kirim Sekarang'));
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 3)); // Drain GageToast timer
+
+      // Saldo tidak berkurang
+      expect(wallet.balance, equals(50000));
     });
   });
 }
