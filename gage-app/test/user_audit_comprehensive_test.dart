@@ -177,8 +177,8 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Beralih ke tab Akun & Pengaturan jika terdapat segmented switch
-      final settingsTab = find.text('Akun & Pengaturan');
+      // Beralih ke tab Pengaturan jika terdapat segmented switch
+      final settingsTab = find.text('Pengaturan');
       if (settingsTab.evaluate().isNotEmpty) {
         await tester.tap(settingsTab);
         await tester.pumpAndSettle();
@@ -470,7 +470,7 @@ void main() {
       expect(seblakWm.lengthSync(), greaterThan(200 * 1024));
     });
 
-    testWidgets('VideoFeedScreen renders action bar without bookmark icon (only 4 actions: like, comment, share, download)', (tester) async {
+    testWidgets('VideoFeedScreen renders action bar without bookmark icon (classic TikTok actions: like, comment, share, music disc)', (tester) async {
       await tester.pumpWidget(
         MultiProvider(
           providers: [
@@ -486,11 +486,15 @@ void main() {
         ),
       );
 
-      // Verify Like, Comment, Bookmark, Share icons exist in Right Vertical Action Bar
-      expect(find.byIcon(Icons.favorite_border_rounded), findsWidgets);
+      // Verify Classic TikTok Actions: Like, Comment, Share, Music Disc
+      expect(find.byIcon(Icons.favorite_rounded), findsWidgets);
       expect(find.byIcon(Icons.chat_bubble_rounded), findsWidgets);
-      expect(find.byIcon(Icons.bookmark_border_rounded), findsWidgets);
-      expect(find.byIcon(Icons.reply_rounded), findsWidgets);
+      expect(find.byIcon(Icons.share_rounded), findsWidgets);
+      expect(find.byIcon(Icons.music_note_rounded), findsWidgets);
+
+      // Verify Save / Bookmark icon is completely absent
+      expect(find.byIcon(Icons.bookmark_border_rounded), findsNothing);
+      expect(find.byIcon(Icons.bookmark_rounded), findsNothing);
     });
   });
 }

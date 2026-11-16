@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gage_app/core/services/social_profile_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
-import 'package:gage_app/features/affiliate/presentation/affiliate_hub_screen.dart';
 import 'package:gage_app/features/affiliate/presentation/affiliate_video_upload_screen.dart';
 import 'package:gage_app/features/profile/presentation/edit_profile_screen.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
@@ -25,7 +24,7 @@ class CreatorProfileHeader extends StatefulWidget {
     required this.handle,
     required this.avatarUrl,
     required this.bio,
-    this.isVerified = true,
+    this.isVerified = false,
     this.isOwnProfile = true,
     this.targetId,
   });
@@ -46,63 +45,56 @@ class _CreatorProfileHeaderState extends State<CreatorProfileHeader> {
       children: [
         const SizedBox(height: 10),
 
-        // Avatar Lingkaran dengan Ring Gradien Elegan & Centang Verifikasi
-        Stack(
-          alignment: Alignment.bottomRight,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(3),
+        // Avatar Lingkaran dengan Ring Gradien Elegan (Terkoneksi ke Edit Profil)
+        GestureDetector(
+          onTap: widget.isOwnProfile
+              ? () {
+                  HapticFeedback.lightImpact();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                  );
+                }
+              : null,
+          child: Container(
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                colors: [Color(0xFFE52320), Color(0xFFF59E0B), Color(0xFFE52320)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: GageTheme.primary.withValues(alpha: 0.25),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Container(
+              width: 84,
+              height: 84,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFE52320), Color(0xFFF59E0B), Color(0xFFE52320)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                border: Border.all(
+                  color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                  width: 2.5,
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: GageTheme.primary.withValues(alpha: 0.25),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
               ),
-              child: Container(
-                width: 84,
-                height: 84,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                  border: Border.all(
-                    color: isDark ? const Color(0xFF0F172A) : Colors.white,
-                    width: 2.5,
-                  ),
-                ),
-                child: ClipOval(
-                  child: widget.avatarUrl.isNotEmpty
-                      ? Image.network(
-                          widget.avatarUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _buildFallbackAvatar(isDark),
-                        )
-                      : _buildFallbackAvatar(isDark),
-                ),
+              child: ClipOval(
+                child: widget.avatarUrl.isNotEmpty
+                    ? Image.network(
+                        widget.avatarUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _buildFallbackAvatar(isDark),
+                      )
+                    : _buildFallbackAvatar(isDark),
               ),
             ),
-            if (widget.isVerified)
-              Container(
-                padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF0F172A) : Colors.white,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.verified_rounded,
-                  color: Color(0xFF2563EB), // Official Blue Verified
-                  size: 22,
-                ),
-              ),
-          ],
+          ),
         ),
 
         const SizedBox(height: 10),
@@ -129,24 +121,9 @@ class _CreatorProfileHeaderState extends State<CreatorProfileHeader> {
 
         const SizedBox(height: 16),
 
-        // Barisan Angka Metrik Sosial Murni (Mengikuti, Pengikut, Suka)
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
+        // Barisan Angka Metrik Sosial Murni (Mengikuti, Pengikut, Suka) - Unboxed
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -352,78 +329,6 @@ class _CreatorProfileHeaderState extends State<CreatorProfileHeader> {
                   ],
                 ),
         ),
-
-        // Entri Cuan & Kreator (Hanya untuk pemilik profil)
-        if (widget.isOwnProfile) ...[
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const AffiliateHubScreen()),
-                  );
-                },
-                borderRadius: BorderRadius.circular(14),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFFFF7ED),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: isDark ? Colors.amber.withValues(alpha: 0.25) : const Color(0xFFFED7AA),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.amber.shade600,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.monetization_on_rounded, color: Colors.white, size: 16),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'GAGE Cuan & Program Kreator',
-                              style: TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w800,
-                                color: isDark ? Colors.white : const Color(0xFF9A3412),
-                              ),
-                            ),
-                            Text(
-                              'Saldo Komisi: Rp ${_formatRupiahShort(stats.cuanCoinBalance)} • Cek performa & tarik dana',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                color: isDark ? Colors.white60 : const Color(0xFFC2410C),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        color: isDark ? Colors.white54 : const Color(0xFF9A3412),
-                        size: 20,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
       ],
     );
   }
@@ -500,12 +405,5 @@ class _CreatorProfileHeaderState extends State<CreatorProfileHeader> {
       return '${(number / 1000).toStringAsFixed(1)}K';
     }
     return '$number';
-  }
-
-  String _formatRupiahShort(int amount) {
-    if (amount >= 1000) {
-      return '${(amount / 1000).toStringAsFixed(0)}rb';
-    }
-    return '$amount';
   }
 }

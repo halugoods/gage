@@ -40,9 +40,9 @@ void main() {
     expect(find.text('G8K2M9'), findsOneWidget);
     expect(find.text('Share WhatsApp'), findsOneWidget);
 
-    // Verify Bikin Video Cuan CTA Banner
-    expect(find.text('Bikin Video Cuan'), findsOneWidget);
-    expect(find.text('Unggah 📹'), findsOneWidget);
+    // Verify Bikin Video Cuan CTA Banner is removed
+    expect(find.text('Bikin Video Cuan'), findsNothing);
+    expect(find.text('Unggah 📹'), findsNothing);
 
     // Verify 4 Commerce Services (Food, Shop, Farm, Build)
     expect(find.text('Food'), findsOneWidget);

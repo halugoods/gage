@@ -388,13 +388,6 @@ class _VideoFeedScreenState extends State<VideoFeedScreen>
                 });
               },
               onCommentTap: () => _openCommentsSheet(item),
-              onBookmarkTap: () {
-                HapticFeedback.selectionClick();
-                setState(() {
-                  item.isBookmarked = !item.isBookmarked;
-                  item.bookmarksCount += item.isBookmarked ? 1 : -1;
-                });
-              },
               onShareTap: () => _handleShare(item),
               onOrderTap: () => _openQuickOrderSheet(item),
             );
@@ -419,7 +412,6 @@ class _VideoFeedPage extends StatefulWidget {
   final VoidCallback onFollowTap;
   final void Function({bool forceLike}) onLikeToggle;
   final VoidCallback onCommentTap;
-  final VoidCallback onBookmarkTap;
   final VoidCallback onShareTap;
   final VoidCallback onOrderTap;
 
@@ -435,7 +427,6 @@ class _VideoFeedPage extends StatefulWidget {
     required this.onFollowTap,
     required this.onLikeToggle,
     required this.onCommentTap,
-    required this.onBookmarkTap,
     required this.onShareTap,
     required this.onOrderTap,
   });
@@ -824,7 +815,6 @@ class _VideoFeedPageState extends State<_VideoFeedPage>
               onFollowTap: widget.onFollowTap,
               onLikeTap: () => widget.onLikeToggle(forceLike: false),
               onCommentTap: widget.onCommentTap,
-              onBookmarkTap: widget.onBookmarkTap,
               onShareTap: widget.onShareTap,
             ),
           ),
@@ -888,7 +878,7 @@ class _FrostedGlassBox extends StatelessWidget {
   }
 }
 
-/// Sisi Kanan: Vertical Action Capsule Bar
+/// Sisi Kanan: Vertical Action Bar ala TikTok Klasik (Melayang Langsung di Atas Video)
 class _RightVerticalActionBar extends StatelessWidget {
   final GageVideoItem item;
   final bool isDark;
@@ -896,7 +886,6 @@ class _RightVerticalActionBar extends StatelessWidget {
   final VoidCallback onFollowTap;
   final VoidCallback onLikeTap;
   final VoidCallback onCommentTap;
-  final VoidCallback onBookmarkTap;
   final VoidCallback onShareTap;
 
   const _RightVerticalActionBar({
@@ -906,151 +895,144 @@ class _RightVerticalActionBar extends StatelessWidget {
     required this.onFollowTap,
     required this.onLikeTap,
     required this.onCommentTap,
-    required this.onBookmarkTap,
     required this.onShareTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final iconColor = isDark ? Colors.white : const Color(0xFF0F172A);
-
-    return _FrostedGlassBox(
-      borderRadius: BorderRadius.circular(30),
-      sigma: 12,
-      color: isDark ? Colors.black38 : Colors.white.withValues(alpha: 0.85),
-      borderColor: isDark
-          ? Colors.white.withValues(alpha: 0.16)
-          : Colors.white.withValues(alpha: 0.6),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Creator Avatar + Red '+' Follow Badge
-            SizedBox(
-              width: 38,
-              height: 44,
-              child: Stack(
-                alignment: Alignment.topCenter,
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      HapticFeedback.lightImpact();
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ProfileScreen(
-                            initialCreatorHandle: item.creatorHandle,
-                          ),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: isDark ? Colors.white : const Color(0xFFE2E8F0),
-                          width: 1.5,
-                        ),
-                      ),
-                      child: ClipOval(
-                        child: Image.network(
-                          item.creatorAvatarUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            color: const Color(0xFF1E293B),
-                            child: Icon(
-                              Icons.person_rounded,
-                              color: isDark ? Colors.white : const Color(0xFF64748B),
-                              size: 18,
-                            ),
-                          ),
-                        ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Creator Avatar + Red '+' Follow Badge
+        SizedBox(
+          width: 44,
+          height: 50,
+          child: Stack(
+            alignment: Alignment.topCenter,
+            children: [
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ProfileScreen(
+                        initialCreatorHandle: item.creatorHandle,
                       ),
                     ),
+                  );
+                },
+                child: Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white,
+                      width: 1.5,
+                    ),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black45, blurRadius: 4),
+                    ],
                   ),
-                  Positioned(
-                    bottom: 0,
-                    child: GestureDetector(
-                      onTap: onFollowTap,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: 16,
-                        height: 16,
-                        decoration: BoxDecoration(
-                          color: item.isFollowing
-                              ? const Color(0xFF10B981)
-                              : GageTheme.primary,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 1.2),
-                        ),
-                        child: Icon(
-                          item.isFollowing
-                              ? Icons.check_rounded
-                              : Icons.add_rounded,
+                  child: ClipOval(
+                    child: Image.network(
+                      item.creatorAvatarUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        color: const Color(0xFF1E293B),
+                        child: const Icon(
+                          Icons.person_rounded,
                           color: Colors.white,
-                          size: 11,
+                          size: 20,
                         ),
                       ),
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
-
-            const SizedBox(height: 8),
-
-            // Like Button
-            _ActionButtonTile(
-              icon: item.isLiked
-                  ? Icons.favorite_rounded
-                  : Icons.favorite_border_rounded,
-              color: item.isLiked ? GageTheme.primary : iconColor,
-              label: formatCount(item.likesCount),
-              textColor: iconColor,
-              onTap: onLikeTap,
-            ),
-
-            const SizedBox(height: 8),
-
-            // Comment Button
-            _ActionButtonTile(
-              icon: Icons.chat_bubble_rounded,
-              color: iconColor,
-              label: formatCount(item.commentsCount),
-              textColor: iconColor,
-              onTap: onCommentTap,
-            ),
-
-            const SizedBox(height: 8),
-
-            // Bookmark / Save Button
-            _ActionButtonTile(
-              icon: item.isBookmarked
-                  ? Icons.bookmark_rounded
-                  : Icons.bookmark_border_rounded,
-              color: item.isBookmarked ? const Color(0xFFFFB703) : iconColor,
-              label: formatCount(item.bookmarksCount),
-              textColor: iconColor,
-              onTap: onBookmarkTap,
-            ),
-
-            const SizedBox(height: 8),
-
-            // Share Button
-            _ActionButtonTile(
-              icon: Icons.reply_rounded,
-              flipHorizontal: true,
-              color: iconColor,
-              label: formatCount(item.sharesCount),
-              textColor: iconColor,
-              onTap: onShareTap,
-            ),
-          ],
+              Positioned(
+                bottom: 0,
+                child: GestureDetector(
+                  onTap: onFollowTap,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 18,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      color: item.isFollowing
+                          ? const Color(0xFF10B981)
+                          : GageTheme.primary,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 1.2),
+                    ),
+                    child: Icon(
+                      item.isFollowing
+                          ? Icons.check_rounded
+                          : Icons.add_rounded,
+                      color: Colors.white,
+                      size: 12,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
+
+        const SizedBox(height: 16),
+
+        // Like Button
+        _ActionButtonTile(
+          icon: item.isLiked
+              ? Icons.favorite_rounded
+              : Icons.favorite_rounded,
+          color: item.isLiked ? const Color(0xFFEF4444) : Colors.white,
+          label: formatCount(item.likesCount),
+          onTap: onLikeTap,
+        ),
+
+        const SizedBox(height: 16),
+
+        // Comment Button
+        _ActionButtonTile(
+          icon: Icons.chat_bubble_rounded,
+          color: Colors.white,
+          label: formatCount(item.commentsCount),
+          onTap: onCommentTap,
+        ),
+
+        const SizedBox(height: 16),
+
+        // Share Button
+        _ActionButtonTile(
+          icon: Icons.share_rounded,
+          color: Colors.white,
+          label: formatCount(item.sharesCount),
+          onTap: onShareTap,
+        ),
+
+        const SizedBox(height: 18),
+
+        // Spinning Vinyl Disc / Music Note
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: const Color(0xFF1E293B),
+            border: Border.all(color: Colors.white24, width: 2),
+            boxShadow: const [
+              BoxShadow(color: Colors.black54, blurRadius: 4),
+            ],
+          ),
+          child: const Icon(
+            Icons.music_note_rounded,
+            color: Colors.white,
+            size: 20,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1059,49 +1041,37 @@ class _ActionButtonTile extends StatelessWidget {
   final IconData icon;
   final Color color;
   final String label;
-  final Color textColor;
   final VoidCallback onTap;
-  final bool flipHorizontal;
 
   const _ActionButtonTile({
     required this.icon,
     required this.color,
     required this.label,
-    required this.textColor,
     required this.onTap,
-    this.flipHorizontal = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    Widget iconWidget = Icon(
-      icon,
-      color: color,
-      size: 24,
-    );
-
-    if (flipHorizontal) {
-      iconWidget = Transform.scale(
-        scaleX: -1,
-        child: iconWidget,
-      );
-    }
-
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          iconWidget,
-          const SizedBox(height: 2),
+          Icon(
+            icon,
+            color: color,
+            size: 30,
+            shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
+          ),
+          const SizedBox(height: 3),
           Text(
             label,
-            style: TextStyle(
-              color: textColor,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.1,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11.5,
+              fontWeight: FontWeight.bold,
+              shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
             ),
           ),
         ],

@@ -48,21 +48,50 @@ class SocialProfileService extends ChangeNotifier {
 
   static const String _followedTargetsKey = 'gage_social_followed_targets_v1';
   static const String _likedVideoIdsKey = 'gage_social_liked_videos_v1';
+  static const String _userBioKey = 'gage_social_user_bio_v1';
+  static const String _userHandleKey = 'gage_social_user_handle_v1';
 
   final Set<String> _followedTargetIds = {};
   final Set<String> _likedVideoIds = {};
+
+  String _userBio =
+      'Food explorer & UMKM Pracimantoro 🍜📍 Cek video review dan rekomendasi kuliner Wonogiri!';
+  String _userHandle = 'syams.djuhair';
 
   SocialProfileStats _currentStats = const SocialProfileStats();
 
   SocialProfileStats get stats => _currentStats;
   Set<String> get followedTargetIds => Set.unmodifiable(_followedTargetIds);
   Set<String> get likedVideoIds => Set.unmodifiable(_likedVideoIds);
+  String get userBio => _userBio;
+  String get userHandle => _userHandle;
+
+  Future<void> updateBioAndHandle({
+    required String bio,
+    required String handle,
+  }) async {
+    _userBio = bio.trim();
+    var cleanHandle = handle.trim();
+    if (cleanHandle.startsWith('@')) cleanHandle = cleanHandle.substring(1);
+    _userHandle = cleanHandle;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_userBioKey, _userBio);
+      await prefs.setString(_userHandleKey, _userHandle);
+    } catch (_) {}
+    notifyListeners();
+  }
 
   Future<void> _loadState() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final followedList = prefs.getStringList(_followedTargetsKey) ?? [];
       final likedList = prefs.getStringList(_likedVideoIdsKey) ?? [];
+      final savedBio = prefs.getString(_userBioKey);
+      final savedHandle = prefs.getString(_userHandleKey);
+
+      if (savedBio != null && savedBio.isNotEmpty) _userBio = savedBio;
+      if (savedHandle != null && savedHandle.isNotEmpty) _userHandle = savedHandle;
 
       _followedTargetIds.addAll(followedList);
       _likedVideoIds.addAll(likedList);

@@ -62,10 +62,17 @@ void main() {
       expect(service.isMerchantAccount(merchant), isTrue);
       expect(service.isMerchantAccount(null), isFalse);
     });
+
+    test('updateBioAndHandle updates bio and username correctly', () async {
+      final service = SocialProfileService.instance;
+      await service.updateBioAndHandle(bio: 'Pecinta Sate Praci', handle: '@satelover');
+      expect(service.userBio, 'Pecinta Sate Praci');
+      expect(service.userHandle, 'satelover');
+    });
   });
 
   group('ProfileScreen Widget Tests', () {
-    testWidgets('Renders top-level segmented switch and toggles between Sosmed and Settings', (tester) async {
+    testWidgets('Renders top-level segmented switch and toggles between Profil and Pengaturan', (tester) async {
       tester.binding.window.physicalSizeTestValue = const Size(1080, 2400);
       tester.binding.window.devicePixelRatioTestValue = 1.0;
       addTearDown(() {
@@ -89,21 +96,26 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Pastikan ada Segmented Tab Switch Kapsul
-      expect(find.text('Profil & Konten'), findsOneWidget);
-      expect(find.text('Akun & Pengaturan'), findsOneWidget);
+      // Pastikan ada Segmented Tab Switch Teks Murni (Profil & Pengaturan)
+      expect(find.widgetWithText(AnimatedContainer, 'Profil'), findsOneWidget);
+      expect(find.widgetWithText(AnimatedContainer, 'Pengaturan'), findsOneWidget);
 
-      // Default tab adalah Profil & Konten (Sosmed murni)
+      // Default tab adalah Profil (Sosmed murni tanpa card cuan)
       expect(find.text('Mengikuti'), findsOneWidget);
       expect(find.text('Pengikut'), findsOneWidget);
       expect(find.text('Suka'), findsOneWidget);
-      expect(find.textContaining('Cuan'), findsOneWidget);
+      expect(find.textContaining('Cuan'), findsNothing);
       expect(find.text('Edit Profil'), findsOneWidget);
       expect(find.text('Bagikan'), findsOneWidget);
       expect(find.text('Buat Video'), findsOneWidget);
 
-      // Tap ke Akun & Pengaturan
-      await tester.tap(find.text('Akun & Pengaturan'));
+      // Sub-tabs tanpa count kurung
+      expect(find.text('Video'), findsNWidgets(2)); // Sub-tab konten + Bottom Nav Bar
+      expect(find.text('Disukai'), findsOneWidget);
+      expect(find.text('Etalase'), findsOneWidget);
+
+      // Tap ke Pengaturan
+      await tester.tap(find.text('Pengaturan'));
       await tester.pumpAndSettle();
 
       // Pastikan pengaturan akun tampil

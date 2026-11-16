@@ -1221,124 +1221,96 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        title: Text(screenTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
-        elevation: 0,
-        backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-        surfaceTintColor: Colors.transparent,
-        centerTitle: false,
-        leading: isViewingOther
-            ? IconButton(
+      appBar: isViewingOther
+          ? AppBar(
+              title: Text(screenTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+              elevation: 0,
+              backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+              surfaceTintColor: Colors.transparent,
+              centerTitle: false,
+              leading: IconButton(
                 icon: Icon(Icons.arrow_back_ios_new_rounded, size: 19, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                 onPressed: () => Navigator.pop(context),
-              )
-            : null,
-        actions: [
-          IconButton(
-            icon: Icon(
-              isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-              color: isDark ? const Color(0xFFF59E0B) : const Color(0xFF475569),
-              size: 21,
-            ),
-            tooltip: 'Ganti Tema',
-            onPressed: () => _showThemePickerSheet(isDark),
-          ),
-          const SizedBox(width: 6),
-        ],
-      ),
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              // Top-Level Segmented Switch Kapsul Penuh (Hanya jika profil sendiri)
-              if (!isViewingOther)
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  padding: const EdgeInsets.all(3.5),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Row(
-                    children: [
-                      // Tab 1: Profil & Konten (atau Toko Mitra)
-                      Expanded(
-                        child: InkWell(
-                          onTap: () {
-                            HapticFeedback.selectionClick();
-                            setState(() => _mainTabIndex = 0);
-                          },
-                          borderRadius: BorderRadius.circular(999),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 180),
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            decoration: BoxDecoration(
-                              color: _mainTabIndex == 0 ? GageTheme.primary : Colors.transparent,
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  isMerchant ? Icons.storefront_rounded : Icons.person_rounded,
-                                  size: 15,
-                                  color: _mainTabIndex == 0 ? Colors.white : (isDark ? Colors.white60 : const Color(0xFF64748B)),
-                                ),
-                                const SizedBox(width: 5),
-                                Text(
-                                  isMerchant ? 'Toko Mitra' : 'Profil & Konten',
+              ),
+            )
+          : null,
+      body: SafeArea(
+        bottom: false,
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                // Top-Level Segmented Switch Kapsul Penuh (Hanya teks murni tanpa icon)
+                if (!isViewingOther)
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.all(3.5),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Row(
+                      children: [
+                        // Tab 1: Profil
+                        Expanded(
+                          child: InkWell(
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              setState(() => _mainTabIndex = 0);
+                            },
+                            borderRadius: BorderRadius.circular(999),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: _mainTabIndex == 0 ? GageTheme.primary : Colors.transparent,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  'Profil',
                                   style: TextStyle(
-                                    fontSize: 12,
+                                    fontSize: 12.5,
                                     fontWeight: _mainTabIndex == 0 ? FontWeight.w900 : FontWeight.w600,
                                     color: _mainTabIndex == 0 ? Colors.white : (isDark ? Colors.white60 : const Color(0xFF64748B)),
                                   ),
                                 ),
-                              ],
+                              ),
                             ),
                           ),
                         ),
-                      ),
 
-                      // Tab 2: Akun & Pengaturan
-                      Expanded(
-                        child: InkWell(
-                          onTap: () {
-                            HapticFeedback.selectionClick();
-                            setState(() => _mainTabIndex = 1);
-                          },
-                          borderRadius: BorderRadius.circular(999),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 180),
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            decoration: BoxDecoration(
-                              color: _mainTabIndex == 1 ? GageTheme.primary : Colors.transparent,
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.settings_rounded,
-                                  size: 15,
-                                  color: _mainTabIndex == 1 ? Colors.white : (isDark ? Colors.white60 : const Color(0xFF64748B)),
-                                ),
-                                const SizedBox(width: 5),
-                                Text(
-                                  'Akun & Pengaturan',
+                        // Tab 2: Pengaturan
+                        Expanded(
+                          child: InkWell(
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              setState(() => _mainTabIndex = 1);
+                            },
+                            borderRadius: BorderRadius.circular(999),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: _mainTabIndex == 1 ? GageTheme.primary : Colors.transparent,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  'Pengaturan',
                                   style: TextStyle(
-                                    fontSize: 12,
+                                    fontSize: 12.5,
                                     fontWeight: _mainTabIndex == 1 ? FontWeight.w900 : FontWeight.w600,
                                     color: _mainTabIndex == 1 ? Colors.white : (isDark ? Colors.white60 : const Color(0xFF64748B)),
                                   ),
                                 ),
-                              ],
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
 
               // Body Tampilan
               Expanded(
@@ -1359,8 +1331,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildSocialProfileBody(bool isDark, UserModel? user, String userName) {
     final socialService = SocialProfileService.instance;
@@ -1395,21 +1368,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     SocialProfileService socialService,
   ) {
     final isOwn = widget.initialCreatorHandle == null;
-    final handle = widget.initialCreatorHandle ?? (user?.name.toLowerCase().replaceAll(' ', '') ?? 'syams.djuhair');
+    final handle = isOwn ? socialService.userHandle : widget.initialCreatorHandle!;
     final name = isOwn ? userName : widget.initialCreatorHandle!;
     final avatar = (isOwn ? user?.avatarUrl : null) ?? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&q=80';
     final bio = isOwn
-        ? 'Food explorer & UMKM Pracimantoro 🍜📍 Cek video review dan rekomendasi kuliner Wonogiri!'
+        ? socialService.userBio
         : 'Kreator kuliner & UMKM lokal Pracimantoro, Kab. Wonogiri';
 
     final myVideos = socialService.getVideosByCreator(handle);
     final likedVideos = socialService.getLikedVideos();
     final showcaseProducts = socialService.getShowcaseProducts(handle);
 
-    final subTabs = [
-      'Video (${myVideos.length})',
-      'Disukai (${likedVideos.length})',
-      'Etalase (${showcaseProducts.length})',
+    const subTabs = [
+      'Video',
+      'Disukai',
+      'Etalase',
     ];
 
     return Column(
@@ -1419,19 +1392,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
           handle: handle,
           avatarUrl: avatar,
           bio: bio,
-          isVerified: true,
+          isVerified: false,
           isOwnProfile: isOwn,
           targetId: isOwn ? null : handle,
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 14),
 
-        // Sub-Tab Segmented Switch Kapsul Penuh
+        // Sub-Tab Navigasi Konten Minimalis (Video, Disukai, Etalase)
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 16),
-          padding: const EdgeInsets.all(3),
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-            borderRadius: BorderRadius.circular(999),
+            border: Border(
+              bottom: BorderSide(
+                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                width: 1.5,
+              ),
+            ),
           ),
           child: Row(
             children: List.generate(subTabs.length, (idx) {
@@ -1442,24 +1418,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     HapticFeedback.selectionClick();
                     setState(() => _contentSubTabIndex = idx);
                   },
-                  borderRadius: BorderRadius.circular(999),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
-                      color: isSel ? GageTheme.primary : Colors.transparent,
-                      borderRadius: BorderRadius.circular(999),
+                      border: Border(
+                        bottom: BorderSide(
+                          color: isSel ? GageTheme.primary : Colors.transparent,
+                          width: 2.5,
+                        ),
+                      ),
                     ),
                     child: Center(
                       child: Text(
                         subTabs[idx],
                         style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
-                          color: isSel ? Colors.white : (isDark ? Colors.white60 : const Color(0xFF64748B)),
+                          fontSize: 13,
+                          fontWeight: isSel ? FontWeight.w900 : FontWeight.w600,
+                          color: isSel
+                              ? GageTheme.primary
+                              : (isDark ? Colors.white60 : const Color(0xFF64748B)),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ),
@@ -1486,6 +1464,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         else
           SocialShowcaseGrid(
             products: showcaseProducts,
+            isOwnProfile: isOwn,
             emptyMessage: 'Belum ada produk yang disematkan di etalase',
           ),
       ],

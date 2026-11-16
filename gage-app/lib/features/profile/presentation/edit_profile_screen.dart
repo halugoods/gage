@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:gage_app/core/services/social_profile_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/providers/auth_provider.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
@@ -20,6 +21,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
 
   final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _bioController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
@@ -60,6 +63,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final user = context.read<AuthProvider>().currentUser;
 
     _nameController.text = user?.name.isNotEmpty == true ? user!.name : 'Syams Djuhair Hibatullah';
+    _usernameController.text = SocialProfileService.instance.userHandle;
+    _bioController.text = SocialProfileService.instance.userBio;
     _phoneController.text = user?.phone.isNotEmpty == true ? user!.phone : '+6285156955735';
     _emailController.text = (user?.email != null && user!.email!.isNotEmpty)
         ? user.email!
@@ -84,6 +89,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _usernameController.dispose();
+    _bioController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
     _addressController.dispose();
@@ -373,6 +380,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     final auth = context.read<AuthProvider>();
     final newName = _nameController.text.trim();
+    final newUsername = _usernameController.text.trim();
+    final newBio = _bioController.text.trim();
     final newPhone = _phoneController.text.trim();
     final newEmail = _emailController.text.trim();
     final newAddress = _addressController.text.trim();
@@ -400,6 +409,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         phone: newPhone,
         email: newEmail,
         avatarUrl: newAvatarUrl,
+      );
+
+      // 3. Update Bio dan Username di SocialProfileService
+      await SocialProfileService.instance.updateBioAndHandle(
+        bio: newBio,
+        handle: newUsername,
       );
 
       if (!mounted) return;
@@ -545,6 +560,33 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         }
                         return null;
                       },
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Username / Handle
+                    _buildInputField(
+                      controller: _usernameController,
+                      label: 'Username / Handle',
+                      hint: 'contoh: syams.djuhair',
+                      icon: Icons.alternate_email_rounded,
+                      validator: (val) {
+                        if (val == null || val.trim().isEmpty) {
+                          return 'Username tidak boleh kosong';
+                        }
+                        return null;
+                      },
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Bio / Deskripsi Diri
+                    _buildInputField(
+                      controller: _bioController,
+                      label: 'Bio / Deskripsi Profil',
+                      hint: 'Ceritakan minat kuliner, UMKM, atau diri Anda...',
+                      icon: Icons.edit_note_rounded,
+                      maxLines: 3,
                     ),
 
                     const SizedBox(height: 16),

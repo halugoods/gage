@@ -6,7 +6,6 @@ import 'package:gage_app/core/services/affiliate_commission_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/data/mock/gage_mock_registry.dart';
 import 'package:gage_app/features/affiliate/presentation/affiliate_merchant_detail_screen.dart';
-import 'package:gage_app/features/affiliate/presentation/affiliate_video_upload_screen.dart';
 import 'package:gage_app/providers/wallet_provider.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 
@@ -648,107 +647,7 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> {
           ),
         ),
 
-        // 3. Banner CTA Unggah Video & Keranjang Kuning
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFFBBF24).withValues(alpha: 0.4), width: 1.2),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFBBF24).withValues(alpha: 0.18),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.video_camera_back_rounded,
-                      color: Color(0xFFFBBF24),
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Bikin Video Cuan',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 13,
-                          ),
-                        ),
-                        const SizedBox(height: 1),
-                        const Text(
-                          '🛒 Keranjang Kuning',
-                          style: TextStyle(
-                            color: Color(0xFFFBBF24),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 10.5,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        const Text(
-                          'Unggah video review & tag produk toko mitra untuk dapat komisi otomatis!',
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 11,
-                            height: 1.25,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFBBF24),
-                      foregroundColor: const Color(0xFF0F172A),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      shape: const StadiumBorder(),
-                      elevation: 0,
-                    ),
-                    onPressed: () {
-                      HapticFeedback.selectionClick();
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const AffiliateVideoUploadScreen(),
-                        ),
-                      );
-                    },
-                    child: const Text(
-                      'Unggah 📹',
-                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w900),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-
-        // 4. Segmented Switch 4 Layanan Komersial GAGE (Food, Shop, Farm, Build) - Capsule Penuh
+        // 3. Segmented Switch 4 Layanan Komersial GAGE (Food, Shop, Farm, Build) - Capsule Penuh (Teks Murni)
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
@@ -819,28 +718,17 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> {
                                     ]
                                   : null,
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  s['icon'] as IconData,
-                                  size: 14,
+                            child: Center(
+                              child: Text(
+                                s['label'] as String,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
                                   color: isSelected
                                       ? Colors.white
                                       : (isDark ? Colors.white60 : const Color(0xFF64748B)),
                                 ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  s['label'] as String,
-                                  style: TextStyle(
-                                    fontSize: 11.5,
-                                    fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
-                                    color: isSelected
-                                        ? Colors.white
-                                        : (isDark ? Colors.white60 : const Color(0xFF64748B)),
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
                           ),
                         ),

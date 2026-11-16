@@ -9,11 +9,13 @@ import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
 /// Menampilkan produk-produk UMKM lokal Pracimantoro yang pernah direview/ditag di video
 class SocialShowcaseGrid extends StatelessWidget {
   final List<Map<String, dynamic>> products;
+  final bool isOwnProfile;
   final String emptyMessage;
 
   const SocialShowcaseGrid({
     super.key,
     required this.products,
+    this.isOwnProfile = true,
     this.emptyMessage = 'Belum ada produk yang disematkan di etalase',
   });
 
@@ -164,41 +166,42 @@ class SocialShowcaseGrid extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(width: 10),
-
-              // Tombol Beli / Pesan
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: GageTheme.primary,
-                  foregroundColor: Colors.white,
-                  shape: const StadiumBorder(),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                onPressed: () {
-                  HapticFeedback.selectionClick();
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => RestoDetailScreen(
-                        merchant: {
-                          'id': item['merchantId'] ?? 'mrc-dimsum-sewu',
-                          'name': merchant,
-                          'category': 'Kuliner',
-                          'address': 'Pracimantoro, Wonogiri',
-                          'rating': rating,
-                          'image': thumb,
-                        },
+              // Tombol Beli / Pesan (Hanya untuk pengunjung, bukan akun sendiri)
+              if (!isOwnProfile) ...[
+                const SizedBox(width: 10),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: GageTheme.primary,
+                    foregroundColor: Colors.white,
+                    shape: const StadiumBorder(),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => RestoDetailScreen(
+                          merchant: {
+                            'id': item['merchantId'] ?? 'mrc-dimsum-sewu',
+                            'name': merchant,
+                            'category': 'Kuliner',
+                            'address': 'Pracimantoro, Wonogiri',
+                            'rating': rating,
+                            'image': thumb,
+                          },
+                        ),
                       ),
-                    ),
-                  );
-                },
-                child: const Text(
-                  'Beli',
-                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                    );
+                  },
+                  child: const Text(
+                    'Beli',
+                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         );
