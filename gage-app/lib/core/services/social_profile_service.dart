@@ -188,11 +188,50 @@ class SocialProfileService extends ChangeNotifier {
     return allVideos.where((v) => _likedVideoIds.contains(v.id)).toList();
   }
 
+  final List<Map<String, dynamic>> _userCustomShowcase = [];
+
+  /// Menambah produk ke etalase sendiri
+  Future<void> addProductToShowcase(Map<String, dynamic> product) async {
+    final pId = (product['productId'] ?? product['id'])?.toString();
+    if (pId == null || pId.isEmpty) return;
+    if (!_userCustomShowcase.any((p) => (p['productId'] ?? p['id'])?.toString() == pId)) {
+      _userCustomShowcase.add(product);
+      notifyListeners();
+    }
+  }
+
+  /// Menghapus produk dari etalase sendiri
+  Future<void> removeProductFromShowcase(String productId) async {
+    _userCustomShowcase.removeWhere((p) => (p['productId'] ?? p['id'])?.toString() == productId);
+    notifyListeners();
+  }
+
+  /// Mengecek apakah produk sudah ada di etalase
+  bool isProductInShowcase(String productId) {
+    if (_userCustomShowcase.any((p) => (p['productId'] ?? p['id'])?.toString() == productId)) {
+      return true;
+    }
+    final tagged = getShowcaseProducts(_userHandle);
+    return tagged.any((p) => (p['productId'] ?? p['id'])?.toString() == productId);
+  }
+
   /// Mengambil daftar produk rekomendasi / etalase keranjang kuning yang ditag kreator
-  List<Map<String, dynamic>> getShowcaseProducts(String creatorHandle) {
+  List<Map<String, dynamic>> getShowcaseProducts([String creatorHandle = '']) {
+    final cleanHandle = creatorHandle.trim().toLowerCase();
+    final isOwn = cleanHandle == _userHandle.toLowerCase() || cleanHandle.isEmpty;
     final videos = getVideosByCreator(creatorHandle);
     final List<Map<String, dynamic>> showcase = [];
     final Set<String> seenProductIds = {};
+
+    if (isOwn) {
+      for (final p in _userCustomShowcase) {
+        final pId = (p['productId'] ?? p['id'])?.toString() ?? '';
+        if (pId.isNotEmpty && !seenProductIds.contains(pId)) {
+          seenProductIds.add(pId);
+          showcase.add(p);
+        }
+      }
+    }
 
     for (final v in videos) {
       if (v.productId.isNotEmpty && !seenProductIds.contains(v.productId)) {

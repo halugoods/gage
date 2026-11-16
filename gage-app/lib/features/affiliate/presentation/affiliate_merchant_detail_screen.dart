@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:gage_app/core/services/affiliate_commission_service.dart';
+import 'package:gage_app/core/services/social_profile_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/affiliate/presentation/affiliate_video_upload_screen.dart';
 
@@ -432,21 +434,57 @@ class AffiliateMerchantDetailScreen extends StatelessWidget {
                                     elevation: 0,
                                     padding: const EdgeInsets.symmetric(vertical: 8),
                                   ),
-                                  onPressed: () {
+                                  onPressed: () async {
                                     HapticFeedback.selectionClick();
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => AffiliateVideoUploadScreen(
-                                          initialMerchant: merchant,
-                                          initialProduct: item,
+                                    // Tambahkan produk otomatis ke etalase profil kreator
+                                    await SocialProfileService.instance.addProductToShowcase({
+                                      'productId': item['id'],
+                                      'productTitle': item['name'],
+                                      'productPrice': price,
+                                      'merchantId': merchant['id'],
+                                      'merchantName': merchant['name'],
+                                      'merchantRating': merchant['rating'],
+                                      'thumbnailUrl': item['image'],
+                                    });
+
+                                    try {
+                                      final picker = ImagePicker();
+                                      final XFile? picked = await picker.pickVideo(
+                                        source: ImageSource.gallery,
+                                        maxDuration: const Duration(minutes: 3),
+                                      );
+                                      if (!context.mounted) return;
+                                      if (picked != null) {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => AffiliateVideoUploadScreen(
+                                              initialMerchant: merchant,
+                                              initialProduct: item,
+                                              initialVideoPath: picked.path,
+                                              initialVideoName: picked.name,
+                                            ),
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                    } catch (_) {}
+
+                                    if (context.mounted) {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => AffiliateVideoUploadScreen(
+                                            initialMerchant: merchant,
+                                            initialProduct: item,
+                                          ),
                                         ),
-                                      ),
-                                    );
+                                      );
+                                    }
                                   },
                                   icon: const Icon(Icons.videocam_rounded, size: 15),
                                   label: const Text(
-                                    'Tag di Video 📹',
+                                    'Buat Video',
                                     style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
                                   ),
                                 ),

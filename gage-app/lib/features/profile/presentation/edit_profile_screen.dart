@@ -518,21 +518,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 10),
-              TextButton.icon(
-                onPressed: _showAvatarOptionsSheet,
-                icon: const Icon(Icons.edit_rounded, size: 16, color: GageTheme.primary),
-                label: const Text(
-                  'Ganti Foto Profil',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: GageTheme.primary,
-                  ),
-                ),
-              ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
               // 2. Form Input Interaktif Card
               Container(

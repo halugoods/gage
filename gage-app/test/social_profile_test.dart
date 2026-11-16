@@ -69,10 +69,32 @@ void main() {
       expect(service.userBio, 'Pecinta Sate Praci');
       expect(service.userHandle, 'satelover');
     });
+
+    test('Showcase custom product add and remove', () async {
+      final service = SocialProfileService.instance;
+      final testProd = <String, dynamic>{
+        'productId': 'test-p1',
+        'productTitle': 'Sate Ayam Spesial',
+        'productPrice': 20000,
+        'thumbnailUrl': 'https://images.unsplash.com/photo-1544025162-d76694265947',
+        'merchantId': 'm-01',
+        'merchantName': 'Warung Bu Siti',
+      };
+
+      expect(service.isProductInShowcase('test-p1'), isFalse);
+      await service.addProductToShowcase(testProd);
+      expect(service.isProductInShowcase('test-p1'), isTrue);
+
+      final showcaseList = service.getShowcaseProducts();
+      expect(showcaseList.any((p) => p['productId'] == 'test-p1'), isTrue);
+
+      await service.removeProductFromShowcase('test-p1');
+      expect(service.isProductInShowcase('test-p1'), isFalse);
+    });
   });
 
   group('ProfileScreen Widget Tests', () {
-    testWidgets('Renders top-level segmented switch and toggles between Profil and Pengaturan', (tester) async {
+    testWidgets('Renders clean minimal profile header, action row, and settings menu navigation', (tester) async {
       tester.binding.window.physicalSizeTestValue = const Size(1080, 2400);
       tester.binding.window.devicePixelRatioTestValue = 1.0;
       addTearDown(() {
@@ -96,9 +118,9 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Pastikan ada Segmented Tab Switch Teks Murni (Profil & Pengaturan)
-      expect(find.widgetWithText(AnimatedContainer, 'Profil'), findsOneWidget);
-      expect(find.widgetWithText(AnimatedContainer, 'Pengaturan'), findsOneWidget);
+      // Top Header: user handle, share icon, and 3-line menu icon
+      expect(find.byIcon(Icons.share_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.menu_rounded), findsOneWidget);
 
       // Default tab adalah Profil (Sosmed murni tanpa card cuan)
       expect(find.text('Mengikuti'), findsOneWidget);
@@ -106,7 +128,6 @@ void main() {
       expect(find.text('Suka'), findsOneWidget);
       expect(find.textContaining('Cuan'), findsNothing);
       expect(find.text('Edit Profil'), findsOneWidget);
-      expect(find.text('Bagikan'), findsOneWidget);
       expect(find.text('Buat Video'), findsOneWidget);
 
       // Sub-tabs tanpa count kurung
@@ -114,13 +135,19 @@ void main() {
       expect(find.text('Disukai'), findsOneWidget);
       expect(find.text('Etalase'), findsOneWidget);
 
-      // Tap ke Pengaturan
-      await tester.tap(find.text('Pengaturan'));
+      // Tap 3-line menu icon ke Pengaturan
+      await tester.tap(find.byIcon(Icons.menu_rounded));
       await tester.pumpAndSettle();
 
-      // Pastikan pengaturan akun tampil
+      // Pastikan pengaturan akun tampil & back arrow tersedia
+      expect(find.byIcon(Icons.arrow_back_ios_new_rounded), findsOneWidget);
       expect(find.text('Keamanan & Transaksi'), findsOneWidget);
       expect(find.text('Alamat & Lokasi'), findsOneWidget);
+
+      // Tap back arrow untuk kembali ke Profil
+      await tester.tap(find.byIcon(Icons.arrow_back_ios_new_rounded));
+      await tester.pumpAndSettle();
+      expect(find.text('Edit Profil'), findsOneWidget);
     });
   });
 }

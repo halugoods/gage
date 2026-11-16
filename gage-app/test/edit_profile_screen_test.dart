@@ -41,7 +41,7 @@ void main() {
     // Verify Save Button
     expect(find.text('Simpan Perubahan'), findsOneWidget);
 
-    // Verify Avatar button
-    expect(find.text('Ganti Foto Profil'), findsOneWidget);
+    // Verify Avatar interactive camera badge
+    expect(find.byIcon(Icons.camera_alt_rounded), findsOneWidget);
   });
 }

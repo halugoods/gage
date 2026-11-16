@@ -177,11 +177,17 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Beralih ke tab Pengaturan jika terdapat segmented switch
-      final settingsTab = find.text('Pengaturan');
-      if (settingsTab.evaluate().isNotEmpty) {
-        await tester.tap(settingsTab);
+      // Beralih ke tab Pengaturan jika terdapat menu icon atau segmented switch
+      final menuBtn = find.byIcon(Icons.menu_rounded);
+      if (menuBtn.evaluate().isNotEmpty) {
+        await tester.tap(menuBtn);
         await tester.pumpAndSettle();
+      } else {
+        final settingsTab = find.text('Pengaturan');
+        if (settingsTab.evaluate().isNotEmpty) {
+          await tester.tap(settingsTab);
+          await tester.pumpAndSettle();
+        }
       }
 
       // VERIFY STRICT CORPORATE BRANDING HIERARCHY

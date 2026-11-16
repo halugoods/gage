@@ -10,6 +10,8 @@ import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/data/models/cart_item_model.dart';
 import 'package:gage_app/providers/cart_provider.dart';
 import 'package:gage_app/shared/widgets/gage_bottom_nav_bar.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
 import 'package:gage_app/features/profile/presentation/profile_screen.dart';
 
@@ -310,25 +312,152 @@ class _VideoFeedScreenState extends State<VideoFeedScreen>
     setState(() {
       item.sharesCount += 1;
     });
-    Clipboard.setData(
-      ClipboardData(
-        text:
-            'Cek review ${item.productTitle} di ${item.merchantName} (${item.merchantLocation}) lewat GAGE Video! https://gage.id/video/${item.id}',
+    _showVideoShareSheet(item);
+  }
+
+  void _showVideoShareSheet(GageVideoItem item) {
+    final cleanHandle = item.creatorHandle.startsWith('@') ? item.creatorHandle : '@${item.creatorHandle}';
+    final shareUrl = 'https://gage.id/video/${item.id}';
+    final shareText = 'Tonton video kuliner $cleanHandle di GAGE: $shareUrl';
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF1E293B),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Bagikan Video',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 15,
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                // WhatsApp
+                _buildShareSheetAction(
+                  icon: Icons.chat_rounded,
+                  color: const Color(0xFF22C55E),
+                  label: 'WhatsApp',
+                  onTap: () async {
+                    Navigator.pop(sheetCtx);
+                    final waUrl = Uri.parse('https://wa.me/?text=${Uri.encodeComponent(shareText)}');
+                    if (await canLaunchUrl(waUrl)) {
+                      await launchUrl(waUrl, mode: LaunchMode.externalApplication);
+                    } else {
+                      SharePlus.instance.share(ShareParams(text: shareText));
+                    }
+                  },
+                ),
+                // Salin Tautan
+                _buildShareSheetAction(
+                  icon: Icons.link_rounded,
+                  color: const Color(0xFF38BDF8),
+                  label: 'Salin Tautan',
+                  onTap: () {
+                    Clipboard.setData(ClipboardData(text: shareUrl));
+                    Navigator.pop(sheetCtx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        behavior: SnackBarBehavior.floating,
+                        backgroundColor: Color(0xFF0F172A),
+                        content: Text('Tautan video berhasil disalin ke clipboard'),
+                      ),
+                    );
+                  },
+                ),
+                // Simpan Video dengan Watermark
+                _buildShareSheetAction(
+                  icon: Icons.download_rounded,
+                  color: const Color(0xFFF59E0B),
+                  label: 'Simpan Video',
+                  onTap: () {
+                    Navigator.pop(sheetCtx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        behavior: SnackBarBehavior.floating,
+                        backgroundColor: Color(0xFF0F172A),
+                        content: Text('Video dengan watermark GAGE disimpan ke galeri'),
+                      ),
+                    );
+                  },
+                ),
+                // Bagikan Sistem / Lainnya
+                _buildShareSheetAction(
+                  icon: Icons.more_horiz_rounded,
+                  color: Colors.white70,
+                  label: 'Lainnya',
+                  onTap: () {
+                    Navigator.pop(sheetCtx);
+                    SharePlus.instance.share(ShareParams(text: shareText));
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 92),
-        backgroundColor: const Color(0xFF0F172A),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        duration: const Duration(seconds: 2),
-        content: const Text(
-          'Tautan video & menu merchant disalin ke clipboard',
-          style: TextStyle(color: Colors.white, fontSize: 12.5),
+  }
+
+  Widget _buildShareSheetAction({
+    required IconData icon,
+    required Color color,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.18),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -443,10 +572,13 @@ class _VideoFeedPageState extends State<_VideoFeedPage>
   late AnimationController _heartBurstCtrl;
   late Animation<double> _heartScaleAnim;
   late Animation<double> _heartOpacityAnim;
+  Timer? _shoppableTagTimer;
+  bool _showShoppableTag = false;
 
   @override
   void initState() {
     super.initState();
+    _startShoppableTimer();
     _heartBurstCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 650),
@@ -481,10 +613,33 @@ class _VideoFeedPageState extends State<_VideoFeedPage>
     if (!widget.isActivePage && _isPausedManually) {
       _isPausedManually = false;
     }
+    if (oldWidget.item.id != widget.item.id || widget.isActivePage != oldWidget.isActivePage) {
+      if (widget.isActivePage) {
+        _startShoppableTimer();
+      } else {
+        _shoppableTagTimer?.cancel();
+        _showShoppableTag = false;
+      }
+    }
+  }
+
+  void _startShoppableTimer() {
+    _shoppableTagTimer?.cancel();
+    _showShoppableTag = false;
+    if (widget.isActivePage) {
+      _shoppableTagTimer = Timer(const Duration(seconds: 5), () {
+        if (mounted) {
+          setState(() {
+            _showShoppableTag = true;
+          });
+        }
+      });
+    }
   }
 
   @override
   void dispose() {
+    _shoppableTagTimer?.cancel();
     _heartBurstCtrl.dispose();
     super.dispose();
   }
@@ -664,150 +819,33 @@ class _VideoFeedPageState extends State<_VideoFeedPage>
               ),
             ),
 
-          // 5. TOP NAVIGATION LAYER (Back | Merchant Capsule | GAGE Video Watermark)
+          // 5. TOP NAVIGATION LAYER (Minimal Clean Back Button)
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
             left: 16,
-            right: 16,
-            child: Row(
-              children: [
-                // Left: Frosted Glass Back Button
-                _FrostedGlassBox(
-                  borderRadius: BorderRadius.circular(999),
-                  sigma: 12,
-                  color: isDark
-                      ? Colors.black.withValues(alpha: 0.35)
-                      : Colors.white.withValues(alpha: 0.85),
-                  borderColor: isDark
-                      ? Colors.white.withValues(alpha: 0.18)
-                      : Colors.white.withValues(alpha: 0.6),
-                  child: InkWell(
-                    onTap: widget.onBackTap,
-                    borderRadius: BorderRadius.circular(999),
-                    child: SizedBox(
-                      width: 40,
-                      height: 40,
-                      child: Icon(
-                        Icons.arrow_back_ios_new_rounded,
-                        color: isDark ? Colors.white : const Color(0xFF0F172A),
-                        size: 18,
-                      ),
-                    ),
-                  ),
+            child: InkWell(
+              onTap: widget.onBackTap,
+              borderRadius: BorderRadius.circular(999),
+              child: Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.black.withValues(alpha: 0.35),
                 ),
-
-                const SizedBox(width: 10),
-
-                // Center Top: Frosted Glass Merchant Pill
-                Expanded(
-                  child: Center(
-                    child: _FrostedGlassBox(
-                      borderRadius: BorderRadius.circular(999),
-                      sigma: 12,
-                      color: isDark
-                          ? Colors.black.withValues(alpha: 0.38)
-                          : Colors.white.withValues(alpha: 0.85),
-                      borderColor: isDark
-                          ? Colors.white.withValues(alpha: 0.18)
-                          : Colors.white.withValues(alpha: 0.6),
-                      child: InkWell(
-                        onTap: widget.onMerchantTap,
-                        borderRadius: BorderRadius.circular(999),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  widget.item.merchantName,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: -0.1,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 5),
-                              const Icon(
-                                Icons.star_rounded,
-                                color: Color(0xFFFFB703),
-                                size: 14,
-                              ),
-                              const SizedBox(width: 2),
-                              Text(
-                                widget.item.merchantRating.toStringAsFixed(1),
-                                style: TextStyle(
-                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 5),
-                                child: Text(
-                                  '•',
-                                  style: TextStyle(
-                                    color: isDark ? Colors.white.withValues(alpha: 0.6) : const Color(0xFF94A3B8),
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ),
-                              Flexible(
-                                child: Text(
-                                  '${widget.item.merchantLocation} 📍',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: isDark ? Colors.white.withValues(alpha: 0.88) : const Color(0xFF475569),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                child: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Colors.white,
+                  size: 16,
                 ),
-
-                const SizedBox(width: 10),
-
-                // Right: Subtle "GAGE Video" Watermark Text
-                Text(
-                  'GAGE Video',
-                  style: TextStyle(
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.72)
-                        : const Color(0xFF0F172A).withValues(alpha: 0.8),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.2,
-                    shadows: [
-                      Shadow(
-                        color: isDark ? Colors.black54 : Colors.white.withValues(alpha: 0.8),
-                        blurRadius: 8,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
 
           // 6. ACTION BAR VERTICAL (Right Floating Capsule)
           Positioned(
             right: 12,
-            bottom: bottomCardOffset + 8,
+            bottom: bottomCardOffset + 36,
             child: _RightVerticalActionBar(
               item: widget.item,
               isDark: isDark,
@@ -819,15 +857,15 @@ class _VideoFeedPageState extends State<_VideoFeedPage>
             ),
           ),
 
-          // 7. BOTTOM SHOPPABLE CARD (Left Floating Capsule - Zero Collision with Right Action Bar!)
+          // 7. BOTTOM CONTENT OVERLAY (Caption, Creator Handle, and Delayed Shoppable Banner)
           Positioned(
-            left: 12,
-            right: 76,
+            left: 16,
+            right: 88,
             bottom: bottomCardOffset,
-            child: _BottomShoppableCard(
+            child: _BottomContentOverlay(
               item: widget.item,
-              isDark: isDark,
               isExpanded: _isCaptionExpanded,
+              showShoppableTag: _showShoppableTag,
               currencyFormatter: widget.currencyFormatter,
               onToggleExpand: () {
                 setState(() {
@@ -838,41 +876,6 @@ class _VideoFeedPageState extends State<_VideoFeedPage>
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Reusable Frosted Glass Container
-class _FrostedGlassBox extends StatelessWidget {
-  final Widget child;
-  final BorderRadius borderRadius;
-  final double sigma;
-  final Color color;
-  final Color borderColor;
-
-  const _FrostedGlassBox({
-    required this.child,
-    required this.borderRadius,
-    this.sigma = 10,
-    required this.color,
-    required this.borderColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: borderRadius,
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
-        child: Container(
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: borderRadius,
-            border: Border.all(color: borderColor, width: 1),
-          ),
-          child: child,
-        ),
       ),
     );
   }
@@ -1080,19 +1083,19 @@ class _ActionButtonTile extends StatelessWidget {
   }
 }
 
-/// Bottom Floating Glassmorphic Card (Creator + Caption + "Belanja dari Video" Sub-Card)
-class _BottomShoppableCard extends StatelessWidget {
+/// Bottom Overlay: Caption, Creator Handle, and Delayed Shoppable Product Banner (Keranjang Kuning)
+class _BottomContentOverlay extends StatelessWidget {
   final GageVideoItem item;
-  final bool isDark;
   final bool isExpanded;
+  final bool showShoppableTag;
   final NumberFormat currencyFormatter;
   final VoidCallback onToggleExpand;
   final VoidCallback onOrderTap;
 
-  const _BottomShoppableCard({
+  const _BottomContentOverlay({
     required this.item,
-    required this.isDark,
     required this.isExpanded,
+    required this.showShoppableTag,
     required this.currencyFormatter,
     required this.onToggleExpand,
     required this.onOrderTap,
@@ -1100,231 +1103,172 @@ class _BottomShoppableCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _FrostedGlassBox(
-      borderRadius: BorderRadius.circular(22),
-      sigma: 12,
-      color: isDark
-          ? Colors.black.withValues(alpha: 0.55)
-          : Colors.white.withValues(alpha: 0.88),
-      borderColor: isDark ? Colors.white12 : Colors.white.withValues(alpha: 0.7),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Creator Handle
-            GestureDetector(
-              onTap: () {
-                HapticFeedback.lightImpact();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ProfileScreen(
-                      initialCreatorHandle: item.creatorHandle,
-                    ),
-                  ),
-                );
-              },
-              child: Row(
-                children: [
-                  Text(
-                    item.creatorHandle,
-                    style: TextStyle(
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.2,
-                    ),
-                  ),
-                  if (item.isCreatorVerified) ...[
-                    const SizedBox(width: 5),
-                    const Icon(
-                      Icons.verified_rounded,
-                      color: Color(0xFF38BDF8),
-                      size: 14,
-                    ),
-                  ],
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 5s Delayed Keranjang Kuning Product Banner
+        if (item.productId.isNotEmpty && item.productTitle.isNotEmpty)
+          AnimatedCrossFade(
+            firstChild: const SizedBox.shrink(),
+            secondChild: Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _ShoppableProductBanner(
+                item: item,
+                currencyFormatter: currencyFormatter,
+                onOrderTap: onOrderTap,
+              ),
+            ),
+            crossFadeState: showShoppableTag
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 300),
+          ),
+
+        // Creator Handle (Direct text with shadow)
+        GestureDetector(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ProfileScreen(
+                  initialCreatorHandle: item.creatorHandle,
+                ),
+              ),
+            );
+          },
+          child: Text(
+            item.creatorHandle,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.2,
+              shadows: [
+                Shadow(color: Colors.black87, blurRadius: 6, offset: Offset(0, 1)),
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 6),
+
+        // Expandable Caption (Direct text with shadow)
+        GestureDetector(
+          onTap: onToggleExpand,
+          child: AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+            child: Text(
+              item.caption,
+              maxLines: isExpanded ? 6 : 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                height: 1.35,
+                fontWeight: FontWeight.w400,
+                shadows: [
+                  Shadow(color: Colors.black87, blurRadius: 6, offset: Offset(0, 1)),
                 ],
               ),
             ),
+          ),
+        ),
+      ],
+    );
+  }
+}
 
-            const SizedBox(height: 4),
+/// Compact Keranjang Kuning Tag Banner
+class _ShoppableProductBanner extends StatelessWidget {
+  final GageVideoItem item;
+  final NumberFormat currencyFormatter;
+  final VoidCallback onOrderTap;
 
-            // Expandable Caption
-            GestureDetector(
-              onTap: onToggleExpand,
-              child: AnimatedSize(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutCubic,
-                child: Text(
-                  item.caption,
-                  maxLines: isExpanded ? 5 : 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.9)
-                        : const Color(0xFF334155),
-                    fontSize: 11.8,
-                    height: 1.35,
-                  ),
-                ),
+  const _ShoppableProductBanner({
+    required this.item,
+    required this.currencyFormatter,
+    required this.onOrderTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onOrderTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.65),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.15),
+            width: 0.8,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(5),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFFB703),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.shopping_bag_rounded,
+                color: Colors.black,
+                size: 13,
               ),
             ),
-
-            if (item.productId.isNotEmpty && item.productTitle.isNotEmpty) ...[
-              const SizedBox(height: 8),
-
-              // "Belanja dari Video" Sub-Card
-              Container(
-              padding: const EdgeInsets.all(9),
-              decoration: BoxDecoration(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.08)
-                    : const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isDark
-                      ? Colors.white.withValues(alpha: 0.12)
-                      : const Color(0xFFE2E8F0),
-                ),
-              ),
+            const SizedBox(width: 8),
+            Flexible(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Belanja dari Video',
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white70 : const Color(0xFF64748B),
-                      letterSpacing: 0.1,
+                    item.productTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      // Food Thumbnail
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: SizedBox(
-                          width: 44,
-                          height: 44,
-                          child: Image.network(
-                            item.thumbnailUrl,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => Container(
-                              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
-                              child: Icon(
-                                Icons.restaurant_rounded,
-                                color: isDark ? Colors.white70 : const Color(0xFF64748B),
-                                size: 20,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(width: 8),
-
-                      // Product Title, Price, & Merchant Delivery Badge
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item.productTitle,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              currencyFormatter.format(item.productPrice),
-                              style: TextStyle(
-                                color: isDark ? Colors.white : const Color(0xFFE52320),
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: -0.3,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            GestureDetector(
-                              onTap: () {
-                                HapticFeedback.lightImpact();
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => ProfileScreen(
-                                      initialMerchantId: item.merchantId,
-                                    ),
-                                  ),
-                                );
-                              },
-                              child: Text(
-                                '${item.merchantName} 🛵 ${item.deliveryEstimate}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: isDark
-                                      ? Colors.white.withValues(alpha: 0.72)
-                                      : const Color(0xFF64748B),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(width: 8),
-
-                      // Yellow Pill CTA Button (#FFB703)
-                      Material(
-                        color: const Color(0xFFFFB703),
-                        borderRadius: BorderRadius.circular(999),
-                        child: InkWell(
-                          onTap: onOrderTap,
-                          borderRadius: BorderRadius.circular(999),
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.shopping_bag_rounded,
-                                  color: Color(0xFF0F172A),
-                                  size: 15,
-                                ),
-                                SizedBox(width: 4),
-                                Text(
-                                  'PESAN',
-                                  style: TextStyle(
-                                    color: Color(0xFF0F172A),
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 0.3,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                  Text(
+                    currencyFormatter.format(item.productPrice),
+                    style: const TextStyle(
+                      color: Color(0xFFFFB703),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ],
               ),
             ),
-            ],
+            const SizedBox(width: 10),
+            Material(
+              color: const Color(0xFFFFB703),
+              borderRadius: BorderRadius.circular(999),
+              child: InkWell(
+                onTap: onOrderTap,
+                borderRadius: BorderRadius.circular(999),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  child: Text(
+                    'Beli',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),

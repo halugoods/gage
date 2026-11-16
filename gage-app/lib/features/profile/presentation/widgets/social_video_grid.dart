@@ -78,17 +78,16 @@ class SocialVideoGrid extends StatelessWidget {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(3),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       itemCount: videos.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
-        childAspectRatio: 0.62, // Aspek rasio video vertikal TikTok
-        mainAxisSpacing: 3,
-        crossAxisSpacing: 3,
+        childAspectRatio: 0.65, // Aspek rasio video vertikal TikTok
+        mainAxisSpacing: 6,
+        crossAxisSpacing: 6,
       ),
       itemBuilder: (context, index) {
         final item = videos[index];
-        final hasKerkun = item.productId.isNotEmpty;
 
         return GestureDetector(
           onTap: () {
@@ -105,100 +104,77 @@ class SocialVideoGrid extends StatelessWidget {
               ),
             );
           },
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // Thumbnail Video
-              Container(
-                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
-                child: item.thumbnailUrl.startsWith('assets/')
-                    ? Image.asset(item.thumbnailUrl, fit: BoxFit.cover)
-                    : Image.network(
-                        item.thumbnailUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          color: const Color(0xFF1E293B),
-                          child: const Center(
-                            child: Icon(Icons.play_circle_outline_rounded, color: Colors.white54, size: 32),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Thumbnail Video
+                Container(
+                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+                  child: item.thumbnailUrl.startsWith('assets/')
+                      ? Image.asset(item.thumbnailUrl, fit: BoxFit.cover)
+                      : Image.network(
+                          item.thumbnailUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: const Color(0xFF1E293B),
+                            child: const Center(
+                              child: Icon(Icons.play_circle_outline_rounded, color: Colors.white54, size: 32),
+                            ),
                           ),
                         ),
-                      ),
-              ),
-
-              // Gradient halus di bagian bawah untuk teks views
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                height: 40,
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.black.withValues(alpha: 0.7),
-                        Colors.transparent,
-                      ],
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                    ),
-                  ),
                 ),
-              ),
 
-              // Badge Jumlah Views di sudut kiri bawah
-              Positioned(
-                left: 6,
-                bottom: 6,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.play_arrow_rounded,
-                      color: Colors.white,
-                      size: 13,
-                    ),
-                    const SizedBox(width: 2),
-                    Text(
-                      _formatCount(item.likesCount > 0 ? item.likesCount : 1240),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.bold,
-                        shadows: [
-                          Shadow(color: Colors.black54, blurRadius: 4),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Badge Keranjang Kuning (Kerkun) di sudut kanan atas
-              if (hasKerkun)
+                // Gradient halus di bagian bawah untuk teks views
                 Positioned(
-                  top: 5,
-                  right: 5,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: 40,
                   child: Container(
-                    padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFBBF24), // Vibrant Yellow
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.35),
-                          blurRadius: 4,
-                          offset: const Offset(0, 1),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.shopping_bag_rounded,
-                      color: Colors.black,
-                      size: 11,
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.black.withValues(alpha: 0.7),
+                          Colors.transparent,
+                        ],
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                      ),
                     ),
                   ),
                 ),
-            ],
+
+                // Badge Jumlah Views di sudut kiri bawah
+                Positioned(
+                  left: 6,
+                  bottom: 6,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.play_arrow_rounded,
+                        color: Colors.white,
+                        size: 13,
+                      ),
+                      const SizedBox(width: 2),
+                      Text(
+                        _formatCount(item.likesCount > 0 ? item.likesCount : 1240),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.bold,
+                          shadows: [
+                            Shadow(color: Colors.black54, blurRadius: 4),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },

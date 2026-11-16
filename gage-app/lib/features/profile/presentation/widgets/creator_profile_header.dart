@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:gage_app/core/services/social_profile_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/affiliate/presentation/affiliate_video_upload_screen.dart';
@@ -45,7 +46,7 @@ class _CreatorProfileHeaderState extends State<CreatorProfileHeader> {
       children: [
         const SizedBox(height: 10),
 
-        // Avatar Lingkaran dengan Ring Gradien Elegan (Terkoneksi ke Edit Profil)
+        // Avatar Lingkaran Bersih & Halus (Terkoneksi ke Edit Profil)
         GestureDetector(
           onTap: widget.isOwnProfile
               ? () {
@@ -57,42 +58,22 @@ class _CreatorProfileHeaderState extends State<CreatorProfileHeader> {
                 }
               : null,
           child: Container(
-            padding: const EdgeInsets.all(3),
+            width: 86,
+            height: 86,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: const LinearGradient(
-                colors: [Color(0xFFE52320), Color(0xFFF59E0B), Color(0xFFE52320)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: GageTheme.primary.withValues(alpha: 0.25),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
             ),
-            child: Container(
-              width: 84,
-              height: 84,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                border: Border.all(
-                  color: isDark ? const Color(0xFF0F172A) : Colors.white,
-                  width: 2.5,
-                ),
-              ),
-              child: ClipOval(
-                child: widget.avatarUrl.isNotEmpty
-                    ? Image.network(
-                        widget.avatarUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _buildFallbackAvatar(isDark),
-                      )
-                    : _buildFallbackAvatar(isDark),
-              ),
+            child: ClipOval(
+              child: widget.avatarUrl.isNotEmpty
+                  ? (widget.avatarUrl.startsWith('assets/')
+                      ? Image.asset(widget.avatarUrl, fit: BoxFit.cover)
+                      : Image.network(
+                          widget.avatarUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _buildFallbackAvatar(isDark),
+                        ))
+                  : _buildFallbackAvatar(isDark),
             ),
           ),
         ),
@@ -174,7 +155,6 @@ class _CreatorProfileHeaderState extends State<CreatorProfileHeader> {
                   children: [
                     // Tombol Edit Profil
                     Expanded(
-                      flex: 4,
                       child: OutlinedButton(
                         style: OutlinedButton.styleFrom(
                           shape: const StadiumBorder(),
@@ -193,44 +173,14 @@ class _CreatorProfileHeaderState extends State<CreatorProfileHeader> {
                         },
                         child: const Text(
                           'Edit Profil',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 10),
 
-                    // Tombol Bagikan Profil
+                    // Tombol Buat Video (Langsung buka galeri pemilih video)
                     Expanded(
-                      flex: 3,
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          shape: const StadiumBorder(),
-                          side: BorderSide(
-                            color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
-                          ),
-                          foregroundColor: isDark ? Colors.white : const Color(0xFF0F172A),
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                        ),
-                        onPressed: () {
-                          HapticFeedback.selectionClick();
-                          GageToast.show(
-                            context,
-                            'Link profil @${widget.handle} berhasil disalin!',
-                            type: GageToastType.success,
-                          );
-                        },
-                        icon: const Icon(Icons.share_outlined, size: 14),
-                        label: const Text(
-                          'Bagikan',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-
-                    // Tombol Buat Video (Kreator / Kerkun)
-                    Expanded(
-                      flex: 5,
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: GageTheme.primary,
@@ -239,19 +189,41 @@ class _CreatorProfileHeaderState extends State<CreatorProfileHeader> {
                           padding: const EdgeInsets.symmetric(vertical: 10),
                           elevation: 1,
                         ),
-                        onPressed: () {
+                        onPressed: () async {
                           HapticFeedback.selectionClick();
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const AffiliateVideoUploadScreen(),
-                            ),
-                          );
+                          try {
+                            final picker = ImagePicker();
+                            final XFile? picked = await picker.pickVideo(
+                              source: ImageSource.gallery,
+                              maxDuration: const Duration(minutes: 3),
+                            );
+                            if (!context.mounted) return;
+                            if (picked != null) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => AffiliateVideoUploadScreen(
+                                    initialVideoPath: picked.path,
+                                    initialVideoName: picked.name,
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
+                          } catch (_) {}
+                          if (context.mounted) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const AffiliateVideoUploadScreen(),
+                              ),
+                            );
+                          }
                         },
-                        icon: const Icon(Icons.add_circle_outline_rounded, size: 16),
+                        icon: const Icon(Icons.videocam_rounded, size: 17),
                         label: const Text(
                           'Buat Video',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                         ),
                       ),
                     ),

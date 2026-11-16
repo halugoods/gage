@@ -65,7 +65,8 @@ class GageBottomNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final effectiveDark = isDark;
+    final isVideo = currentIndex == 3;
+    final effectiveDark = isDark || isVideo;
 
     LanguageProvider? lang;
     try {
@@ -104,14 +105,18 @@ class GageBottomNavBar extends StatelessWidget {
                 filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: effectiveDark
-                        ? const Color(0xFF1E293B).withValues(alpha: 0.68)
-                        : Colors.white.withValues(alpha: 0.70),
+                    color: isVideo
+                        ? Colors.black.withValues(alpha: 0.85)
+                        : (effectiveDark
+                            ? const Color(0xFF1E293B).withValues(alpha: 0.68)
+                            : Colors.white.withValues(alpha: 0.70)),
                     borderRadius: BorderRadius.circular(32),
                     border: Border.all(
-                      color: effectiveDark
-                          ? Colors.white.withValues(alpha: 0.12)
-                          : Colors.white.withValues(alpha: 0.65),
+                      color: isVideo
+                          ? Colors.white.withValues(alpha: 0.15)
+                          : (effectiveDark
+                              ? Colors.white.withValues(alpha: 0.12)
+                              : Colors.white.withValues(alpha: 0.65)),
                       width: 1.0,
                     ),
                   ),

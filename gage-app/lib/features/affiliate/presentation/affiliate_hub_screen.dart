@@ -874,44 +874,20 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Stack(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.asset(
-                        merchant['image'] as String? ?? 'assets/images/resto_rocket_chicken.png',
-                        width: 74,
-                        height: 74,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          width: 74,
-                          height: 74,
-                          color: isDark ? const Color(0xFF334155) : Colors.grey.shade200,
-                          child: const Icon(Icons.storefront, color: Colors.grey),
-                        ),
-                      ),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.asset(
+                    merchant['image'] as String? ?? 'assets/images/resto_rocket_chicken.png',
+                    width: 74,
+                    height: 74,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      width: 74,
+                      height: 74,
+                      color: isDark ? const Color(0xFF334155) : Colors.grey.shade200,
+                      child: const Icon(Icons.storefront, color: Colors.grey),
                     ),
-                    if (merchant['tier'] == 'exclusive' || merchant['tier'] == 'star')
-                      Positioned(
-                        top: 4,
-                        left: 4,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: GageTheme.primary,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            merchant['tier'] == 'exclusive' ? 'Official' : 'Star',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 8.5,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -974,34 +950,6 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> {
                           ),
                         ],
                       ),
-                      if (promoBadges.isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        Wrap(
-                          spacing: 4,
-                          runSpacing: 4,
-                          children: promoBadges.map((badge) {
-                            return Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                              decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFFEF2F2),
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(
-                                  color: const Color(0xFFFCA5A5),
-                                  width: 0.8,
-                                ),
-                              ),
-                              child: Text(
-                                badge,
-                                style: const TextStyle(
-                                  fontSize: 9.5,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFFE52320),
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ],
                     ],
                   ),
                 ),
