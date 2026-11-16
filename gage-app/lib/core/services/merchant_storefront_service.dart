@@ -211,6 +211,7 @@ class MerchantStorefrontData {
   final MerchantOperatingSchedule? schedule;
   final List<String>? categoryOrder;
   final Map<String, int>? itemPromoPrices;
+  final double? affiliateCommissionRate; // Dinamis ditentukan toko, maks 20.0%
 
   const MerchantStorefrontData({
     required this.merchantId,
@@ -226,6 +227,7 @@ class MerchantStorefrontData {
     this.schedule,
     this.categoryOrder,
     this.itemPromoPrices,
+    this.affiliateCommissionRate,
   });
 
   MerchantStorefrontData copyWith({
@@ -242,6 +244,7 @@ class MerchantStorefrontData {
     MerchantOperatingSchedule? schedule,
     List<String>? categoryOrder,
     Map<String, int>? itemPromoPrices,
+    double? affiliateCommissionRate,
   }) {
     return MerchantStorefrontData(
       merchantId: merchantId ?? this.merchantId,
@@ -257,6 +260,9 @@ class MerchantStorefrontData {
       schedule: schedule ?? this.schedule,
       categoryOrder: categoryOrder ?? this.categoryOrder,
       itemPromoPrices: itemPromoPrices ?? this.itemPromoPrices,
+      affiliateCommissionRate: affiliateCommissionRate != null
+          ? affiliateCommissionRate.clamp(0.0, 20.0)
+          : this.affiliateCommissionRate,
     );
   }
 
@@ -274,6 +280,7 @@ class MerchantStorefrontData {
         if (schedule != null) 'schedule': schedule!.toJson(),
         if (categoryOrder != null) 'categoryOrder': categoryOrder,
         if (itemPromoPrices != null) 'itemPromoPrices': itemPromoPrices,
+        if (affiliateCommissionRate != null) 'affiliateCommissionRate': affiliateCommissionRate,
       };
 
   factory MerchantStorefrontData.fromJson(String id, Map<String, dynamic> json) {
@@ -299,6 +306,11 @@ class MerchantStorefrontData {
         }
       }
     }
+    final rawRate = json['affiliateCommissionRate'];
+    final parsedRate = (rawRate is num)
+        ? (rawRate as num).toDouble().clamp(0.0, 20.0)
+        : (double.tryParse('$rawRate')?.clamp(0.0, 20.0));
+
     return MerchantStorefrontData(
       merchantId: id,
       name: json['name']?.toString(),
@@ -313,6 +325,7 @@ class MerchantStorefrontData {
       schedule: rawSchedule is Map ? MerchantOperatingSchedule.fromJson(Map<String, dynamic>.from(rawSchedule)) : null,
       categoryOrder: parsedCategoryOrder,
       itemPromoPrices: parsedPromoPrices,
+      affiliateCommissionRate: parsedRate,
     );
   }
 }

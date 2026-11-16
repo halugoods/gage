@@ -5,84 +5,13 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
+import 'package:gage_app/core/services/gage_video_feed_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/data/models/cart_item_model.dart';
 import 'package:gage_app/providers/cart_provider.dart';
 import 'package:gage_app/shared/widgets/gage_bottom_nav_bar.dart';
 import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
-
-/// Model Data Katalog Video Kuliner & UMKM Lokal GAGE (Pracimantoro, Wonogiri)
-class GageVideoItem {
-  final String id;
-  final String videoUrl;
-  final String thumbnailUrl;
-  final String creatorHandle;
-  final String creatorName;
-  final String creatorAvatarUrl;
-  final bool isCreatorVerified;
-  final String caption;
-  final String merchantId;
-  final String merchantName;
-  final double merchantRating;
-  final String merchantLocation;
-  final String merchantAddress;
-  final String deliveryEstimate;
-  final String productId;
-  final String productTitle;
-  final int productPrice;
-  final String productDescription;
-  int likesCount;
-  int commentsCount;
-  int bookmarksCount;
-  int sharesCount;
-  bool isLiked;
-  bool isBookmarked;
-  bool isFollowing;
-  final List<GageVideoComment> sampleComments;
-
-  GageVideoItem({
-    required this.id,
-    required this.videoUrl,
-    required this.thumbnailUrl,
-    required this.creatorHandle,
-    required this.creatorName,
-    required this.creatorAvatarUrl,
-    this.isCreatorVerified = true,
-    required this.caption,
-    required this.merchantId,
-    required this.merchantName,
-    required this.merchantRating,
-    required this.merchantLocation,
-    required this.merchantAddress,
-    required this.deliveryEstimate,
-    required this.productId,
-    required this.productTitle,
-    required this.productPrice,
-    required this.productDescription,
-    required this.likesCount,
-    required this.commentsCount,
-    required this.bookmarksCount,
-    required this.sharesCount,
-    this.isLiked = false,
-    this.isBookmarked = false,
-    this.isFollowing = false,
-    List<GageVideoComment>? sampleComments,
-  }) : sampleComments = sampleComments ?? [];
-}
-
-class GageVideoComment {
-  final String username;
-  final String text;
-  final String timeAgo;
-  int likes;
-
-  GageVideoComment({
-    required this.username,
-    required this.text,
-    required this.timeAgo,
-    this.likes = 0,
-  });
-}
+import 'package:gage_app/features/profile/presentation/profile_screen.dart';
 
 /// Layar GAGE Video Feed (Immersive Full-Screen Vertical Feed + Frosted Glass HUD)
 class VideoFeedScreen extends StatefulWidget {
@@ -112,185 +41,26 @@ class _VideoFeedScreenState extends State<VideoFeedScreen>
     decimalDigits: 0,
   );
 
-  /// Katalog Video Kuliner & UMKM Lokal Pracimantoro, Wonogiri
-  /// Mendukung file video lokal offline (assets/videos/...) maupun network URL
-  late final List<GageVideoItem> _videos = [
-    GageVideoItem(
-      id: 'vid-praci-01',
-      videoUrl: 'assets/videos/vt_bakso_urat.mp4',
-      thumbnailUrl:
-          'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=400&q=80',
-      creatorHandle: '@wonogirifoodie',
-      creatorName: 'Wonogiri Foodie',
-      creatorAvatarUrl:
-          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&q=80',
-      caption:
-          'Bakso Urat Jumbo Pracimantoro, kuah ngaldu pol! 🍲🔥 Tetelan melimpah, sambal rawitnya nampol banget buat makan siang #wonogiri #gagekuliner #pracimantoro',
-      merchantId: 'mch-bakso-masno',
-      merchantName: 'RM Bakso Mas No',
-      merchantRating: 4.8,
-      merchantLocation: 'Pracimantoro',
-      merchantAddress: 'Jl. Raya Pracimantoro - Wonogiri (Utara SPBU Praci)',
-      deliveryEstimate: '10-15 mnt',
-      productId: 'prd-bakso-urat-01',
-      productTitle: 'Bakso Urat Jumbo',
-      productPrice: 15000,
-      productDescription:
-          '1 bakso urat jumbo daging sapi asli + 4 bakso halus, mie kuning, bihun, sawi, tetelan, dan kuah kaldu sapi gurih.',
-      likesCount: 12400,
-      commentsCount: 248,
-      bookmarksCount: 892,
-      sharesCount: 1200,
-      sampleComments: [
-        GageVideoComment(
-          username: '@nisa_praci',
-          text: 'Langgananku tiap pulang kerja, tetelannya gak pelit!',
-          timeAgo: '12m lalu',
-          likes: 34,
-        ),
-        GageVideoComment(
-          username: '@dimas.wng',
-          text: 'Baru aja order lewat GAGE 10 menit langsung sampe masih panas 🔥',
-          timeAgo: '1j lalu',
-          likes: 19,
-        ),
-      ],
-    ),
-    GageVideoItem(
-      id: 'vid-praci-02',
-      videoUrl: 'assets/videos/vt_seblak_pedas.mp4',
-      thumbnailUrl:
-          'https://images.unsplash.com/photo-1496116218417-1a781b1c416c?w=400&q=80',
-      creatorHandle: '@jajanpraci',
-      creatorName: 'Jajan Pracimantoro',
-      creatorAvatarUrl:
-          'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80',
-      caption:
-          'Dimsum ayam udang hangat lumer di mulut! 🥟✨ Chili oil-nya pedas gurih bikin nagih, cocok buat camilan sore bareng keluarga #dimsumsewu #jajananwonogiri #gagefood',
-      merchantId: 'm-dimsum-sewu',
-      merchantName: 'Dimsum Sewu Praci',
-      merchantRating: 4.9,
-      merchantLocation: 'Pracimantoro',
-      merchantAddress: 'Depan Pasar Pracimantoro, Wonogiri',
-      deliveryEstimate: '10-12 mnt',
-      productId: 'prd-dimsum-mix-01',
-      productTitle: 'Dimsum Ayam Mix Chili Oil',
-      productPrice: 12000,
-      productDescription:
-          'Porsi isi 4 pcs dimsum ayam udang premium topping wortel, jamur, keju, lengkap dengan saus dimsum & chili oil.',
-      likesCount: 8750,
-      commentsCount: 164,
-      bookmarksCount: 640,
-      sharesCount: 530,
-      sampleComments: [
-        GageVideoComment(
-          username: '@tyas.putri',
-          text: 'Chili oil-nya juara sih ini, wajib nambah porsi!',
-          timeAgo: '28m lalu',
-          likes: 22,
-        ),
-      ],
-    ),
-    GageVideoItem(
-      id: 'vid-praci-03',
-      videoUrl: 'assets/videos/vt_kopi_susu.mp4',
-      thumbnailUrl:
-          'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400&q=80',
-      creatorHandle: '@kopikita.wng',
-      creatorName: 'Kopi Kita Wonogiri',
-      creatorAvatarUrl:
-          'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=200&q=80',
-      caption:
-          'Es Kopi Susu Gula Aren creamy buat nemenin lembur atau nongkrong santai di Praci ☕🧊 Manisnya pas, kopinya berasa! #kopisusu #pracimantoro #gageapp',
-      merchantId: 'mrc-kopi-gula-aren',
-      merchantName: 'Kopi Senja Praci',
-      merchantRating: 4.7,
-      merchantLocation: 'Pracimantoro',
-      merchantAddress: 'Jl. Pemuda No. 18, Pracimantoro, Wonogiri',
-      deliveryEstimate: '12-18 mnt',
-      productId: 'prd-kopi-aren-01',
-      productTitle: 'Es Kopi Susu Aren Creamy',
-      productPrice: 14000,
-      productDescription:
-          'Double shot espresso robusta pilihan dengan susu segar UHT dan gula aren organik asli Wonogiri.',
-      likesCount: 5420,
-      commentsCount: 93,
-      bookmarksCount: 410,
-      sharesCount: 315,
-      sampleComments: [
-        GageVideoComment(
-          username: '@bagus_dev',
-          text: 'Penyelamat pas lagi coding malem-malem 🙌',
-          timeAgo: '2j lalu',
-          likes: 15,
-        ),
-      ],
-    ),
-    GageVideoItem(
-      id: 'vid-praci-04',
-      videoUrl: 'assets/videos/vt_rocket_chicken.mp4',
-      thumbnailUrl:
-          'https://images.unsplash.com/photo-1562967914-608f82629710?w=400&q=80',
-      creatorHandle: '@kuliner.praci',
-      creatorName: 'Kuliner Praci',
-      creatorAvatarUrl:
-          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&q=80',
-      caption:
-          'Paket Geprek 1 Rocket Chicken Pracimantoro renyah gurih pedas nampol! Hemat kenyang puas 🍗🔥 #rocketchicken #gagekuliner',
-      merchantId: 'mch-rc-01',
-      merchantName: 'Rocket Chicken Pracimantoro',
-      merchantRating: 4.9,
-      merchantLocation: 'Pracimantoro',
-      merchantAddress: 'Jl. Raya Pracimantoro No. 45',
-      deliveryEstimate: '10-15 mnt',
-      productId: 'prd-rc-geprek-01',
-      productTitle: 'Paket Geprek 1 (Ayam + Nasi + Es Teh)',
-      productPrice: 16000,
-      productDescription:
-          'Ayam goreng krispi dibalut sambal geprek pedas gurih, disajikan dengan nasi pulen hangat dan es teh manis.',
-      likesCount: 14200,
-      commentsCount: 310,
-      bookmarksCount: 920,
-      sharesCount: 1450,
-      sampleComments: [],
-    ),
-    GageVideoItem(
-      id: 'vid-praci-05',
-      videoUrl: 'assets/videos/vt_mie_ayam.mp4',
-      thumbnailUrl:
-          'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=400&q=80',
-      creatorHandle: '@solodelicious',
-      creatorName: 'Solo Delicious',
-      creatorAvatarUrl:
-          'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80',
-      caption:
-          'Mie Ayam Bakso Ceker Pak Kumis Pracimantoro! Kuah kental manis gurih khas Wonogiri 🍜🥢 #mieayampakkuims #gagefood',
-      merchantId: 'mch-mie-01',
-      merchantName: 'Mie Ayam & Bakso Pak Kumis',
-      merchantRating: 4.8,
-      merchantLocation: 'Pracimantoro',
-      merchantAddress: 'Pasar Pracimantoro Kios No. 12',
-      deliveryEstimate: '12-16 mnt',
-      productId: 'prd-mie-ceker-01',
-      productTitle: 'Mie Ayam Ceker Jumbo',
-      productPrice: 15000,
-      productDescription:
-          'Mie kenyal racikan sendiri dengan topping ayam kecap melimpah, 2 ceker empuk, dan kuah kaldu rempah.',
-      likesCount: 9600,
-      commentsCount: 180,
-      bookmarksCount: 710,
-      sharesCount: 880,
-      sampleComments: [],
-    ),
-  ];
+  /// Katalog Video Terhubung Langsung ke GageVideoFeedService (Reaktif terhadap Unggahan Kreator)
+  List<GageVideoItem> get _videos => GageVideoFeedService.instance.videos;
+
+  void _onFeedServiceChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _currentIndex = widget.initialIndex.clamp(0, _videos.length - 1);
+    GageVideoFeedService.instance.addListener(_onFeedServiceChanged);
+    final count = _videos.length;
+    _currentIndex = count > 0 ? widget.initialIndex.clamp(0, count - 1) : 0;
     _pageController = PageController(initialPage: _currentIndex);
-    _syncControllerPool(_currentIndex);
+    if (count > 0) {
+      _syncControllerPool(_currentIndex);
+    }
   }
 
   @override
@@ -310,6 +80,7 @@ class _VideoFeedScreenState extends State<VideoFeedScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    GageVideoFeedService.instance.removeListener(_onFeedServiceChanged);
     _pageController.dispose();
     for (final controller in _controllers.values) {
       controller.dispose();
@@ -565,12 +336,13 @@ class _VideoFeedScreenState extends State<VideoFeedScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final bottomSafeInset = MediaQuery.of(context).padding.bottom;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
+      value: isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
       child: Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: isDark ? Colors.black : const Color(0xFFF8FAFC),
         extendBody: true,
         body: PageView.builder(
           controller: _pageController,
@@ -752,6 +524,7 @@ class _VideoFeedPageState extends State<_VideoFeedPage>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final ctrl = widget.controller;
     final isInitialized = ctrl != null && ctrl.value.isInitialized;
     // Jarak melayang aman di atas floating bottom navbar GAGE
@@ -911,17 +684,21 @@ class _VideoFeedPageState extends State<_VideoFeedPage>
                 _FrostedGlassBox(
                   borderRadius: BorderRadius.circular(999),
                   sigma: 12,
-                  color: Colors.black.withValues(alpha: 0.35),
-                  borderColor: Colors.white.withValues(alpha: 0.18),
+                  color: isDark
+                      ? Colors.black.withValues(alpha: 0.35)
+                      : Colors.white.withValues(alpha: 0.85),
+                  borderColor: isDark
+                      ? Colors.white.withValues(alpha: 0.18)
+                      : Colors.white.withValues(alpha: 0.6),
                   child: InkWell(
                     onTap: widget.onBackTap,
                     borderRadius: BorderRadius.circular(999),
-                    child: const SizedBox(
+                    child: SizedBox(
                       width: 40,
                       height: 40,
                       child: Icon(
                         Icons.arrow_back_ios_new_rounded,
-                        color: Colors.white,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
                         size: 18,
                       ),
                     ),
@@ -936,8 +713,12 @@ class _VideoFeedPageState extends State<_VideoFeedPage>
                     child: _FrostedGlassBox(
                       borderRadius: BorderRadius.circular(999),
                       sigma: 12,
-                      color: Colors.black.withValues(alpha: 0.38),
-                      borderColor: Colors.white.withValues(alpha: 0.18),
+                      color: isDark
+                          ? Colors.black.withValues(alpha: 0.38)
+                          : Colors.white.withValues(alpha: 0.85),
+                      borderColor: isDark
+                          ? Colors.white.withValues(alpha: 0.18)
+                          : Colors.white.withValues(alpha: 0.6),
                       child: InkWell(
                         onTap: widget.onMerchantTap,
                         borderRadius: BorderRadius.circular(999),
@@ -954,8 +735,8 @@ class _VideoFeedPageState extends State<_VideoFeedPage>
                                   widget.item.merchantName,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Colors.white,
+                                  style: TextStyle(
+                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
                                     fontSize: 11.5,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: -0.1,
@@ -971,8 +752,8 @@ class _VideoFeedPageState extends State<_VideoFeedPage>
                               const SizedBox(width: 2),
                               Text(
                                 widget.item.merchantRating.toStringAsFixed(1),
-                                style: const TextStyle(
-                                  color: Colors.white,
+                                style: TextStyle(
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -983,7 +764,7 @@ class _VideoFeedPageState extends State<_VideoFeedPage>
                                 child: Text(
                                   '•',
                                   style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.6),
+                                    color: isDark ? Colors.white.withValues(alpha: 0.6) : const Color(0xFF94A3B8),
                                     fontSize: 11,
                                   ),
                                 ),
@@ -994,7 +775,7 @@ class _VideoFeedPageState extends State<_VideoFeedPage>
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.88),
+                                    color: isDark ? Colors.white.withValues(alpha: 0.88) : const Color(0xFF475569),
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -1010,16 +791,21 @@ class _VideoFeedPageState extends State<_VideoFeedPage>
 
                 const SizedBox(width: 10),
 
-                // Right: Subtle "GAGE Video" Watermark Text (Tanpa Box/Kapsul)
+                // Right: Subtle "GAGE Video" Watermark Text
                 Text(
                   'GAGE Video',
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.72),
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.72)
+                        : const Color(0xFF0F172A).withValues(alpha: 0.8),
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.2,
-                    shadows: const [
-                      Shadow(color: Colors.black54, blurRadius: 8),
+                    shadows: [
+                      Shadow(
+                        color: isDark ? Colors.black54 : Colors.white.withValues(alpha: 0.8),
+                        blurRadius: 8,
+                      ),
                     ],
                   ),
                 ),
@@ -1027,12 +813,13 @@ class _VideoFeedPageState extends State<_VideoFeedPage>
             ),
           ),
 
-          // 6. RIGHT VERTICAL ACTION BAR (Melayang di atas kartu bawah tanpa teks status mockup)
+          // 6. ACTION BAR VERTICAL (Right Floating Capsule)
           Positioned(
-            right: 16,
-            bottom: bottomCardOffset + (_isCaptionExpanded ? 216 : 186),
+            right: 12,
+            bottom: bottomCardOffset + 8,
             child: _RightVerticalActionBar(
               item: widget.item,
+              isDark: isDark,
               formatCount: widget.formatCount,
               onFollowTap: widget.onFollowTap,
               onLikeTap: () => widget.onLikeToggle(forceLike: false),
@@ -1042,13 +829,14 @@ class _VideoFeedPageState extends State<_VideoFeedPage>
             ),
           ),
 
-          // 7. BOTTOM FLOATING GLASSMORPHIC CARD (Creator & Shoppable CTA)
+          // 7. BOTTOM SHOPPABLE CARD (Left Floating Capsule - Zero Collision with Right Action Bar!)
           Positioned(
-            left: 16,
-            right: 16,
+            left: 12,
+            right: 76,
             bottom: bottomCardOffset,
             child: _BottomShoppableCard(
               item: widget.item,
+              isDark: isDark,
               isExpanded: _isCaptionExpanded,
               currencyFormatter: widget.currencyFormatter,
               onToggleExpand: () {
@@ -1103,6 +891,7 @@ class _FrostedGlassBox extends StatelessWidget {
 /// Sisi Kanan: Vertical Action Capsule Bar
 class _RightVerticalActionBar extends StatelessWidget {
   final GageVideoItem item;
+  final bool isDark;
   final String Function(int) formatCount;
   final VoidCallback onFollowTap;
   final VoidCallback onLikeTap;
@@ -1112,6 +901,7 @@ class _RightVerticalActionBar extends StatelessWidget {
 
   const _RightVerticalActionBar({
     required this.item,
+    required this.isDark,
     required this.formatCount,
     required this.onFollowTap,
     required this.onLikeTap,
@@ -1122,31 +912,48 @@ class _RightVerticalActionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final iconColor = isDark ? Colors.white : const Color(0xFF0F172A);
+
     return _FrostedGlassBox(
-      borderRadius: BorderRadius.circular(32),
+      borderRadius: BorderRadius.circular(30),
       sigma: 12,
-      color: Colors.black38,
-      borderColor: Colors.white.withValues(alpha: 0.16),
+      color: isDark ? Colors.black38 : Colors.white.withValues(alpha: 0.85),
+      borderColor: isDark
+          ? Colors.white.withValues(alpha: 0.16)
+          : Colors.white.withValues(alpha: 0.6),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             // Creator Avatar + Red '+' Follow Badge
-            GestureDetector(
-              onTap: onFollowTap,
-              child: SizedBox(
-                width: 44,
-                height: 50,
-                child: Stack(
-                  alignment: Alignment.topCenter,
-                  children: [
-                    Container(
-                      width: 42,
-                      height: 42,
+            SizedBox(
+              width: 38,
+              height: 44,
+              child: Stack(
+                alignment: Alignment.topCenter,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ProfileScreen(
+                            initialCreatorHandle: item.creatorHandle,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      width: 36,
+                      height: 36,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 1.6),
+                        border: Border.all(
+                          color: isDark ? Colors.white : const Color(0xFFE2E8F0),
+                          width: 1.5,
+                        ),
                       ),
                       child: ClipOval(
                         child: Image.network(
@@ -1154,84 +961,91 @@ class _RightVerticalActionBar extends StatelessWidget {
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) => Container(
                             color: const Color(0xFF1E293B),
-                            child: const Icon(
+                            child: Icon(
                               Icons.person_rounded,
-                              color: Colors.white,
-                              size: 22,
+                              color: isDark ? Colors.white : const Color(0xFF64748B),
+                              size: 18,
                             ),
                           ),
                         ),
                       ),
                     ),
-                    Positioned(
-                      bottom: 0,
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    child: GestureDetector(
+                      onTap: onFollowTap,
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
-                        width: 19,
-                        height: 19,
+                        width: 16,
+                        height: 16,
                         decoration: BoxDecoration(
                           color: item.isFollowing
                               ? const Color(0xFF10B981)
                               : GageTheme.primary,
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 1.4),
+                          border: Border.all(color: Colors.white, width: 1.2),
                         ),
                         child: Icon(
                           item.isFollowing
                               ? Icons.check_rounded
                               : Icons.add_rounded,
                           color: Colors.white,
-                          size: 13,
+                          size: 11,
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
 
-            const SizedBox(height: 14),
+            const SizedBox(height: 8),
 
             // Like Button
             _ActionButtonTile(
               icon: item.isLiked
                   ? Icons.favorite_rounded
                   : Icons.favorite_border_rounded,
-              color: item.isLiked ? GageTheme.primary : Colors.white,
+              color: item.isLiked ? GageTheme.primary : iconColor,
               label: formatCount(item.likesCount),
+              textColor: iconColor,
               onTap: onLikeTap,
             ),
 
-            const SizedBox(height: 14),
+            const SizedBox(height: 8),
 
             // Comment Button
             _ActionButtonTile(
               icon: Icons.chat_bubble_rounded,
-              color: Colors.white,
+              color: iconColor,
               label: formatCount(item.commentsCount),
+              textColor: iconColor,
               onTap: onCommentTap,
             ),
 
-            const SizedBox(height: 14),
+            const SizedBox(height: 8),
 
             // Bookmark / Save Button
             _ActionButtonTile(
               icon: item.isBookmarked
                   ? Icons.bookmark_rounded
                   : Icons.bookmark_border_rounded,
-              color: item.isBookmarked ? const Color(0xFFFFB703) : Colors.white,
+              color: item.isBookmarked ? const Color(0xFFFFB703) : iconColor,
               label: formatCount(item.bookmarksCount),
+              textColor: iconColor,
               onTap: onBookmarkTap,
             ),
 
-            const SizedBox(height: 14),
+            const SizedBox(height: 8),
 
             // Share Button
             _ActionButtonTile(
               icon: Icons.reply_rounded,
               flipHorizontal: true,
-              color: Colors.white,
+              color: iconColor,
               label: formatCount(item.sharesCount),
+              textColor: iconColor,
               onTap: onShareTap,
             ),
           ],
@@ -1245,6 +1059,7 @@ class _ActionButtonTile extends StatelessWidget {
   final IconData icon;
   final Color color;
   final String label;
+  final Color textColor;
   final VoidCallback onTap;
   final bool flipHorizontal;
 
@@ -1252,6 +1067,7 @@ class _ActionButtonTile extends StatelessWidget {
     required this.icon,
     required this.color,
     required this.label,
+    required this.textColor,
     required this.onTap,
     this.flipHorizontal = false,
   });
@@ -1261,10 +1077,7 @@ class _ActionButtonTile extends StatelessWidget {
     Widget iconWidget = Icon(
       icon,
       color: color,
-      size: 25,
-      shadows: const [
-        Shadow(color: Colors.black38, blurRadius: 6),
-      ],
+      size: 24,
     );
 
     if (flipHorizontal) {
@@ -1280,17 +1093,13 @@ class _ActionButtonTile extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          AnimatedScale(
-            scale: 1.0,
-            duration: const Duration(milliseconds: 160),
-            child: iconWidget,
-          ),
-          const SizedBox(height: 3),
+          iconWidget,
+          const SizedBox(height: 2),
           Text(
             label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 10.5,
+            style: TextStyle(
+              color: textColor,
+              fontSize: 10,
               fontWeight: FontWeight.w700,
               letterSpacing: -0.1,
             ),
@@ -1304,6 +1113,7 @@ class _ActionButtonTile extends StatelessWidget {
 /// Bottom Floating Glassmorphic Card (Creator + Caption + "Belanja dari Video" Sub-Card)
 class _BottomShoppableCard extends StatelessWidget {
   final GageVideoItem item;
+  final bool isDark;
   final bool isExpanded;
   final NumberFormat currencyFormatter;
   final VoidCallback onToggleExpand;
@@ -1311,6 +1121,7 @@ class _BottomShoppableCard extends StatelessWidget {
 
   const _BottomShoppableCard({
     required this.item,
+    required this.isDark,
     required this.isExpanded,
     required this.currencyFormatter,
     required this.onToggleExpand,
@@ -1320,42 +1131,57 @@ class _BottomShoppableCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _FrostedGlassBox(
-      borderRadius: BorderRadius.circular(24),
-      sigma: 10,
-      color: Colors.black.withValues(alpha: 0.55),
-      borderColor: Colors.white12,
+      borderRadius: BorderRadius.circular(22),
+      sigma: 12,
+      color: isDark
+          ? Colors.black.withValues(alpha: 0.55)
+          : Colors.white.withValues(alpha: 0.88),
+      borderColor: isDark ? Colors.white12 : Colors.white.withValues(alpha: 0.7),
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Creator Handle
-            Row(
-              children: [
-                Text(
-                  item.creatorHandle,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.2,
+            GestureDetector(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ProfileScreen(
+                      initialCreatorHandle: item.creatorHandle,
+                    ),
                   ),
-                ),
-                if (item.isCreatorVerified) ...[
-                  const SizedBox(width: 5),
-                  const Icon(
-                    Icons.verified_rounded,
-                    color: Color(0xFF38BDF8),
-                    size: 15,
+                );
+              },
+              child: Row(
+                children: [
+                  Text(
+                    item.creatorHandle,
+                    style: TextStyle(
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.2,
+                    ),
                   ),
+                  if (item.isCreatorVerified) ...[
+                    const SizedBox(width: 5),
+                    const Icon(
+                      Icons.verified_rounded,
+                      color: Color(0xFF38BDF8),
+                      size: 14,
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
 
-            const SizedBox(height: 5),
+            const SizedBox(height: 4),
 
-            // Expandable Caption (2 lines max default)
+            // Expandable Caption
             GestureDetector(
               onTap: onToggleExpand,
               child: AnimatedSize(
@@ -1366,63 +1192,70 @@ class _BottomShoppableCard extends StatelessWidget {
                   maxLines: isExpanded ? 5 : 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    fontSize: 12.2,
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.9)
+                        : const Color(0xFF334155),
+                    fontSize: 11.8,
                     height: 1.35,
                   ),
                 ),
               ),
             ),
 
-            const SizedBox(height: 11),
+            if (item.productId.isNotEmpty && item.productTitle.isNotEmpty) ...[
+              const SizedBox(height: 8),
 
-            // "Belanja dari Video" Sub-Card
-            Container(
-              padding: const EdgeInsets.all(10),
+              // "Belanja dari Video" Sub-Card
+              Container(
+              padding: const EdgeInsets.all(9),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(18),
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.12),
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.12)
+                      : const Color(0xFFE2E8F0),
                 ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Belanja dari Video',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 10.5,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white70,
+                      color: isDark ? Colors.white70 : const Color(0xFF64748B),
                       letterSpacing: 0.1,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Row(
                     children: [
-                      // Food Thumbnail (Rounded Square 48x48)
+                      // Food Thumbnail
                       ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                         child: SizedBox(
-                          width: 48,
-                          height: 48,
+                          width: 44,
+                          height: 44,
                           child: Image.network(
                             item.thumbnailUrl,
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) => Container(
-                              color: const Color(0xFF1E293B),
-                              child: const Icon(
+                              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+                              child: Icon(
                                 Icons.restaurant_rounded,
-                                color: Colors.white70,
-                                size: 22,
+                                color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                                size: 20,
                               ),
                             ),
                           ),
                         ),
                       ),
 
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
 
                       // Product Title, Price, & Merchant Delivery Badge
                       Expanded(
@@ -1433,31 +1266,46 @@ class _BottomShoppableCard extends StatelessWidget {
                               item.productTitle,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12.5,
+                              style: TextStyle(
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                fontSize: 12,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               currencyFormatter.format(item.productPrice),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
+                              style: TextStyle(
+                                color: isDark ? Colors.white : const Color(0xFFE52320),
+                                fontSize: 13.5,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: -0.3,
                               ),
                             ),
                             const SizedBox(height: 2),
-                            Text(
-                              '${item.merchantName} 🛵 ${item.deliveryEstimate}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.72),
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w500,
+                            GestureDetector(
+                              onTap: () {
+                                HapticFeedback.lightImpact();
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ProfileScreen(
+                                      initialMerchantId: item.merchantId,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: Text(
+                                '${item.merchantName} 🛵 ${item.deliveryEstimate}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: isDark
+                                      ? Colors.white.withValues(alpha: 0.72)
+                                      : const Color(0xFF64748B),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
                           ],
@@ -1475,8 +1323,8 @@ class _BottomShoppableCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(999),
                           child: const Padding(
                             padding: EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 10,
+                              horizontal: 12,
+                              vertical: 8,
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -1484,14 +1332,14 @@ class _BottomShoppableCard extends StatelessWidget {
                                 Icon(
                                   Icons.shopping_bag_rounded,
                                   color: Color(0xFF0F172A),
-                                  size: 16,
+                                  size: 15,
                                 ),
-                                SizedBox(width: 5),
+                                SizedBox(width: 4),
                                 Text(
                                   'PESAN',
                                   style: TextStyle(
                                     color: Color(0xFF0F172A),
-                                    fontSize: 12,
+                                    fontSize: 11.5,
                                     fontWeight: FontWeight.w900,
                                     letterSpacing: 0.3,
                                   ),
@@ -1506,6 +1354,7 @@ class _BottomShoppableCard extends StatelessWidget {
                 ],
               ),
             ),
+            ],
           ],
         ),
       ),
@@ -1527,6 +1376,8 @@ class _MerchantDetailSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: EdgeInsets.fromLTRB(
         20,
@@ -1534,10 +1385,14 @@ class _MerchantDetailSheet extends StatelessWidget {
         20,
         20 + MediaQuery.of(context).padding.bottom,
       ),
-      decoration: const BoxDecoration(
-        color: Color(0xFF111827),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        border: Border(top: BorderSide(color: Colors.white12)),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        border: Border(
+          top: BorderSide(
+            color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+          ),
+        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1548,7 +1403,7 @@ class _MerchantDetailSheet extends StatelessWidget {
               width: 38,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.white24,
+                color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
                 borderRadius: BorderRadius.circular(99),
               ),
             ),
@@ -1579,8 +1434,8 @@ class _MerchantDetailSheet extends StatelessWidget {
                         Flexible(
                           child: Text(
                             item.merchantName,
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
                               fontSize: 16.5,
                               fontWeight: FontWeight.w900,
                             ),
@@ -1611,8 +1466,8 @@ class _MerchantDetailSheet extends StatelessWidget {
                     const SizedBox(height: 3),
                     Text(
                       '★ ${item.merchantRating} • ${item.merchantLocation} • Estimasi ${item.deliveryEstimate}',
-                      style: const TextStyle(
-                        color: Colors.white70,
+                      style: TextStyle(
+                        color: isDark ? Colors.white70 : const Color(0xFF64748B),
                         fontSize: 12,
                       ),
                     ),
@@ -1624,8 +1479,8 @@ class _MerchantDetailSheet extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             item.merchantAddress,
-            style: const TextStyle(
-              color: Colors.white60,
+            style: TextStyle(
+              color: isDark ? Colors.white60 : const Color(0xFF64748B),
               fontSize: 12,
             ),
           ),
@@ -1633,9 +1488,13 @@ class _MerchantDetailSheet extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.06),
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.06)
+                  : const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: Colors.white12),
+              border: Border.all(
+                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+              ),
             ),
             child: Row(
               children: [
@@ -1649,8 +1508,11 @@ class _MerchantDetailSheet extends StatelessWidget {
                     errorBuilder: (context, error, stackTrace) => Container(
                       width: 56,
                       height: 56,
-                      color: Colors.white10,
-                      child: const Icon(Icons.fastfood, color: Colors.white54),
+                      color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                      child: Icon(
+                        Icons.fastfood,
+                        color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                      ),
                     ),
                   ),
                 ),
@@ -1661,8 +1523,8 @@ class _MerchantDetailSheet extends StatelessWidget {
                     children: [
                       Text(
                         item.productTitle,
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
                           fontWeight: FontWeight.w800,
                           fontSize: 13.5,
                         ),
@@ -1670,8 +1532,8 @@ class _MerchantDetailSheet extends StatelessWidget {
                       const SizedBox(height: 3),
                       Text(
                         currencyFormatter.format(item.productPrice),
-                        style: const TextStyle(
-                          color: Color(0xFFFFB703),
+                        style: TextStyle(
+                          color: isDark ? const Color(0xFFFFB703) : const Color(0xFFE52320),
                           fontWeight: FontWeight.w900,
                           fontSize: 14,
                         ),
@@ -1758,6 +1620,7 @@ class _CommentBottomSheetState extends State<_CommentBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Padding(
@@ -1770,10 +1633,14 @@ class _CommentBottomSheetState extends State<_CommentBottomSheet> {
           16,
           12 + MediaQuery.of(context).padding.bottom,
         ),
-        decoration: const BoxDecoration(
-          color: Color(0xFF111827),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          border: Border(top: BorderSide(color: Colors.white12)),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          border: Border(
+            top: BorderSide(
+              color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+            ),
+          ),
         ),
         child: Column(
           children: [
@@ -1781,27 +1648,33 @@ class _CommentBottomSheetState extends State<_CommentBottomSheet> {
               width: 38,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.white24,
+                color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
                 borderRadius: BorderRadius.circular(99),
               ),
             ),
             const SizedBox(height: 12),
             Text(
               '${widget.item.commentsCount} Komentar',
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
                 fontSize: 14.5,
                 fontWeight: FontWeight.w800,
               ),
             ),
             const SizedBox(height: 12),
-            const Divider(height: 1, color: Colors.white12),
+            Divider(
+              height: 1,
+              color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+            ),
             Expanded(
               child: widget.item.sampleComments.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
                         'Belum ada komentar. Jadilah yang pertama!',
-                        style: TextStyle(color: Colors.white54, fontSize: 12.5),
+                        style: TextStyle(
+                          color: isDark ? Colors.white54 : const Color(0xFF94A3B8),
+                          fontSize: 12.5,
+                        ),
                       ),
                     )
                   : ListView.separated(
@@ -1816,7 +1689,7 @@ class _CommentBottomSheetState extends State<_CommentBottomSheet> {
                             CircleAvatar(
                               radius: 16,
                               backgroundColor:
-                                  GageTheme.primary.withValues(alpha: 0.2),
+                                  GageTheme.primary.withValues(alpha: 0.16),
                               child: Text(
                                 c.username.replaceAll('@', '')[0].toUpperCase(),
                                 style: const TextStyle(
@@ -1835,8 +1708,8 @@ class _CommentBottomSheetState extends State<_CommentBottomSheet> {
                                     children: [
                                       Text(
                                         c.username,
-                                        style: const TextStyle(
-                                          color: Colors.white70,
+                                        style: TextStyle(
+                                          color: isDark ? Colors.white70 : const Color(0xFF0F172A),
                                           fontSize: 11.5,
                                           fontWeight: FontWeight.w700,
                                         ),
@@ -1844,8 +1717,8 @@ class _CommentBottomSheetState extends State<_CommentBottomSheet> {
                                       const SizedBox(width: 6),
                                       Text(
                                         c.timeAgo,
-                                        style: const TextStyle(
-                                          color: Colors.white38,
+                                        style: TextStyle(
+                                          color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
                                           fontSize: 10.5,
                                         ),
                                       ),
@@ -1854,8 +1727,8 @@ class _CommentBottomSheetState extends State<_CommentBottomSheet> {
                                   const SizedBox(height: 3),
                                   Text(
                                     c.text,
-                                    style: const TextStyle(
-                                      color: Colors.white,
+                                    style: TextStyle(
+                                      color: isDark ? Colors.white : const Color(0xFF334155),
                                       fontSize: 12.5,
                                       height: 1.35,
                                     ),
@@ -1873,24 +1746,37 @@ class _CommentBottomSheetState extends State<_CommentBottomSheet> {
                 Expanded(
                   child: TextField(
                     controller: _commentCtrl,
-                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                    style: TextStyle(
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      fontSize: 13,
+                    ),
                     textInputAction: TextInputAction.send,
                     onSubmitted: (_) => _submitComment(),
                     decoration: InputDecoration(
                       hintText: 'Tulis komentar tentang menu ini...',
-                      hintStyle: const TextStyle(
-                        color: Colors.white38,
+                      hintStyle: TextStyle(
+                        color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
                         fontSize: 12.5,
                       ),
                       filled: true,
-                      fillColor: Colors.white.withValues(alpha: 0.08),
+                      fillColor: isDark
+                          ? Colors.white.withValues(alpha: 0.08)
+                          : const Color(0xFFF1F5F9),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 11,
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(999),
-                        borderSide: BorderSide.none,
+                        borderSide: BorderSide(
+                          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(999),
+                        borderSide: BorderSide(
+                          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                        ),
                       ),
                     ),
                   ),
@@ -1950,6 +1836,7 @@ class _QuickOrderBottomSheetState extends State<_QuickOrderBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final totalPrice = widget.item.productPrice * _quantity;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
@@ -1962,10 +1849,14 @@ class _QuickOrderBottomSheetState extends State<_QuickOrderBottomSheet> {
           20,
           20 + MediaQuery.of(context).padding.bottom,
         ),
-        decoration: const BoxDecoration(
-          color: Color(0xFF111827),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          border: Border(top: BorderSide(color: Colors.white12)),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          border: Border(
+            top: BorderSide(
+              color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+            ),
+          ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1976,7 +1867,7 @@ class _QuickOrderBottomSheetState extends State<_QuickOrderBottomSheet> {
                 width: 38,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.white24,
+                  color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
                   borderRadius: BorderRadius.circular(99),
                 ),
               ),
@@ -1995,10 +1886,10 @@ class _QuickOrderBottomSheetState extends State<_QuickOrderBottomSheet> {
                     errorBuilder: (context, error, stackTrace) => Container(
                       width: 72,
                       height: 72,
-                      color: Colors.white10,
-                      child: const Icon(
+                      color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                      child: Icon(
                         Icons.restaurant_rounded,
-                        color: Colors.white54,
+                        color: isDark ? Colors.white54 : const Color(0xFF64748B),
                       ),
                     ),
                   ),
@@ -2019,8 +1910,8 @@ class _QuickOrderBottomSheetState extends State<_QuickOrderBottomSheet> {
                       const SizedBox(height: 2),
                       Text(
                         widget.item.productTitle,
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
                           fontSize: 16,
                           fontWeight: FontWeight.w900,
                         ),
@@ -2030,8 +1921,8 @@ class _QuickOrderBottomSheetState extends State<_QuickOrderBottomSheet> {
                         widget.item.productDescription,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white60,
+                        style: TextStyle(
+                          color: isDark ? Colors.white60 : const Color(0xFF64748B),
                           fontSize: 11.5,
                           height: 1.35,
                         ),
@@ -2044,31 +1935,40 @@ class _QuickOrderBottomSheetState extends State<_QuickOrderBottomSheet> {
             const SizedBox(height: 16),
             TextField(
               controller: _noteCtrl,
-              style: const TextStyle(color: Colors.white, fontSize: 12.5),
+              style: TextStyle(
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                fontSize: 12.5,
+              ),
               decoration: InputDecoration(
-                prefixIcon: const Icon(
+                prefixIcon: Icon(
                   Icons.edit_note_rounded,
-                  color: Colors.white54,
+                  color: isDark ? Colors.white54 : const Color(0xFF64748B),
                   size: 20,
                 ),
                 hintText: 'Catatan pesanan (opsional, misal: sambal dipisah)',
-                hintStyle: const TextStyle(
-                  color: Colors.white38,
+                hintStyle: TextStyle(
+                  color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
                   fontSize: 12,
                 ),
                 filled: true,
-                fillColor: Colors.white.withValues(alpha: 0.06),
+                fillColor: isDark
+                    ? Colors.white.withValues(alpha: 0.06)
+                    : const Color(0xFFF1F5F9),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 14,
                   vertical: 12,
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(color: Colors.white12),
+                  borderSide: BorderSide(
+                    color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                  ),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(color: Colors.white12),
+                  borderSide: BorderSide(
+                    color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                  ),
                 ),
               ),
             ),
@@ -2082,9 +1982,13 @@ class _QuickOrderBottomSheetState extends State<_QuickOrderBottomSheet> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.08),
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.08)
+                        : const Color(0xFFF1F5F9),
                     borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: Colors.white12),
+                    border: Border.all(
+                      color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -2095,9 +1999,9 @@ class _QuickOrderBottomSheetState extends State<_QuickOrderBottomSheet> {
                           minHeight: 32,
                         ),
                         padding: EdgeInsets.zero,
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.remove_rounded,
-                          color: Colors.white,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
                           size: 18,
                         ),
                         onPressed: _quantity > 1
@@ -2111,8 +2015,8 @@ class _QuickOrderBottomSheetState extends State<_QuickOrderBottomSheet> {
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                         child: Text(
                           '$_quantity',
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
                             fontSize: 15,
                             fontWeight: FontWeight.w900,
                           ),

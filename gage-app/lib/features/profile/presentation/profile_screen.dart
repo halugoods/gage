@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
@@ -11,8 +12,19 @@ import 'package:gage_app/providers/theme_provider.dart';
 import 'package:gage_app/providers/language_provider.dart';
 import 'package:gage_app/core/localization/gage_localization.dart';
 import 'package:gage_app/core/services/gage_security_service.dart';
+import 'package:gage_app/core/services/social_profile_service.dart';
+import 'package:gage_app/core/services/merchant_storefront_service.dart';
+import 'package:gage_app/core/services/gage_video_feed_service.dart';
+import 'package:gage_app/data/mock/gage_mock_registry.dart';
 import 'package:gage_app/features/auth/presentation/terms_and_privacy_screen.dart';
+import 'package:gage_app/data/models/user_model.dart';
 import 'package:gage_app/features/profile/presentation/edit_profile_screen.dart';
+import 'package:gage_app/features/profile/presentation/widgets/creator_profile_header.dart';
+import 'package:gage_app/features/profile/presentation/widgets/merchant_profile_header.dart';
+import 'package:gage_app/features/profile/presentation/widgets/social_video_grid.dart';
+import 'package:gage_app/features/profile/presentation/widgets/social_showcase_grid.dart';
+import 'package:gage_app/features/affiliate/presentation/affiliate_video_upload_screen.dart';
+import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
 import 'package:gage_app/features/membership/presentation/membership_screen.dart';
 import 'package:gage_app/core/services/user_address_service.dart';
 import 'package:gage_app/shared/widgets/full_screen_map_picker.dart';
@@ -21,19 +33,31 @@ import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/gage_bottom_nav_bar.dart';
 import 'package:gage_app/features/home/presentation/home_screen.dart';
 
-/// ProfileScreen - Authentic Account, Security & Preferences Center
+/// ProfileScreen - Authentic Semi-Sosmed Creator & Merchant Profile + Preferences Center
 /// Produk: GAGE Pracimantoro
 /// Lini Usaha: GAGE by Halu Goods Indonesia
 /// Holding Company: Halu Goods Indonesia
-/// Zero duplicated shortcuts (no Pesanan/Riwayat/Voucher/Bank/Affiliate duplicates).
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  final String? initialCreatorHandle;
+  final String? initialMerchantId;
+  final int initialTabIndex; // 0: Sosmed/Profil, 1: Akun & Pengaturan
+
+  const ProfileScreen({
+    super.key,
+    this.initialCreatorHandle,
+    this.initialMerchantId,
+    this.initialTabIndex = 0,
+  });
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  late int _mainTabIndex; // 0: Profil & Konten (Sosmed), 1: Akun & Pengaturan
+  int _contentSubTabIndex = 0; // 0: Video Saya, 1: Disukai, 2: Etalase
+  int _merchantSubTabIndex = 0; // 0: Katalog Menu, 1: Video Toko
+
   bool _notifOrders = true;
   bool _notifPromo = true;
   bool _hapticEnabled = true;
@@ -42,6 +66,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
+    _mainTabIndex = widget.initialTabIndex;
     _loadPreferences();
   }
 
@@ -1174,19 +1199,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final auth = Provider.of<AuthProvider>(context);
     final user = auth.currentUser;
+    final socialService = SocialProfileService.instance;
 
-    final userName = (user?.name != null && user!.name.isNotEmpty) ? user.name : 'Siti Rahmawati';
-    final userPhone = (user?.phone != null && user!.phone.isNotEmpty) ? user.phone : '+62 812-3456-7890';
-    final userEmail = (user?.email != null && user!.email!.isNotEmpty) ? user.email! : 'siti.rahmawati@gmail.com';
+    final isMerchant = widget.initialMerchantId != null || socialService.isMerchantAccount(user);
+    final isViewingOther = widget.initialCreatorHandle != null || widget.initialMerchantId != null;
+
+    final userName = (user?.name != null && user!.name.isNotEmpty) ? user.name : 'Syams Djuhair';
+    final userPhone = (user?.phone != null && user!.phone.isNotEmpty) ? user.phone : '+62 851-5695-5735';
+    final userEmail = (user?.email != null && user!.email!.isNotEmpty) ? user.email! : 'halugoods.indonesia@gmail.com';
+
+    String screenTitle;
+    if (widget.initialMerchantId != null) {
+      screenTitle = 'Profil Toko Mitra';
+    } else if (widget.initialCreatorHandle != null) {
+      screenTitle = widget.initialCreatorHandle!;
+    } else if (_mainTabIndex == 0) {
+      screenTitle = isMerchant ? 'Profil Toko Saya' : '@${user?.name.toLowerCase().replaceAll(' ', '') ?? 'syams.djuhair'}';
+    } else {
+      screenTitle = 'Akun & Pengaturan';
+    }
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Akun & Pengaturan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+        title: Text(screenTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
         elevation: 0,
         backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
         surfaceTintColor: Colors.transparent,
         centerTitle: false,
+        leading: isViewingOther
+            ? IconButton(
+                icon: Icon(Icons.arrow_back_ios_new_rounded, size: 19, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                onPressed: () => Navigator.pop(context),
+              )
+            : null,
         actions: [
           IconButton(
             icon: Icon(
@@ -1202,18 +1248,486 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       body: Stack(
         children: [
-          RefreshIndicator(
-            onRefresh: () async {
-              await Future.delayed(const Duration(milliseconds: 300));
-              if (mounted) setState(() {});
+          Column(
+            children: [
+              // Top-Level Segmented Switch Kapsul Penuh (Hanya jika profil sendiri)
+              if (!isViewingOther)
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  padding: const EdgeInsets.all(3.5),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Row(
+                    children: [
+                      // Tab 1: Profil & Konten (atau Toko Mitra)
+                      Expanded(
+                        child: InkWell(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setState(() => _mainTabIndex = 0);
+                          },
+                          borderRadius: BorderRadius.circular(999),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            decoration: BoxDecoration(
+                              color: _mainTabIndex == 0 ? GageTheme.primary : Colors.transparent,
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  isMerchant ? Icons.storefront_rounded : Icons.person_rounded,
+                                  size: 15,
+                                  color: _mainTabIndex == 0 ? Colors.white : (isDark ? Colors.white60 : const Color(0xFF64748B)),
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  isMerchant ? 'Toko Mitra' : 'Profil & Konten',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: _mainTabIndex == 0 ? FontWeight.w900 : FontWeight.w600,
+                                    color: _mainTabIndex == 0 ? Colors.white : (isDark ? Colors.white60 : const Color(0xFF64748B)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Tab 2: Akun & Pengaturan
+                      Expanded(
+                        child: InkWell(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setState(() => _mainTabIndex = 1);
+                          },
+                          borderRadius: BorderRadius.circular(999),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            decoration: BoxDecoration(
+                              color: _mainTabIndex == 1 ? GageTheme.primary : Colors.transparent,
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.settings_rounded,
+                                  size: 15,
+                                  color: _mainTabIndex == 1 ? Colors.white : (isDark ? Colors.white60 : const Color(0xFF64748B)),
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  'Akun & Pengaturan',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: _mainTabIndex == 1 ? FontWeight.w900 : FontWeight.w600,
+                                    color: _mainTabIndex == 1 ? Colors.white : (isDark ? Colors.white60 : const Color(0xFF64748B)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              // Body Tampilan
+              Expanded(
+                child: _mainTabIndex == 0
+                    ? _buildSocialProfileBody(isDark, user, userName)
+                    : _buildAccountSettingsBody(isDark, user, auth, userName, userPhone, userEmail),
+              ),
+            ],
+          ),
+
+          // Floating Bottom Navigation Bar (Hanya tampil di tab root profil pengguna sendiri)
+          if (!isViewingOther)
+            const Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: GageBottomNavBar(currentIndex: 4),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSocialProfileBody(bool isDark, UserModel? user, String userName) {
+    final socialService = SocialProfileService.instance;
+    final isMerchant = widget.initialMerchantId != null || socialService.isMerchantAccount(user);
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        await Future.delayed(const Duration(milliseconds: 300));
+        if (mounted) setState(() {});
+      },
+      color: GageTheme.primary,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(bottom: 110),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (isMerchant)
+              _buildMerchantSocialView(isDark, user)
+            else
+              _buildCreatorSocialView(isDark, user, userName, socialService),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCreatorSocialView(
+    bool isDark,
+    UserModel? user,
+    String userName,
+    SocialProfileService socialService,
+  ) {
+    final isOwn = widget.initialCreatorHandle == null;
+    final handle = widget.initialCreatorHandle ?? (user?.name.toLowerCase().replaceAll(' ', '') ?? 'syams.djuhair');
+    final name = isOwn ? userName : widget.initialCreatorHandle!;
+    final avatar = (isOwn ? user?.avatarUrl : null) ?? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&q=80';
+    final bio = isOwn
+        ? 'Food explorer & UMKM Pracimantoro 🍜📍 Cek video review dan rekomendasi kuliner Wonogiri!'
+        : 'Kreator kuliner & UMKM lokal Pracimantoro, Kab. Wonogiri';
+
+    final myVideos = socialService.getVideosByCreator(handle);
+    final likedVideos = socialService.getLikedVideos();
+    final showcaseProducts = socialService.getShowcaseProducts(handle);
+
+    final subTabs = [
+      'Video (${myVideos.length})',
+      'Disukai (${likedVideos.length})',
+      'Etalase (${showcaseProducts.length})',
+    ];
+
+    return Column(
+      children: [
+        CreatorProfileHeader(
+          displayName: name,
+          handle: handle,
+          avatarUrl: avatar,
+          bio: bio,
+          isVerified: true,
+          isOwnProfile: isOwn,
+          targetId: isOwn ? null : handle,
+        ),
+        const SizedBox(height: 18),
+
+        // Sub-Tab Segmented Switch Kapsul Penuh
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            children: List.generate(subTabs.length, (idx) {
+              final isSel = _contentSubTabIndex == idx;
+              return Expanded(
+                child: InkWell(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _contentSubTabIndex = idx);
+                  },
+                  borderRadius: BorderRadius.circular(999),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSel ? GageTheme.primary : Colors.transparent,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Center(
+                      child: Text(
+                        subTabs[idx],
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
+                          color: isSel ? Colors.white : (isDark ? Colors.white60 : const Color(0xFF64748B)),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        if (_contentSubTabIndex == 0)
+          SocialVideoGrid(
+            videos: myVideos,
+            emptyMessage: 'Belum ada video yang diposting',
+            onUploadTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const AffiliateVideoUploadScreen()));
             },
-            color: GageTheme.primary,
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
+          )
+        else if (_contentSubTabIndex == 1)
+          SocialVideoGrid(
+            videos: likedVideos,
+            emptyMessage: 'Belum ada video yang disukai',
+          )
+        else
+          SocialShowcaseGrid(
+            products: showcaseProducts,
+            emptyMessage: 'Belum ada produk yang disematkan di etalase',
+          ),
+      ],
+    );
+  }
+
+  Widget _buildMerchantSocialView(bool isDark, UserModel? user) {
+    final mId = widget.initialMerchantId ?? 'mch-rc-01';
+    final allMerchants = [
+      ...GageMockRegistry.foodMerchants,
+      ...GageMockRegistry.shopMerchants,
+      ...GageMockRegistry.farmMerchants,
+      ...GageMockRegistry.buildMerchants,
+    ];
+    final merchant = allMerchants.firstWhere(
+      (m) => m['id'] == mId,
+      orElse: () => allMerchants.first,
+    );
+
+    final isOwner = widget.initialMerchantId == null;
+    final menus = (merchant['menus'] as List<dynamic>?) ?? [];
+    final merchantVideos = SocialProfileService.instance.getVideosByCreator(merchant['name'] as String);
+
+    final subTabs = [
+      'Menu (${menus.length})',
+      'Video Toko (${merchantVideos.length})',
+    ];
+
+    return Column(
+      children: [
+        MerchantProfileHeader(
+          merchantId: merchant['id'] as String,
+          merchantName: merchant['name'] as String,
+          category: (merchant['category'] as String?) ?? 'Kuliner',
+          bannerUrl: (merchant['image'] as String?) ?? 'assets/images/resto_dimsum_sewu.png',
+          logoUrl: (merchant['image'] as String?) ?? 'assets/images/resto_dimsum_sewu.png',
+          address: (merchant['address'] as String?) ?? 'Pracimantoro, Wonogiri',
+          rating: (merchant['rating'] as num?)?.toDouble() ?? 4.9,
+          reviewsCount: 320,
+          soldCount: 1400,
+          openHours: '09:00 - 21:00',
+          isOpen: true,
+          isOwner: isOwner,
+        ),
+        const SizedBox(height: 18),
+
+        // Sub-Tab Switch Kapsul Toko
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            children: List.generate(subTabs.length, (idx) {
+              final isSel = _merchantSubTabIndex == idx;
+              return Expanded(
+                child: InkWell(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _merchantSubTabIndex = idx);
+                  },
+                  borderRadius: BorderRadius.circular(999),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSel ? GageTheme.primary : Colors.transparent,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Center(
+                      child: Text(
+                        subTabs[idx],
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
+                          color: isSel ? Colors.white : (isDark ? Colors.white60 : const Color(0xFF64748B)),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        if (_merchantSubTabIndex == 0)
+          _buildMerchantCatalogList(menus, isDark, merchant)
+        else
+          SocialVideoGrid(
+            videos: merchantVideos,
+            emptyMessage: 'Belum ada video promosi untuk toko ini',
+          ),
+      ],
+    );
+  }
+
+  Widget _buildMerchantCatalogList(List<dynamic> menus, bool isDark, Map<String, dynamic> merchant) {
+    final currencyFormatter = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp ',
+      decimalDigits: 0,
+    );
+
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      itemCount: menus.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (context, index) {
+        final item = menus[index] as Map<String, dynamic>;
+        final price = item['price'] as int? ?? 15000;
+        final name = item['name'] as String? ?? 'Menu Pilihan';
+        final desc = item['description'] as String? ?? '';
+        final img = item['image'] as String? ?? '';
+
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+            ),
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: SizedBox(
+                  width: 70,
+                  height: 70,
+                  child: img.startsWith('assets/')
+                      ? Image.asset(img, fit: BoxFit.cover)
+                      : Image.network(
+                          img,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: const Color(0xFF1E293B),
+                            child: const Icon(Icons.fastfood_rounded, color: Colors.white54),
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      desc,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      currencyFormatter.format(price),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                        color: GageTheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: GageTheme.primary,
+                  foregroundColor: Colors.white,
+                  shape: const StadiumBorder(),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                onPressed: () {
+                  HapticFeedback.selectionClick();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => RestoDetailScreen(
+                        merchant: {
+                          'id': merchant['id'],
+                          'name': merchant['name'],
+                          'category': merchant['category'],
+                          'address': merchant['address'],
+                          'rating': merchant['rating'],
+                          'image': merchant['image'],
+                        },
+                      ),
+                    ),
+                  );
+                },
+                child: const Text('+ Pesan', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAccountSettingsBody(
+    bool isDark,
+    UserModel? user,
+    AuthProvider auth,
+    String userName,
+    String userPhone,
+    String userEmail,
+  ) {
+    return RefreshIndicator(
+      onRefresh: () async {
+        await Future.delayed(const Duration(milliseconds: 300));
+        if (mounted) setState(() {});
+      },
+      color: GageTheme.primary,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
                   // ==========================================
                   // 1. KARTU IDENTITAS PENGGUNA (CUSTOMER CARD)
                   // ==========================================
@@ -1696,18 +2210,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
-          ),
-
-          // Floating Bottom Navigation Bar
-          const Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: GageBottomNavBar(currentIndex: 4),
-          ),
-        ],
-      ),
-    );
+          );
   }
 
   Widget _buildSectionHeader(String title, bool isDark) {

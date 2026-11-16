@@ -1,6 +1,10 @@
+import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -38,14 +42,41 @@ class _GagePaySettingsScreenState extends State<GagePaySettingsScreen> {
     decimalDigits: 0,
   );
 
-  /// Membagikan teks ringkas nomor rekening dan nama pemilik
+  /// Membagikan kartu ATM 2.5D Digital (file gambar PNG HD) beserta teks ringkas nomor rekening & nama pemilik
   Future<void> _shareAtmCard(String accountNumber, String userName) async {
     HapticFeedback.lightImpact();
     setState(() => _isSharingCard = true);
 
     try {
       final shareText = 'Rekening GAGEPay: $accountNumber\na.n. $userName';
+      final cleanAcc = accountNumber.replaceAll(' ', '');
 
+      // Tangkap visual RepaintBoundary kartu ATM 2.5D menjadi file gambar PNG
+      final boundary = _cardBoundaryKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary != null) {
+        final image = await boundary.toImage(pixelRatio: 3.0);
+        final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+        if (byteData != null) {
+          final pngBytes = byteData.buffer.asUint8List();
+          final tempDir = await getTemporaryDirectory();
+          final file = File('${tempDir.path}/kartu_gagepay_$cleanAcc.png');
+          await file.writeAsBytes(pngBytes);
+
+          if (!mounted) return;
+          setState(() => _isSharingCard = false);
+
+          await SharePlus.instance.share(
+            ShareParams(
+              files: [XFile(file.path)],
+              text: shareText,
+              subject: 'Kartu Digital GAGEPay - $userName',
+            ),
+          );
+          return;
+        }
+      }
+
+      // Fallback: Jika render boundary belum siap, kirimkan teks
       if (!mounted) return;
       setState(() => _isSharingCard = false);
 
@@ -58,7 +89,7 @@ class _GagePaySettingsScreenState extends State<GagePaySettingsScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _isSharingCard = false);
-      GageToast.show(context, 'Gagal membagikan nomor rekening.', type: GageToastType.error);
+      GageToast.show(context, 'Gagal membagikan kartu rekening.', type: GageToastType.error);
     }
   }
 
@@ -261,9 +292,13 @@ class _GagePaySettingsScreenState extends State<GagePaySettingsScreen> {
                             final uid = auth.currentUser?.id ?? 'usr-cust-01';
                             await prefs.setString('gage_user_pin_$uid', p1);
                           } catch (_) {}
-                          Navigator.pop(ctx);
+                          if (ctx.mounted) {
+                            Navigator.pop(ctx);
+                          }
                           HapticFeedback.selectionClick();
-                          GageToast.show(context, 'PIN GAGEPay berhasil diperbarui!', type: GageToastType.success);
+                          if (context.mounted) {
+                            GageToast.show(context, 'PIN GAGEPay berhasil diperbarui!', type: GageToastType.success);
+                          }
                         },
                         child: const Text('Simpan PIN', style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
@@ -394,7 +429,7 @@ class _GagePaySettingsScreenState extends State<GagePaySettingsScreen> {
                     style: TextStyle(fontSize: 11, color: Colors.grey),
                   ),
                   value: wallet.isCardLocked,
-                  activeColor: GageTheme.primary,
+                  activeThumbColor: GageTheme.primary,
                   onChanged: (val) {
                     HapticFeedback.selectionClick();
                     wallet.setCardLocked(val);
@@ -438,7 +473,7 @@ class _GagePaySettingsScreenState extends State<GagePaySettingsScreen> {
                       title: const Text('Biometrik (Sidik Jari / Wajah)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
                       subtitle: const Text('Gunakan biometrik untuk login & pembayaran cepat', style: TextStyle(fontSize: 11, color: Colors.grey)),
                       value: _isBiometricEnabled,
-                      activeColor: GageTheme.primary,
+                      activeThumbColor: GageTheme.primary,
                       onChanged: (val) {
                         HapticFeedback.selectionClick();
                         setState(() => _isBiometricEnabled = val);
@@ -495,7 +530,7 @@ class _GagePaySettingsScreenState extends State<GagePaySettingsScreen> {
                       title: const Text('Notifikasi Transaksi Real-Time', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
                       subtitle: const Text('Dapatkan push notifikasi saat saldo masuk atau keluar', style: TextStyle(fontSize: 11, color: Colors.grey)),
                       value: _isPushNotificationEnabled,
-                      activeColor: GageTheme.primary,
+                      activeThumbColor: GageTheme.primary,
                       onChanged: (val) {
                         HapticFeedback.selectionClick();
                         setState(() => _isPushNotificationEnabled = val);
@@ -507,7 +542,7 @@ class _GagePaySettingsScreenState extends State<GagePaySettingsScreen> {
                       title: const Text('Mode Privasi Saldo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
                       subtitle: const Text('Sembunyikan angka saldo saat pertama kali membuka dompet', style: TextStyle(fontSize: 11, color: Colors.grey)),
                       value: wallet.isBalanceHidden,
-                      activeColor: GageTheme.primary,
+                      activeThumbColor: GageTheme.primary,
                       onChanged: (val) {
                         HapticFeedback.selectionClick();
                         wallet.setBalanceHidden(val);

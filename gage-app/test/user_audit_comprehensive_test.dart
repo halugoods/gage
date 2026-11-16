@@ -177,6 +177,13 @@ void main() {
 
       await tester.pumpAndSettle();
 
+      // Beralih ke tab Akun & Pengaturan jika terdapat segmented switch
+      final settingsTab = find.text('Akun & Pengaturan');
+      if (settingsTab.evaluate().isNotEmpty) {
+        await tester.tap(settingsTab);
+        await tester.pumpAndSettle();
+      }
+
       // VERIFY STRICT CORPORATE BRANDING HIERARCHY
       expect(find.text('Tentang GAGE Pracimantoro'), findsOneWidget);
       expect(find.text('GAGE by Halu Goods Indonesia'), findsOneWidget);

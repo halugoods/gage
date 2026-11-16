@@ -34,6 +34,7 @@ class GageMockRegistry {
       'isSponsored': true,
       'campaignBadge': '11.11 SUPER DEALS',
       'promoBadges': ['Diskon 50%', 'Diskon Ongkir'],
+      'commissionRate': 10,
       'menus': [
         {
           'id': 'menu-rc-01',
@@ -78,6 +79,7 @@ class GageMockRegistry {
       'isSponsored': false,
       'campaignBadge': null,
       'promoBadges': ['Diskon 35%', 'Diskon Ongkir'],
+      'commissionRate': 10,
       'menus': [
         {
           'id': 'menu-dimsum-01',
@@ -113,6 +115,7 @@ class GageMockRegistry {
       'isSponsored': false,
       'campaignBadge': null,
       'promoBadges': ['Diskon 30%', 'Diskon Ongkir'],
+      'commissionRate': 12,
       'menus': [
         {
           'id': 'menu-mie-01',
@@ -139,6 +142,7 @@ class GageMockRegistry {
       'isSponsored': false,
       'campaignBadge': null,
       'promoBadges': ['Diskon 40%', 'Diskon Ongkir'],
+      'commissionRate': 10,
       'menus': [
         {
           'id': 'menu-sate-01',
@@ -171,6 +175,7 @@ class GageMockRegistry {
       'isSponsored': true,
       'campaignBadge': 'HARGA PASAR',
       'promoBadges': ['Diskon 20%', 'Diskon Ongkir'],
+      'commissionRate': 8,
       'menus': [
         {
           'id': 'shop-item-01',
@@ -206,6 +211,7 @@ class GageMockRegistry {
       'isSponsored': false,
       'campaignBadge': null,
       'promoBadges': ['Diskon 20%', 'Diskon Ongkir'],
+      'commissionRate': 8,
       'menus': [
         {
           'id': 'shop-item-03',
@@ -232,6 +238,7 @@ class GageMockRegistry {
       'isSponsored': false,
       'campaignBadge': null,
       'promoBadges': ['Diskon 20%', 'Diskon Ongkir'],
+      'commissionRate': 8,
       'menus': [
         {
           'id': 'shop-item-04',
@@ -264,6 +271,7 @@ class GageMockRegistry {
       'isSponsored': true,
       'campaignBadge': 'SUBSIDI TANI',
       'promoBadges': ['Diskon 15%', 'Diskon Ongkir'],
+      'commissionRate': 7,
       'menus': [
         {
           'id': 'farm-item-01',
@@ -290,6 +298,7 @@ class GageMockRegistry {
       'isSponsored': false,
       'campaignBadge': null,
       'promoBadges': ['Diskon 15%', 'Diskon Ongkir'],
+      'commissionRate': 7,
       'menus': [
         {
           'id': 'farm-item-02',
@@ -322,6 +331,7 @@ class GageMockRegistry {
       'isSponsored': true,
       'campaignBadge': 'PROMO PROYEK',
       'promoBadges': ['Diskon 10%', 'Diskon Ongkir'],
+      'commissionRate': 5,
       'menus': [
         {
           'id': 'build-item-01',
@@ -348,6 +358,7 @@ class GageMockRegistry {
       'isSponsored': false,
       'campaignBadge': null,
       'promoBadges': ['Diskon 10%', 'Diskon Ongkir'],
+      'commissionRate': 5,
       'menus': [
         {
           'id': 'build-item-02',

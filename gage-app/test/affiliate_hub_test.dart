@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gage_app/features/affiliate/presentation/affiliate_hub_screen.dart';
+import 'package:gage_app/features/affiliate/presentation/affiliate_merchant_detail_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('AffiliateHubScreen builds cleanly with ShopeeFood-inspired 2-tab architecture & 6-char random referral', (tester) async {
+  testWidgets('AffiliateHubScreen builds cleanly with 4 commerce services (Food, Shop, Farm, Build), Keranjang Kuning CTA, and dynamic merchant navigation', (tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 2.0;
     addTearDown(() {
@@ -28,34 +29,59 @@ void main() {
 
     expect(find.byType(AffiliateHubScreen), findsOneWidget);
 
-    // Verify Tab 1: Penawaran
+    // Verify Tab 1: Penawaran (GAGE Cuan Signature Header & Capsule Tab)
+    expect(find.text('GAGE Cuan'), findsOneWidget);
+    expect(find.text('Afiliasi Mitra'), findsOneWidget);
     expect(find.text('Penawaran'), findsOneWidget);
     expect(find.text('Performa'), findsOneWidget);
-    expect(find.textContaining('Surya Tani, Jalan Raya Pracimantoro'), findsOneWidget);
-    expect(find.text('Cari Resto atau Hidangan'), findsOneWidget);
-    expect(find.text('Performa di GAGE Cuan'), findsOneWidget);
-    expect(find.text('Klik'), findsOneWidget);
-    expect(find.text('Pesanan'), findsOneWidget);
-    expect(find.text('Komisi Kotor'), findsOneWidget);
 
     // Verify 6-char referral banner
     expect(find.text('AJAK TEMAN CUAN'), findsOneWidget);
     expect(find.text('G8K2M9'), findsOneWidget);
     expect(find.text('Share WhatsApp'), findsOneWidget);
 
-    // Verify Menu Pilihan
-    expect(find.text('Menu Pilihan'), findsOneWidget);
-    expect(find.text('Tahu kupat'), findsOneWidget);
-    expect(find.text('Mie ayam bakso jumbo'), findsOneWidget);
+    // Verify Bikin Video Cuan CTA Banner
+    expect(find.text('Bikin Video Cuan'), findsOneWidget);
+    expect(find.text('Unggah 📹'), findsOneWidget);
+
+    // Verify 4 Commerce Services (Food, Shop, Farm, Build)
+    expect(find.text('Food'), findsOneWidget);
+    expect(find.text('Shop'), findsOneWidget);
+    expect(find.text('Farm'), findsOneWidget);
+    expect(find.text('Build'), findsOneWidget);
 
     // Verify Filter Tabs
     expect(find.text('Rekomendasi'), findsOneWidget);
     expect(find.text('Komisi Tertinggi'), findsOneWidget);
     expect(find.text('Terlaris'), findsOneWidget);
 
-    // Verify Resto Mitra Pracimantoro
-    expect(find.text('Geprekin Aja Raya Pracimantoro'), findsOneWidget);
-    expect(find.text('RM Bakso Mas No'), findsOneWidget);
+    // Verify default Food merchants from GageMockRegistry
+    expect(find.text('Rocket Chicken Pracimantoro'), findsOneWidget);
+
+    // Tap on Shop service
+    await tester.tap(find.text('Shop'));
+    await tester.pumpAndSettle();
+    expect(find.text('Toko Sembako Berkah Fajar'), findsOneWidget);
+
+    // Tap on Farm service
+    await tester.tap(find.text('Farm'));
+    await tester.pumpAndSettle();
+    expect(find.text('Kios Tani Subur Makmur'), findsOneWidget);
+
+    // Tap on Build service
+    await tester.tap(find.text('Build'));
+    await tester.pumpAndSettle();
+    expect(find.text('TB Pracimantoro Bangkit'), findsOneWidget);
+
+    // Tap merchant card in Build service to open AffiliateMerchantDetailScreen
+    await tester.tap(find.text('TB Pracimantoro Bangkit'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AffiliateMerchantDetailScreen), findsOneWidget);
+
+    // Pop back to AffiliateHubScreen
+    final NavigatorState navigator = tester.state(find.byType(Navigator));
+    navigator.pop();
+    await tester.pumpAndSettle();
 
     // Switch to Tab 2: Performa
     await tester.tap(find.text('Performa'));
@@ -76,12 +102,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Belum Ada Pesanan Affiliate'), findsOneWidget);
-    expect(find.text('Mulai Bagikan Menu'), findsOneWidget);
-
-    // Tap "Selesai" tab to verify orders
-    await tester.tap(find.text('Selesai').first);
-    await tester.pumpAndSettle();
-
-    expect(find.text('Rocket Chicken Paket 1 (Ayam Geprek + Nasi + Es Teh)'), findsOneWidget);
+    expect(find.text('Mulai Bagikan Produk'), findsOneWidget);
   });
 }

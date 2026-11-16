@@ -110,34 +110,60 @@ Portal Customer ([`resto_detail_screen.dart`](../../gage-app/lib/features/food/p
 
 ---
 
-## 7. Handoff Ekosistem GAGE Cuan & Video: Formula Rekomendasi Markup Harga Merchant & Pencairan 100% Utuh
+## 7. Handoff Ekosistem GAGE Cuan & Video: Formula Rekomendasi Markup Harga Merchant & Komisi Dinamis (Maks. 20%)
 
 1. **Latar Belakang & Prinsip Utama**:
    - Merchant yang mengaktifkan fitur promosi afiliasi (GAGE Cuan & Keranjang Kuning Video) memberikan hak komisi kepada kreator/affiliator untuk mendongkrak omzet penjualan.
-   - Skema potongan total adalah **20%** (10% platform fee GAGE + 10% komisi affiliator).
+   - **Tingkat Komisi Dinamis Ditentukan Merchant (Batas Maksimal 20%)**:
+     - Merchant memiliki wewenang penuh mengatur besaran komisi afiliasi per toko atau per produk (`affiliate_rate`), mulai dari 0% hingga batas atas **20%** agar ekosistem keuangan merchant tetap sehat dan margin tidak tergerus.
+     - Platform fee GAGE tetap standar **10%** (`platform_rate = 0.10`).
+     - Total potongan komisi saat ada transaksi affiliator: $\text{TotalDeductionRate} = \text{PlatformRate} (10\%) + \text{AffiliateRate} (\le 20\%)$.
    - **Prinsip Bebas Rugi bagi Merchant**: Pencairan bersih (*net payout*) ke saldo kasir merchant **wajib 100% utuh sama persis dengan harga offline outlet ($P_{\text{offline}}$)**.
 
 2. **Formula Rekomendasi Markup Harga Online (*Net Payout Divisor*)**:
    - Formula yang dipakai:
-     $$P_{\text{online}} = \frac{P_{\text{offline}}}{1 - (PlatformRate + AffiliateRate)} = \frac{P_{\text{offline}}}{1 - 0.20} = \frac{P_{\text{offline}}}{0.80}$$
-   - Contoh Perhitungan:
+     $$P_{\text{online}} = \frac{P_{\text{offline}}}{1 - (\text{PlatformRate} + \text{AffiliateRate})} = \frac{P_{\text{offline}}}{1 - (0.10 + \text{AffiliateRate})}$$
+   - Contoh Perhitungan (dengan Komisi Affiliator 10% dan Platform 10% = Total 20%):
      - Harga offline outlet: **Rp 10.000**
      - Harga online aplikasi rekomendasi: $10.000 / 0.80 =$ **Rp 12.500**
      - Potongan komisi total 20%: $20\% \times 12.500 =$ **Rp 2.500**
      - **Pencairan bersih ke Merchant**: $12.500 - 2.500 =$ **Rp 10.000 (100% Utuh!)**
+   - Contoh Perhitungan (dengan Komisi Affiliator 5% dan Platform 10% = Total 15%):
+     - Harga offline outlet: **Rp 10.000**
+     - Harga online aplikasi rekomendasi: $10.000 / 0.85 =$ **Rp 11.800** (dibulatkan ke atas)
+     - **Pencairan bersih ke Merchant**: **Rp 10.000 (100% Utuh!)**
 
 3. **Alokasi Pembagian Hasil Transaksi**:
-   - **Transaksi dengan Affiliator (via Link / Keranjang Kuning)**:
-     - Merchant: Rp 10.000 (80%)
-     - Affiliator: Rp 1.250 (10%)
-     - Kas Platform GAGE: Rp 1.250 (10%)
+   - **Transaksi dengan Affiliator (via Link / Keranjang Kuning Video)**:
+     - Merchant: Menerima 100% dari harga offline ($P_{\text{offline}}$)
+     - Affiliator: Menerima komisi sesuai rate toko/produk ($\text{AffiliateRate} \times P_{\text{online}}$)
+     - Kas Platform GAGE: Menerima 10% platform fee
    - **Transaksi Organik (Customer Belanja Langsung Tanpa Affiliator)**:
-     - Merchant: Rp 10.000 (80%, tetap utuh!)
+     - Merchant: Tetap menerima 100% dari harga offline ($P_{\text{offline}}$, bebas rugi!)
      - Affiliator: Rp 0
-     - Kas Platform GAGE: Rp 2.500 (20%, margin ganda untuk platform GAGE)
+     - Kas Platform GAGE: Menerima platform fee + bagian komisi afiliasi yang dialihkan ke kas platform
 
 4. **Service Helper di Codebase**:
    - Telah tersedia di `AffiliateCommissionService` (`gage-app/lib/core/services/affiliate_commission_service.dart`).
-   - Portal Merchant dapat mengimpor service ini pada layar manajemen menu (`merchant_menu_screen.dart`) untuk menampilkan fitur kalkulator rekomendasi harga otomatis saat merchant menginput harga offline.
+   - Portal Merchant dapat mengimpor service ini pada layar manajemen menu (`merchant_menu_screen.dart`) untuk menampilkan fitur slider/input komisi dinamis (0% - 20%) dan kalkulator rekomendasi harga otomatis saat merchant menginput harga offline.
+
+---
+
+## 4. Ekosistem Semi-Sosmed & Profil Publik Toko Merchant di Aplikasi Customer
+
+### A. Auto-Deteksi Akun Merchant & Integrasi Profil Publik
+1. **Auto-Deteksi Akun**:
+   - Ketika pengguna login sebagai merchant di aplikasi Customer, `ProfileScreen` secara otomatis mendeteksi status merchant (`SocialProfileService.isMerchantAccount(user)`) atau `initialMerchantId`.
+   - Header profil beralih secara dinamis ke **`MerchantProfileHeader`** ([`merchant_profile_header.dart`](../../gage-app/lib/features/profile/presentation/widgets/merchant_profile_header.dart)).
+2. **Komponen Header Profil Toko Mitra**:
+   - Banner Joglo/cover toko resmi, avatar logo mitra dengan bingkai emas-merah `MITRA RESMI GAGE`.
+   - Indikator real-time Buka/Tutup & jam operasional, rating bintang dan total ulasan.
+   - Tombol aksi:
+     - Bagi Customer umum: `+ Ikuti Toko`, `Chat Kasir`, dan `Buka Menu`.
+     - Bagi Pemilik Toko (Merchant Sendiri): `Buka Portal Merchant ↗` (navigasi langsung ke `MerchantRootScreen`).
+3. **Tab Konten Toko**:
+   - `[ 🏪 Katalog Menu ]`: Menampilkan daftar menu aktif beserta harga online, harga coret promo, dan tombol tambah ke keranjang.
+   - `[ 🎬 Video Toko ]`: Menampilkan reels/video dapur, proses masak, dan promosi yang diposting toko dengan badge keranjang kuning langsung.
+
 
 
