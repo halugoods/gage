@@ -31,7 +31,7 @@ void main() {
 
     // Verify Tab 1: Penawaran (GAGE Cuan Signature Header & Capsule Tab)
     expect(find.text('GAGE Cuan'), findsOneWidget);
-    expect(find.text('Afiliasi Mitra'), findsOneWidget);
+    expect(find.text('Afiliasi Mitra'), findsNothing);
     expect(find.text('Penawaran'), findsOneWidget);
     expect(find.text('Performa'), findsOneWidget);
 

@@ -492,10 +492,11 @@ void main() {
         ),
       );
 
-      // Verify Classic TikTok Actions: Like, Comment, Share, Music Disc
+      // Verify Classic TikTok Actions: Like, Comment, Share (curved arrow), Download, Music Disc
       expect(find.byIcon(Icons.favorite_rounded), findsWidgets);
       expect(find.byIcon(Icons.chat_bubble_rounded), findsWidgets);
-      expect(find.byIcon(Icons.share_rounded), findsWidgets);
+      expect(find.byIcon(Icons.reply_rounded), findsWidgets);
+      expect(find.byIcon(Icons.download_rounded), findsWidgets);
       expect(find.byIcon(Icons.music_note_rounded), findsWidgets);
 
       // Verify Save / Bookmark icon is completely absent

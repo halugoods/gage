@@ -18,6 +18,10 @@ class AffiliateVideoUploadScreen extends StatefulWidget {
   final Map<String, dynamic>? initialProduct;
   final String? initialVideoPath;
   final String? initialVideoName;
+  final String? selectedSoundTitle;
+  final String? selectedSoundArtist;
+  final double originalAudioVolume;
+  final double musicVolume;
 
   const AffiliateVideoUploadScreen({
     super.key,
@@ -25,6 +29,10 @@ class AffiliateVideoUploadScreen extends StatefulWidget {
     this.initialProduct,
     this.initialVideoPath,
     this.initialVideoName,
+    this.selectedSoundTitle,
+    this.selectedSoundArtist,
+    this.originalAudioVolume = 1.0,
+    this.musicVolume = 1.0,
   });
 
   @override
@@ -308,6 +316,57 @@ class _AffiliateVideoUploadScreenState extends State<AffiliateVideoUploadScreen>
                 ],
               ),
             ),
+
+            if (widget.selectedSoundTitle != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: GageTheme.primary.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.music_note_rounded, color: GageTheme.primary, size: 16),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.selectedSoundTitle!,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            'Musik: ${(widget.musicVolume * 100).round()}% • Suara Asli: ${(widget.originalAudioVolume * 100).round()}%',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
 
             const SizedBox(height: 20),
 

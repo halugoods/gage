@@ -66,7 +66,8 @@ class GageBottomNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isVideo = currentIndex == 3;
-    final effectiveDark = isDark || isVideo;
+    // Khusus menu video menggunakan latar putih solid dengan teks/ikon gelap kontras
+    final effectiveDark = isVideo ? false : isDark;
 
     LanguageProvider? lang;
     try {
@@ -106,14 +107,14 @@ class GageBottomNavBar extends StatelessWidget {
                 child: Container(
                   decoration: BoxDecoration(
                     color: isVideo
-                        ? Colors.black.withValues(alpha: 0.85)
+                        ? Colors.white
                         : (effectiveDark
                             ? const Color(0xFF1E293B).withValues(alpha: 0.68)
                             : Colors.white.withValues(alpha: 0.70)),
                     borderRadius: BorderRadius.circular(32),
                     border: Border.all(
                       color: isVideo
-                          ? Colors.white.withValues(alpha: 0.15)
+                          ? const Color(0xFFE2E8F0)
                           : (effectiveDark
                               ? Colors.white.withValues(alpha: 0.12)
                               : Colors.white.withValues(alpha: 0.65)),

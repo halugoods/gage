@@ -324,22 +324,6 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> {
                         letterSpacing: -0.3,
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: GageTheme.primary.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: const Text(
-                        'Afiliasi Mitra',
-                        style: TextStyle(
-                          color: GageTheme.primary,
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 1),
@@ -741,41 +725,46 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> {
           ),
         ),
 
-        // 5. Filter Sorting Kapsul (Rekomendasi, Komisi Tertinggi, Terlaris)
+        // 5. Filter Sorting Sub-Tab Underline Minimalis ala Profil (Rekomendasi, Komisi Tertinggi, Terlaris)
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
             child: Container(
-              padding: const EdgeInsets.all(3),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(999),
+                border: Border(
+                  bottom: BorderSide(
+                    color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                    width: 1.5,
+                  ),
+                ),
               ),
               child: Row(
                 children: List.generate(_filterTabs.length, (idx) {
-                  final isSelected = _selectedFilterIndex == idx;
+                  final isSel = _selectedFilterIndex == idx;
                   return Expanded(
                     child: InkWell(
                       onTap: () {
                         HapticFeedback.selectionClick();
                         setState(() => _selectedFilterIndex = idx);
                       },
-                      borderRadius: BorderRadius.circular(999),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(vertical: 7),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(
-                          color: isSelected ? GageTheme.primary : Colors.transparent,
-                          borderRadius: BorderRadius.circular(999),
+                          border: Border(
+                            bottom: BorderSide(
+                              color: isSel ? GageTheme.primary : Colors.transparent,
+                              width: 2.5,
+                            ),
+                          ),
                         ),
                         child: Center(
                           child: Text(
                             _filterTabs[idx],
                             style: TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                              color: isSelected
-                                  ? Colors.white
+                              fontSize: 12.5,
+                              fontWeight: isSel ? FontWeight.w900 : FontWeight.w600,
+                              color: isSel
+                                  ? GageTheme.primary
                                   : (isDark ? Colors.white60 : const Color(0xFF64748B)),
                             ),
                           ),
@@ -1081,22 +1070,6 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> {
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFDCFCE7),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: const Text(
-                              'Instan Rp 0 Admin',
-                              style: TextStyle(
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w900,
-                                color: Color(0xFF16A34A),
-                              ),
                             ),
                           ),
                         ],

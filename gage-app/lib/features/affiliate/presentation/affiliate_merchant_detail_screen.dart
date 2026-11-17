@@ -7,6 +7,7 @@ import 'package:gage_app/core/services/affiliate_commission_service.dart';
 import 'package:gage_app/core/services/social_profile_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/affiliate/presentation/affiliate_video_upload_screen.dart';
+import 'package:gage_app/features/video/presentation/video_editor_screen.dart';
 
 /// Layar Detail Merchant Khusus Program Afiliasi GAGE Cuan
 /// Menampilkan katalog seluruh produk toko, persentase komisi asli toko (maks 20%),
@@ -306,7 +307,13 @@ class AffiliateMerchantDetailScreen extends StatelessWidget {
                     final price = (item['price'] is num ? item['price'] as int : int.tryParse('${item['price']}') ?? 0);
                     final commissionRupiah = (price * (commissionRate / 100.0)).round();
 
-                    return Container(
+                    return ListenableBuilder(
+                      listenable: SocialProfileService.instance,
+                      builder: (context, _) {
+                        final pId = item['id']?.toString() ?? '';
+                        final isAddedToEtalase = SocialProfileService.instance.isProductInShowcase(pId);
+
+                        return Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
@@ -391,10 +398,75 @@ class AffiliateMerchantDetailScreen extends StatelessWidget {
                             ],
                           ),
                           const SizedBox(height: 12),
-                          // 2 Tombol Aksi Kapsul: Bagikan Link & Tag di Video
+                          // 3 Tombol Aksi Kapsul: Tambah Etalase, Bagikan Link, & Buat Video
                           Row(
                             children: [
                               Expanded(
+                                flex: 3,
+                                child: OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: isAddedToEtalase
+                                        ? const Color(0xFF166534)
+                                        : GageTheme.primary,
+                                    backgroundColor: isAddedToEtalase
+                                        ? const Color(0xFFDCFCE7)
+                                        : Colors.transparent,
+                                    side: BorderSide(
+                                      color: isAddedToEtalase
+                                          ? const Color(0xFF86EFAC)
+                                          : GageTheme.primary,
+                                      width: 1.2,
+                                    ),
+                                    shape: const StadiumBorder(),
+                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                  ),
+                                  onPressed: () async {
+                                    HapticFeedback.selectionClick();
+                                    if (isAddedToEtalase) {
+                                      await SocialProfileService.instance.removeProductFromShowcase(pId);
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Produk dihapus dari Etalase Profil'),
+                                            duration: Duration(seconds: 2),
+                                          ),
+                                        );
+                                      }
+                                    } else {
+                                      await SocialProfileService.instance.addProductToShowcase({
+                                        'productId': pId,
+                                        'productTitle': item['name'],
+                                        'productPrice': price,
+                                        'merchantId': merchant['id'],
+                                        'merchantName': merchant['name'],
+                                        'merchantRating': merchant['rating'],
+                                        'thumbnailUrl': item['image'],
+                                      });
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Produk ditambahkan ke Etalase Profil'),
+                                            duration: Duration(seconds: 2),
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
+                                  icon: Icon(
+                                    isAddedToEtalase
+                                        ? Icons.check_circle_rounded
+                                        : Icons.add_business_rounded,
+                                    size: 13,
+                                  ),
+                                  label: Text(
+                                    isAddedToEtalase ? 'Di Etalase' : '+ Etalase',
+                                    style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                flex: 3,
                                 child: OutlinedButton.icon(
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: isDark ? Colors.white : const Color(0xFF0F172A),
@@ -417,15 +489,16 @@ class AffiliateMerchantDetailScreen extends StatelessWidget {
                                       subject: 'Rekomendasi Kuliner GAGE',
                                     ));
                                   },
-                                  icon: const Icon(Icons.share_rounded, size: 14),
+                                  icon: const Icon(Icons.share_rounded, size: 13),
                                   label: const Text(
-                                    'Bagikan Link',
-                                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                                    'Bagikan',
+                                    style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold),
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 6),
                               Expanded(
+                                flex: 3,
                                 child: ElevatedButton.icon(
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: GageTheme.primary,
@@ -438,7 +511,7 @@ class AffiliateMerchantDetailScreen extends StatelessWidget {
                                     HapticFeedback.selectionClick();
                                     // Tambahkan produk otomatis ke etalase profil kreator
                                     await SocialProfileService.instance.addProductToShowcase({
-                                      'productId': item['id'],
+                                      'productId': pId,
                                       'productTitle': item['name'],
                                       'productPrice': price,
                                       'merchantId': merchant['id'],
@@ -458,11 +531,11 @@ class AffiliateMerchantDetailScreen extends StatelessWidget {
                                         Navigator.push(
                                           context,
                                           MaterialPageRoute(
-                                            builder: (_) => AffiliateVideoUploadScreen(
+                                            builder: (_) => VideoEditorScreen(
+                                              videoPath: picked.path,
+                                              videoName: picked.name,
                                               initialMerchant: merchant,
                                               initialProduct: item,
-                                              initialVideoPath: picked.path,
-                                              initialVideoName: picked.name,
                                             ),
                                           ),
                                         );
@@ -482,10 +555,10 @@ class AffiliateMerchantDetailScreen extends StatelessWidget {
                                       );
                                     }
                                   },
-                                  icon: const Icon(Icons.videocam_rounded, size: 15),
+                                  icon: const Icon(Icons.videocam_rounded, size: 14),
                                   label: const Text(
                                     'Buat Video',
-                                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                                    style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold),
                                   ),
                                 ),
                               ),
@@ -495,6 +568,8 @@ class AffiliateMerchantDetailScreen extends StatelessWidget {
                       ),
                     );
                   },
+                );
+              },
                   childCount: menus.length,
                 ),
               ),

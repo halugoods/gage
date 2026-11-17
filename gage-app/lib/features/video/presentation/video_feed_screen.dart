@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
+import 'package:gage_app/core/services/gage_sound_service.dart';
 import 'package:gage_app/core/services/gage_video_feed_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/data/models/cart_item_model.dart';
@@ -14,6 +17,8 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
 import 'package:gage_app/features/profile/presentation/profile_screen.dart';
+import 'package:gage_app/features/video/presentation/sound_detail_screen.dart';
+import 'package:gage_app/features/video/presentation/video_editor_screen.dart';
 
 /// Layar GAGE Video Feed (Immersive Full-Screen Vertical Feed + Frosted Glass HUD)
 class VideoFeedScreen extends StatefulWidget {
@@ -463,6 +468,127 @@ class _VideoFeedScreenState extends State<VideoFeedScreen>
     );
   }
 
+  Future<void> _handleDownloadWatermarkedVideo(GageVideoItem item) async {
+    HapticFeedback.mediumImpact();
+    final candidates = [
+      'assets/videos/watermarked/vt_rocket_chicken_wm.mp4',
+      'assets/videos/watermarked/vt_mie_ayam_wm.mp4',
+      'assets/videos/watermarked/vt_seblak_pedas_wm.mp4',
+    ];
+    String selectedAsset = candidates[0];
+    if (item.videoUrl.contains('mie') || item.caption.toLowerCase().contains('mie')) {
+      selectedAsset = candidates[1];
+    } else if (item.videoUrl.contains('seblak') || item.caption.toLowerCase().contains('seblak') || item.caption.toLowerCase().contains('bakso')) {
+      selectedAsset = candidates[2];
+    }
+
+    try {
+      final downloadDir = Directory('/storage/emulated/0/Download');
+      if (await downloadDir.exists()) {
+        final targetFile = File('${downloadDir.path}/GAGE_${item.id}_wm.mp4');
+        final byteData = await rootBundle.load(selectedAsset);
+        await targetFile.writeAsBytes(byteData.buffer.asUint8List());
+      }
+    } catch (_) {}
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 92),
+          backgroundColor: const Color(0xFF0F172A),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+            side: const BorderSide(color: Colors.white12),
+          ),
+          content: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF10B981),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.check_rounded,
+                  color: Colors.white,
+                  size: 16,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Video dengan watermark GAGE berhasil diunduh ke galeri!',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _openCreateVideoFlow() async {
+    HapticFeedback.selectionClick();
+    _controllers[_currentIndex]?.pause();
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickVideo(
+        source: ImageSource.gallery,
+        maxDuration: const Duration(minutes: 3),
+      );
+      if (!mounted) return;
+      if (picked != null) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => VideoEditorScreen(
+              videoPath: picked.path,
+              videoName: picked.name,
+            ),
+          ),
+        ).whenComplete(() {
+          if (mounted) _controllers[_currentIndex]?.play();
+        });
+        return;
+      }
+    } catch (_) {}
+
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const VideoEditorScreen(
+            videoPath: '',
+            videoName: 'video_sample.mp4',
+          ),
+        ),
+      ).whenComplete(() {
+        if (mounted) _controllers[_currentIndex]?.play();
+      });
+    }
+  }
+
+  void _openSoundDetail(GageVideoItem item) {
+    HapticFeedback.selectionClick();
+    _controllers[_currentIndex]?.pause();
+    final sound = GageSoundService.instance.sounds.first;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SoundDetailScreen(sound: sound),
+      ),
+    ).whenComplete(() {
+      if (mounted) _controllers[_currentIndex]?.play();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -518,6 +644,9 @@ class _VideoFeedScreenState extends State<VideoFeedScreen>
               },
               onCommentTap: () => _openCommentsSheet(item),
               onShareTap: () => _handleShare(item),
+              onDownloadTap: () => _handleDownloadWatermarkedVideo(item),
+              onSoundTap: () => _openSoundDetail(item),
+              onMakeVideoTap: _openCreateVideoFlow,
               onOrderTap: () => _openQuickOrderSheet(item),
             );
           },
@@ -536,12 +665,15 @@ class _VideoFeedPage extends StatefulWidget {
   final double bottomSafeInset;
   final NumberFormat currencyFormatter;
   final String Function(int) formatCount;
+  final VoidCallback onMakeVideoTap;
   final VoidCallback onBackTap;
   final VoidCallback onMerchantTap;
   final VoidCallback onFollowTap;
   final void Function({bool forceLike}) onLikeToggle;
   final VoidCallback onCommentTap;
   final VoidCallback onShareTap;
+  final VoidCallback onDownloadTap;
+  final VoidCallback onSoundTap;
   final VoidCallback onOrderTap;
 
   const _VideoFeedPage({
@@ -551,12 +683,15 @@ class _VideoFeedPage extends StatefulWidget {
     required this.bottomSafeInset,
     required this.currencyFormatter,
     required this.formatCount,
+    required this.onMakeVideoTap,
     required this.onBackTap,
     required this.onMerchantTap,
     required this.onFollowTap,
     required this.onLikeToggle,
     required this.onCommentTap,
     required this.onShareTap,
+    required this.onDownloadTap,
+    required this.onSoundTap,
     required this.onOrderTap,
   });
 
@@ -689,6 +824,7 @@ class _VideoFeedPageState extends State<_VideoFeedPage>
             SizedBox.expand(
               child: FittedBox(
                 fit: BoxFit.cover,
+                alignment: const Alignment(0.0, -0.2),
                 clipBehavior: Clip.hardEdge,
                 child: SizedBox(
                   width: ctrl.value.size.width > 0
@@ -819,24 +955,25 @@ class _VideoFeedPageState extends State<_VideoFeedPage>
               ),
             ),
 
-          // 5. TOP NAVIGATION LAYER (Minimal Clean Back Button)
+          // 5. TOP NAVIGATION LAYER (Minimal Clean Buat Video Camera Button)
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
             left: 16,
             child: InkWell(
-              onTap: widget.onBackTap,
+              onTap: widget.onMakeVideoTap,
               borderRadius: BorderRadius.circular(999),
               child: Container(
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.black.withValues(alpha: 0.35),
+                  color: Colors.black.withValues(alpha: 0.45),
+                  border: Border.all(color: Colors.white24, width: 1),
                 ),
                 child: const Icon(
-                  Icons.arrow_back_ios_new_rounded,
+                  Icons.videocam_rounded,
                   color: Colors.white,
-                  size: 16,
+                  size: 20,
                 ),
               ),
             ),
@@ -854,6 +991,8 @@ class _VideoFeedPageState extends State<_VideoFeedPage>
               onLikeTap: () => widget.onLikeToggle(forceLike: false),
               onCommentTap: widget.onCommentTap,
               onShareTap: widget.onShareTap,
+              onDownloadTap: widget.onDownloadTap,
+              onSoundTap: widget.onSoundTap,
             ),
           ),
 
@@ -890,6 +1029,8 @@ class _RightVerticalActionBar extends StatelessWidget {
   final VoidCallback onLikeTap;
   final VoidCallback onCommentTap;
   final VoidCallback onShareTap;
+  final VoidCallback onDownloadTap;
+  final VoidCallback onSoundTap;
 
   const _RightVerticalActionBar({
     required this.item,
@@ -899,6 +1040,8 @@ class _RightVerticalActionBar extends StatelessWidget {
     required this.onLikeTap,
     required this.onCommentTap,
     required this.onShareTap,
+    required this.onDownloadTap,
+    required this.onSoundTap,
   });
 
   @override
@@ -1007,32 +1150,53 @@ class _RightVerticalActionBar extends StatelessWidget {
 
         const SizedBox(height: 16),
 
-        // Share Button
+        // Share Button (TikTok Right-Curved Arrow)
         _ActionButtonTile(
-          icon: Icons.share_rounded,
+          iconWidget: Transform.flip(
+            flipX: true,
+            child: const Icon(
+              Icons.reply_rounded,
+              color: Colors.white,
+              size: 30,
+              shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
+            ),
+          ),
           color: Colors.white,
           label: formatCount(item.sharesCount),
           onTap: onShareTap,
         ),
 
+        const SizedBox(height: 16),
+
+        // Download Button (Watermark Video)
+        _ActionButtonTile(
+          icon: Icons.download_rounded,
+          color: Colors.white,
+          label: 'Unduh',
+          onTap: onDownloadTap,
+        ),
+
         const SizedBox(height: 18),
 
         // Spinning Vinyl Disc / Music Note
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: const Color(0xFF1E293B),
-            border: Border.all(color: Colors.white24, width: 2),
-            boxShadow: const [
-              BoxShadow(color: Colors.black54, blurRadius: 4),
-            ],
-          ),
-          child: const Icon(
-            Icons.music_note_rounded,
-            color: Colors.white,
-            size: 20,
+        GestureDetector(
+          onTap: onSoundTap,
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFF1E293B),
+              border: Border.all(color: Colors.white24, width: 2),
+              boxShadow: const [
+                BoxShadow(color: Colors.black54, blurRadius: 4),
+              ],
+            ),
+            child: const Icon(
+              Icons.music_note_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
           ),
         ),
       ],
@@ -1041,13 +1205,15 @@ class _RightVerticalActionBar extends StatelessWidget {
 }
 
 class _ActionButtonTile extends StatelessWidget {
-  final IconData icon;
+  final IconData? icon;
+  final Widget? iconWidget;
   final Color color;
   final String label;
   final VoidCallback onTap;
 
   const _ActionButtonTile({
-    required this.icon,
+    this.icon,
+    this.iconWidget,
     required this.color,
     required this.label,
     required this.onTap,
@@ -1061,12 +1227,13 @@ class _ActionButtonTile extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            color: color,
-            size: 30,
-            shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
-          ),
+          iconWidget ??
+              Icon(
+                icon,
+                color: color,
+                size: 30,
+                shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
+              ),
           const SizedBox(height: 3),
           Text(
             label,
@@ -1083,7 +1250,7 @@ class _ActionButtonTile extends StatelessWidget {
   }
 }
 
-/// Bottom Overlay: Caption, Creator Handle, and Delayed Shoppable Product Banner (Keranjang Kuning)
+/// Bottom Overlay: Creator Handle, Caption 2 Baris + Accordion, dan Keranjang Merah di Bawahnya
 class _BottomContentOverlay extends StatelessWidget {
   final GageVideoItem item;
   final bool isExpanded;
@@ -1103,29 +1270,14 @@ class _BottomContentOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final captionText = item.caption;
+    final isLongCaption = captionText.length > 70;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 5s Delayed Keranjang Kuning Product Banner
-        if (item.productId.isNotEmpty && item.productTitle.isNotEmpty)
-          AnimatedCrossFade(
-            firstChild: const SizedBox.shrink(),
-            secondChild: Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: _ShoppableProductBanner(
-                item: item,
-                currencyFormatter: currencyFormatter,
-                onOrderTap: onOrderTap,
-              ),
-            ),
-            crossFadeState: showShoppableTag
-                ? CrossFadeState.showSecond
-                : CrossFadeState.showFirst,
-            duration: const Duration(milliseconds: 300),
-          ),
-
-        // Creator Handle (Direct text with shadow)
+        // 1. Creator Handle (Direct text with shadow)
         GestureDetector(
           onTap: () {
             HapticFeedback.lightImpact();
@@ -1154,34 +1306,57 @@ class _BottomContentOverlay extends StatelessWidget {
 
         const SizedBox(height: 6),
 
-        // Expandable Caption (Direct text with shadow)
+        // 2. Caption 2 Baris dengan Accordion Selengkapnya / Lebih Sedikit
         GestureDetector(
-          onTap: onToggleExpand,
+          onTap: isLongCaption ? onToggleExpand : null,
           child: AnimatedSize(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOutCubic,
-            child: Text(
-              item.caption,
-              maxLines: isExpanded ? 6 : 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                height: 1.35,
-                fontWeight: FontWeight.w400,
-                shadows: [
-                  Shadow(color: Colors.black87, blurRadius: 6, offset: Offset(0, 1)),
+            child: Text.rich(
+              TextSpan(
+                text: isExpanded
+                    ? captionText
+                    : (isLongCaption ? '${captionText.substring(0, 70)}...' : captionText),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  height: 1.35,
+                  fontWeight: FontWeight.w400,
+                  shadows: [
+                    Shadow(color: Colors.black87, blurRadius: 6, offset: Offset(0, 1)),
+                  ],
+                ),
+                children: [
+                  if (isLongCaption)
+                    TextSpan(
+                      text: isExpanded ? ' Lebih sedikit' : ' Selengkapnya',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12.5,
+                      ),
+                    ),
                 ],
               ),
             ),
           ),
         ),
+
+        // 3. Kartu Keranjang Merah di Bawah Deskripsi Video
+        if (item.productId.isNotEmpty && item.productTitle.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _ShoppableProductBanner(
+            item: item,
+            currencyFormatter: currencyFormatter,
+            onOrderTap: onOrderTap,
+          ),
+        ],
       ],
     );
   }
 }
 
-/// Compact Keranjang Kuning Tag Banner
+/// Compact Keranjang Merah Tag Banner (Afiliasi)
 class _ShoppableProductBanner extends StatelessWidget {
   final GageVideoItem item;
   final NumberFormat currencyFormatter;
@@ -1200,11 +1375,11 @@ class _ShoppableProductBanner extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.65),
+          color: Colors.black.withValues(alpha: 0.70),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: Colors.white.withValues(alpha: 0.15),
-            width: 0.8,
+            color: GageTheme.primary.withValues(alpha: 0.35),
+            width: 1.0,
           ),
         ),
         child: Row(
@@ -1213,12 +1388,12 @@ class _ShoppableProductBanner extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(5),
               decoration: const BoxDecoration(
-                color: Color(0xFFFFB703),
+                color: GageTheme.primary,
                 shape: BoxShape.circle,
               ),
               child: const Icon(
                 Icons.shopping_bag_rounded,
-                color: Colors.black,
+                color: Colors.white,
                 size: 13,
               ),
             ),
@@ -1241,7 +1416,7 @@ class _ShoppableProductBanner extends StatelessWidget {
                   Text(
                     currencyFormatter.format(item.productPrice),
                     style: const TextStyle(
-                      color: Color(0xFFFFB703),
+                      color: Color(0xFFF87171),
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
                     ),
@@ -1251,18 +1426,18 @@ class _ShoppableProductBanner extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Material(
-              color: const Color(0xFFFFB703),
+              color: GageTheme.primary,
               borderRadius: BorderRadius.circular(999),
               child: InkWell(
                 onTap: onOrderTap,
                 borderRadius: BorderRadius.circular(999),
                 child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                   child: Text(
                     'Beli',
                     style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 11,
+                      color: Colors.white,
+                      fontSize: 11.5,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -1786,7 +1961,67 @@ class _QuickOrderBottomSheetState extends State<_QuickOrderBottomSheet> {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      const Icon(Icons.storefront_rounded, size: 16, color: GageTheme.primary),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          widget.item.merchantName,
+                          style: TextStyle(
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            fontWeight: FontWeight.w900,
+                            fontSize: 13.5,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: GageTheme.primary,
+                    side: const BorderSide(color: GageTheme.primary, width: 1.2),
+                    shape: const StadiumBorder(),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => RestoDetailScreen(
+                          merchant: {
+                            'id': widget.item.merchantId,
+                            'name': widget.item.merchantName,
+                            'rating': widget.item.merchantRating,
+                            'location': widget.item.merchantLocation,
+                            'image': widget.item.thumbnailUrl,
+                            'category': 'Kuliner',
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.open_in_new_rounded, size: 13),
+                  label: const Text(
+                    'Buka Toko',
+                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Divider(height: 1, color: isDark ? Colors.white12 : const Color(0xFFF1F5F9)),
+            const SizedBox(height: 14),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
