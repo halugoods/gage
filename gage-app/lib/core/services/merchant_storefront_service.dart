@@ -239,6 +239,9 @@ class MerchantStorefrontData {
   final List<String>? categoryOrder;
   final Map<String, int>? itemPromoPrices;
   final double? affiliateCommissionRate; // Dinamis ditentukan toko, maks 20.0%
+  final int? directDiscountAmount; // Voucher diskon toko (Rp)
+  final int? minSpendAmount; // Minimal subtotal belanja (Rp)
+  final bool? directDiscountActive; // Status aktif voucher toko
 
   const MerchantStorefrontData({
     required this.merchantId,
@@ -259,6 +262,9 @@ class MerchantStorefrontData {
     this.categoryOrder,
     this.itemPromoPrices,
     this.affiliateCommissionRate,
+    this.directDiscountAmount,
+    this.minSpendAmount,
+    this.directDiscountActive,
   });
 
   MerchantStorefrontData copyWith({
@@ -280,6 +286,9 @@ class MerchantStorefrontData {
     List<String>? categoryOrder,
     Map<String, int>? itemPromoPrices,
     double? affiliateCommissionRate,
+    int? directDiscountAmount,
+    int? minSpendAmount,
+    bool? directDiscountActive,
   }) {
     return MerchantStorefrontData(
       merchantId: merchantId ?? this.merchantId,
@@ -302,6 +311,9 @@ class MerchantStorefrontData {
       affiliateCommissionRate: affiliateCommissionRate != null
           ? affiliateCommissionRate.clamp(0.0, 20.0)
           : this.affiliateCommissionRate,
+      directDiscountAmount: directDiscountAmount ?? this.directDiscountAmount,
+      minSpendAmount: minSpendAmount ?? this.minSpendAmount,
+      directDiscountActive: directDiscountActive ?? this.directDiscountActive,
     );
   }
 
@@ -324,6 +336,9 @@ class MerchantStorefrontData {
         if (categoryOrder != null) 'categoryOrder': categoryOrder,
         if (itemPromoPrices != null) 'itemPromoPrices': itemPromoPrices,
         if (affiliateCommissionRate != null) 'affiliateCommissionRate': affiliateCommissionRate,
+        if (directDiscountAmount != null) 'directDiscountAmount': directDiscountAmount,
+        if (minSpendAmount != null) 'minSpendAmount': minSpendAmount,
+        if (directDiscountActive != null) 'directDiscountActive': directDiscountActive,
       };
 
   factory MerchantStorefrontData.fromJson(String id, Map<String, dynamic> json) {
@@ -375,6 +390,13 @@ class MerchantStorefrontData {
       categoryOrder: parsedCategoryOrder,
       itemPromoPrices: parsedPromoPrices,
       affiliateCommissionRate: parsedRate,
+      directDiscountAmount: (json['directDiscountAmount'] is num)
+          ? (json['directDiscountAmount'] as num).toInt()
+          : int.tryParse('${json['directDiscountAmount']}'),
+      minSpendAmount: (json['minSpendAmount'] is num)
+          ? (json['minSpendAmount'] as num).toInt()
+          : int.tryParse('${json['minSpendAmount']}'),
+      directDiscountActive: json['directDiscountActive'] is bool ? json['directDiscountActive'] as bool : null,
     );
   }
 }

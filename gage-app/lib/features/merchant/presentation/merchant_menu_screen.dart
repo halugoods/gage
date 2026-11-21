@@ -305,6 +305,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
           final netPayout = promoInput > 0 ? (promoInput * 0.90).round() : 0;
           final isBelowOffline = promoInput > 0 && offlinePrice > 0 && netPayout < offlinePrice;
           final isInvalid = promoInput > 0 && (promoInput >= gagePrice || promoInput <= 0);
+          final isDark = Theme.of(context).brightness == Brightness.dark;
 
           return Padding(
             padding: EdgeInsets.only(
@@ -339,14 +340,55 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                     style: const TextStyle(fontSize: 11.5, color: GageTheme.textSecondary),
                   ),
                   const SizedBox(height: 16),
+                  Text(
+                    'Harga Promo Baru (Harga Coret)',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
                   TextField(
                     controller: promoCtrl,
                     keyboardType: TextInputType.number,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
                     decoration: InputDecoration(
-                      labelText: 'Harga Promo Baru',
                       hintText: 'Contoh: ${gagePrice > 2000 ? gagePrice - 2000 : gagePrice}',
+                      hintStyle: TextStyle(
+                        fontSize: 12.5,
+                        color: isDark ? Colors.white38 : Colors.grey.shade400,
+                      ),
                       prefixText: 'Rp ',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      prefixStyle: const TextStyle(fontWeight: FontWeight.bold, color: GageTheme.primary),
+                      filled: true,
+                      fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(
+                          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                          width: 1.0,
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(
+                          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                          width: 1.0,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(
+                          color: GageTheme.primary,
+                          width: 1.8,
+                        ),
+                      ),
                       helperText: 'Wajib lebih rendah dari harga normal (${currencyFormatter.format(gagePrice)})',
                     ),
                     onChanged: (val) {
@@ -552,6 +594,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
       ),
       builder: (ctx) => StatefulBuilder(
         builder: (context, setModalState) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
           return Padding(
             padding: EdgeInsets.only(
               left: 20,
@@ -585,63 +628,153 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                     style: TextStyle(fontSize: 12, color: GageTheme.textSecondary),
                   ),
                   const SizedBox(height: 16),
+                  Text(
+                    'Nama Menu',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
                   TextField(
                     controller: nameCtrl,
+                    style: TextStyle(fontSize: 13.5, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                     decoration: InputDecoration(
-                      labelText: 'Nama Menu',
                       hintText: 'Misal: Dimsum Mozzarella Keju Lumer',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      hintStyle: TextStyle(fontSize: 12.5, color: isDark ? Colors.white38 : Colors.grey.shade400),
+                      prefixIcon: const Icon(Icons.restaurant_menu_rounded, size: 18, color: GageTheme.primary),
+                      filled: true,
+                      fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: GageTheme.primary, width: 1.8),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
+                  Text(
+                    'Deskripsi Singkat',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
                   TextField(
                     controller: descCtrl,
+                    style: TextStyle(fontSize: 13.5, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                     decoration: InputDecoration(
-                      labelText: 'Deskripsi Singkat',
                       hintText: 'Bahan, porsi isi berapa biji, atau level kepedasan',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      hintStyle: TextStyle(fontSize: 12.5, color: isDark ? Colors.white38 : Colors.grey.shade400),
+                      prefixIcon: const Icon(Icons.description_outlined, size: 18, color: GageTheme.primary),
+                      filled: true,
+                      fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: GageTheme.primary, width: 1.8),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
                   Row(
                     children: [
                       Expanded(
-                        child: DropdownButtonFormField<String>(
-                          initialValue: category,
-                          decoration: InputDecoration(
-                            labelText: 'Kategori',
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                          items: _categories
-                              .where((c) => c != 'Semua')
-                              .map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 13))))
-                              .toList(),
-                          onChanged: (val) {
-                            if (val != null) setModalState(() => category = val);
-                          },
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Kategori',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            DropdownButtonFormField<String>(
+                              initialValue: category,
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: GageTheme.primary, width: 1.8),
+                                ),
+                              ),
+                              items: _categories
+                                  .where((c) => c != 'Semua')
+                                  .map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 12.5))))
+                                  .toList(),
+                              onChanged: (val) {
+                                if (val != null) setModalState(() => category = val);
+                              },
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: TextField(
-                          controller: priceCtrl,
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            labelText: 'Harga Warung',
-                            prefixText: 'Rp ',
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                          onChanged: (val) {
-                            final num = int.tryParse(val) ?? 0;
-                            setModalState(() {
-                              offlinePrice = num;
-                              suggestedGage = AffiliateCommissionService.calculateRecommendedOnlinePrice(
-                                offlinePrice,
-                                platformRate: 0.10,
-                                affiliateRate: affiliateRate,
-                              );
-                            });
-                          },
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Harga Warung',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            TextField(
+                              controller: priceCtrl,
+                              keyboardType: TextInputType.number,
+                              style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                              decoration: InputDecoration(
+                                prefixText: 'Rp ',
+                                prefixStyle: const TextStyle(fontWeight: FontWeight.bold, color: GageTheme.primary),
+                                filled: true,
+                                fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: GageTheme.primary, width: 1.8),
+                                ),
+                              ),
+                              onChanged: (val) {
+                                final num = int.tryParse(val) ?? 0;
+                                setModalState(() {
+                                  offlinePrice = num;
+                                  suggestedGage = AffiliateCommissionService.calculateRecommendedOnlinePrice(
+                                    offlinePrice,
+                                    platformRate: 0.10,
+                                    affiliateRate: affiliateRate,
+                                  );
+                                });
+                              },
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -840,17 +973,31 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                       height: 42,
                       decoration: BoxDecoration(
                         color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                        ),
                       ),
                       child: TextField(
                         onChanged: (v) => setState(() => _searchQuery = v),
-                        style: const TextStyle(fontSize: 13),
-                        decoration: const InputDecoration(
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                        decoration: InputDecoration(
                           hintText: 'Cari nama menu dimsum...',
-                          hintStyle: TextStyle(fontSize: 12.5, color: GageTheme.textSecondary),
-                          prefixIcon: Icon(Icons.search_rounded, size: 18, color: GageTheme.textSecondary),
+                          hintStyle: TextStyle(
+                            fontSize: 12.5,
+                            color: isDark ? Colors.white38 : Colors.grey.shade400,
+                          ),
+                          prefixIcon: Icon(
+                            Icons.search_rounded,
+                            size: 18,
+                            color: isDark ? Colors.white60 : GageTheme.textSecondary,
+                          ),
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(vertical: 10),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 11),
                         ),
                       ),
                     ),
@@ -860,8 +1007,8 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                     style: OutlinedButton.styleFrom(
                       foregroundColor: GageTheme.primary,
                       side: const BorderSide(color: GageTheme.primary),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     ),
                     icon: const Icon(Icons.swap_vert_rounded, size: 16),
                     label: const Text('Urutan', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
@@ -871,8 +1018,9 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: GageTheme.primary,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      elevation: 0,
                     ),
                     icon: const Icon(Icons.add, size: 16, color: Colors.white),
                     label: const Text('Menu Baru', style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold)),

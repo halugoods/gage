@@ -284,6 +284,7 @@ class _MerchantOrderDetailSheetState extends State<MerchantOrderDetailSheet> {
                                 recipientRole: 'customer',
                                 orderId: latestOrder.orderNumber,
                                 recipientPhone: latestOrder.customerPhone ?? '',
+                                currentRole: 'merchant',
                               ),
                             ),
                           );
@@ -369,6 +370,7 @@ class _MerchantOrderDetailSheetState extends State<MerchantOrderDetailSheet> {
                                   recipientRole: 'driver',
                                   orderId: latestOrder.orderNumber,
                                   recipientPhone: latestOrder.driverPhone ?? '',
+                                  currentRole: 'merchant',
                                 ),
                               ),
                             );

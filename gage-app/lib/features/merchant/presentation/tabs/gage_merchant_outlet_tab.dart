@@ -6,6 +6,9 @@ import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/core/services/merchant_storefront_service.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_menu_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_profile_screen.dart';
+import 'package:gage_app/features/merchant/presentation/merchant_review_screen.dart';
+import 'package:gage_app/features/merchant/presentation/merchant_kitchen_insights_screen.dart';
+import 'package:gage_app/features/merchant/presentation/widgets/merchant_support_sheet.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/operating_schedule_editor_sheet.dart';
 import 'package:gage_app/providers/merchant_order_provider.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
@@ -135,45 +138,6 @@ class GageMerchantOutletTab extends StatelessWidget {
     );
   }
 
-  void _showSimpleInfoSheet(BuildContext context, String title, String content, bool isDark) {
-    HapticFeedback.lightImpact();
-    GageFloatingSheet.show(
-      context: context,
-      title: title,
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              content,
-              style: TextStyle(
-                fontSize: 13,
-                height: 1.5,
-                color: isDark ? Colors.white70 : const Color(0xFF475569),
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: GageTheme.primary,
-                  foregroundColor: Colors.white,
-                  shape: const StadiumBorder(),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Tutup', style: TextStyle(fontWeight: FontWeight.bold)),
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -520,11 +484,12 @@ class GageMerchantOutletTab extends StatelessWidget {
                       color: const Color(0xFFF59E0B),
                       label: 'Penilaian',
                       onTap: () {
-                        _showSimpleInfoSheet(
+                        HapticFeedback.lightImpact();
+                        Navigator.push(
                           context,
-                          'Penilaian & Reputasi Toko',
-                          'Rating Keseluruhan: 4.9 / 5.0 (98 Ulasan Positif)\n\n• Rasa Makanan: 5.0 / 5.0\n• Kerapian Kemasan: 4.9 / 5.0\n• Kecepatan Penyajian: 4.8 / 5.0\n\nUlasan Terkini:\n"Dimsumnya mantap, masih hangat waktu driver antar!" - Siti R.\n"Porsi pas dan bumbu sausnya nagih." - Mas Bowo',
-                          isDark,
+                          MaterialPageRoute(
+                            builder: (_) => const MerchantReviewScreen(),
+                          ),
                         );
                       },
                       isDark: isDark,
@@ -534,11 +499,12 @@ class GageMerchantOutletTab extends StatelessWidget {
                       color: const Color(0xFF16A34A),
                       label: 'Wawasan Dapur',
                       onTap: () {
-                        _showSimpleInfoSheet(
+                        HapticFeedback.lightImpact();
+                        Navigator.push(
                           context,
-                          'Wawasan Operasional Dapur',
-                          '• Rata-rata Waktu Masak: 8.5 menit per tiket\n• Jam Sibuk Resto: 11:30 - 13:00 WIB & 18:30 - 20:00 WIB\n• Menu Terlaris Pekan Ini: Dimsum Siomay Ayam (142 porsi)\n• Ketersediaan Bahan Baku: 98% (Aman)',
-                          isDark,
+                          MaterialPageRoute(
+                            builder: (_) => const MerchantKitchenInsightsScreen(),
+                          ),
                         );
                       },
                       isDark: isDark,
@@ -548,12 +514,8 @@ class GageMerchantOutletTab extends StatelessWidget {
                       color: const Color(0xFF0D9488),
                       label: 'Pusat Bantuan',
                       onTap: () {
-                        _showSimpleInfoSheet(
-                          context,
-                          'Pusat Bantuan Mitra GAGE 24/7',
-                          'Butuh kendala order, pencairan saldo, atau ubah menu?\n\n• Layanan WhatsApp CS Mitra: 0812-3456-7890 (Fast Response)\n• Tim Lapangan Pracimantoro: Jl. Raya Pracimantoro No. 88\n• Email Dukungan: mitra@gageapp.id',
-                          isDark,
-                        );
+                        HapticFeedback.lightImpact();
+                        MerchantSupportSheet.show(context);
                       },
                       isDark: isDark,
                     ),

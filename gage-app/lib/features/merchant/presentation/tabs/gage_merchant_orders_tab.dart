@@ -31,26 +31,44 @@ class GageMerchantOrdersTab extends StatefulWidget {
 
 class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
   int _activeSegment = 0; // 0: Disiapkan, 1: Siap Diambil, 2: Sedang Diantar, 3: Selesai
+  String _searchQuery = '';
+  final TextEditingController _searchCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
 
   List<OrderModel> _filterOrders(List<OrderModel> orders) {
+    List<OrderModel> byStatus;
     switch (_activeSegment) {
       case 0:
-        return orders.where((o) =>
+        byStatus = orders.where((o) =>
             o.status == 'NEW' || o.status == 'PAID' || o.status == 'COOKING').toList();
+        break;
       case 1:
-        return orders.where((o) =>
+        byStatus = orders.where((o) =>
             o.status == 'READY_FOR_PICKUP' ||
             o.status == 'DRIVER_ASSIGNED' ||
             o.status == 'AT_MERCHANT').toList();
+        break;
       case 2:
-        return orders.where((o) =>
+        byStatus = orders.where((o) =>
             o.status == 'PICKED_UP' || o.status == 'ON_DELIVERY').toList();
+        break;
       case 3:
-        return orders.where((o) =>
+        byStatus = orders.where((o) =>
             o.status == 'COMPLETED' || o.status == 'CANCELLED').toList();
+        break;
       default:
-        return orders;
+        byStatus = orders;
     }
+    if (_searchQuery.trim().isEmpty) return byStatus;
+    final q = _searchQuery.toLowerCase();
+    return byStatus.where((o) =>
+        o.orderNumber.toLowerCase().contains(q) ||
+        (o.customerName?.toLowerCase().contains(q) ?? false)).toList();
   }
 
   String _formatTimeElapsed(int createdAt) {
@@ -237,6 +255,73 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                   count: countSelesai,
                   isDark: isDark,
                 ),
+              ],
+            ),
+          ),
+        ),
+
+        // Quick Search Bar Mewah Kapsul Penuh (999)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
+          child: Container(
+            height: 38,
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : Colors.white,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.search_rounded,
+                  size: 18,
+                  color: isDark ? Colors.white60 : Colors.grey.shade500,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _searchCtrl,
+                    onChanged: (val) => setState(() => _searchQuery = val),
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Cari invoice atau nama pelanggan...',
+                      hintStyle: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? Colors.white38 : Colors.grey.shade400,
+                      ),
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ),
+                if (_searchQuery.isNotEmpty)
+                  GestureDetector(
+                    onTap: () {
+                      _searchCtrl.clear();
+                      setState(() => _searchQuery = '');
+                    },
+                    child: Icon(
+                      Icons.cancel_rounded,
+                      size: 16,
+                      color: isDark ? Colors.white60 : Colors.grey.shade500,
+                    ),
+                  ),
               ],
             ),
           ),

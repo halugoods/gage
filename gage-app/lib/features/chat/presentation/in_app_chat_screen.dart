@@ -46,6 +46,31 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
   Timer? _voicePlaybackTimer;
 
   List<String> get _quickReplies {
+    // Quick Replies Khusus Mitra Usaha (Dapur & Kasir Merchant)
+    if (widget.currentRole == 'merchant') {
+      if (widget.recipientRole.toLowerCase() == 'driver') {
+        return [
+          'Pesanan sedang disiapkan di dapur 👨‍🍳',
+          'Pesanan sudah matang & siap diambil ya Mas Driver!',
+          'Kira-kira tiba di kios berapa menit lagi mas?',
+          'Mohon sebutkan PIN serah terima saat ambil barang ya.',
+        ];
+      } else if (widget.recipientRole.toLowerCase() == 'customer') {
+        return [
+          'Halo kak, pesanan segera kami masak dengan higienis!',
+          'Saus dan sambal sudah dipisah di kemasan khusus ya kak.',
+          'Mohon maaf, varian ini habis, apakah boleh diganti?',
+          'Terima kasih banyak sudah memesan di resto kami!',
+        ];
+      } else {
+        return [
+          'Halo tim Bantuan GAGE, mohon panduan operasional kios.',
+          'Bagaimana cara aktivasi banner Star Resto?',
+          'Kendala sinkronisasi pencairan saldo GagePay toko.',
+        ];
+      }
+    }
+
     switch (widget.recipientRole.toLowerCase()) {
       case 'driver':
         return [

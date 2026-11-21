@@ -509,6 +509,59 @@ Tab 4 Merchant kini mengadopsi widget asli `GagePayScreen` (`isEmbeddedInTab: tr
 - `merchant_screen_gagepay_tab.png`: GagePay 1:1 Customer.
 - `merchant_screen_chat_tab.png`: Tab Chat terpadu.
 
+---
+
+## 7. Pembaruan Wave 4: Autonomous Overnight Audit, Luxury Standard, & Customer Parity
+
+* **Baseline Git Checkpoint**: `merchant-v3-overnight-baseline` (Dikomit dan diberi tag permanen pada repositori untuk revertability instan).
+* **Hasil Verifikasi Test Suite Komprehensif**: 21 / 21 Tests Passed (`test/merchant_handoff_contracts_test.dart` & `test/merchant_comprehensive_audit_scenarios_test.dart`).
+
+### A. Pemisahan Tegas Layar Penuh (Full Screen Page) vs Lembar Mengambang (Floating Sheet)
+- **Halaman Layar Penuh (Full Screen Page with Native AppBar Back Button)**:
+  1. `MerchantReviewScreen`:
+     - Menampilkan metrik ulasan mendalam: Rating Hero Card `4.9 / 5.0` (98 ulasan pembeli), 5 bintang emas, diagram batang distribusi rating 5 hingga 1 bintang.
+     - Segmented Filter Chips Kapsul 999: *Semua*, *Dengan Foto*, *Rasa Enak*, *Porsi Pas*, *Kemasan Rapi*.
+     - Daftar ulasan riil pembeli dengan menu yang dipesan, tanggal, dan tanggapan resmi toko.
+     - Modal balas ulasan pelanggan dengan form field mewah anti-slop radius 14.
+  2. `MerchantKitchenInsightsScreen`:
+     - 4 Kartu KPI Utama: Waktu Masak rata-rata (8.5 mnt - Sangat Cepat), Tingkat Penyelesaian (100% - 0 Batal), Akurasi Bahan Dapur (98.5%), dan Kepuasan Pelanggan (4.9 / 5.0).
+     - Diagram batang visual interaktif Jam Sibuk Dapur: Pagi (10%), Siang (45% Puncak), Sore (20%), Malam (25% Puncak).
+     - Tip operasional dapur Pracimantoro.
+     - Daftar 5 Menu Terlaris (Paling Laku) dengan omset kotor dan kuantitas porsi terjual.
+- **Lembar Mengambang Cepat (GageFloatingSheet)**:
+  1. `MerchantSupportSheet`: Pusat bantuan cepat mitra dengan hotline panggilan telepon & WhatsApp resmi CS GAGE Pracimantoro 24/7 + FAQ panduan operasional toko.
+  2. `MerchantOrderDetailSheet`: Rincian instan pesanan & PIN serah terima.
+  3. `MerchantThermalReceiptSheet`: Cetak cepat struk kasir thermal 58mm / 80mm.
+
+### B. Standardisasi Form Field Mewah (Anti-Slop Luxury Input Fields)
+- Seluruh form field di portal merchant telah ditingkatkan mengikuti estetika Customer Portal:
+  - Container berlatar lembut: `filled: true`, `fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)`.
+  - Sudut radius mewah: `BorderRadius.circular(14)`.
+  - Border samping tipis dan elegan: `BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))`.
+  - Focused border beraksen tegas: `BorderSide(color: GageTheme.primary, width: 1.5)`.
+  - Header label eksternal tebal di atas input field + prefix icon tematik.
+  - Diterapkan pada:
+    - Form Atur Diskon Langsung Toko (`gage_merchant_marketing_tab.dart`)
+    - Form Tambah Menu Baru Dapur (`merchant_menu_screen.dart`)
+    - Form Atur Harga Promo Coret (`merchant_menu_screen.dart`)
+    - Form Edit Profil Kios, Titik Map, Foto, & Radius Antar (`merchant_profile_screen.dart`)
+    - Form Balas Ulasan Pembeli (`merchant_review_screen.dart`)
+
+### C. Sinkronisasi Voucher Toko Lintas Portal (Merchant -> Customer)
+- Properti baru pada `MerchantStorefrontData`:
+  - `directDiscountAmount` (`int?`): Nominal potongan harga voucher toko (Rp).
+  - `minSpendAmount` (`int?`): Minimal belanja subtotal keranjang (Rp).
+  - `directDiscountActive` (`bool?`): Status aktif diskon toko.
+- Terhubung langsung ke `resto_detail_screen.dart` di Portal Customer:
+  - Ketika mitra merchant mengaktifkan atau mengubah diskon toko di Tab Marketing, voucher otomatis disuntikkan ke barisan kartu `Voucher Toko` di halaman resto pelanggan dengan stub perforasi oranye, diskon nominal, dan label *"Spesial Mitra Toko"*.
+
+### D. Fitur Pencarian Cepat Tab Pesanan
+- Search Bar mewah kapsul 999 di `gage_merchant_orders_tab.dart` untuk memfilter pesanan seketika berdasarkan nomor invoice / nama pembeli di semua tahapan pesanan (Pesanan Masuk, Disiapkan, Siap Dijemput).
+
+### E. Quick Replies Khusus Dapur & Kasir
+- Menambahkan 5 Quick Replies khusus dapur saat `currentRole == 'merchant'` di `in_app_chat_screen.dart` untuk komunikasi cepat dengan Driver dan Pelanggan tanpa mengetik manual saat jam sibuk.
+
+
 
 
 

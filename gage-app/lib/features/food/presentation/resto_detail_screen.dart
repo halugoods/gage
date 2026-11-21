@@ -1217,7 +1217,28 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
     final vouchers = GageVoucherData.vouchersForService(_serviceDomain);
     final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
-    return vouchers.map((v) {
+    final List<Widget> cards = [];
+
+    // Voucher Diskon Langsung Toko (disinkronkan dari Portal Merchant)
+    if (_storefront != null && (_storefront!.directDiscountActive ?? false) && (_storefront!.directDiscountAmount ?? 0) > 0) {
+      final disc = _storefront!.directDiscountAmount!;
+      final minSpend = _storefront!.minSpendAmount ?? 0;
+      cards.add(
+        _buildVoucherStubCard(
+          context: context,
+          cart: cart,
+          code: 'TOKO${disc ~/ 1000}K',
+          title: 'Diskon Toko ${currencyFormatter.format(disc)}',
+          sub: minSpend > 0 ? 'Min. belanja ${currencyFormatter.format(minSpend)}' : 'Tanpa minimal belanja',
+          discount: disc,
+          isFood: true,
+          isDark: isDark,
+          expiryText: 'Spesial Mitra Toko',
+        ),
+      );
+    }
+
+    cards.addAll(vouchers.map((v) {
       final minOrder = _parseInt(v['minOrder']);
       final discount = _parseInt(v['discountAmount']);
       final isOrderVoucher = v['type'] != 'delivery';
@@ -1235,7 +1256,9 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
         isDark: isDark,
         expiryText: expiryText,
       );
-    }).toList();
+    }));
+
+    return cards;
   }
 
   @override

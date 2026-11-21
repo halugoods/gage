@@ -28,6 +28,34 @@ class _GageMerchantMarketingTabState extends State<GageMerchantMarketingTab> {
   int _minSpendAmount = 35000;
   bool _directDiscountActive = true;
 
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedDiscounts();
+  }
+
+  Future<void> _loadSavedDiscounts() async {
+    final current = await MerchantStorefrontService.loadStorefront(
+      MerchantStorefrontService.defaultPortalMerchantId,
+    );
+    if (current != null && mounted) {
+      setState(() {
+        if (current.directDiscountAmount != null) {
+          _directDiscountAmount = current.directDiscountAmount!;
+        }
+        if (current.minSpendAmount != null) {
+          _minSpendAmount = current.minSpendAmount!;
+        }
+        if (current.directDiscountActive != null) {
+          _directDiscountActive = current.directDiscountActive!;
+        }
+        if (_directDiscountActive) {
+          _activePromoCount = 2;
+        }
+      });
+    }
+  }
+
   // 1. Atur Diskon Langsung Toko (Voucher Toko)
   void _showDirectDiscountDialog(BuildContext context, bool isDark) {
     HapticFeedback.lightImpact();
@@ -53,31 +81,73 @@ class _GageMerchantMarketingTabState extends State<GageMerchantMarketingTab> {
                 height: 1.4,
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
+            Text(
+              'Nominal Potongan Diskon (Rp)',
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: isDark ? Colors.white70 : const Color(0xFF334155),
+              ),
+            ),
+            const SizedBox(height: 6),
             TextField(
               controller: discountCtrl,
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
-                labelText: 'Nominal Potongan Diskon (Rp)',
+                hintText: '5000',
+                prefixIcon: const Icon(Icons.confirmation_num_rounded, color: GageTheme.primary, size: 20),
                 prefixText: 'Rp ',
                 filled: true,
                 fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(
+                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: GageTheme.primary, width: 1.5),
+                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
+            Text(
+              'Minimal Belanja Subtotal (Rp)',
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: isDark ? Colors.white70 : const Color(0xFF334155),
+              ),
+            ),
+            const SizedBox(height: 6),
             TextField(
               controller: minSpendCtrl,
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
-                labelText: 'Minimal Belanja Subtotal (Rp)',
+                hintText: '35000',
+                prefixIcon: const Icon(Icons.shopping_bag_outlined, color: GageTheme.primary, size: 20),
                 prefixText: 'Rp ',
                 filled: true,
                 fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(
+                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: GageTheme.primary, width: 1.5),
+                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 18),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -87,7 +157,7 @@ class _GageMerchantMarketingTabState extends State<GageMerchantMarketingTab> {
                   shape: const StadiumBorder(),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
-                onPressed: () {
+                onPressed: () async {
                   final disc = int.tryParse(discountCtrl.text) ?? 5000;
                   final minS = int.tryParse(minSpendCtrl.text) ?? 35000;
                   setState(() {
@@ -96,11 +166,28 @@ class _GageMerchantMarketingTabState extends State<GageMerchantMarketingTab> {
                     _directDiscountActive = true;
                     _activePromoCount = 2;
                   });
-                  Navigator.pop(ctx);
-                  GageToast.show(
-                    context,
-                    'Voucher Toko aktif: Diskon Rp $disc (Min. Belanja Rp $minS)',
+
+                  final current = await MerchantStorefrontService.loadStorefront(
+                    MerchantStorefrontService.defaultPortalMerchantId,
                   );
+                  if (current != null) {
+                    await MerchantStorefrontService.saveStorefront(
+                      current.copyWith(
+                        directDiscountAmount: disc,
+                        minSpendAmount: minS,
+                        directDiscountActive: true,
+                      ),
+                    );
+                  }
+
+                  if (context.mounted) {
+                    Navigator.pop(ctx);
+                    GageToast.show(
+                      context,
+                      'Voucher Toko aktif: Diskon Rp $disc (Min. Belanja Rp $minS)',
+                      type: GageToastType.success,
+                    );
+                  }
                 },
                 child: const Text('Aktifkan Diskon Toko',
                     style: TextStyle(fontWeight: FontWeight.bold)),
@@ -405,19 +492,27 @@ class _GageMerchantMarketingTabState extends State<GageMerchantMarketingTab> {
               ),
               // Ringkasan Estimasi
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
                   color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: isDark ? GageTheme.darkBorder : Colors.grey.shade200),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text('Total Investasi Iklan ($selectedDays hari):',
-                        style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white70 : Colors.grey.shade700)),
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white70 : const Color(0xFF475569))),
                     Text('Rp ${dailyBudget * selectedDays}',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: Color(0xFF16A34A))),
+                        style: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF16A34A))),
                   ],
                 ),
               ),

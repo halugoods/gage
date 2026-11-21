@@ -76,8 +76,7 @@ class MerchantFloatingNavBar extends StatelessWidget {
                             context: context,
                             index: 0,
                             label: 'Pesanan',
-                            activeIcon: Icons.receipt,
-                            inactiveIcon: Icons.receipt_long_outlined,
+                            icon: Icons.receipt,
                             badgeText: newOrderCount > 0
                                 ? (newOrderCount > 99 ? '99+' : '$newOrderCount')
                                 : null,
@@ -89,8 +88,7 @@ class MerchantFloatingNavBar extends StatelessWidget {
                             context: context,
                             index: 1,
                             label: 'Chat',
-                            activeIcon: Icons.chat_bubble_rounded,
-                            inactiveIcon: Icons.chat_bubble_outline_rounded,
+                            icon: Icons.chat_bubble_rounded,
                             badgeText: unreadChatCount > 0
                                 ? (unreadChatCount > 99 ? '99+' : '$unreadChatCount')
                                 : null,
@@ -102,8 +100,7 @@ class MerchantFloatingNavBar extends StatelessWidget {
                             context: context,
                             index: 2,
                             label: 'Outlet',
-                            activeIcon: Icons.storefront_rounded,
-                            inactiveIcon: Icons.storefront_outlined,
+                            icon: Icons.storefront_rounded,
                             isDark: isDark,
                           ),
                         ),
@@ -112,8 +109,7 @@ class MerchantFloatingNavBar extends StatelessWidget {
                             context: context,
                             index: 3,
                             label: 'Marketing',
-                            activeIcon: Icons.campaign_rounded,
-                            inactiveIcon: Icons.campaign_outlined,
+                            icon: Icons.campaign_rounded,
                             isDark: isDark,
                           ),
                         ),
@@ -122,8 +118,7 @@ class MerchantFloatingNavBar extends StatelessWidget {
                             context: context,
                             index: 4,
                             label: 'GagePay',
-                            activeIcon: Icons.account_balance_wallet_rounded,
-                            inactiveIcon: Icons.account_balance_wallet_outlined,
+                            icon: Icons.account_balance_wallet_rounded,
                             isDark: isDark,
                           ),
                         ),
@@ -143,8 +138,7 @@ class MerchantFloatingNavBar extends StatelessWidget {
     required BuildContext context,
     required int index,
     required String label,
-    required IconData activeIcon,
-    required IconData inactiveIcon,
+    required IconData icon,
     String? badgeText,
     required bool isDark,
   }) {
@@ -160,24 +154,22 @@ class MerchantFloatingNavBar extends StatelessWidget {
         ? Colors.white.withValues(alpha: 0.22)
         : Colors.white.withValues(alpha: 0.55);
 
-    final currentIcon = isSelected ? activeIcon : inactiveIcon;
-
     final iconWidget = Stack(
       clipBehavior: Clip.none,
       alignment: Alignment.center,
       children: [
-        currentIcon == Icons.receipt
+        icon == Icons.receipt
             ? Transform.scale(
                 scaleX: 0.85,
                 scaleY: 0.95,
                 child: Icon(
-                  currentIcon,
+                  icon,
                   size: 20,
                   color: isSelected ? activeTextColor : inactiveColor,
                 ),
               )
             : Icon(
-                currentIcon,
+                icon,
                 size: 20,
                 color: isSelected ? activeTextColor : inactiveColor,
               ),

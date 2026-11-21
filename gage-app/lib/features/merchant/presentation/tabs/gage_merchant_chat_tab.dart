@@ -200,6 +200,7 @@ class _GageMerchantChatTabState extends State<GageMerchantChatTab> {
                   recipientRole: role,
                   orderId: chat['orderId'],
                   recipientPhone: chat['phone'],
+                  currentRole: 'merchant',
                 ),
               ),
             );
