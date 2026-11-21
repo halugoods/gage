@@ -69,13 +69,14 @@ Berdasarkan inspeksi langsung terhadap [`0001_initial_schema.sql`](../../gage-cl
    ALTER TABLE merchants ADD COLUMN operating_schedule_json TEXT;
    ALTER TABLE merchants ADD COLUMN category_order_json TEXT;
    ```
-3. **Tabel `orders`** (menutup blocker Pickup isolation, Driver Tip, dan Dual Voucher):
+3. **Tabel `orders`** (menutup blocker Pickup isolation, Driver Tip, Dual Voucher, dan Handover PIN Driver):
    ```sql
    ALTER TABLE orders ADD COLUMN order_type TEXT NOT NULL DEFAULT 'DELIVERY';
    ALTER TABLE orders ADD COLUMN service_type TEXT NOT NULL DEFAULT 'food';
    ALTER TABLE orders ADD COLUMN driver_tip INTEGER NOT NULL DEFAULT 0;
    ALTER TABLE orders ADD COLUMN order_promo_code TEXT;
    ALTER TABLE orders ADD COLUMN delivery_promo_code TEXT;
+   ALTER TABLE orders ADD COLUMN handover_pin TEXT;
    ```
 4. **Tabel `vouchers`** (ganti/lengkapi struktur `promos` statis agar mendukung filter per layanan):
    ```sql
@@ -259,6 +260,149 @@ CREATE TABLE IF NOT EXISTS receipt_settings (
 ### 9.2. GAGEPay Poin Loyalty & QRIS Official Billing Receipt
 - Penambahan loyalty tier, konversi poin ke saldo, voucher UMKM, dan donasi sosial.
 - Lembar tagihan QRIS resmi standar ASPI/BI (`GageQrisReceiptWidget`) menggantikan mockup visual kartu pada fitur Terima Saldo. Detail kartu 2.5D kini berada di menu Pengaturan GAGEPay.
+
+---
+
+## 10. Handoff Wave 4: GAGE Video Sound Catalog & Affiliate Showcase Schema
+
+### 10.1. Tabel Cloudflare D1 `video_sounds` & `creator_showcase`
+```sql
+CREATE TABLE IF NOT EXISTS video_sounds (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  artist TEXT NOT NULL,
+  duration TEXT NOT NULL,
+  audio_url TEXT NOT NULL,
+  album_art_url TEXT NOT NULL,
+  videos_count INTEGER NOT NULL DEFAULT 0,
+  is_original INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+);
+
+CREATE TABLE IF NOT EXISTS creator_showcase_items (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  product_id TEXT NOT NULL,
+  merchant_id TEXT NOT NULL,
+  product_title TEXT NOT NULL,
+  product_price INTEGER NOT NULL,
+  thumbnail_url TEXT,
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+  UNIQUE(user_id, product_id)
+);
+```
+
+### 10.2. Endpoint Hono Terkait
+- `GET /api/sounds/trending`: Mengambil daftar musik pengiring video viral lokal Pracimantoro.
+- `GET /api/sounds/:id`: Detail lagu, statistik penggunaan, dan video yang menggunakan audio tersebut.
+- `GET /api/creators/:userId/showcase`: Daftar produk etalase aktif affiliator.
+- `POST /api/creators/:userId/showcase`: Menyematkan produk menu merchant ke etalase profil.
+- `DELETE /api/creators/:userId/showcase/:productId`: Menghapus produk dari etalase profil.
+
+---
+
+## 11. Spesifikasi WebSocket Hibernation & Analisis Skalabilitas Cloudflare D1 (50 s.d. 10.000 DAU)
+
+### 11.1. Arsitektur WebSocket Hibernation & Penyatuan Chat (Sosmed & Transaksional)
+Untuk mencegah ledakan query database saat interaksi chat meningkat (baik chat order antar customer-driver-merchant maupun direct message sosmed):
+1. **Zero Database Polling**:
+   - Seluruh koneksi real-time menggunakan **Cloudflare Workers WebSocket Hibernation API**. Saat koneksi idle / menunggu pesan, Worker masuk ke status hibernasi dan mengonsumsi 0 CPU duration serta 0 D1 reads.
+2. **In-Memory Routing via Durable Objects**:
+   - Pengiriman pesan antar pengguna yang sedang online ditangani langsung di memori Durable Object / room session tanpa melakukan query `SELECT` ke D1.
+3. **Write Buffer & Batching ke D1**:
+   - Pesan baru tidak langsung memicu `INSERT` tunggal per detik. Durable Object mengumpulkan pesan dalam queue memori dan melakukan flushing batch (`db.batch([...])`) setiap 2-5 detik atau saat buffer mencapai 20 pesan.
+4. **Offloading Aset & Konten Statis**:
+   - Video, thumbnail, dan file audio suara viral disimpan di **Cloudflare R2** dengan cache CDN edge. D1 hanya menyimpan metadata teks pendek.
+   - Profil pengguna, katalog merchant, dan daftar voucher dicache di client (`SharedPreferences` / SQLite lokal) dengan TTL 15-60 menit + HTTP `ETag` / `If-None-Match`.
+
+### 11.2. Tabel Analisis Kapasitas D1: Skenario 50 s.d. 10.000 DAU
+
+| Skala Pengguna (DAU) | Estimasi Reads / Hari | Estimasi Writes / Hari | Beban D1 Free Tier (Reads: 5M/hr) | Beban D1 Free Tier (Writes: 100k/hr) | Status Keamanan & Biaya |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **50 DAU** | ~3.000 | ~500 | 0.06% | 0.50% | **100% Aman (Free Tier)** |
+| **100 DAU** | ~6.500 | ~1.000 | 0.13% | 1.00% | **100% Aman (Free Tier)** |
+| **200 DAU** | ~13.000 | ~2.000 | 0.26% | 2.00% | **100% Aman (Free Tier)** |
+| **300 DAU** | ~19.500 | ~3.000 | 0.39% | 3.00% | **100% Aman (Free Tier)** |
+| **500 DAU** | ~32.500 | ~5.000 | 0.65% | 5.00% | **100% Aman (Free Tier)** |
+| **1.000 DAU** | ~65.000 | ~10.000 | 1.30% | 10.00% | **100% Aman (Free Tier)** |
+| **5.000 DAU** | ~325.000 | ~50.000 | 6.50% | 50.00% | **100% Aman (Free Tier)** |
+| **10.000 DAU** | ~650.000 | ~100.000 | 13.00% | 100.00% (Batas Free Tier) | **Aman & Rekomendasi Upgrade Paid Tier ($5/bln)** |
+
+### 11.3. Rasionalitas & Keandalan Skalabilitas:
+- **Di tingkat 50 s.d. 5.000 DAU**: Seluruh beban operasional GAGE (Customer, Merchant, Driver, Admin) berada jauh di bawah limit gratis Cloudflare D1 (hanya memakan < 50% kuota harian). Biaya infrastruktur database = **$0 (Rp 0)**.
+- **Di tingkat 10.000 DAU**: Operasi pembacaan D1 hanya terpakai 13%, dan penulisan menyentuh batas 100k/hari. Mengaktifkan **Workers Paid ($5 / ~Rp 80.000 per bulan)** langsung melipatgandakan limit menjadi **25 juta reads/hari dan 50 juta writes/bulan (~1.66 juta writes/hari)**, yang sanggup menampung hingga **150.000 DAU** tanpa kendala sama sekali.
+
+---
+
+## 12. Handoff Wave 5: Skema Voucher Afiliasi Publik `GAGEHALU`
+
+1. **Voucher Afiliasi Riil Non-Gimmick**:
+   - Kode Voucher: `GAGEHALU` (ID: `v-affiliate-cuan`).
+   - Ketentuan Diskon: Diskon belanja Rp 10.000 dengan **Minimal Belanja Rp 30.000**.
+   - Ketentuan Subsidi Ongkir: Gratis ongkir hingga Rp 5.000 dengan **Minimal Belanja Rp 25.000**.
+   - Tipe Layanan yang Didukung: `['food', 'shop', 'farm', 'build']`.
+   - Kuota Penggunaan: 1x per pengguna baru atau pengguna referral.
+2. **Backend D1 Sync**:
+   - Pastikan tabel `vouchers` di D1 Cloudflare memuat record untuk `GAGEHALU` dengan batas kuota dan tanggal kadaluarsa yang dapat dikelola secara dinamis lewat Admin Voucher Management Tab.
+
+---
+
+## 13. Handoff Wave 6: Sinkronisasi Foto Profil Pengguna via Cloudflare R2 & Skema D1
+
+Untuk mengakhiri ambiguitas atau tampilan foto profil yang berbeda antara halaman Profil, Video Feed, dan formulir Ubah Profil:
+
+### 13.1. Skema Database Cloudflare D1 (`users`)
+```sql
+ALTER TABLE users ADD COLUMN avatar_url TEXT;
+ALTER TABLE users ADD COLUMN bio TEXT;
+ALTER TABLE users ADD COLUMN handle TEXT;
+```
+
+### 13.2. Endpoint Upload Avatar (`POST /api/v1/user/avatar`)
+* **Metode**: `POST`
+* **Format**: `multipart/form-data` (file gambar: `.jpg`, `.png`, `.webp`, maks. 5 MB)
+* **Penyimpanan**: Disimpan di **Cloudflare R2 Bucket** (`gage-media/avatars/{user_id}_{timestamp}.webp`) dengan konversi otomatis ke WebP di Cloudflare Workers.
+* **CDN Caching**: Di-distribusikan melalui edge CDN domain publik `https://media.gage.id/avatars/...` dengan header `Cache-Control: public, max-age=86400`.
+* **Database Sync**: Worker mengeksekusi:
+  ```sql
+  UPDATE users SET avatar_url = ?1, updated_at = unixepoch() WHERE id = ?2;
+  ```
+* **Response JSON**:
+  ```json
+  {
+    "success": true,
+    "avatar_url": "https://media.gage.id/avatars/usr_123_1732000000.webp"
+  }
+  ```
+
+## 14. Handoff Wave 7: Audit Menyeluruh UI Design System & Bridging Cloudflare D1
+
+### 14.1. Audit UI Design System & Pantangan Keras User
+1. **Mandatory Full-Rounded Capsule (`R999` / `StadiumBorder`)**:
+   - Seluruh tab switcher, segmented bar, mode toggle, dan filter chips di 4 portal WAJIB berbentuk kapsul penuh `BorderRadius.circular(999)` pada track luar dan tombol aktif (`GageTheme.primary` dengan teks putih tebal).
+   - Dilarang keras memakai boxy rounded-rectangles (`R8` s.d. `R16`).
+2. **Desain Poster Grafis Bersih (Anti-Struk Kasir)**:
+   - Kartu promosi visual untuk dibagikan (`GagePromoCardShareDialog`) adalah poster promosi digital modern berbingkai bulat halus `R20`.
+   - Dilarang menambahkan elemen sobekan kertas kasir (gigi gergaji, perforasi lubang-lubang, notches tiket).
+   - Barcode / QR Code ditiadakan dari kartu produk dan kartu toko mitra (hanya ada pada referral).
+   - Teks pesan bagikan di sosial media dipangkas: cukup link URL saja.
+3. **Pemberantasan Terminologi 'QRIS Instan'**:
+   - Kata 'QRIS Instan' atau 'QRIS Instant' dilarang di seluruh sistem GAGE (portal Admin, Merchant, Driver, Customer, dan skema database). Cukup gunakan terminologi resmi **'QRIS'**.
+4. **Standardisasi Banner Beranda Superapp**:
+   - Kartu 'Pasti dapet diskon tiap hari / Lihat keuntungan PLUS' diletakkan di atas slider banner promo dengan kilatan cahaya diagonal interval 3.5 detik dan aset 3D tiket voucher hijau transparan.
+   - Ukuran slider banner promo diseragamkan ke proporsi standar superapp (tinggi ~145-160px).
+
+### 14.2. Arsitektur Bridging Cloudflare D1 & User Ownership Akun Google Login
+1. **Ownership Berdasarkan Google OAuth**:
+   - Setiap pengguna (Customer, Mitra Merchant, Mitra Driver, Admin) memiliki record di tabel `users` dengan `google_id` dan `email` unik.
+   - Hak akses portal diverifikasi melalui foreign key `merchants.user_id`, `drivers.user_id`, dan `admins.user_id`.
+2. **Sinkronisasi Transaksi Lintas 4 Portal**:
+   - Checkout Customer -> D1 `orders` -> Dapur Merchant -> Radar Driver (`order_type == 'DELIVERY'`) -> Monitoring Admin Dispatcher.
+   - Penarikan komisi afiliasi G-Cuan langsung cair ke saldo GAGEPay pengguna via D1 `wallet_transactions`.
+
+
+
+
 
 
 

@@ -185,7 +185,10 @@ class _GageReceiptShareDialogState extends State<GageReceiptShareDialog> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.share_outlined, size: 20),
+            icon: Transform.flip(
+              flipX: true,
+              child: const Icon(Icons.reply_rounded, size: 22),
+            ),
             tooltip: 'Bagikan Struk',
             onPressed: _isProcessing ? null : _shareReceiptImage,
           ),
@@ -243,7 +246,10 @@ class _GageReceiptShareDialogState extends State<GageReceiptShareDialog> {
                   elevation: 0,
                 ),
                 onPressed: _isProcessing ? null : _shareReceiptImage,
-                icon: const Icon(Icons.share_rounded, size: 18),
+                icon: Transform.flip(
+                  flipX: true,
+                  child: const Icon(Icons.reply_rounded, size: 18),
+                ),
                 label: const Text(
                   'Bagikan Struk',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
@@ -640,31 +646,36 @@ class _GageReceiptShareDialogState extends State<GageReceiptShareDialog> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(6),
+                      padding: const EdgeInsets.all(5),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.grey.shade300),
+                        border: Border.all(color: const Color(0xFFCBD5E1)),
                       ),
                       child: QrImageView(
                         data: 'https://gagepracimantoro.com/receipt/${order.orderNumber}',
                         version: QrVersions.auto,
-                        size: 72,
+                        size: 64,
                       ),
                     ),
                     const SizedBox(width: 14),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Verifikasi Keaslian Struk',
+                          const Text(
+                            'Struk Resmi Terverifikasi',
                             style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                           ),
-                          SizedBox(height: 2),
+                          const SizedBox(height: 2),
                           Text(
-                            'Pindai kode QR untuk validasi transaksi di sistem pusat GAGE Pracimantoro.',
-                            style: TextStyle(fontSize: 10, color: Color(0xFF64748B), height: 1.3),
+                            'Transaksi ID #${order.orderNumber} tercatat sah dan aman di sistem GAGE Pracimantoro.',
+                            style: const TextStyle(fontSize: 10, color: Color(0xFF64748B), height: 1.3),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Scan QR untuk verifikasi keaslian transaksi',
+                            style: TextStyle(fontSize: 9.5, fontStyle: FontStyle.italic, color: Color(0xFF94A3B8)),
                           ),
                         ],
                       ),

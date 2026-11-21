@@ -7,7 +7,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/providers/merchant_order_provider.dart';
 import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
-import 'package:gage_app/features/merchant/presentation/widgets/merchant_bottom_nav_bar.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 import 'package:gage_app/shared/widgets/gage_standalone_banner.dart';
 
@@ -29,6 +28,9 @@ class _MerchantScreenState extends State<MerchantScreen> with SingleTickerProvid
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<MerchantOrderProvider>().fetchOrders();
     });
@@ -83,7 +85,6 @@ class _MerchantScreenState extends State<MerchantScreen> with SingleTickerProvid
           ],
         ),
       ),
-      bottomNavigationBar: const MerchantBottomNavBar(currentIndex: 0),
     );
   }
 
@@ -312,73 +313,102 @@ class _MerchantScreenState extends State<MerchantScreen> with SingleTickerProvid
     );
   }
 
-  /// Custom Segmented Tab Bar (Persis dengan OrdersScreen Customer Portal)
+  /// Custom Full-Rounded Capsule Tab Bar (Sesuai AGENTS.md & GAGE_FRONTEND_UI_STYLE_GUIDE.md)
   Widget _buildCustomTabBar(BuildContext context, MerchantOrderProvider merchant, bool isDark) {
+    final activeIdx = _tabController.index;
+    final tabs = [
+      {'label': 'Dalam proses', 'count': merchant.activeOrderCount},
+      {'label': 'Selesai', 'count': merchant.completedOrders.length},
+      {'label': 'Batal', 'count': merchant.cancelledOrders.length},
+    ];
+
     return Container(
       color: isDark ? GageTheme.darkSurface : Colors.white,
-      child: TabBar(
-        controller: _tabController,
-        indicatorColor: GageTheme.primary,
-        indicatorWeight: 3,
-        labelColor: GageTheme.primary,
-        unselectedLabelColor: isDark ? Colors.white60 : GageTheme.textSecondary,
-        labelStyle: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.bold, fontSize: 12.5),
-        unselectedLabelStyle: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, fontSize: 12.5),
-        tabs: [
-          Tab(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('Dalam proses'),
-                  if (merchant.activeOrderCount > 0) ...[
-                    const SizedBox(width: 5),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: GageTheme.primary,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '${merchant.activeOrderCount}',
-                        style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.w800),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
           ),
-          Tab(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('Selesai'),
-                  if (merchant.completedOrders.isNotEmpty) ...[
-                    const SizedBox(width: 5),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFDCFCE7),
-                        borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: List.generate(tabs.length, (idx) {
+            final isSelected = activeIdx == idx;
+            final item = tabs[idx];
+            final count = item['count'] as int;
+
+            return Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  if (_tabController.index != idx) {
+                    _tabController.animateTo(idx);
+                  }
+                  setState(() {});
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutCubic,
+                  padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 4),
+                  decoration: BoxDecoration(
+                    color: isSelected ? GageTheme.primary : Colors.transparent,
+                    borderRadius: BorderRadius.circular(999),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: GageTheme.primary.withValues(alpha: 0.25),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  alignment: Alignment.center,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          item['label'] as String,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            color: isSelected ? Colors.white : (isDark ? Colors.white60 : GageTheme.textSecondary),
+                          ),
+                        ),
                       ),
-                      child: Text(
-                        '${merchant.completedOrders.length}',
-                        style: const TextStyle(color: Color(0xFF15803D), fontSize: 9.5, fontWeight: FontWeight.w800),
-                      ),
-                    ),
-                  ],
-                ],
+                      if (count > 0) ...[
+                        const SizedBox(width: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: isSelected ? Colors.white.withValues(alpha: 0.28) : GageTheme.primary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            '$count',
+                            style: TextStyle(
+                              color: isSelected ? Colors.white : GageTheme.primary,
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ),
-          const Tab(text: 'Batal'),
-        ],
+            );
+          }),
+        ),
       ),
     );
   }
@@ -489,13 +519,16 @@ class _MerchantScreenState extends State<MerchantScreen> with SingleTickerProvid
           final isSelected = merchant.selectedStageFilter == f['key'];
 
           return InkWell(
-            onTap: () => merchant.setStageFilter(f['key'] as String),
-            borderRadius: BorderRadius.circular(20),
+            onTap: () {
+              HapticFeedback.selectionClick();
+              merchant.setStageFilter(f['key'] as String);
+            },
+            borderRadius: BorderRadius.circular(999),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: isSelected ? GageTheme.primary : (isDark ? GageTheme.darkSurface : Colors.white),
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(999),
                 border: Border.all(
                   color: isSelected ? GageTheme.primary : (isDark ? GageTheme.darkBorder : Colors.grey.shade200),
                 ),
@@ -622,7 +655,7 @@ class _MerchantScreenState extends State<MerchantScreen> with SingleTickerProvid
                   padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                   decoration: BoxDecoration(
                     color: badgeBg,
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(999),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,

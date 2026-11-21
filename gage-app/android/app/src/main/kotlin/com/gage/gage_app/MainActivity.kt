@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import android.provider.OpenableColumns
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -15,6 +16,48 @@ import java.io.FileOutputStream
 
 class MainActivity : FlutterFragmentActivity() {
     private val CHANNEL = "com.gage/media_scanner"
+    private var pendingAudioResult: MethodChannel.Result? = null
+    private val REQUEST_CODE_PICK_AUDIO = 2001
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_CODE_PICK_AUDIO) {
+            val result = pendingAudioResult
+            pendingAudioResult = null
+            if (resultCode == RESULT_OK && data?.data != null) {
+                try {
+                    val uri = data.data!!
+                    var fileName = "audio_${System.currentTimeMillis()}.mp3"
+                    val cursor = contentResolver.query(uri, null, null, null, null)
+                    cursor?.use {
+                        if (it.moveToFirst()) {
+                            val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                            if (nameIndex != -1) {
+                                val resolvedName = it.getString(nameIndex)
+                                if (!resolvedName.isNullOrEmpty()) {
+                                    fileName = resolvedName
+                                }
+                            }
+                        }
+                    }
+                    val outputFile = File(cacheDir, fileName)
+                    contentResolver.openInputStream(uri)?.use { input ->
+                        FileOutputStream(outputFile).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    val map = HashMap<String, Any>()
+                    map["path"] = outputFile.absolutePath
+                    map["title"] = fileName
+                    result?.success(map)
+                } catch (e: Exception) {
+                    result?.error("PICK_ERROR", e.message, null)
+                }
+            } else {
+                result?.success(null)
+            }
+        }
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -100,6 +143,14 @@ class MainActivity : FlutterFragmentActivity() {
                     } catch (e: Exception) {
                         result.error("SAVE_FAILED", e.message, null)
                     }
+                }
+                "pickAudio" -> {
+                    pendingAudioResult = result
+                    val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                        type = "audio/*"
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                    }
+                    startActivityForResult(Intent.createChooser(intent, "Pilih File Audio"), REQUEST_CODE_PICK_AUDIO)
                 }
                 else -> {
                     result.notImplemented()

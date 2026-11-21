@@ -850,7 +850,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final itemsPayload = cart.items.map((i) => {
       'menu_id': i.menuId,
       'name': i.name,
-      'price': i.price,
+      'price': i.price + i.variantPrice,
+      'base_price': i.price,
+      'variant_price': i.variantPrice,
+      'selected_variants': i.selectedVariants.isNotEmpty ? i.selectedVariants.join(', ') : null,
       'quantity': i.quantity,
       'notes': i.notes,
       'image_url': i.imageUrl,

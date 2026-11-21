@@ -88,7 +88,7 @@ void main() {
         recipientPhone: '081234567890',
       ));
 
-      await tester.pumpWidget(_wrap(const ProfileScreen()));
+      await tester.pumpWidget(_wrap(const ProfileScreen(initialTabIndex: 1)));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 

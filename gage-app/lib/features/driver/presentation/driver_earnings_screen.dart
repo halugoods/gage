@@ -78,7 +78,7 @@ class _DriverEarningsScreenState extends State<DriverEarningsScreen> {
             onPressed: () {
               final val = int.tryParse(amountController.text.replaceAll(RegExp(r'\D'), '')) ?? 0;
               if (val > 0) {
-                walletProv.topUp(val, 'QRIS Instant');
+                walletProv.topUp(val, 'QRIS');
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(

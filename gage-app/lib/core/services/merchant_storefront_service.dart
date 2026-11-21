@@ -153,6 +153,29 @@ class MerchantOperatingSchedule {
     return 'Hari ini ($label) • ${today.openTime} - ${today.closeTime} WIB';
   }
 
+  bool isCurrentlyWithinSchedule({DateTime? now}) {
+    final current = now ?? DateTime.now();
+    final dayHours = forWeekday(current.weekday);
+    if (!dayHours.isOpen) return false;
+
+    try {
+      final openParts = dayHours.openTime.split(':');
+      final closeParts = dayHours.closeTime.split(':');
+      final openMinutes = int.parse(openParts[0]) * 60 + int.parse(openParts[1]);
+      final closeMinutes = int.parse(closeParts[0]) * 60 + int.parse(closeParts[1]);
+      final currentMinutes = current.hour * 60 + current.minute;
+
+      if (closeMinutes >= openMinutes) {
+        return currentMinutes >= openMinutes && currentMinutes <= closeMinutes;
+      } else {
+        // Shift melintasi tengah malam (misal 18:00 - 02:00)
+        return currentMinutes >= openMinutes || currentMinutes <= closeMinutes;
+      }
+    } catch (_) {
+      return true; // Fallback toleran jika format waktu tidak standar
+    }
+  }
+
   String portalSubtitle() {
     if (everydaySame) {
       return 'Setiap Hari: $everydayOpen - $everydayClose WIB';
@@ -201,6 +224,8 @@ class MerchantStorefrontData {
   final String merchantId;
   final String? name;
   final String? address;
+  final String? landmark; // Patokan fisik kios untuk kurir
+  final double? deliveryRadius; // Batas radius pengantaran maksimal (KM, default 7.0)
   final String? bio;
   final String? bannerPhoto;
   final String? logoPhoto;
@@ -208,6 +233,8 @@ class MerchantStorefrontData {
   final double? latitude;
   final double? longitude;
   final bool? isOpen;
+  final bool? isBusy; // Mode Sibuk / Dapur Penuh
+  final int? busyUntil; // Timestamp epoch selesai jeda pesanan
   final MerchantOperatingSchedule? schedule;
   final List<String>? categoryOrder;
   final Map<String, int>? itemPromoPrices;
@@ -217,6 +244,8 @@ class MerchantStorefrontData {
     required this.merchantId,
     this.name,
     this.address,
+    this.landmark,
+    this.deliveryRadius,
     this.bio,
     this.bannerPhoto,
     this.logoPhoto,
@@ -224,6 +253,8 @@ class MerchantStorefrontData {
     this.latitude,
     this.longitude,
     this.isOpen,
+    this.isBusy,
+    this.busyUntil,
     this.schedule,
     this.categoryOrder,
     this.itemPromoPrices,
@@ -234,6 +265,8 @@ class MerchantStorefrontData {
     String? merchantId,
     String? name,
     String? address,
+    String? landmark,
+    double? deliveryRadius,
     String? bio,
     String? bannerPhoto,
     String? logoPhoto,
@@ -241,6 +274,8 @@ class MerchantStorefrontData {
     double? latitude,
     double? longitude,
     bool? isOpen,
+    bool? isBusy,
+    int? busyUntil,
     MerchantOperatingSchedule? schedule,
     List<String>? categoryOrder,
     Map<String, int>? itemPromoPrices,
@@ -250,6 +285,8 @@ class MerchantStorefrontData {
       merchantId: merchantId ?? this.merchantId,
       name: name ?? this.name,
       address: address ?? this.address,
+      landmark: landmark ?? this.landmark,
+      deliveryRadius: deliveryRadius ?? this.deliveryRadius,
       bio: bio ?? this.bio,
       bannerPhoto: bannerPhoto ?? this.bannerPhoto,
       logoPhoto: logoPhoto ?? this.logoPhoto,
@@ -257,6 +294,8 @@ class MerchantStorefrontData {
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       isOpen: isOpen ?? this.isOpen,
+      isBusy: isBusy ?? this.isBusy,
+      busyUntil: busyUntil ?? this.busyUntil,
       schedule: schedule ?? this.schedule,
       categoryOrder: categoryOrder ?? this.categoryOrder,
       itemPromoPrices: itemPromoPrices ?? this.itemPromoPrices,
@@ -270,6 +309,8 @@ class MerchantStorefrontData {
         'merchantId': merchantId,
         if (name != null) 'name': name,
         if (address != null) 'address': address,
+        if (landmark != null) 'landmark': landmark,
+        if (deliveryRadius != null) 'deliveryRadius': deliveryRadius,
         if (bio != null) 'bio': bio,
         if (bannerPhoto != null) 'bannerPhoto': bannerPhoto,
         if (logoPhoto != null) 'logoPhoto': logoPhoto,
@@ -277,6 +318,8 @@ class MerchantStorefrontData {
         if (latitude != null) 'latitude': latitude,
         if (longitude != null) 'longitude': longitude,
         if (isOpen != null) 'isOpen': isOpen,
+        if (isBusy != null) 'isBusy': isBusy,
+        if (busyUntil != null) 'busyUntil': busyUntil,
         if (schedule != null) 'schedule': schedule!.toJson(),
         if (categoryOrder != null) 'categoryOrder': categoryOrder,
         if (itemPromoPrices != null) 'itemPromoPrices': itemPromoPrices,
@@ -308,13 +351,17 @@ class MerchantStorefrontData {
     }
     final rawRate = json['affiliateCommissionRate'];
     final parsedRate = (rawRate is num)
-        ? (rawRate as num).toDouble().clamp(0.0, 20.0)
+        ? rawRate.toDouble().clamp(0.0, 20.0)
         : (double.tryParse('$rawRate')?.clamp(0.0, 20.0));
 
     return MerchantStorefrontData(
       merchantId: id,
       name: json['name']?.toString(),
       address: json['address']?.toString(),
+      landmark: json['landmark']?.toString(),
+      deliveryRadius: (json['deliveryRadius'] is num)
+          ? (json['deliveryRadius'] as num).toDouble()
+          : double.tryParse('${json['deliveryRadius']}'),
       bio: json['bio']?.toString(),
       bannerPhoto: json['bannerPhoto']?.toString(),
       logoPhoto: json['logoPhoto']?.toString(),
@@ -322,6 +369,8 @@ class MerchantStorefrontData {
       latitude: (json['latitude'] is num) ? (json['latitude'] as num).toDouble() : double.tryParse('${json['latitude']}'),
       longitude: (json['longitude'] is num) ? (json['longitude'] as num).toDouble() : double.tryParse('${json['longitude']}'),
       isOpen: json['isOpen'] is bool ? json['isOpen'] as bool : null,
+      isBusy: json['isBusy'] is bool ? json['isBusy'] as bool : null,
+      busyUntil: (json['busyUntil'] is num) ? (json['busyUntil'] as num).toInt() : int.tryParse('${json['busyUntil']}'),
       schedule: rawSchedule is Map ? MerchantOperatingSchedule.fromJson(Map<String, dynamic>.from(rawSchedule)) : null,
       categoryOrder: parsedCategoryOrder,
       itemPromoPrices: parsedPromoPrices,

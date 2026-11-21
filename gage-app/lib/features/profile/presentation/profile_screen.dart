@@ -1,20 +1,23 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
+import 'package:gage_app/features/chat/presentation/chat_hub_screen.dart';
+import 'package:gage_app/features/video/presentation/video_editor_screen.dart';
 import 'package:gage_app/providers/auth_provider.dart';
 import 'package:gage_app/providers/theme_provider.dart';
 import 'package:gage_app/providers/language_provider.dart';
 import 'package:gage_app/core/localization/gage_localization.dart';
 import 'package:gage_app/core/services/gage_security_service.dart';
 import 'package:gage_app/core/services/social_profile_service.dart';
-import 'package:gage_app/core/services/merchant_storefront_service.dart';
-import 'package:gage_app/core/services/gage_video_feed_service.dart';
 import 'package:gage_app/data/mock/gage_mock_registry.dart';
 import 'package:gage_app/features/auth/presentation/terms_and_privacy_screen.dart';
 import 'package:gage_app/data/models/user_model.dart';
@@ -23,7 +26,6 @@ import 'package:gage_app/features/profile/presentation/widgets/creator_profile_h
 import 'package:gage_app/features/profile/presentation/widgets/merchant_profile_header.dart';
 import 'package:gage_app/features/profile/presentation/widgets/social_video_grid.dart';
 import 'package:gage_app/features/profile/presentation/widgets/social_showcase_grid.dart';
-import 'package:gage_app/features/affiliate/presentation/affiliate_video_upload_screen.dart';
 import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
 import 'package:gage_app/features/membership/presentation/membership_screen.dart';
 import 'package:gage_app/core/services/user_address_service.dart';
@@ -33,7 +35,6 @@ import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/gage_bottom_nav_bar.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/features/home/presentation/home_screen.dart';
 
 /// ProfileScreen - Authentic Semi-Sosmed Creator & Merchant Profile + Preferences Center
@@ -60,6 +61,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late int _mainTabIndex; // 0: Profil & Konten (Sosmed), 1: Akun & Pengaturan
   int _contentSubTabIndex = 0; // 0: Video Saya, 1: Disukai, 2: Etalase
   int _merchantSubTabIndex = 0; // 0: Katalog Menu, 1: Video Toko
+  bool _isProfileNavBarMode = true; // Mode navbar khusus 4 tab + back
+  int _profileNavIndex = 0; // 0: Video, 1: Etalase, 2: Cuan, 3: Akun
 
   bool _notifOrders = true;
   bool _notifPromo = true;
@@ -104,6 +107,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _openCreateVideoFlow() async {
+    HapticFeedback.selectionClick();
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickVideo(
+        source: ImageSource.gallery,
+        maxDuration: const Duration(minutes: 3),
+      );
+      if (!mounted) return;
+      if (picked != null) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => VideoEditorScreen(
+              videoPath: picked.path,
+              videoName: picked.name,
+            ),
+          ),
+        );
+        return;
+      }
+    } catch (_) {}
+
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const VideoEditorScreen(
+            videoPath: '',
+            videoName: 'video_sample.mp4',
+          ),
+        ),
+      );
+    }
   }
 
   void _showChangePinSheet(bool isDark) {
@@ -1222,120 +1261,176 @@ class _ProfileScreenState extends State<ProfileScreen> {
       screenTitle = 'Akun & Pengaturan';
     }
 
-    return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-      appBar: isViewingOther
-          ? AppBar(
-              title: Text(screenTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
-              elevation: 0,
-              backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-              surfaceTintColor: Colors.transparent,
-              centerTitle: false,
-              leading: IconButton(
-                icon: Icon(Icons.arrow_back_ios_new_rounded, size: 19, color: isDark ? Colors.white : const Color(0xFF0F172A)),
-                onPressed: () => Navigator.pop(context),
-              ),
-            )
-          : null,
-      body: SafeArea(
-        bottom: false,
-        child: Stack(
-          children: [
-            Column(
-              children: [
-                // Top-Level Clean Header (Ala TikTok & Instagram: Handle + Bagikan + Menu Garis Tiga Pengaturan)
-                if (!isViewingOther)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                    child: Row(
-                      children: [
-                        if (_mainTabIndex == 0) ...[
-                          Text(
-                            SocialProfileService.instance.userHandle.startsWith('@')
-                                ? SocialProfileService.instance.userHandle
-                                : '@${SocialProfileService.instance.userHandle}',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -0.3,
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
-                            ),
-                          ),
-                          const Spacer(),
-                          // Ikon Bagikan Profil (Native Share / Salin Tautan / QR)
-                          IconButton(
-                            tooltip: 'Bagikan Profil',
-                            icon: Icon(
-                              Icons.share_outlined,
-                              size: 21,
-                              color: isDark ? Colors.white70 : const Color(0xFF334155),
-                            ),
-                            onPressed: () => _showShareProfileSheet(
-                              context,
-                              SocialProfileService.instance.userHandle,
-                              isDark,
-                            ),
-                          ),
-                          // Ikon Menu Garis Tiga (Buka Pengaturan)
-                          IconButton(
-                            tooltip: 'Pengaturan',
-                            icon: Icon(
-                              Icons.menu_rounded,
-                              size: 24,
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
-                            ),
-                            onPressed: () {
-                              HapticFeedback.selectionClick();
-                              setState(() => _mainTabIndex = 1);
-                            },
-                          ),
-                        ] else ...[
-                          IconButton(
-                            icon: Icon(
-                              Icons.arrow_back_ios_new_rounded,
-                              size: 19,
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
-                            ),
-                            onPressed: () {
-                              HapticFeedback.lightImpact();
-                              setState(() => _mainTabIndex = 0);
-                            },
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Pengaturan & Akun',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-
-              // Body Tampilan
-              Expanded(
-                child: _mainTabIndex == 0
-                    ? _buildSocialProfileBody(isDark, user, userName)
-                    : _buildAccountSettingsBody(isDark, user, auth, userName, userPhone, userEmail),
-              ),
-            ],
+    return PopScope(
+      canPop: isViewingOther,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => const HomeScreen(),
+            transitionDuration: Duration.zero,
+            reverseTransitionDuration: Duration.zero,
           ),
+        );
+      },
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+      ),
+      child: Scaffold(
+        backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+        appBar: isViewingOther
+            ? AppBar(
+                title: Text(screenTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+                elevation: 0,
+                backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                surfaceTintColor: Colors.transparent,
+                centerTitle: false,
+                leading: IconButton(
+                  icon: Icon(Icons.arrow_back_ios_new_rounded, size: 19, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                systemOverlayStyle: SystemUiOverlayStyle(
+                  statusBarColor: Colors.transparent,
+                  statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+                  statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+                ),
+              )
+            : PreferredSize(
+                preferredSize: Size.zero,
+                child: AppBar(
+                  elevation: 0,
+                  toolbarHeight: 0,
+                  backgroundColor: Colors.transparent,
+                  surfaceTintColor: Colors.transparent,
+                  systemOverlayStyle: SystemUiOverlayStyle(
+                    statusBarColor: Colors.transparent,
+                    statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+                    statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+                  ),
+                ),
+              ),
+        body: SafeArea(
+          bottom: false,
+          child: Stack(
+            children: [
+              Column(
+                children: [
+                  // Top-Level Clean Header (Ala TikTok & Instagram: Handle + Bagikan + Menu Garis Tiga Pengaturan)
+                  if (!isViewingOther)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      child: Row(
+                        children: [
+                          if (_mainTabIndex == 0) ...[
+                            const Spacer(),
+                            // Ikon Edit Profil (Pensil di Kanan Atas)
+                            IconButton(
+                              tooltip: 'Edit Profil',
+                              icon: Icon(
+                                Icons.edit_rounded,
+                                size: 21,
+                                color: isDark ? Colors.white70 : const Color(0xFF334155),
+                              ),
+                              onPressed: () {
+                                HapticFeedback.lightImpact();
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                                );
+                              },
+                            ),
+                            // Ikon Bagikan Profil (Panah melengkung ke kanan ala TikTok/Instagram)
+                            IconButton(
+                              tooltip: 'Bagikan Profil',
+                              icon: Transform.flip(
+                                flipX: true,
+                                child: Icon(
+                                  Icons.reply_rounded,
+                                  size: 24,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
+                              ),
+                              onPressed: () => _showShareProfileSheet(
+                                context,
+                                SocialProfileService.instance.userHandle,
+                                isDark,
+                              ),
+                            ),
+                            // Ikon Menu Garis Tiga (Buka Pengaturan) - Tebal & Jelas
+                            IconButton(
+                              tooltip: 'Pengaturan',
+                              icon: Icon(
+                                Icons.menu_rounded,
+                                size: 28,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              ),
+                              onPressed: () {
+                                HapticFeedback.selectionClick();
+                                setState(() {
+                                  _mainTabIndex = 1;
+                                  _profileNavIndex = 3;
+                                });
+                              },
+                            ),
+                          ] else ...[
+                            IconButton(
+                              icon: Icon(
+                                Icons.arrow_back_ios_new_rounded,
+                                size: 19,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              ),
+                              onPressed: () {
+                                HapticFeedback.lightImpact();
+                                setState(() {
+                                  _mainTabIndex = 0;
+                                  _profileNavIndex = 0;
+                                });
+                              },
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Pengaturan & Akun',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
 
-          // Floating Bottom Navigation Bar (Hanya tampil di tab root profil pengguna sendiri)
-          if (!isViewingOther)
-            const Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: GageBottomNavBar(currentIndex: 4),
+                // Body Tampilan
+                Expanded(
+                  child: _mainTabIndex == 0
+                      ? _buildSocialProfileBody(isDark, user, userName)
+                      : _buildAccountSettingsBody(isDark, user, auth, userName, userPhone, userEmail),
+                ),
+              ],
             ),
-        ],
+
+            // Floating Bottom Navigation Bar (Standard 5 Items)
+            if (!isViewingOther)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: const GageBottomNavBar(
+                  currentIndex: 4,
+                  isProfileMode: false,
+                ),
+              ),
+          ],
+        ),
       ),
     ),
-  );
+  ),
+);
 }
 
   void _showShareProfileSheet(BuildContext context, String rawHandle, bool isDark) {
@@ -1343,145 +1438,339 @@ class _ProfileScreenState extends State<ProfileScreen> {
     var cleanHandle = rawHandle.trim();
     if (cleanHandle.startsWith('@')) cleanHandle = cleanHandle.substring(1);
     final profileUrl = 'https://gage.id/@$cleanHandle';
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final user = auth.currentUser;
+    final displayName = user?.name.isNotEmpty == true ? user!.name : cleanHandle;
+    final avatarUrl = user?.avatarUrl;
+    final qrRepaintKey = GlobalKey();
+    bool isExporting = false;
 
     GageFloatingSheet.show(
       context: context,
       title: 'Bagikan Profil',
-      builder: (sheetCtx) => Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // QR Code Preview
-          Center(
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 2)),
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Kartu Visual Profil Bergaya Instagram dengan QR Code & Foto Pengguna di Tengah
+              Center(
+                child: RepaintBoundary(
+                  key: qrRepaintKey,
+                  child: Container(
+                    width: 290,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Header Branding GAGE by Halu Goods Indonesia
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: GageTheme.primary.withValues(alpha: isDark ? 0.25 : 0.09),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: const Text(
+                            'GAGE by Halu Goods Indonesia',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                              color: GageTheme.primary,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // QR Code Bergaya Instagram dengan Avatar di Tengah
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: const [
+                              BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 3)),
+                            ],
+                          ),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              QrImageView(
+                                data: profileUrl,
+                                version: QrVersions.auto,
+                                size: 168,
+                                backgroundColor: Colors.white,
+                                eyeStyle: const QrEyeStyle(
+                                  eyeShape: QrEyeShape.square,
+                                  color: Color(0xFF0F172A),
+                                ),
+                                dataModuleStyle: const QrDataModuleStyle(
+                                  dataModuleShape: QrDataModuleShape.square,
+                                  color: Color(0xFF0F172A),
+                                ),
+                              ),
+                              // Centered Circular Avatar Pengguna
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white,
+                                  border: Border.all(color: Colors.white, width: 3),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Colors.black26,
+                                      blurRadius: 6,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: ClipOval(
+                                  child: _buildResolvedProfileAvatar(avatarUrl, displayName),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+
+                        // Nama Pengguna & Handle
+                        Text(
+                          displayName,
+                          style: TextStyle(
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.w900,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            letterSpacing: -0.2,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '@$cleanHandle',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Pindai QR ini di aplikasi GAGE',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Tautan Profil & Salin Link
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        profileUrl,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: isDark ? Colors.white70 : const Color(0xFF475569),
+                          fontFamily: 'monospace',
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    InkWell(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        Clipboard.setData(ClipboardData(text: profileUrl));
+                        GageToast.show(context, 'Tautan profil berhasil disalin!', type: GageToastType.success);
+                        Navigator.pop(sheetCtx);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: GageTheme.primary,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: const Text(
+                          'Salin',
+                          style: TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Baris Tombol Share Langsung (WhatsApp & Bagikan Gambar Sistem)
+              Row(
+                children: [
+                  // Tombol Simpan Gambar ke Galeri Album "Gage by Halu Goods Indonesia"
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        shape: const StadiumBorder(),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        side: BorderSide(color: isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
+                        foregroundColor: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                      onPressed: isExporting
+                          ? null
+                          : () async {
+                              HapticFeedback.selectionClick();
+                              setSheetState(() => isExporting = true);
+                              try {
+                                final boundary = qrRepaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+                                if (boundary != null) {
+                                  final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+                                  final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+                                  if (byteData != null) {
+                                    final Uint8List pngBytes = byteData.buffer.asUint8List();
+                                    final fileName = 'profile_gage_$cleanHandle.png';
+
+                                    const channel = MethodChannel('com.gage/media_scanner');
+                                    try {
+                                      await channel.invokeMethod('saveImageToGallery', {
+                                        'bytes': pngBytes,
+                                        'fileName': fileName,
+                                      });
+                                    } catch (_) {
+                                      final appDir = await getApplicationDocumentsDirectory();
+                                      final targetFile = File('${appDir.path}/$fileName');
+                                      await targetFile.writeAsBytes(pngBytes);
+                                    }
+
+                                    if (context.mounted) {
+                                      GageToast.showSuccess(
+                                        context,
+                                        'Gambar berhasil disimpan di album "Gage by Halu Goods Indonesia"',
+                                      );
+                                    }
+                                  }
+                                }
+                              } catch (e) {
+                                if (context.mounted) {
+                                  GageToast.showError(context, 'Gagal menyimpan gambar: $e');
+                                }
+                              } finally {
+                                setSheetState(() => isExporting = false);
+                              }
+                            },
+                      icon: const Icon(Icons.download_rounded, size: 16),
+                      label: const FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text('Simpan Gambar', maxLines: 1, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  // Tombol Bagikan Gambar via Android Native Share Sheet
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: GageTheme.primary,
+                        foregroundColor: Colors.white,
+                        shape: const StadiumBorder(),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        elevation: 1,
+                      ),
+                      onPressed: isExporting
+                          ? null
+                          : () async {
+                              HapticFeedback.selectionClick();
+                              setSheetState(() => isExporting = true);
+                              try {
+                                final boundary = qrRepaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+                                if (boundary != null) {
+                                  final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+                                  final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+                                  if (byteData != null) {
+                                    final Uint8List pngBytes = byteData.buffer.asUint8List();
+                                    final tempDir = await getTemporaryDirectory();
+                                    final filePath = '${tempDir.path}/gage_profile_$cleanHandle.png';
+                                    final file = File(filePath);
+                                    await file.writeAsBytes(pngBytes);
+
+                                    if (context.mounted) {
+                                      Navigator.pop(sheetCtx);
+                                      await SharePlus.instance.share(
+                                        ShareParams(
+                                          files: [XFile(file.path, mimeType: 'image/png')],
+                                          text: 'Kunjungi profil kreator @$cleanHandle di aplikasi GAGE Pracimantoro: $profileUrl',
+                                          subject: 'Profil GAGE @$cleanHandle',
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                  }
+                                }
+                              } catch (_) {}
+                              if (context.mounted) {
+                                Navigator.pop(sheetCtx);
+                                await SharePlus.instance.share(
+                                  ShareParams(
+                                    text: 'Kunjungi profil kreator @$cleanHandle di aplikasi GAGE Pracimantoro: $profileUrl',
+                                    subject: 'Profil GAGE @$cleanHandle',
+                                  ),
+                                );
+                              }
+                            },
+                      icon: isExporting
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : Transform.flip(
+                              flipX: true,
+                              child: const Icon(Icons.reply_rounded, size: 16),
+                            ),
+                      label: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          isExporting ? 'Memproses...' : 'Bagikan',
+                          maxLines: 1,
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
-              child: QrImageView(
-                data: profileUrl,
-                version: QrVersions.auto,
-                size: 130,
-                backgroundColor: Colors.white,
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Center(
-            child: Text(
-              '@$cleanHandle',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w900,
-                color: isDark ? Colors.white : const Color(0xFF0F172A),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Tautan Profil & Salin Link
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    profileUrl,
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: isDark ? Colors.white70 : const Color(0xFF475569),
-                      fontFamily: 'monospace',
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                InkWell(
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    Clipboard.setData(ClipboardData(text: profileUrl));
-                    GageToast.show(context, 'Tautan profil berhasil disalin!', type: GageToastType.success);
-                    Navigator.pop(sheetCtx);
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: GageTheme.primary,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: const Text(
-                      'Salin',
-                      style: TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // Baris Tombol Share Langsung (WhatsApp & Bagikan Sistem)
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    shape: const StadiumBorder(),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    side: BorderSide(color: isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
-                    foregroundColor: isDark ? Colors.white : const Color(0xFF0F172A),
-                  ),
-                  onPressed: () async {
-                    HapticFeedback.selectionClick();
-                    Navigator.pop(sheetCtx);
-                    final waUrl = Uri.parse('https://wa.me/?text=${Uri.encodeComponent('Kunjungi profil @$cleanHandle di GAGE: $profileUrl')}');
-                    if (await canLaunchUrl(waUrl)) {
-                      await launchUrl(waUrl, mode: LaunchMode.externalApplication);
-                    } else {
-                      Clipboard.setData(ClipboardData(text: profileUrl));
-                      if (context.mounted) {
-                        GageToast.show(context, 'Tautan profil disalin ke clipboard!', type: GageToastType.success);
-                      }
-                    }
-                  },
-                  icon: const Icon(Icons.chat_rounded, size: 16, color: Color(0xFF22C55E)),
-                  label: const Text('WhatsApp', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: GageTheme.primary,
-                    foregroundColor: Colors.white,
-                    shape: const StadiumBorder(),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    elevation: 1,
-                  ),
-                  onPressed: () {
-                    HapticFeedback.selectionClick();
-                    Navigator.pop(sheetCtx);
-                    SharePlus.instance.share(ShareParams(
-                      text: 'Kunjungi profil kreator @$cleanHandle di aplikasi GAGE Pracimantoro: $profileUrl',
-                      subject: 'Profil GAGE @$cleanHandle',
-                    ));
-                  },
-                  icon: const Icon(Icons.share_rounded, size: 16),
-                  label: const Text('Bagikan', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                ),
-              ),
             ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -1528,12 +1817,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final myVideos = socialService.getVideosByCreator(handle);
     final likedVideos = socialService.getLikedVideos();
+    final savedVideos = socialService.getSavedVideos();
+    final repostVideos = socialService.getRepostedVideos();
     final showcaseProducts = socialService.getShowcaseProducts(handle);
 
-    const subTabs = [
-      'Video',
-      'Disukai',
-      'Etalase',
+    const subTabIcons = [
+      Icons.grid_view_rounded,
+      Icons.shopping_bag_rounded,
+      Icons.repeat_rounded,
+      Icons.bookmark_rounded,
+      Icons.favorite_rounded,
     ];
 
     return Column(
@@ -1546,10 +1839,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           isVerified: false,
           isOwnProfile: isOwn,
           targetId: isOwn ? null : handle,
+          onChatTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ChatHubScreen()),
+            );
+          },
+          onCreateVideoTap: _openCreateVideoFlow,
         ),
         const SizedBox(height: 14),
 
-        // Sub-Tab Navigasi Konten Minimalis (Video, Disukai, Etalase)
+        // Sub-Tab Navigasi Konten ala TikTok (5 Tab Ikon Murni: Video, Showcase, Repost, Simpan, Disukai)
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
@@ -1561,7 +1861,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           child: Row(
-            children: List.generate(subTabs.length, (idx) {
+            children: List.generate(subTabIcons.length, (idx) {
               final isSel = _contentSubTabIndex == idx;
               return Expanded(
                 child: InkWell(
@@ -1570,7 +1870,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     setState(() => _contentSubTabIndex = idx);
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
                       border: Border(
                         bottom: BorderSide(
@@ -1580,15 +1880,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                     child: Center(
-                      child: Text(
-                        subTabs[idx],
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: isSel ? FontWeight.w900 : FontWeight.w600,
-                          color: isSel
-                              ? GageTheme.primary
-                              : (isDark ? Colors.white60 : const Color(0xFF64748B)),
-                        ),
+                      child: Icon(
+                        subTabIcons[idx],
+                        size: 22,
+                        color: isSel
+                            ? GageTheme.primary
+                            : (isDark ? Colors.white54 : const Color(0xFF94A3B8)),
                       ),
                     ),
                   ),
@@ -1603,20 +1900,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
           SocialVideoGrid(
             videos: myVideos,
             emptyMessage: 'Belum ada video yang diposting',
-            onUploadTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const AffiliateVideoUploadScreen()));
-            },
+            onUploadTap: _openCreateVideoFlow,
           )
         else if (_contentSubTabIndex == 1)
-          SocialVideoGrid(
-            videos: likedVideos,
-            emptyMessage: 'Belum ada video yang disukai',
-          )
-        else
           SocialShowcaseGrid(
             products: showcaseProducts,
             isOwnProfile: isOwn,
             emptyMessage: 'Belum ada produk yang disematkan di etalase',
+          )
+        else if (_contentSubTabIndex == 2)
+          SocialVideoGrid(
+            videos: repostVideos,
+            emptyMessage: 'Belum ada video yang di-repost',
+          )
+        else if (_contentSubTabIndex == 3)
+          SocialVideoGrid(
+            videos: savedVideos,
+            emptyMessage: 'Belum ada video yang disimpan',
+          )
+        else
+          SocialVideoGrid(
+            videos: likedVideos,
+            emptyMessage: 'Belum ada video yang disukai',
           ),
       ],
     );

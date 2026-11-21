@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gage_app/core/services/merchant_storefront_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 
 /// Shows an interactive modal sheet for merchants to configure dynamic Mon-Sun operating hours
 /// or check "Buka setiap hari".
@@ -9,10 +10,9 @@ Future<MerchantOperatingSchedule?> showOperatingScheduleEditorSheet({
   required BuildContext context,
   required MerchantOperatingSchedule initialSchedule,
 }) {
-  return showModalBottomSheet<MerchantOperatingSchedule>(
+  return GageFloatingSheet.show<MerchantOperatingSchedule>(
     context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
+    title: 'Atur Jam Operasional Toko',
     builder: (ctx) => _OperatingScheduleEditorSheet(initialSchedule: initialSchedule),
   );
 }
@@ -81,48 +81,24 @@ class _OperatingScheduleEditorSheetState extends State<_OperatingScheduleEditorS
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final surface = isDark ? const Color(0xFF1E293B) : Colors.white;
     final cardBg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
 
-    return Container(
+    return ConstrainedBox(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.86,
+        maxHeight: MediaQuery.of(context).size.height * 0.75,
       ),
-      padding: EdgeInsets.only(
-        top: 14,
-        left: 20,
-        right: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-      ),
-      decoration: BoxDecoration(
-        color: surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Atur jam buka Senin - Minggu secara fleksibel. Perubahan langsung tampil di info toko pelanggan.',
+                style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white60 : GageTheme.textSecondary),
               ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          const Text(
-            'Atur Jam Operasional Toko',
-            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Atur jam buka Senin - Minggu secara fleksibel. Perubahan langsung tampil di info toko pelanggan.',
-            style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white60 : GageTheme.textSecondary),
-          ),
-          const SizedBox(height: 12),
+              const SizedBox(height: 12),
 
           // Checkbox Buka Setiap Hari
           Container(
@@ -314,7 +290,7 @@ class _OperatingScheduleEditorSheetState extends State<_OperatingScheduleEditorS
               style: ElevatedButton.styleFrom(
                 backgroundColor: GageTheme.primary,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                shape: const StadiumBorder(),
               ),
               onPressed: () {
                 HapticFeedback.mediumImpact();
@@ -326,9 +302,12 @@ class _OperatingScheduleEditorSheetState extends State<_OperatingScheduleEditorS
               ),
             ),
           ),
+          const SizedBox(height: 12),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 }
 

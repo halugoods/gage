@@ -514,7 +514,7 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'Pesan GAGE Send',
+                                  'Pesan G-Send',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 13,
@@ -789,7 +789,7 @@ class _SendBookingScreenState extends State<SendBookingScreen> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               const Text(
-                                'Pesan GAGE Send',
+                                'Pesan G-Send',
                                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                               ),
                               Text(

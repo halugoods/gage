@@ -3,10 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/food/presentation/shop_screen.dart';
 import 'package:gage_app/features/food/presentation/farm_screen.dart';
-import 'package:gage_app/features/food/presentation/build_screen.dart';
 import 'package:gage_app/features/ride/presentation/ride_booking_screen.dart';
 import 'package:gage_app/features/ride/presentation/send_booking_screen.dart';
 import 'package:gage_app/features/affiliate/presentation/affiliate_hub_screen.dart';
+import 'package:gage_app/features/running/presentation/pacu_screen.dart';
 import 'package:gage_app/core/services/dynamic_asset_service.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 
@@ -21,51 +21,51 @@ class GageServiceGrid extends StatelessWidget {
   static final List<Map<String, dynamic>> services = [
     {
       'id': 'ride',
-      'name': 'GAGE Ride',
+      'name': 'G-Ride',
       'icon': 'assets/icons/ic_ride.png',
       'desc': 'Antar jemput motor cepat & hemat se-Pracimantoro',
     },
     {
       'id': 'car',
-      'name': 'GAGE Car',
+      'name': 'G-Car',
       'icon': 'assets/icons/ic_car.png',
       'desc': 'Perjalanan nyaman mobil se-Pracimantoro',
     },
     {
       'id': 'food',
-      'name': 'GAGE Food',
+      'name': 'G-Food',
       'icon': 'assets/icons/ic_food.png',
       'desc': 'Pesan kuliner Dimsum & resto lokal',
     },
     {
       'id': 'shop',
-      'name': 'GAGE Shop',
+      'name': 'G-Shop',
       'icon': 'assets/icons/ic_shop.png',
       'desc': 'Belanja sembako & kebutuhan harian',
     },
     {
       'id': 'send',
-      'name': 'GAGE Send',
+      'name': 'G-Send',
       'icon': 'assets/icons/ic_send.png',
       'desc': 'Kirim paket & barang dagangan kilat',
     },
     {
       'id': 'farm',
-      'name': 'GAGE Farm',
+      'name': 'G-Farm',
       'icon': 'assets/icons/ic_farm.png',
       'desc': 'Kios pertanian & pakan peternakan',
     },
     {
-      'id': 'build',
-      'name': 'GAGE Build',
-      'icon': 'assets/icons/ic_build.png',
-      'desc': 'Toko bahan bangunan, semen & cat',
-    },
-    {
       'id': 'cuan',
-      'name': 'GAGE Cuan',
+      'name': 'G-Cuan',
       'icon': 'assets/icons/ic_bonus.png',
       'desc': 'Bagikan kode referral & raih komisi 10%',
+    },
+    {
+      'id': 'pacu',
+      'name': 'G-Fit',
+      'icon': 'assets/icons/ic_build.png',
+      'desc': 'Tracking lari, olahraga & misi voucher berhadiah',
     },
   ];
 
@@ -119,15 +119,15 @@ class GageServiceGrid extends StatelessWidget {
                   context,
                   MaterialPageRoute(builder: (ctx) => const FarmScreen()),
                 );
-              } else if (id == 'build') {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (ctx) => const BuildScreen()),
-                );
               } else if (id == 'cuan') {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (ctx) => const AffiliateHubScreen()),
+                );
+              } else if (id == 'pacu') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (ctx) => const PacuScreen()),
                 );
               } else {
                 _showServiceInfo(context, item);
@@ -149,22 +149,18 @@ class GageServiceGrid extends StatelessWidget {
                     fit: BoxFit.contain,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2.0),
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      item['name'],
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
-                        color: isDark ? Colors.white : GageTheme.textPrimary,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                    ),
+                const SizedBox(height: 2),
+                Text(
+                  item['name'] as String,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -174,50 +170,60 @@ class GageServiceGrid extends StatelessWidget {
     );
   }
 
-
   void _showServiceInfo(BuildContext context, Map<String, dynamic> item) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     GageFloatingSheet.show(
       context: context,
-      builder: (ctx) => Column(
+      title: item['name'] as String,
+      child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              SizedBox(
+              DynamicAssetIcon(
+                slotKey: 'sheet_info_${item['id']}',
+                defaultAsset: item['icon'] as String,
                 width: 48,
                 height: 48,
-                child: Image.asset(item['icon'], fit: BoxFit.contain),
               ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('${item['name']}', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                    Text(
+                      item['name'] as String,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text(item['desc'], style: const TextStyle(fontSize: 13, color: GageTheme.textSecondary)),
+                    Text(
+                      item['desc'] as String,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                      ),
+                    ),
                   ],
                 ),
               ),
             ],
           ),
           const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            height: 46,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: GageTheme.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                elevation: 0,
-              ),
-              onPressed: () {
-                Navigator.pop(ctx);
-              },
-              child: Text('Tutup', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: GageTheme.primary,
+              foregroundColor: Colors.white,
+              shape: const StadiumBorder(),
+              padding: const EdgeInsets.symmetric(vertical: 12),
             ),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Mengerti', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),

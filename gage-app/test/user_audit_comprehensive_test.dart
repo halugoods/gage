@@ -314,10 +314,10 @@ void main() {
       expect(find.text('3'), findsOneWidget); // Promo badge
       expect(find.text('1'), findsOneWidget); // Pesanan badge
 
-      // Verify tabs are rendered
+      // Verify tabs are rendered (selected tab has label and icon)
       expect(find.text('Beranda'), findsOneWidget);
-      expect(find.text('Promo'), findsOneWidget);
-      expect(find.text('Pesanan'), findsOneWidget);
+      expect(find.byIcon(Icons.home_rounded), findsOneWidget);
+      expect(find.byType(GageBottomNavBar), findsOneWidget);
     });
   });
 
@@ -492,16 +492,13 @@ void main() {
         ),
       );
 
-      // Verify Classic TikTok Actions: Like, Comment, Share (curved arrow), Download, Music Disc
+      // Verify TikTok Actions: Like, Comment, Repost, Bookmark/Simpan, Share, Music Disc
       expect(find.byIcon(Icons.favorite_rounded), findsWidgets);
       expect(find.byIcon(Icons.chat_bubble_rounded), findsWidgets);
+      expect(find.byIcon(Icons.repeat_rounded), findsWidgets);
+      expect(find.byIcon(Icons.bookmark_rounded), findsWidgets);
       expect(find.byIcon(Icons.reply_rounded), findsWidgets);
-      expect(find.byIcon(Icons.download_rounded), findsWidgets);
       expect(find.byIcon(Icons.music_note_rounded), findsWidgets);
-
-      // Verify Save / Bookmark icon is completely absent
-      expect(find.byIcon(Icons.bookmark_border_rounded), findsNothing);
-      expect(find.byIcon(Icons.bookmark_rounded), findsNothing);
     });
   });
 }

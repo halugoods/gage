@@ -36,13 +36,6 @@ class _MembershipScreenState extends State<MembershipScreen> {
   String _currentActivePlan = 'GAGE Basic (Gratis)';
   bool _isLoading = true;
 
-  // Countdown timer state (Pinterest reference: 00 : 11 : 24 : 20)
-  late Timer _countdownTimer;
-  int _remainingSeconds = 11 * 3600 + 24 * 60 + 20;
-
-  // Expanded voucher items - Default tertutup seluruhnya
-  final Set<String> _expandedItems = <String>{};
-
   // Pilihan metode pembayaran interaktif
   String _selectedPaymentMethod = 'GAGEPay (Saldo Rp 50.000)';
 
@@ -51,24 +44,11 @@ class _MembershipScreenState extends State<MembershipScreen> {
     super.initState();
     _selectedTier = widget.initialTier.toLowerCase().contains('max') ? 'max' : 'plus';
     _loadMembership();
-    _startCountdown();
   }
 
   @override
   void dispose() {
-    _countdownTimer.cancel();
     super.dispose();
-  }
-
-  void _startCountdown() {
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) return;
-      if (_remainingSeconds > 0) {
-        setState(() => _remainingSeconds--);
-      } else {
-        timer.cancel();
-      }
-    });
   }
 
   Future<void> _loadMembership() async {
@@ -159,7 +139,7 @@ class _MembershipScreenState extends State<MembershipScreen> {
         'badge': 'Rekomendasi',
       },
       {
-        'title': 'QRIS Instan',
+        'title': 'QRIS',
         'subtitle': 'GoPay, OVO, Dana, ShopeePay, BCA',
         'icon': Icons.qr_code_scanner_rounded,
         'badge': null,
@@ -290,6 +270,7 @@ class _MembershipScreenState extends State<MembershipScreen> {
         planTitle: planTitle,
         tierKey: _selectedTier,
         duration: _selectedDuration,
+        paymentMethod: _selectedPaymentMethod,
         totalAmount: totalAmount,
         currencyFormatter: currencyFormatter,
         onPaymentSuccess: () {
@@ -371,11 +352,6 @@ class _MembershipScreenState extends State<MembershipScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currencyFormatter =
         NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
-
-    // Formatter countdown: 00 : HH : MM : SS
-    final hours = (_remainingSeconds ~/ 3600).toString().padLeft(2, '0');
-    final minutes = ((_remainingSeconds % 3600) ~/ 60).toString().padLeft(2, '0');
-    final seconds = (_remainingSeconds % 60).toString().padLeft(2, '0');
 
     // Palet warna adaptif
     final bgColor = isDark ? const Color(0xFF0B0F19) : const Color(0xFFF8FAFC);
@@ -614,7 +590,7 @@ class _MembershipScreenState extends State<MembershipScreen> {
                     ),
 
                     // =========================================================
-                    // 3. PINTEREST-STYLE 3 DURATION CARDS
+                    // 3. PILIHAN DURASI LANGGANAN (Clean & Calm Design)
                     // =========================================================
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -624,10 +600,9 @@ class _MembershipScreenState extends State<MembershipScreen> {
                           _buildDurationCard(
                             isDark: isDark,
                             duration: '30 Hari',
-                            topBadge: 'POPULER',
+                            topBadge: '1 BULAN',
                             badgeColor: const Color(0xFF3B82F6),
                             priceFormatted: _selectedTier == 'max' ? 'Rp 39.900' : 'Rp 19.900',
-                            subRate: _selectedTier == 'max' ? 'Rp 9.975/mgg' : 'Rp 4.975/mgg',
                             isSelected: _selectedDuration == '30 Hari',
                           ),
                           const SizedBox(width: 8),
@@ -635,10 +610,9 @@ class _MembershipScreenState extends State<MembershipScreen> {
                           _buildDurationCard(
                             isDark: isDark,
                             duration: '90 Hari',
-                            topBadge: 'BEST VALUE 🔥',
+                            topBadge: 'HEMAT 33%',
                             badgeColor: _tierAccentColor,
                             priceFormatted: _selectedTier == 'max' ? 'Rp 99.900' : 'Rp 49.900',
-                            subRate: _selectedTier == 'max' ? 'Rp 7.680/mgg' : 'Rp 3.830/mgg',
                             isSelected: _selectedDuration == '90 Hari',
                             isFeatured: true,
                           ),
@@ -647,255 +621,117 @@ class _MembershipScreenState extends State<MembershipScreen> {
                           _buildDurationCard(
                             isDark: isDark,
                             duration: '1 Tahun',
-                            topBadge: _selectedTier == 'max' ? 'HEMAT 65%' : 'HEMAT 60%',
+                            topBadge: 'HEMAT 60%',
                             badgeColor: const Color(0xFFF59E0B),
                             priceFormatted: _selectedTier == 'max' ? 'Rp 359.000' : 'Rp 179.000',
-                            subRate: _selectedTier == 'max' ? 'Rp 6.900/mgg' : 'Rp 3.440/mgg',
                             isSelected: _selectedDuration == '1 Tahun',
                           ),
                         ],
                       ),
                     ),
 
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 18),
 
                     // =========================================================
-                    // 4. COUNTDOWN URGENCY BOX (Pinterest Reference)
+                    // 4. DAFTAR KEUNTUNGAN EKSKLUSIF (Tenang & Rapi)
                     // =========================================================
-                    Center(
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(18),
                           border: Border.all(color: borderColor),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
-                              blurRadius: 6,
+                              blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
                           ],
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.timer_outlined, size: 15, color: Color(0xFFF59E0B)),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Promo Berakhir Dalam:',
-                              style: TextStyle(
-                                color: textSecondary,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            _buildTimerBox(isDark, '00'),
-                            Text(' : ', style: TextStyle(color: textSecondary, fontWeight: FontWeight.bold)),
-                            _buildTimerBox(isDark, hours),
-                            Text(' : ', style: TextStyle(color: textSecondary, fontWeight: FontWeight.bold)),
-                            _buildTimerBox(isDark, minutes),
-                            Text(' : ', style: TextStyle(color: textSecondary, fontWeight: FontWeight.bold)),
-                            _buildTimerBox(isDark, seconds),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // =========================================================
-                    // 5. GOJEK PLUS VOUCHER BUNDLE CARDS (900 vs 2.000 Kuota)
-                    // =========================================================
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Voucher & Keuntungan $_tierDisplayName',
-                                style: TextStyle(
-                                  color: textPrimary,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: _tierAccentColor.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  _selectedTier == 'max'
-                                      ? 'Total 2.000 Voucher'
-                                      : 'Total 900 Voucher',
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Keuntungan Eksklusif $_tierDisplayName',
                                   style: TextStyle(
-                                    color: _tierAccentColor,
-                                    fontSize: 11,
+                                    color: textPrimary,
+                                    fontSize: 14.5,
                                     fontWeight: FontWeight.w800,
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-
-                          // Card 1: GAGE Food
-                          _buildTicketVoucherCard(
-                            isDark: isDark,
-                            id: 'food',
-                            icon: Icons.restaurant_rounded,
-                            iconColor: const Color(0xFFE52320),
-                            serviceName: 'GAGE Food',
-                            title: _selectedTier == 'max'
-                                ? 'Diskon hingga 25.000'
-                                : 'Diskon hingga 12.000',
-                            tagline: 'Jajan yang enak biar mood enak',
-                            voucherCount: _selectedTier == 'max' ? '700 voucher' : '300 voucher',
-                            details: _selectedTier == 'max'
-                                ? [
-                                    'Diskon s.d. 25rb untuk min. pembelian 60rb di resto berlogo GAGE MAX.',
-                                    'Diskon ongkir 10rb tanpa minimal belanja setiap hari.',
-                                    'Berlaku hingga 8 transaksi per hari (700 voucher selama periode).',
-                                    'Prioritas pesanan dapur diproses duluan oleh resto mitra.',
-                                  ]
-                                : [
-                                    'Diskon hingga 10rb untuk min. pembelian 40rb di resto mitra GAGE PLUS.',
-                                    'Diskon hingga 12rb untuk min. pembelian 80rb di resto mitra pilihan.',
-                                    'Berlaku untuk pengiriman Express & Reguler (300 voucher per periode).',
-                                  ],
-                          ),
-                          const SizedBox(height: 10),
-
-                          // Card 2: GAGE Gratis Ongkir
-                          _buildTicketVoucherCard(
-                            isDark: isDark,
-                            id: 'ongkir',
-                            icon: Icons.local_shipping_rounded,
-                            iconColor: const Color(0xFFE52320),
-                            serviceName: 'GAGE Gratis Ongkir',
-                            title: _selectedTier == 'max'
-                                ? 'Voucher Gratis Ongkir s.d. 20.000'
-                                : 'Voucher Gratis Ongkir s.d. 10.000',
-                            tagline: _selectedTier == 'max'
-                                ? 'Bebas ongkir tanpa batas & tanpa syarat'
-                                : 'Pasti bebas ongkir jajan & belanja harian',
-                            voucherCount: _selectedTier == 'max' ? '300 voucher' : '150 voucher',
-                            badge: _selectedTier == 'max' ? 'BEBAS ONGKIR' : 'GRATIS ONGKIR',
-                            details: _selectedTier == 'max'
-                                ? [
-                                    'Voucher potongan ongkir s.d. Rp 20.000 tanpa syarat minimal belanja.',
-                                    'Berlaku di seluruh merchant mitra, toko sembako, dan kurir kilat.',
-                                    'Total 300 voucher bebas ongkir selama masa aktif langganan.',
-                                    'Bisa digabung dengan voucher diskon makanan & sembako.',
-                                  ]
-                                : [
-                                    'Voucher potongan ongkir s.d. Rp 10.000 per transaksi.',
-                                    'Berlaku di seluruh merchant GAGE Food, Mart, dan Send.',
-                                    'Total 150 voucher gratis ongkir selama masa aktif langganan.',
-                                    'Dapat digunakan untuk pengiriman kilat & reguler.',
-                                  ],
-                          ),
-                          const SizedBox(height: 10),
-
-                          // Card 2: Loyalty & Admin Fee Perks
-                          _buildTicketVoucherCard(
-                            isDark: isDark,
-                            id: 'star',
-                            icon: Icons.stars_rounded,
-                            iconColor: Colors.amber,
-                            serviceName: 'GAGE Star Loyalty',
-                            title: _selectedTier == 'max'
-                                ? 'Dapat 2.0x Double Star Cuan'
-                                : 'Dapat 1.2x Level Star Cuan',
-                            tagline: _selectedTier == 'max'
-                                ? 'Rp 0 Bebas Biaya Layanan & Admin Fee'
-                                : 'Diskon 50% Biaya Layanan Aplikasi',
-                            voucherCount: _selectedTier == 'max' ? '2.0x Poin' : '1.2x Poin',
-                            badge: _selectedTier == 'max' ? 'VIP PERK' : 'HEMAT',
-                            details: _selectedTier == 'max'
-                                ? [
-                                    'Double cashback koin Star di setiap transaksi makanan, mart & ojek.',
-                                    'Bebas biaya penanganan aplikasi (Rp 0 Admin Fee) selamanya!',
-                                    'Layanan CS Prioritas 24/7 di dalam aplikasi untuk bantuan instan.',
-                                  ]
-                                : [
-                                    'Kumpulkan poin loyalty 1.2x lebih cepat di setiap orderan.',
-                                    'Diskon 50% biaya layanan aplikasi di semua layanan.',
-                                    'Tukarkan poin koin Star untuk potongan langsung di kasir GAGEPay.',
-                                  ],
-                          ),
-                          const SizedBox(height: 10),
-
-                          // Card 3: GAGE Ride & Car
-                          _buildTicketVoucherCard(
-                            isDark: isDark,
-                            id: 'ride',
-                            icon: Icons.directions_car_rounded,
-                            iconColor: const Color(0xFF16A34A),
-                            serviceName: 'GAGE Ride & Car',
-                            title: _selectedTier == 'max'
-                                ? 'Diskon hingga 20.000'
-                                : 'Diskon hingga 10.000',
-                            tagline: _selectedTier == 'max'
-                                ? 'VIP Instant Driver Dispatch (Tanpa Antre)'
-                                : 'Nyaman, cepat dan aman',
-                            voucherCount: _selectedTier == 'max' ? '600 voucher' : '300 voucher',
-                            details: _selectedTier == 'max'
-                                ? [
-                                    'Diskon tarif perjalanan hingga 20rb untuk mobil & ojek motor.',
-                                    'Sistem prioritas VIP: Alokasi driver tercepat tanpa perlu antre di jam sibuk.',
-                                    'Bebas biaya pembatalan darurat jika terjadi perubahan jadwal.',
-                                  ]
-                                : [
-                                    'Potongan ongkir tarif ojek motor & mobil se-Pracimantoro & Wonogiri.',
-                                    'Prioritas menengah alokasi driver terdekat.',
-                                  ],
-                          ),
-                          const SizedBox(height: 10),
-
-                          // Card 4: GAGE Send
-                          _buildTicketVoucherCard(
-                            isDark: isDark,
-                            id: 'send',
-                            icon: Icons.inventory_2_rounded,
-                            iconColor: const Color(0xFF0284C7),
-                            serviceName: 'GAGE Send',
-                            title: _selectedTier == 'max'
-                                ? 'Diskon hingga 15.000'
-                                : 'Diskon hingga 10.000',
-                            tagline: 'Kirim barang gak pake lama',
-                            voucherCount: _selectedTier == 'max' ? '400 voucher' : '150 voucher',
-                            details: [
-                              'Diskon ongkir kirim paket, dokumen, & produk dagangan UMKM.',
-                              'Garansi kurir antar cepat pada hari yang sama (instant dispatch).',
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-
-                          // Card 5: GAGE Mart
-                          _buildTicketVoucherCard(
-                            isDark: isDark,
-                            id: 'mart',
-                            icon: Icons.shopping_bag_rounded,
-                            iconColor: const Color(0xFFEA580C),
-                            serviceName: 'GAGE Mart & UMKM',
-                            title: _selectedTier == 'max'
-                                ? 'Diskon hingga 10.000'
-                                : 'Diskon hingga 4.000',
-                            tagline: 'Buat belanja sembako & kebutuhan harian',
-                            voucherCount: _selectedTier == 'max' ? '300 voucher' : '150 voucher',
-                            details: [
-                              'Potongan harga belanja sembako, sayuran, dan produk UMKM lokal.',
-                              'Bebas biaya packing dan penanganan toko.',
-                            ],
-                          ),
-                        ],
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: _tierAccentColor.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    _selectedTier == 'max' ? '2.000 Voucher' : '900 Voucher',
+                                    style: TextStyle(
+                                      color: _tierAccentColor,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
+                            _buildCleanBenefitRow(
+                              icon: Icons.restaurant_rounded,
+                              iconColor: const Color(0xFFE52320),
+                              title: _selectedTier == 'max'
+                                  ? 'Diskon Kuliner s.d. Rp 25.000 di G-Food'
+                                  : 'Diskon Kuliner s.d. Rp 12.000 di G-Food',
+                              subtitle: 'Berlaku di semua resto mitra resmi GAGE Pracimantoro setiap hari.',
+                              isDark: isDark,
+                            ),
+                            const SizedBox(height: 12),
+                            _buildCleanBenefitRow(
+                              icon: Icons.two_wheeler_rounded,
+                              iconColor: const Color(0xFF2563EB),
+                              title: _selectedTier == 'max'
+                                  ? 'Diskon s.d. Rp 20.000 G-Ride & G-Car'
+                                  : 'Diskon s.d. Rp 10.000 G-Ride & G-Car',
+                              subtitle: 'Prioritas alokasi armada terdekat tanpa antre di jam sibuk.',
+                              isDark: isDark,
+                            ),
+                            const SizedBox(height: 12),
+                            _buildCleanBenefitRow(
+                              icon: Icons.local_shipping_rounded,
+                              iconColor: const Color(0xFF16A34A),
+                              title: _selectedTier == 'max'
+                                  ? 'Subsidi Bebas Ongkir s.d. Rp 20.000'
+                                  : 'Subsidi Bebas Ongkir s.d. Rp 10.000',
+                              subtitle: 'Berlaku untuk pengantaran makanan, belanja sembako, dan kurir paket G-Send.',
+                              isDark: isDark,
+                            ),
+                            const SizedBox(height: 12),
+                            _buildCleanBenefitRow(
+                              icon: Icons.stars_rounded,
+                              iconColor: Colors.amber,
+                              title: _selectedTier == 'max'
+                                  ? 'Rp 0 Bebas Biaya Layanan & 2x Koin Cuan'
+                                  : 'Diskon 50% Biaya Layanan & 1.2x Koin Cuan',
+                              subtitle: 'Belanja dan transaksi lebih hemat dengan bebas admin fee aplikasi.',
+                              isDark: isDark,
+                            ),
+                            const SizedBox(height: 12),
+                            _buildCleanBenefitRow(
+                              icon: Icons.verified_user_rounded,
+                              iconColor: const Color(0xFF0284C7),
+                              title: 'Layanan Pelanggan & Garansi Prioritas',
+                              subtitle: 'Bantuan instan respons cepat dari tim resmi GAGE Pracimantoro.',
+                              isDark: isDark,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
 
@@ -1094,14 +930,14 @@ class _MembershipScreenState extends State<MembershipScreen> {
     );
   }
 
-  // Duration Card Widget (Pinterest-Style)
+  // Duration Card Widget (Clean & Calm)
   Widget _buildDurationCard({
     required bool isDark,
     required String duration,
     required String topBadge,
     required Color badgeColor,
     required String priceFormatted,
-    required String subRate,
+    String? subRate,
     required bool isSelected,
     bool isFeatured = false,
   }) {
@@ -1175,14 +1011,16 @@ class _MembershipScreenState extends State<MembershipScreen> {
                   color: isSelected ? _tierPrimaryColor : textPrimary,
                 ),
               ),
-              const SizedBox(height: 2),
-              Text(
-                subRate,
-                style: TextStyle(
-                  fontSize: 9.5,
-                  color: textSecondary,
+              if (subRate != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  subRate,
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    color: textSecondary,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
@@ -1190,265 +1028,53 @@ class _MembershipScreenState extends State<MembershipScreen> {
     );
   }
 
-  // Timer Box Widget
-  Widget _buildTimerBox(bool isDark, String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-      decoration: BoxDecoration(
-        color: isDark ? Colors.black54 : const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
-      ),
-      child: Text(
-        value,
-        style: TextStyle(
-          color: isDark ? Colors.white : const Color(0xFF0F172A),
-          fontSize: 11.5,
-          fontWeight: FontWeight.bold,
-          fontFamily: 'monospace',
-        ),
-      ),
-    );
-  }
-
-  // Gojek PLUS Ticket Voucher Card (Notched & Perforated)
-  Widget _buildTicketVoucherCard({
-    required bool isDark,
-    required String id,
+  Widget _buildCleanBenefitRow({
     required IconData icon,
     required Color iconColor,
-    required String serviceName,
     required String title,
-    required String tagline,
-    required String voucherCount,
-    String? badge,
-    required List<String> details,
+    required String subtitle,
+    required bool isDark,
   }) {
-    final isExpanded = _expandedItems.contains(id);
-    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
-    final notchColor = isDark ? const Color(0xFF0B0F19) : const Color(0xFFF8FAFC);
     final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
-    final textSecondary = isDark ? Colors.white60 : const Color(0xFF64748B);
-    final innerDetailsBg = isDark ? const Color(0xFF131B2E) : const Color(0xFFF8FAFC);
+    final textSecondary = isDark ? Colors.white70 : const Color(0xFF64748B);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: iconColor.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(10),
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Column(
-          children: [
-            // Top Main Row
-            Padding(
-              padding: const EdgeInsets.all(14),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Service Icon
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: iconColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(icon, color: iconColor, size: 24),
-                  ),
-                  const SizedBox(width: 12),
-
-                  // Service & Title Info
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Text(
-                              serviceName,
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.bold,
-                                color: iconColor,
-                              ),
-                            ),
-                            if (badge != null) ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                decoration: BoxDecoration(
-                                  color: Colors.amber.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  badge,
-                                  style: const TextStyle(
-                                    fontSize: 8.5,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.amber,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          title,
-                          style: TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.bold,
-                            color: textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          tagline,
-                          style: TextStyle(fontSize: 11, color: textSecondary),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Dotted vertical divider & Voucher Count
-                  Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 10),
-                    height: 38,
-                    width: 1,
-                    color: isDark ? Colors.white12 : const Color(0xFFCBD5E1),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        voucherCount.split(' ').first,
-                        style: TextStyle(
-                          fontSize: 15.5,
-                          fontWeight: FontWeight.w900,
-                          color: textPrimary,
-                        ),
-                      ),
-                      Text(
-                        voucherCount.split(' ').length > 1
-                            ? voucherCount.split(' ').last
-                            : 'voucher',
-                        style: TextStyle(fontSize: 10, color: textSecondary),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            // Dashed separator line with circle notches
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Divider(
-                  height: 1,
-                  color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-                  thickness: 1,
-                ),
-                Positioned(
-                  left: -8,
-                  top: -7,
-                  child: Container(
-                    width: 14,
-                    height: 14,
-                    decoration: BoxDecoration(
-                      color: notchColor,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-                Positioned(
-                  right: -8,
-                  top: -7,
-                  child: Container(
-                    width: 14,
-                    height: 14,
-                    decoration: BoxDecoration(
-                      color: notchColor,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            // Expand / Collapse Details Bar
-            InkWell(
-              onTap: () {
-                setState(() {
-                  if (isExpanded) {
-                    _expandedItems.remove(id);
-                  } else {
-                    _expandedItems.add(id);
-                  }
-                });
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                color: innerDetailsBg,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      isExpanded ? 'Tutup rincian voucher' : 'Lihat rincian ketentuan',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: textSecondary,
-                      ),
-                    ),
-                    Icon(
-                      isExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
-                      size: 18,
-                      color: textSecondary,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Expandable details list
-            if (isExpanded)
-              Container(
-                padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
-                color: innerDetailsBg,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: details
-                      .map((d) => Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('• ', style: TextStyle(fontSize: 12, color: textSecondary)),
-                                Expanded(
-                                  child: Text(
-                                    d,
-                                    style: TextStyle(fontSize: 11.5, color: textPrimary, height: 1.3),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ))
-                      .toList(),
-                ),
-              ),
-          ],
+          child: Icon(icon, color: iconColor, size: 20),
         ),
-      ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: textPrimary,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 11.5,
+                  color: textSecondary,
+                  height: 1.3,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1460,6 +1086,7 @@ class _QrisPaymentSheet extends StatefulWidget {
   final String planTitle;
   final String tierKey;
   final String duration;
+  final String paymentMethod;
   final int totalAmount;
   final NumberFormat currencyFormatter;
   final VoidCallback onPaymentSuccess;
@@ -1468,6 +1095,7 @@ class _QrisPaymentSheet extends StatefulWidget {
     required this.planTitle,
     required this.tierKey,
     required this.duration,
+    required this.paymentMethod,
     required this.totalAmount,
     required this.currencyFormatter,
     required this.onPaymentSuccess,
@@ -1497,8 +1125,18 @@ class _QrisPaymentSheetState extends State<_QrisPaymentSheet> {
     final boxBg = isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9);
     final boxBorder = isDark ? Colors.white12 : const Color(0xFFE2E8F0);
 
+    // Identitas Warna Resmi GAGE: Merah (#E52320) & Crimson VIP (#DC2626)
     final primaryBtnColor =
-        widget.tierKey == 'max' ? const Color(0xFF7C3AED) : const Color(0xFF16A34A);
+        widget.tierKey == 'max' ? const Color(0xFFDC2626) : const Color(0xFFE52320);
+
+    final String btnLabel;
+    if (widget.paymentMethod.startsWith('GAGEPay')) {
+      btnLabel = 'Bayar dengan GAGEPay';
+    } else if (widget.paymentMethod.startsWith('QRIS')) {
+      btnLabel = 'Bayar dengan QRIS';
+    } else {
+      btnLabel = 'Bayar via Virtual Account';
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -1535,13 +1173,30 @@ class _QrisPaymentSheetState extends State<_QrisPaymentSheet> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: boxBorder),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
               children: [
-                Text('Total Pembayaran', style: TextStyle(color: textSecondary, fontSize: 13)),
-                Text(
-                  widget.currencyFormatter.format(widget.totalAmount),
-                  style: TextStyle(color: textPrimary, fontSize: 17, fontWeight: FontWeight.w900),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Metode Pembayaran', style: TextStyle(color: textSecondary, fontSize: 12)),
+                    Text(
+                      widget.paymentMethod.split(' (')[0],
+                      style: TextStyle(color: textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                const Divider(height: 1, thickness: 1),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Total Pembayaran', style: TextStyle(color: textSecondary, fontSize: 13)),
+                    Text(
+                      widget.currencyFormatter.format(widget.totalAmount),
+                      style: TextStyle(color: textPrimary, fontSize: 17, fontWeight: FontWeight.w900),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1563,8 +1218,8 @@ class _QrisPaymentSheetState extends State<_QrisPaymentSheet> {
                       height: 20,
                       child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                     )
-                  : const Text('Bayar via GAGEPay / QRIS',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  : Text(btnLabel,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
             ),
           ),
         ],

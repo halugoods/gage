@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gage_app/core/network/gage_api_client.dart';
+import 'package:gage_app/core/services/gage_audio_service.dart';
+import 'package:gage_app/core/services/merchant_storefront_service.dart';
 import 'package:gage_app/data/models/order_model.dart';
 export 'package:gage_app/data/models/order_model.dart';
 import 'package:gage_app/features/chat/providers/in_app_chat_provider.dart';
@@ -10,6 +13,9 @@ import 'package:gage_app/features/chat/providers/in_app_chat_provider.dart';
 /// Mengelola alur pesanan (GoBiz Aloha Style), status Buka/Tutup, SPP Thermal Printer, dan Out-of-Stock (OOS)
 class MerchantOrderProvider extends ChangeNotifier {
   bool _isOpen = true;
+  bool _isBusy = false;
+  DateTime? _busyUntil;
+  String? _busyReason;
   bool _autoAccept = true;
   bool _printerConnected = true;
   bool _isLoading = false;
@@ -21,8 +27,12 @@ class MerchantOrderProvider extends ChangeNotifier {
 
   List<OrderModel> _orders = [];
   Timer? _countdownTimer;
+  Timer? _pollingTimer;
 
   bool get isOpen => _isOpen;
+  bool get isBusy => _isBusy;
+  DateTime? get busyUntil => _busyUntil;
+  String? get busyReason => _busyReason;
   bool get autoAccept => _autoAccept;
   bool get printerConnected => _printerConnected;
   bool get isLoading => _isLoading;
@@ -33,17 +43,27 @@ class MerchantOrderProvider extends ChangeNotifier {
   String get selectedStageFilter => _selectedStageFilter;
 
   List<OrderModel> get allOrders => List.unmodifiable(_orders);
+  List<OrderModel> get orders => allOrders;
 
   List<OrderModel> get activeOrders {
-    final ongoing = _orders.where((o) => o.status == 'NEW' || o.status == 'COOKING' || o.status == 'READY_FOR_PICKUP').toList();
+    final ongoing = _orders.where((o) =>
+      o.status == 'NEW' ||
+      o.status == 'PAID' ||
+      o.status == 'COOKING' ||
+      o.status == 'READY_FOR_PICKUP' ||
+      o.status == 'DRIVER_ASSIGNED' ||
+      o.status == 'AT_MERCHANT' ||
+      o.status == 'PICKED_UP' ||
+      o.status == 'ON_DELIVERY'
+    ).toList();
     if (_selectedStageFilter == 'NEW') {
-      return ongoing.where((o) => o.status == 'NEW').toList();
+      return ongoing.where((o) => o.status == 'NEW' || o.status == 'PAID').toList();
     }
     if (_selectedStageFilter == 'COOKING') {
       return ongoing.where((o) => o.status == 'COOKING').toList();
     }
     if (_selectedStageFilter == 'READY_FOR_PICKUP') {
-      return ongoing.where((o) => o.status == 'READY_FOR_PICKUP').toList();
+      return ongoing.where((o) => o.status == 'READY_FOR_PICKUP' || o.status == 'AT_MERCHANT').toList();
     }
     return ongoing;
   }
@@ -56,36 +76,95 @@ class MerchantOrderProvider extends ChangeNotifier {
     return _orders.where((o) => o.status == 'CANCELLED').toList();
   }
 
-  int get activeOrderCount => _orders.where((o) => o.status == 'NEW' || o.status == 'COOKING' || o.status == 'READY_FOR_PICKUP').length;
-  int get newOrderCount => _orders.where((o) => o.status == 'NEW').length;
+  int get activeOrderCount => activeOrders.length;
+  int get newOrderCount => _orders.where((o) => o.status == 'NEW' || o.status == 'PAID').length;
   int get cookingOrderCount => _orders.where((o) => o.status == 'COOKING').length;
-  int get readyOrderCount => _orders.where((o) => o.status == 'READY_FOR_PICKUP').length;
+  int get readyOrderCount => _orders.where((o) => o.status == 'READY_FOR_PICKUP' || o.status == 'AT_MERCHANT').length;
+
+  int get escrowBalance => activeOrders.fold(0, (sum, o) => sum + o.merchantNetPayout);
+  int get todayGrossRevenue => completedOrders.fold(0, (sum, o) => sum + o.merchantGrossOmset);
+  int get todayNetRevenue => completedOrders.fold(0, (sum, o) => sum + o.merchantNetPayout);
+  int get todayPlatformFee => completedOrders.fold(0, (sum, o) => sum + o.platformCommissionAmount);
+  int get availableBalance => 485000 + todayNetRevenue;
 
   MerchantOrderProvider() {
     _initDefaultOrders();
     _startCountdownTicker();
+    startPolling();
   }
 
   @override
   void dispose() {
     _countdownTimer?.cancel();
+    _pollingTimer?.cancel();
     super.dispose();
+  }
+
+  void startPolling() {
+    _pollingTimer?.cancel();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (_isOpen && !_isLoading) {
+        fetchOrders(silent: true);
+      }
+    });
+  }
+
+  void stopPolling() {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
+  }
+
+  void pauseOrders(Duration duration, {String reason = 'Dapur sedang ramai'}) {
+    HapticFeedback.heavyImpact();
+    _isBusy = true;
+    _busyUntil = DateTime.now().add(duration);
+    _busyReason = reason;
+    notifyListeners();
+  }
+
+  void resumeOrders() {
+    HapticFeedback.mediumImpact();
+    _isBusy = false;
+    _busyUntil = null;
+    _busyReason = null;
+    notifyListeners();
   }
 
   void _startCountdownTicker() {
     _countdownTimer?.cancel();
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       bool changed = false;
+
+      // Cek apakah jeda Mode Sibuk telah usai
+      if (_isBusy && _busyUntil != null && DateTime.now().isAfter(_busyUntil!)) {
+        _isBusy = false;
+        _busyUntil = null;
+        _busyReason = null;
+        changed = true;
+      }
+
       for (int i = 0; i < _orders.length; i++) {
-        if (_orders[i].status == 'NEW' && _orders[i].autoAcceptSecondsRemaining > 0) {
+        if ((_orders[i].status == 'NEW' || _orders[i].status == 'PAID') && _orders[i].autoAcceptSecondsRemaining > 0) {
           final nextSec = _orders[i].autoAcceptSecondsRemaining - 1;
           _orders[i] = _orders[i].copyWith(autoAcceptSecondsRemaining: nextSec);
           changed = true;
-          if (nextSec == 0 && _autoAccept) {
-            // Auto accept trigger ke status COOKING
-            _orders[i] = _orders[i].copyWith(status: 'COOKING');
-            _dailyAcceptedCount++;
-            _recalculateAcceptanceScore();
+          if (nextSec == 0) {
+            if (_autoAccept && _isOpen && !_isBusy) {
+              // Auto accept trigger ke status COOKING
+              _orders[i] = _orders[i].copyWith(status: 'COOKING');
+              _dailyAcceptedCount++;
+              _recalculateAcceptanceScore();
+              GageApiClient.updateMerchantOrderStage(_orders[i].id, 'COOKING');
+            } else if (!_autoAccept) {
+              // Timeout konfirmasi habis: auto-cancel agar tidak menggantung
+              _orders[i] = _orders[i].copyWith(
+                status: 'CANCELLED',
+                cancellationReason: 'Waktu konfirmasi merchant habis (180 detik)',
+              );
+              _dailyRejectedCount++;
+              _recalculateAcceptanceScore();
+              GageApiClient.updateMerchantOrderStage(_orders[i].id, 'CANCELLED');
+            }
           }
         }
       }
@@ -103,6 +182,7 @@ class MerchantOrderProvider extends ChangeNotifier {
   }
 
   void _initDefaultOrders() {
+    if (!GageApiClient.useDevSeedData) return;
     final now = DateTime.now();
     _orders = [
       // 1. Pesanan Baru (Perlu Dikonfirmasi)
@@ -110,7 +190,7 @@ class MerchantOrderProvider extends ChangeNotifier {
         id: 'ord-8822',
         orderNumber: 'INV/GG/20261103/FD/GALIH-8822',
         userId: 'usr-cust-02',
-        merchantId: 'm-dimsum-sewu',
+        merchantId: MerchantStorefrontService.defaultPortalMerchantId,
         merchantName: 'Dimsum Sewu Pracimantoro',
         merchantAddress: 'Jl. Raya Pracimantoro No. 14, Depan Pasar',
         customerName: 'Galih Pambudi',
@@ -155,7 +235,7 @@ class MerchantOrderProvider extends ChangeNotifier {
         id: 'ord-8821',
         orderNumber: 'INV/GG/20261103/FD/BUDI-8821',
         userId: 'usr-cust-01',
-        merchantId: 'm-dimsum-sewu',
+        merchantId: MerchantStorefrontService.defaultPortalMerchantId,
         merchantName: 'Dimsum Sewu Pracimantoro',
         merchantAddress: 'Jl. Raya Pracimantoro No. 14, Depan Pasar',
         customerName: 'Budi Santoso',
@@ -202,7 +282,7 @@ class MerchantOrderProvider extends ChangeNotifier {
         id: 'ord-3304',
         orderNumber: 'INV/GG/20261103/SH/RATNA-3304',
         userId: 'usr-cust-03',
-        merchantId: 'm-dimsum-sewu',
+        merchantId: MerchantStorefrontService.defaultPortalMerchantId,
         merchantName: 'Toko Berkah Mart Pracimantoro',
         merchantAddress: 'Pasar Pracimantoro Kios No. 12',
         customerName: 'Ibu Ratna',
@@ -248,7 +328,7 @@ class MerchantOrderProvider extends ChangeNotifier {
         id: 'ord-8799',
         orderNumber: 'INV/GG/20261102/FD/SITI-8799',
         userId: 'usr-cust-04',
-        merchantId: 'm-dimsum-sewu',
+        merchantId: MerchantStorefrontService.defaultPortalMerchantId,
         merchantName: 'Dimsum Sewu Pracimantoro',
         merchantAddress: 'Jl. Raya Pracimantoro No. 14, Depan Pasar',
         customerName: 'Siti Aminah',
@@ -279,29 +359,81 @@ class MerchantOrderProvider extends ChangeNotifier {
           ),
         ],
       ),
+
+      // 5. Pesanan Ambil Sendiri (Pickup) Siap di Counter Kasir
+      OrderModel(
+        id: 'ord-5511',
+        orderNumber: 'INV/GG/20261103/FD/HENDRA-5511',
+        userId: 'usr-cust-05',
+        merchantId: MerchantStorefrontService.defaultPortalMerchantId,
+        merchantName: 'Dimsum Sewu Pracimantoro',
+        merchantAddress: 'Jl. Raya Pracimantoro No. 14, Depan Pasar',
+        customerName: 'Hendra Wijaya',
+        customerPhone: '081555666777',
+        status: 'READY_FOR_PICKUP',
+        paymentMethod: 'CASH_COD',
+        paymentStatus: 'PENDING',
+        totalAmount: 28000,
+        itemsSubtotal: 28000,
+        shippingFee: 0,
+        shippingDiscount: 0,
+        adminFee: 0,
+        isPickup: true,
+        deliveryOption: 'PICKUP',
+        deliveryAddress: 'Ambil Sendiri di Lapak (Kasir)',
+        distanceKm: 0.0,
+        trackingToken: 'trk-fd-5511',
+        createdAt: now.subtract(const Duration(minutes: 8)).millisecondsSinceEpoch ~/ 1000,
+        notes: 'Nanti saya ambil sendiri naik motor beat merah',
+        channel: 'food',
+        items: const [
+          OrderItemModel(
+            id: 'item-5511-1',
+            name: 'Pangsit Goreng Mayonais (5 pcs)',
+            price: 14000,
+            quantity: 2,
+            subtotal: 28000,
+            notes: 'Garing ekstra renyah',
+          ),
+        ],
+      ),
     ];
   }
 
-  Future<void> fetchOrders() async {
-    _isLoading = true;
-    notifyListeners();
+  Future<void> fetchOrders({bool silent = false}) async {
+    if (!silent) {
+      _isLoading = true;
+      notifyListeners();
+    }
 
     try {
-      final remote = await GageApiClient.getMerchantOrders('m-dimsum-sewu');
+      final remote = await GageApiClient.getMerchantOrders(MerchantStorefrontService.defaultPortalMerchantId);
       if (remote.isNotEmpty) {
         final parsed = remote.map((m) => OrderModel.fromJson(m)).toList();
+        bool hasNewIncoming = false;
+
         for (final p in parsed) {
           final idx = _orders.indexWhere((o) => o.id == p.id || o.orderNumber == p.orderNumber);
           if (idx >= 0) {
             _orders[idx] = p;
           } else {
             _orders.insert(0, p);
+            if (p.status == 'NEW' || p.status == 'PAID') {
+              hasNewIncoming = true;
+            }
           }
+        }
+
+        if (hasNewIncoming) {
+          GageAudioService.instance.playRecordStartChime();
+          HapticFeedback.heavyImpact();
         }
       }
     } catch (_) {}
 
-    _isLoading = false;
+    if (!silent) {
+      _isLoading = false;
+    }
     notifyListeners();
   }
 
@@ -387,7 +519,56 @@ class MerchantOrderProvider extends ChangeNotifier {
     }
   }
 
-  /// 4. SELESAIKAN PESANAN
+  /// Regenerasi PIN penyerahan kurir secara acak (4 digit angka 1000-9999)
+  /// Dibuat di sisi Merchant untuk divalidasi oleh Mitra Driver saat serah terima
+  String regenerateHandoverPin(String orderId) {
+    HapticFeedback.selectionClick();
+    final idx = _orders.indexWhere((o) => o.id == orderId);
+    if (idx >= 0) {
+      final random = Random();
+      final newPin = (1000 + random.nextInt(9000)).toString();
+      _orders[idx] = _orders[idx].copyWith(handoverPin: newPin);
+      notifyListeners();
+      return newPin;
+    }
+    return '';
+  }
+
+  /// Trigger cetak struk thermal SPP Bluetooth (58mm / 80mm)
+  Future<bool> printOrderReceipt(String orderId, {String paperSize = '58mm'}) async {
+    HapticFeedback.mediumImpact();
+    if (!_printerConnected) {
+      return false;
+    }
+    await Future.delayed(const Duration(milliseconds: 350));
+    return true;
+  }
+
+  /// 4. SERAHKAN KE KURIR (Handoff PIN -> Transisi ke PICKED_UP, bukan COMPLETED)
+  /// PIN dibuat oleh merchant dan diverifikasi dari input driver
+  Future<bool> handoverToCourier(String orderId, {String? verificationPin}) async {
+    HapticFeedback.mediumImpact();
+    final idx = _orders.indexWhere((o) => o.id == orderId);
+    if (idx < 0) return false;
+
+    final order = _orders[idx];
+    if (verificationPin != null && verificationPin.trim().isNotEmpty) {
+      final expectedPin = order.courierVerificationPin;
+      if (expectedPin.isNotEmpty && verificationPin.trim() != expectedPin) {
+        return false; // Validasi PIN gagal
+      }
+    }
+
+    _orders[idx] = _orders[idx].copyWith(status: 'PICKED_UP');
+    notifyListeners();
+
+    try {
+      await GageApiClient.updateMerchantOrderStage(_orders[idx].id, 'PICKED_UP');
+    } catch (_) {}
+    return true;
+  }
+
+  /// 5. SELESAIKAN PESANAN (Khusus Ambil Sendiri / Pickup langsung oleh pembeli di kasir)
   Future<void> completeOrder(String orderId) async {
     HapticFeedback.mediumImpact();
     final idx = _orders.indexWhere((o) => o.id == orderId);
@@ -406,7 +587,8 @@ class MerchantOrderProvider extends ChangeNotifier {
   // ─────────────────────────────────────────────────────────────────────────
 
   /// ALUR 1: GANTI ITEM
-  /// Selisih lebih murah refund instan ke GagePay | Selisih lebih mahal otomatis jadi tagihan COD tambahan ke kurir
+  /// Non-Tunai: Selisih lebih murah refund instan ke GagePay
+  /// Tunai (COD): Selisih lebih murah mengurangi tagihan tunai kurir / kasir toko (Bukan refund saldo)
   Future<void> substituteOrderItem({
     required String orderId,
     required int itemIndex,
@@ -427,6 +609,10 @@ class MerchantOrderProvider extends ChangeNotifier {
     final newTotal = newItemPrice * origItem.quantity;
     final diff = newTotal - origTotal;
 
+    final isCash = order.paymentMethod.toUpperCase().contains('CASH') ||
+        order.paymentMethod.toUpperCase().contains('COD') ||
+        order.paymentMethod.toUpperCase() == 'TUNAI';
+
     // Ganti item di list
     items[itemIndex] = origItem.copyWith(
       name: newItemName,
@@ -443,14 +629,28 @@ class MerchantOrderProvider extends ChangeNotifier {
     String chatNotice = '';
 
     if (diff < 0) {
-      // Lebih murah: Refund selisih instan ke GagePay
       final refundValue = -diff;
-      newRefund += refundValue;
-      chatNotice = 'Halo kak, untuk "${origItem.name}" stoknya habis dan kami gantikan dengan "$newItemName". Selisih harga Rp$refundValue sudah kami refund instan ke saldo GagePay kakak.';
+      if (isCash) {
+        // Tunai: jangan refund ke GagePay! Kurangi tagihan COD kurir / kasir
+        newRefund = 0;
+        newCod -= refundValue;
+        if (order.isPickupOrder) {
+          chatNotice = 'Halo kak, untuk "${origItem.name}" stoknya habis dan kami gantikan dengan "$newItemName". Total tagihan tunai di kasir toko dikurangi Rp$refundValue menjadi Rp$newTotalAmount.';
+        } else {
+          chatNotice = 'Halo kak, untuk "${origItem.name}" stoknya habis dan kami gantikan dengan "$newItemName". Tagihan tunai COD ke kurir otomatis dikurangi Rp$refundValue menjadi Rp$newTotalAmount.';
+        }
+      } else {
+        // Non-tunai: Refund selisih instan ke GagePay
+        newRefund += refundValue;
+        chatNotice = 'Halo kak, untuk "${origItem.name}" stoknya habis dan kami gantikan dengan "$newItemName". Selisih harga Rp$refundValue sudah kami refund instan ke saldo GagePay kakak.';
+      }
     } else if (diff > 0) {
-      // Lebih mahal: Tambahan tagihan COD ke kurir
       newCod += diff;
-      chatNotice = 'Halo kak, untuk "${origItem.name}" stoknya habis dan kami gantikan dengan "$newItemName". Terdapat selisih harga Rp$diff yang otomatis menjadi tagihan COD tambahan oleh kurir saat pengantaran ya kak.';
+      if (order.isPickupOrder) {
+        chatNotice = 'Halo kak, untuk "${origItem.name}" stoknya habis dan kami gantikan dengan "$newItemName". Terdapat selisih harga Rp$diff yang dapat dibayarkan tunai saat ambil pesanan di kasir toko ya kak.';
+      } else {
+        chatNotice = 'Halo kak, untuk "${origItem.name}" stoknya habis dan kami gantikan dengan "$newItemName". Terdapat selisih harga Rp$diff yang otomatis menjadi tagihan COD tambahan oleh kurir saat pengantaran ya kak.';
+      }
     } else {
       chatNotice = 'Halo kak, untuk "${origItem.name}" stoknya habis dan kami gantikan dengan "$newItemName" dengan harga yang sama.';
     }
@@ -466,9 +666,9 @@ class MerchantOrderProvider extends ChangeNotifier {
     if (chatProvider != null && chatNotice.isNotEmpty) {
       chatProvider.sendMessage(
         orderId: order.id,
-        senderId: 'mch-dimsum-sewu',
+        senderId: order.merchantId,
         senderRole: 'merchant',
-        senderName: 'Dimsum Sewu Pracimantoro',
+        senderName: order.merchantName,
         text: chatNotice,
       );
     }
@@ -477,7 +677,8 @@ class MerchantOrderProvider extends ChangeNotifier {
   }
 
   /// ALUR 2: KIRIM YANG READY SAJA
-  /// Nilai barang kosong refund instan ke GagePay, nota terkoreksi otomatis
+  /// Non-Tunai: Nilai barang kosong refund instan ke GagePay
+  /// Tunai (COD): Nilai barang kosong otomatis memotong tagihan tunai kurir / kasir
   Future<void> fulfillPartialOrder({
     required String orderId,
     required List<int> outOfStockItemIndices,
@@ -514,24 +715,35 @@ class MerchantOrderProvider extends ChangeNotifier {
       return;
     }
 
+    final isCash = order.paymentMethod.toUpperCase().contains('CASH') ||
+        order.paymentMethod.toUpperCase().contains('COD') ||
+        order.paymentMethod.toUpperCase() == 'TUNAI';
+
     final newSubtotal = order.itemsSubtotal - outOfStockSum;
     final newTotalAmount = order.totalAmount - outOfStockSum;
-    final newRefund = order.refundAmount + outOfStockSum;
+    final newRefund = isCash ? 0 : (order.refundAmount + outOfStockSum);
+    final newCod = isCash ? (order.codAdjustment - outOfStockSum) : order.codAdjustment;
 
     _orders[orderIdx] = order.copyWith(
       items: keptItems,
       itemsSubtotal: newSubtotal,
       totalAmount: newTotalAmount,
       refundAmount: newRefund,
+      codAdjustment: newCod,
     );
 
     if (chatProvider != null) {
+      final msg = isCash
+          ? (order.isPickupOrder
+              ? 'Mohon maaf kak, item [${oosNames.join(", ")}] sedang kosong. Kami siapkan sisa item yang ready. Tagihan tunai kasir toko dikurangi Rp$outOfStockSum menjadi Rp$newTotalAmount.'
+              : 'Mohon maaf kak, item [${oosNames.join(", ")}] sedang kosong. Kami siapkan sisa item yang ready. Tagihan tunai COD kurir dikurangi Rp$outOfStockSum menjadi Rp$newTotalAmount.')
+          : 'Mohon maaf kak, item [${oosNames.join(", ")}] sedang kosong. Kami proses kirim sisa item yang siap ya kak. Pengembalian dana Rp$outOfStockSum telah langsung di-refund ke GagePay kakak.';
       chatProvider.sendMessage(
         orderId: order.id,
-        senderId: 'mch-dimsum-sewu',
+        senderId: order.merchantId,
         senderRole: 'merchant',
-        senderName: 'Dimsum Sewu Pracimantoro',
-        text: 'Mohon maaf kak, item [${oosNames.join(", ")}] sedang kosong. Kami proses kirim sisa item yang siap ya kak. Pengembalian dana Rp$outOfStockSum telah langsung di-refund ke GagePay kakak.',
+        senderName: order.merchantName,
+        text: msg,
       );
     }
 
@@ -539,7 +751,8 @@ class MerchantOrderProvider extends ChangeNotifier {
   }
 
   /// ALUR 3: BATALKAN SELURUH PESANAN
-  /// Refund 100% ke GagePay
+  /// Non-Tunai: Refund 100% ke GagePay
+  /// Tunai (COD): Batal tanpa tagihan (Refund = 0)
   Future<void> cancelOrderWithFullRefund({
     required String orderId,
     String reason = 'Stok Seluruh Pesanan Habis',
@@ -550,7 +763,11 @@ class MerchantOrderProvider extends ChangeNotifier {
     if (orderIdx < 0) return;
 
     final order = _orders[orderIdx];
-    final fullRefund = order.totalAmount;
+    final isCash = order.paymentMethod.toUpperCase().contains('CASH') ||
+        order.paymentMethod.toUpperCase().contains('COD') ||
+        order.paymentMethod.toUpperCase() == 'TUNAI';
+
+    final fullRefund = isCash ? 0 : order.totalAmount;
 
     _dailyRejectedCount++;
     _recalculateAcceptanceScore();
@@ -562,12 +779,15 @@ class MerchantOrderProvider extends ChangeNotifier {
     );
 
     if (chatProvider != null) {
+      final msg = isCash
+          ? 'Mohon maaf kak, pesanan terpaksa kami batalkan karena stok bahan baku habis: "$reason". Karena pesanan menggunakan metode Tunai (COD), tidak ada pembayaran yang ditagihkan kepada kakak.'
+          : 'Mohon maaf kak, pesanan terpaksa kami batalkan karena stok bahan baku habis: "$reason". Dana 100% sejumlah Rp${order.totalAmount} telah kami kembalikan instan ke saldo GagePay kakak.';
       chatProvider.sendMessage(
         orderId: order.id,
-        senderId: 'mch-dimsum-sewu',
+        senderId: order.merchantId,
         senderRole: 'merchant',
-        senderName: 'Dimsum Sewu Pracimantoro',
-        text: 'Mohon maaf kak, pesanan terpaksa kami batalkan karena stok bahan baku habis: "$reason". Dana 100% sejumlah Rp$fullRefund telah kami kembalikan instan ke saldo GagePay kakak.',
+        senderName: order.merchantName,
+        text: msg,
       );
     }
 
@@ -600,7 +820,7 @@ class MerchantOrderProvider extends ChangeNotifier {
       id: newId,
       orderNumber: 'INV/GG/20261103/FD/NEW-${DateTime.now().millisecondsSinceEpoch % 9000 + 1000}',
       userId: 'usr-cust-99',
-      merchantId: 'm-dimsum-sewu',
+      merchantId: MerchantStorefrontService.defaultPortalMerchantId,
       merchantName: 'Dimsum Sewu Pracimantoro',
       merchantAddress: 'Jl. Raya Pracimantoro No. 14, Depan Pasar',
       customerName: 'Pelanggan Baru Pracimantoro',
@@ -635,10 +855,12 @@ class MerchantOrderProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// FORMULA RESMI KALKULATOR MARKUP KOMISI 10%:
-  /// CEIL((Harga Asli / 0.90) / 500) * 500
-  static int calculateMarkupPrice(int originalPrice) {
+  /// FORMULA RESMI KALKULATOR MARKUP KOMISI (Default 10% Reguler/Star, 8% Exclusive):
+  /// CEIL((Harga Asli / (1 - rate/100)) / 500) * 500
+  static int calculateMarkupPrice(int originalPrice, {double commissionRate = 10.0}) {
     if (originalPrice <= 0) return 0;
-    return ((originalPrice / 0.90) / 500).ceil() * 500;
+    final divisor = 1.0 - (commissionRate / 100.0);
+    if (divisor <= 0) return originalPrice;
+    return ((originalPrice / divisor) / 500).ceil() * 500;
   }
 }

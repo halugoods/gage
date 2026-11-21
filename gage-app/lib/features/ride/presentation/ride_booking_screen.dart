@@ -439,7 +439,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  _selectedTab == 'ride' ? 'Pesan GAGE Ride' : 'Pesan GAGE Car',
+                                  _selectedTab == 'ride' ? 'Pesan G-Ride' : 'Pesan G-Car',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 13,
@@ -742,7 +742,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Switcher Tab: GAGE Ride vs GAGE Car (Full-Rounded Capsule per AGENTS.md)
+          // Switcher Tab: G-Ride vs G-Car (Full-Rounded Capsule per AGENTS.md)
           Container(
             padding: const EdgeInsets.all(3),
             decoration: BoxDecoration(
@@ -751,8 +751,8 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
             ),
             child: Row(
               children: [
-                _buildVehicleTabPill(tabId: 'ride', label: 'GAGE Ride', isDark: isDark),
-                _buildVehicleTabPill(tabId: 'car', label: 'GAGE Car', isDark: isDark),
+                _buildVehicleTabPill(tabId: 'ride', label: 'G-Ride', isDark: isDark),
+                _buildVehicleTabPill(tabId: 'car', label: 'G-Car', isDark: isDark),
               ],
             ),
           ),
@@ -908,7 +908,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
-                                    _selectedTab == 'ride' ? 'Pesan GAGE Ride' : 'Pesan GAGE Car',
+                                    _selectedTab == 'ride' ? 'Pesan G-Ride' : 'Pesan G-Car',
                                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                                   ),
                                   Text(
@@ -1085,7 +1085,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
         : 'Mitra Driver GAGE';
     final driverVehicle = useSeed
         ? (isCar ? 'Toyota Avanza Silver • AD 1842 PK' : 'Honda Vario Merah • AD 4518 JK')
-        : (isCar ? 'Armada GAGE Car Terdekat' : 'Armada GAGE Ride Terdekat');
+        : (isCar ? 'Armada G-Car Terdekat' : 'Armada G-Ride Terdekat');
     final driverPhone = useSeed ? '081226001000' : '';
 
     return Container(

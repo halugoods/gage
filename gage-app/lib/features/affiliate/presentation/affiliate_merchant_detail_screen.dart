@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:gage_app/core/services/affiliate_commission_service.dart';
 import 'package:gage_app/core/services/social_profile_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/affiliate/presentation/affiliate_video_upload_screen.dart';
-import 'package:gage_app/features/video/presentation/video_editor_screen.dart';
+import 'package:gage_app/shared/widgets/gage_promo_card_share_dialog.dart';
+import 'package:gage_app/shared/widgets/gage_toast.dart';
 
 /// Layar Detail Merchant Khusus Program Afiliasi GAGE Cuan
 /// Menampilkan katalog seluruh produk toko, persentase komisi asli toko (maks 20%),
@@ -53,29 +51,14 @@ class AffiliateMerchantDetailScreen extends StatelessWidget {
             Navigator.maybePop(context);
           },
         ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              merchant['name'] as String? ?? 'Detail Toko Mitra',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w900,
-                color: isDark ? Colors.white : const Color(0xFF0F172A),
-                letterSpacing: -0.2,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            Text(
-              '${merchant['category'] ?? 'Mitra Usaha'} • Pracimantoro',
-              style: TextStyle(
-                fontSize: 11,
-                color: isDark ? Colors.white60 : const Color(0xFF64748B),
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
+        title: Text(
+          'Detail Merchant',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w900,
+            color: isDark ? Colors.white : const Color(0xFF0F172A),
+            letterSpacing: -0.2,
+          ),
         ),
       ),
       body: CustomScrollView(
@@ -117,7 +100,7 @@ class AffiliateMerchantDetailScreen extends StatelessWidget {
                               width: 68,
                               height: 68,
                               color: Colors.grey.shade200,
-                              child: const Icon(Icons.storefront, color: Colors.grey),
+                              child: const Icon(Icons.storefront_rounded, color: Colors.grey),
                             ),
                           ),
                         ),
@@ -213,7 +196,7 @@ class AffiliateMerchantDetailScreen extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  'Ditetapkan langsung oleh merchant (maksimal 20% demi unit economics sehat)',
+                                  'Ditetapkan langsung oleh merchant mitra',
                                   style: TextStyle(
                                     fontSize: 10.5,
                                     color: isDark ? Colors.white70 : const Color(0xFF64748B),
@@ -238,18 +221,18 @@ class AffiliateMerchantDetailScreen extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(vertical: 11),
                         ),
                         onPressed: () {
-                          HapticFeedback.selectionClick();
-                          final shareText = AffiliateCommissionService.generateMerchantShareText(
+                          GagePromoCardShareDialog.directShareMerchant(
+                            context,
                             merchantName: merchant['name'] as String? ?? 'Mitra GAGE',
-                            category: merchant['category'] as String? ?? 'Kuliner',
-                            affiliateLink: 'https://gage.co.id/resto/${merchant['id']}?ref=$referralCode',
+                            category: '${merchant['category'] ?? "Kuliner"} • Pracimantoro',
+                            shareUrl: 'https://gage.id/resto/${merchant['id']}?ref=$referralCode',
+                            imageUrl: merchant['image'] as String?,
                           );
-                          SharePlus.instance.share(ShareParams(
-                            text: shareText,
-                            subject: 'Rekomendasi Toko Mitra GAGE',
-                          ));
                         },
-                        icon: const Icon(Icons.share_rounded, size: 16),
+                        icon: Transform.flip(
+                          flipX: true,
+                          child: const Icon(Icons.reply_rounded, size: 16),
+                        ),
                         label: const Text(
                           'Bagikan Tautan Toko Mitra',
                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
@@ -314,262 +297,235 @@ class AffiliateMerchantDetailScreen extends StatelessWidget {
                         final isAddedToEtalase = SocialProfileService.instance.isProductInShowcase(pId);
 
                         return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+                          child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: Image.asset(
-                                  item['image'] as String? ?? 'assets/images/dish_dimsum_mentai.png',
-                                  width: 72,
-                                  height: 72,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) => Container(
-                                    width: 72,
-                                    height: 72,
-                                    color: Colors.grey.shade200,
-                                    child: const Icon(Icons.restaurant, color: Colors.grey),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Image.asset(
+                                      item['image'] as String? ?? 'assets/images/dish_dimsum_mentai.png',
+                                      width: 72,
+                                      height: 72,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) => Container(
+                                        width: 72,
+                                        height: 72,
+                                        color: Colors.grey.shade200,
+                                        child: const Icon(Icons.restaurant_rounded, color: Colors.grey),
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      item['name'] as String? ?? 'Produk Menu',
-                                      style: TextStyle(
-                                        fontSize: 13.5,
-                                        fontWeight: FontWeight.bold,
-                                        color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                      ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    const SizedBox(height: 3),
-                                    Text(
-                                      currencyFormatter.format(price),
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w900,
-                                        color: GageTheme.primary,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 5),
-                                    // Badge Komisi Transparan Rupiah
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFDCFCE7),
-                                        borderRadius: BorderRadius.circular(999),
-                                      ),
-                                      child: Text(
-                                        'Komisi $commissionRate%: +${currencyFormatter.format(commissionRupiah)}',
-                                        style: const TextStyle(
-                                          color: Color(0xFF166534),
-                                          fontSize: 10.5,
-                                          fontWeight: FontWeight.w800,
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item['name'] as String? ?? 'Produk Menu',
+                                          style: TextStyle(
+                                            fontSize: 13.5,
+                                            fontWeight: FontWeight.bold,
+                                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          // 3 Tombol Aksi Kapsul: Tambah Etalase, Bagikan Link, & Buat Video
-                          Row(
-                            children: [
-                              Expanded(
-                                flex: 3,
-                                child: OutlinedButton.icon(
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: isAddedToEtalase
-                                        ? const Color(0xFF166534)
-                                        : GageTheme.primary,
-                                    backgroundColor: isAddedToEtalase
-                                        ? const Color(0xFFDCFCE7)
-                                        : Colors.transparent,
-                                    side: BorderSide(
-                                      color: isAddedToEtalase
-                                          ? const Color(0xFF86EFAC)
-                                          : GageTheme.primary,
-                                      width: 1.2,
-                                    ),
-                                    shape: const StadiumBorder(),
-                                    padding: const EdgeInsets.symmetric(vertical: 8),
-                                  ),
-                                  onPressed: () async {
-                                    HapticFeedback.selectionClick();
-                                    if (isAddedToEtalase) {
-                                      await SocialProfileService.instance.removeProductFromShowcase(pId);
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(
-                                            content: Text('Produk dihapus dari Etalase Profil'),
-                                            duration: Duration(seconds: 2),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          currencyFormatter.format(price),
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w900,
+                                            color: GageTheme.primary,
                                           ),
-                                        );
-                                      }
-                                    } else {
-                                      await SocialProfileService.instance.addProductToShowcase({
-                                        'productId': pId,
-                                        'productTitle': item['name'],
-                                        'productPrice': price,
-                                        'merchantId': merchant['id'],
-                                        'merchantName': merchant['name'],
-                                        'merchantRating': merchant['rating'],
-                                        'thumbnailUrl': item['image'],
-                                      });
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(
-                                            content: Text('Produk ditambahkan ke Etalase Profil'),
-                                            duration: Duration(seconds: 2),
-                                          ),
-                                        );
-                                      }
-                                    }
-                                  },
-                                  icon: Icon(
-                                    isAddedToEtalase
-                                        ? Icons.check_circle_rounded
-                                        : Icons.add_business_rounded,
-                                    size: 13,
-                                  ),
-                                  label: Text(
-                                    isAddedToEtalase ? 'Di Etalase' : '+ Etalase',
-                                    style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                flex: 3,
-                                child: OutlinedButton.icon(
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: isDark ? Colors.white : const Color(0xFF0F172A),
-                                    side: BorderSide(
-                                      color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
-                                    ),
-                                    shape: const StadiumBorder(),
-                                    padding: const EdgeInsets.symmetric(vertical: 8),
-                                  ),
-                                  onPressed: () {
-                                    HapticFeedback.selectionClick();
-                                    final shareText = AffiliateCommissionService.generateProductShareText(
-                                      productName: item['name'] as String? ?? 'Menu',
-                                      merchantName: merchant['name'] as String? ?? 'Mitra GAGE',
-                                      price: price,
-                                      affiliateLink: 'https://gage.co.id/item/${item['id']}?ref=$referralCode',
-                                    );
-                                    SharePlus.instance.share(ShareParams(
-                                      text: shareText,
-                                      subject: 'Rekomendasi Kuliner GAGE',
-                                    ));
-                                  },
-                                  icon: const Icon(Icons.share_rounded, size: 13),
-                                  label: const Text(
-                                    'Bagikan',
-                                    style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                flex: 3,
-                                child: ElevatedButton.icon(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: GageTheme.primary,
-                                    foregroundColor: Colors.white,
-                                    shape: const StadiumBorder(),
-                                    elevation: 0,
-                                    padding: const EdgeInsets.symmetric(vertical: 8),
-                                  ),
-                                  onPressed: () async {
-                                    HapticFeedback.selectionClick();
-                                    // Tambahkan produk otomatis ke etalase profil kreator
-                                    await SocialProfileService.instance.addProductToShowcase({
-                                      'productId': pId,
-                                      'productTitle': item['name'],
-                                      'productPrice': price,
-                                      'merchantId': merchant['id'],
-                                      'merchantName': merchant['name'],
-                                      'merchantRating': merchant['rating'],
-                                      'thumbnailUrl': item['image'],
-                                    });
-
-                                    try {
-                                      final picker = ImagePicker();
-                                      final XFile? picked = await picker.pickVideo(
-                                        source: ImageSource.gallery,
-                                        maxDuration: const Duration(minutes: 3),
-                                      );
-                                      if (!context.mounted) return;
-                                      if (picked != null) {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) => VideoEditorScreen(
-                                              videoPath: picked.path,
-                                              videoName: picked.name,
-                                              initialMerchant: merchant,
-                                              initialProduct: item,
+                                        ),
+                                        const SizedBox(height: 6),
+                                        // Baris Sejajar: Badge Komisi Statis + 3 Ikon Aksi (Showcase Tas+Plus, Bagikan, Buat Video)
+                                        Row(
+                                          children: [
+                                            Container(
+                                              constraints: const BoxConstraints(maxWidth: 142),
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFDCFCE7),
+                                                borderRadius: BorderRadius.circular(999),
+                                              ),
+                                              child: Text(
+                                                'Komisi $commissionRate%: +${currencyFormatter.format(commissionRupiah)}',
+                                                style: const TextStyle(
+                                                  color: Color(0xFF166534),
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
                                             ),
-                                          ),
-                                        );
-                                        return;
-                                      }
-                                    } catch (_) {}
+                                            const Spacer(),
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                // 1. Etalase / Showcase (Icon tas belanja ada plusnya ala TikTok)
+                                                InkWell(
+                                                  onTap: () async {
+                                                    HapticFeedback.selectionClick();
+                                                    if (isAddedToEtalase) {
+                                                      await SocialProfileService.instance.removeProductFromShowcase(pId);
+                                                      if (context.mounted) {
+                                                        GageToast.showSuccess(context, 'Produk dihapus dari Etalase');
+                                                      }
+                                                    } else {
+                                                      await SocialProfileService.instance.addProductToShowcase({
+                                                        'productId': pId,
+                                                        'productTitle': item['name'],
+                                                        'productPrice': price,
+                                                        'merchantId': merchant['id'],
+                                                        'merchantName': merchant['name'],
+                                                        'merchantRating': merchant['rating'],
+                                                        'thumbnailUrl': item['image'],
+                                                      });
+                                                      if (context.mounted) {
+                                                        GageToast.showSuccess(context, 'Produk ditambahkan ke Etalase');
+                                                      }
+                                                    }
+                                                  },
+                                                  borderRadius: BorderRadius.circular(999),
+                                                  child: Padding(
+                                                    padding: const EdgeInsets.all(4),
+                                                    child: Stack(
+                                                      clipBehavior: Clip.none,
+                                                      alignment: Alignment.center,
+                                                      children: [
+                                                        Icon(
+                                                          Icons.shopping_bag_rounded,
+                                                          color: isAddedToEtalase
+                                                              ? const Color(0xFF16A34A)
+                                                              : GageTheme.primary,
+                                                          size: 19,
+                                                        ),
+                                                        Positioned(
+                                                          right: -2,
+                                                          bottom: -1,
+                                                          child: Container(
+                                                            decoration: BoxDecoration(
+                                                              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                                              shape: BoxShape.circle,
+                                                            ),
+                                                            child: Icon(
+                                                              isAddedToEtalase
+                                                                  ? Icons.check_circle_rounded
+                                                                  : Icons.add_circle_rounded,
+                                                              color: isAddedToEtalase
+                                                                  ? const Color(0xFF16A34A)
+                                                                  : GageTheme.primary,
+                                                              size: 10,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 4),
 
-                                    if (context.mounted) {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => AffiliateVideoUploadScreen(
-                                            initialMerchant: merchant,
-                                            initialProduct: item,
-                                          ),
+                                                // 2. Bagikan Produk (Visual Card Generator)
+                                                InkWell(
+                                                  onTap: () {
+                                                    HapticFeedback.selectionClick();
+                                                    GagePromoCardShareDialog.directShareProduct(
+                                                      context,
+                                                      productName: item['name'] as String? ?? 'Menu',
+                                                      merchantName: merchant['name'] as String? ?? 'Mitra GAGE',
+                                                      price: currencyFormatter.format(price),
+                                                      shareUrl: 'https://gage.id/item/${item['id']}?ref=$referralCode',
+                                                      imageUrl: item['image'] as String?,
+                                                    );
+                                                  },
+                                                  borderRadius: BorderRadius.circular(999),
+                                                  child: Padding(
+                                                    padding: const EdgeInsets.all(4),
+                                                    child: Transform.flip(
+                                                      flipX: true,
+                                                      child: const Icon(
+                                                        Icons.reply_rounded,
+                                                        color: GageTheme.primary,
+                                                        size: 20,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 4),
+
+                                                // 3. Buat Video (Kamera dengan plus)
+                                                InkWell(
+                                                  onTap: () async {
+                                                    HapticFeedback.selectionClick();
+                                                    await SocialProfileService.instance.addProductToShowcase({
+                                                      'productId': pId,
+                                                      'productTitle': item['name'],
+                                                      'productPrice': price,
+                                                      'merchantId': merchant['id'],
+                                                      'merchantName': merchant['name'],
+                                                      'merchantRating': merchant['rating'],
+                                                      'thumbnailUrl': item['image'],
+                                                    });
+
+                                                    if (context.mounted) {
+                                                      Navigator.push(
+                                                        context,
+                                                        MaterialPageRoute(
+                                                          builder: (_) => AffiliateVideoUploadScreen(
+                                                            initialMerchant: merchant,
+                                                            initialProduct: item,
+                                                          ),
+                                                        ),
+                                                      );
+                                                    }
+                                                  },
+                                                  borderRadius: BorderRadius.circular(999),
+                                                  child: const Padding(
+                                                    padding: EdgeInsets.all(4),
+                                                    child: Icon(
+                                                      Icons.video_call_rounded,
+                                                      color: GageTheme.primary,
+                                                      size: 21,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
                                         ),
-                                      );
-                                    }
-                                  },
-                                  icon: const Icon(Icons.videocam_rounded, size: 14),
-                                  label: const Text(
-                                    'Buat Video',
-                                    style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold),
+                                      ],
+                                    ),
                                   ),
-                                ),
+                                ],
                               ),
                             ],
                           ),
-                        ],
-                      ),
+                        );
+                      },
                     );
                   },
-                );
-              },
                   childCount: menus.length,
                 ),
               ),

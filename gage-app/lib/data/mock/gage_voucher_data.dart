@@ -2,6 +2,27 @@
 /// Single source of truth untuk Menu Promo, Riwayat, dan Pemilihan Voucher Checkout
 class GageVoucherData {
   static const List<Map<String, dynamic>> allVouchers = [
+    // 0. VOUCHER RESMI AFILIASI / AJAK TEMAN (GAGE by Halu Goods Indonesia)
+    {
+      'id': 'v-affiliate-cuan',
+      'code': 'GAGEHALU',
+      'service': 'GAGE Food',
+      'type': 'combo',
+      'title': 'Diskon 10RB + Gratis Ongkir 5RB',
+      'discountText': 'Diskon 10RB + Gratis Ongkir 5RB',
+      'minOrder': 30000,
+      'discountAmount': 10000,
+      'discountPercentage': 0.33,
+      'quantity': 5,
+      'tag': 'Ajak Teman',
+      'expiry': '31 Des 2026',
+      'terms': [
+        'Potongan diskon Rp 10.000 dengan minimal transaksi belanja Rp 30.000.',
+        'Subsidi ongkir Rp 5.000 dengan minimal transaksi belanja Rp 25.000.',
+        'Khusus pesanan dari tautan afiliasi resmi GAGE by Halu Goods Indonesia.',
+      ],
+      'howToUse': 'Gunakan kode promo GAGEHALU saat checkout.',
+    },
     // 1. KULINER (GAGE Food)
     {
       'id': 'v-food-50',

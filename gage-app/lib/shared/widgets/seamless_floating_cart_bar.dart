@@ -240,11 +240,11 @@ class _SeamlessFloatingCartBarState extends State<SeamlessFloatingCartBar> {
                                 Text(
                                   currencyFormatter.format(discountProgress.originalSubtotal),
                                   style: TextStyle(
-                                    color: isDark ? Colors.white38 : Colors.grey.shade400,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500,
+                                    color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w600,
                                     decoration: TextDecoration.lineThrough,
-                                    decorationColor: isDark ? Colors.white38 : Colors.grey.shade500,
+                                    decorationColor: isDark ? Colors.white70 : const Color(0xFF475569),
                                   ),
                                 ),
                                 const SizedBox(width: 5),

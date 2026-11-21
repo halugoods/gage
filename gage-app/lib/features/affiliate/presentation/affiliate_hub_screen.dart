@@ -3,10 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:gage_app/core/services/affiliate_commission_service.dart';
+import 'package:gage_app/core/services/gage_security_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/data/mock/gage_mock_registry.dart';
 import 'package:gage_app/features/affiliate/presentation/affiliate_merchant_detail_screen.dart';
 import 'package:gage_app/providers/wallet_provider.dart';
+import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
+import 'package:gage_app/shared/widgets/gage_promo_card_share_dialog.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 
 /// AffiliateHubScreen - GAGE Cuan: Ekosistem Afiliasi & Penawaran Kuliner & UMKM Lokal
@@ -47,28 +50,22 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> {
 
   final List<Map<String, dynamic>> _commerceServices = [
     {
-      'name': 'Food',
+      'name': 'G-Food',
       'icon': Icons.restaurant_rounded,
-      'label': 'Food',
+      'label': 'G-Food',
       'subtitle': 'Kuliner & Resto',
     },
     {
-      'name': 'Shop',
+      'name': 'G-Shop',
       'icon': Icons.shopping_bag_rounded,
-      'label': 'Shop',
+      'label': 'G-Shop',
       'subtitle': 'Sembako & Belanja',
     },
     {
-      'name': 'Farm',
+      'name': 'G-Farm',
       'icon': Icons.agriculture_rounded,
-      'label': 'Farm',
+      'label': 'G-Farm',
       'subtitle': 'Pertanian & Ternak',
-    },
-    {
-      'name': 'Build',
-      'icon': Icons.construction_rounded,
-      'label': 'Build',
-      'subtitle': 'Bahan Bangunan',
     },
   ];
 
@@ -144,42 +141,50 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> {
     super.dispose();
   }
 
+  int get _totalGMV => _affiliateOrders.fold<int>(
+        0,
+        (sum, order) => sum + ((order['totalPrice'] as num?)?.toInt() ?? 0),
+      );
+
+  int get _totalSoldOrders => _affiliateOrders.length;
+
   void _copyReferralCode() {
     HapticFeedback.selectionClick();
     Clipboard.setData(ClipboardData(text: _referralCode));
-    GageToast.show(
+    GageToast.showSuccess(
       context,
-      'Kode referral $_referralCode berhasil disalin!',
-      type: GageToastType.success,
+      'Kode referal $_referralCode berhasil disalin!',
     );
   }
 
-  void _shareReferralWhatsApp() {
-    HapticFeedback.selectionClick();
-    final message = AffiliateCommissionService.generateReferralShareText(
+  void _shareReferralDirect() {
+    GagePromoCardShareDialog.directShareReferral(
+      context,
       referralCode: _referralCode,
-      userName: 'Kreator GAGE',
-    );
-    Clipboard.setData(ClipboardData(text: message));
-    GageToast.show(
-      context,
-      'Teks ajakan berhasil disalin! Buka WhatsApp untuk membagikan ke teman.',
-      type: GageToastType.success,
+      shareUrl: 'https://gage.id/cuan?ref=$_referralCode',
     );
   }
 
-  void _withdrawToGagePay() {
+  Future<void> _withdrawToGagePay() async {
     HapticFeedback.selectionClick();
     if (_availableCommission <= 0) {
-      GageToast.show(
+      GageToast.showWarning(
         context,
         'Saldo komisi Anda belum mencukupi untuk ditarik',
-        type: GageToastType.warning,
       );
       return;
     }
 
     final amount = _availableCommission;
+
+    // Verifikasi Keamanan PIN 6 Digit atau Biometrik
+    final verified = await GageSecurityService.instance.verifyAuthorization(
+      context,
+      title: 'Tarik Saldo Komisi Cuan',
+      amount: amount,
+    );
+    if (!verified || !mounted) return;
+
     try {
       context.read<WalletProvider>().topUp(amount);
     } catch (_) {}
@@ -189,14 +194,13 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> {
     });
 
     HapticFeedback.heavyImpact();
-    GageToast.show(
+    GageToast.showSuccess(
       context,
       'Penarikan ${_currencyFormat.format(amount)} langsung masuk ke Saldo GAGEPay Anda!',
-      type: GageToastType.success,
     );
   }
 
-  /// Ambil daftar merchant sesuai layanan komersial yang dipilih (Food, Shop, Farm, Build)
+  /// Ambil daftar merchant sesuai layanan komersial yang dipilih (Food, Shop, Farm)
   List<Map<String, dynamic>> _getMerchantsForActiveService() {
     switch (_selectedServiceIndex) {
       case 0:
@@ -205,8 +209,6 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> {
         return GageMockRegistry.shopMerchants;
       case 2:
         return GageMockRegistry.farmMerchants;
-      case 3:
-        return GageMockRegistry.buildMerchants;
       default:
         return GageMockRegistry.foodMerchants;
     }
@@ -263,20 +265,29 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> {
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF090D16) : const Color(0xFFF8FAFC),
       body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(isDark),
-            _buildSegmentedTabSwitcher(isDark),
-            Expanded(
-              child: IndexedStack(
-                index: _selectedMainTabIndex,
-                children: [
-                  _buildPenawaranTab(isDark),
-                  _buildPerformaTab(isDark),
-                ],
+        child: NestedScrollView(
+          headerSliverBuilder: (context, innerBoxIsScrolled) {
+            return [
+              // Header bergulir menghilang (scrolls off-screen)
+              SliverToBoxAdapter(
+                child: _buildHeader(isDark),
               ),
-            ),
-          ],
+              // Segmented Tab Switcher melekat (sticky / pinned) di atas
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _AffiliateStickyHeaderDelegate(
+                  height: 56,
+                  child: Container(
+                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    child: _buildSegmentedTabSwitcher(isDark),
+                  ),
+                ),
+              ),
+            ];
+          },
+          body: _selectedMainTabIndex == 0
+              ? _buildPenawaranTab(isDark)
+              : _buildPerformaTab(isDark),
         ),
       ),
     );
@@ -309,35 +320,13 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> {
             ),
           ),
           const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      'GAGE Cuan',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                        color: isDark ? Colors.white : const Color(0xFF0F172A),
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 1),
-                Text(
-                  'Kemitraan & Referral Food, Shop, Farm, Build Pracimantoro',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: isDark ? Colors.white60 : const Color(0xFF64748B),
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+          Text(
+            'G-Cuan',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+              letterSpacing: -0.3,
             ),
           ),
         ],
@@ -446,55 +435,59 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> {
 
     return CustomScrollView(
       slivers: [
-        // 1. Search Field Real-time
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+        // 1. Search Field Real-time (Sticky pinned header)
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: _AffiliateStickyHeaderDelegate(
+            height: 60,
             child: Container(
-              height: 44,
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(
-                  color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+              color: isDark ? const Color(0xFF090D16) : const Color(0xFFF8FAFC),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: (val) => setState(() => _searchQuery = val),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
                   ),
-                ],
-              ),
-              child: TextField(
-                controller: _searchController,
-                onChanged: (val) => setState(() => _searchQuery = val),
-                style: TextStyle(
-                  fontSize: 13,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                ),
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(
-                    Icons.search_rounded,
-                    size: 20,
-                    color: GageTheme.primary,
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(
+                      Icons.search_rounded,
+                      size: 20,
+                      color: GageTheme.primary,
+                    ),
+                    hintText: 'Cari produk atau resto/toko mitra...',
+                    hintStyle: TextStyle(
+                      fontSize: 12.5,
+                      color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear_rounded, size: 16),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _searchQuery = '');
+                            },
+                          )
+                        : null,
                   ),
-                  hintText: 'Cari produk atau resto/toko mitra...',
-                  hintStyle: TextStyle(
-                    fontSize: 12.5,
-                    color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
-                  ),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                  suffixIcon: _searchQuery.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear_rounded, size: 16),
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() => _searchQuery = '');
-                          },
-                        )
-                      : null,
                 ),
               ),
             ),
@@ -525,37 +518,17 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  const Row(
                     children: [
-                      const Row(
-                        children: [
-                          Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 18),
-                          SizedBox(width: 6),
-                          Text(
-                            'AJAK TEMAN CUAN',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFEF3C7),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: const Text(
-                          'Voucher 10rb',
-                          style: TextStyle(
-                            color: Color(0xFF92400E),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
-                          ),
+                      Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 18),
+                      SizedBox(width: 6),
+                      Text(
+                        'Ajak teman dapat cuan',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.3,
                         ),
                       ),
                     ],
@@ -610,16 +583,19 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> {
                       const Spacer(),
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF25D366),
-                          foregroundColor: Colors.white,
+                          backgroundColor: Colors.white,
+                          foregroundColor: GageTheme.primary,
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           shape: const StadiumBorder(),
                           elevation: 0,
                         ),
-                        onPressed: _shareReferralWhatsApp,
-                        icon: const Icon(Icons.share_rounded, size: 15),
+                        onPressed: _shareReferralDirect,
+                        icon: Transform.flip(
+                          flipX: true,
+                          child: const Icon(Icons.reply_rounded, size: 15),
+                        ),
                         label: const Text(
-                          'Share WhatsApp',
+                          'Bagikan',
                           style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
                         ),
                       ),
@@ -638,32 +614,16 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Pilih Layanan Bisnis GAGE',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w900,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
-                          letterSpacing: -0.2,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Komisi hingga 20%',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: GageTheme.primary,
-                      ),
-                    ),
-                  ],
+                Text(
+                  'Pilih Layanan Bisnis GAGE',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    letterSpacing: -0.2,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 8),
                 Container(
@@ -789,7 +749,7 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> {
                     child: Column(
                       children: [
                         Icon(
-                          Icons.storefront_outlined,
+                          Icons.storefront_rounded,
                           size: 48,
                           color: isDark ? Colors.white24 : const Color(0xFF94A3B8),
                         ),
@@ -824,7 +784,6 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> {
   Widget _buildMerchantCard(Map<String, dynamic> merchant, bool isDark) {
     final rawRate = merchant['commissionRate'] ?? 10;
     final int commissionRate = (rawRate is num ? rawRate.toInt() : int.tryParse('$rawRate') ?? 10).clamp(0, 20);
-    final promoBadges = (merchant['promoBadges'] as List<dynamic>?)?.map((e) => '$e').toList() ?? [];
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -874,7 +833,7 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> {
                       width: 74,
                       height: 74,
                       color: isDark ? const Color(0xFF334155) : Colors.grey.shade200,
-                      child: const Icon(Icons.storefront, color: Colors.grey),
+                      child: const Icon(Icons.storefront_rounded, color: Colors.grey),
                     ),
                   ),
                 ),
@@ -1107,6 +1066,120 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> {
           ),
         ),
 
+        // 1.5. Kartu Analitik Metrik Ringkasan (Total GMV / Omset, Penghasilan Bersih, Total Terjual)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Total GMV',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _currencyFormat.format(_totalGMV),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  height: 26,
+                  width: 1,
+                  color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Penghasilan Bersih',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _currencyFormat.format(_availableCommission),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                            color: GageTheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Container(
+                  height: 26,
+                  width: 1,
+                  color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Total Terjual',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '$_totalSoldOrders Pesanan',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
         // 2. Segmented Filter Status Kapsul (Semua, Belum Dibayar, Diproses, Selesai)
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -1194,7 +1267,7 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> {
                 alignment: Alignment.center,
                 children: [
                   Icon(
-                    Icons.description_outlined,
+                    Icons.description_rounded,
                     size: 48,
                     color: isDark ? Colors.white30 : const Color(0xFF94A3B8),
                   ),
@@ -1249,7 +1322,10 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> {
                 HapticFeedback.selectionClick();
                 setState(() => _selectedMainTabIndex = 0);
               },
-              icon: const Icon(Icons.share_rounded, size: 15),
+              icon: Transform.flip(
+                flipX: true,
+                child: const Icon(Icons.reply_rounded, size: 15),
+              ),
               label: const Text(
                 'Mulai Bagikan Produk',
                 style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
@@ -1264,113 +1340,327 @@ class _AffiliateHubScreenState extends State<AffiliateHubScreen> {
   Widget _buildOrderCommissionCard(Map<String, dynamic> order, bool isDark) {
     final isDone = order['status'] == 'Selesai';
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+    return InkWell(
+      onTap: () => _showInvoiceDetailSheet(order, isDark),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
           ),
-        ],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      Clipboard.setData(ClipboardData(text: order['orderId']));
+                      GageToast.showSuccess(context, 'Nomor pesanan ${order['orderId']} disalin');
+                    },
+                    borderRadius: BorderRadius.circular(6),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          order['orderId'] as String,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: GageTheme.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.copy_rounded, size: 12, color: GageTheme.primary),
+                        Flexible(
+                          child: Text(
+                            ' • ${order['date']}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                  decoration: BoxDecoration(
+                    color: isDone ? const Color(0xFFDCFCE7) : const Color(0xFFFEF3C7),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    order['statusLabel'] as String,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: isDone ? const Color(0xFF16A34A) : const Color(0xFFD97706),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              order['productName'] as String,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              order['merchantName'] as String,
+              style: TextStyle(
+                fontSize: 11.5,
+                color: isDark ? Colors.white54 : const Color(0xFF64748B),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Divider(height: 1, color: isDark ? Colors.white10 : const Color(0xFFF1F5F9)),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Total: ${_currencyFormat.format(order['totalPrice'])}',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white70 : const Color(0xFF475569),
+                  ),
+                ),
+                Row(
+                  children: [
+                    Text(
+                      'Komisi (${order['commissionRate']}): ',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white70 : const Color(0xFF475569),
+                      ),
+                    ),
+                    Text(
+                      '+${_currencyFormat.format(order['commissionAmount'])}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF16A34A),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
-      child: Column(
+    );
+  }
+
+  void _showInvoiceDetailSheet(Map<String, dynamic> order, bool isDark) {
+    HapticFeedback.lightImpact();
+    GageFloatingSheet.show(
+      context: context,
+      title: 'Detail Pesanan Afiliasi',
+      builder: (sheetCtx) => Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: Text(
-                  '${order['orderId']} • ${order['date']}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? Colors.white54 : const Color(0xFF64748B),
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+              Text(
+                'Nomor Invoice',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? Colors.white60 : const Color(0xFF64748B),
                 ),
               ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                decoration: BoxDecoration(
-                  color: isDone ? const Color(0xFFDCFCE7) : const Color(0xFFFEF3C7),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  order['statusLabel'] as String,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    color: isDone ? const Color(0xFF16A34A) : const Color(0xFFD97706),
-                  ),
+              InkWell(
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: order['orderId']));
+                  GageToast.showSuccess(sheetCtx, 'Nomor invoice disalin');
+                },
+                child: Row(
+                  children: [
+                    Text(
+                      order['orderId'] as String,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: GageTheme.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.copy_rounded, size: 13, color: GageTheme.primary),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            order['productName'] as String,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : const Color(0xFF0F172A),
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            order['merchantName'] as String,
-            style: TextStyle(
-              fontSize: 11.5,
-              color: isDark ? Colors.white54 : const Color(0xFF64748B),
-            ),
-          ),
           const SizedBox(height: 10),
-          Divider(height: 1, color: isDark ? Colors.white10 : const Color(0xFFF1F5F9)),
-          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Total: ${_currencyFormat.format(order['totalPrice'])}',
+                'Waktu Transaksi',
                 style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? Colors.white70 : const Color(0xFF475569),
+                  fontSize: 12,
+                  color: isDark ? Colors.white60 : const Color(0xFF64748B),
                 ),
               ),
-              Row(
-                children: [
-                  Text(
-                    'Komisi (${order['commissionRate']}): ',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white70 : const Color(0xFF475569),
-                    ),
-                  ),
-                  Text(
-                    '+${_currencyFormat.format(order['commissionAmount'])}',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
-                      color: Color(0xFF16A34A),
-                    ),
-                  ),
-                ],
+              Text(
+                order['date'] as String,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          const Divider(),
+          const SizedBox(height: 12),
+          Text(
+            order['productName'] as String,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            order['merchantName'] as String,
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark ? Colors.white60 : const Color(0xFF64748B),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Total Nilai Pesanan',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? Colors.white70 : const Color(0xFF475569),
+                      ),
+                    ),
+                    Text(
+                      _currencyFormat.format(order['totalPrice']),
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Persentase Komisi',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? Colors.white70 : const Color(0xFF475569),
+                      ),
+                    ),
+                    Text(
+                      order['commissionRate'] as String,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: GageTheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Komisi Didapat',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                    ),
+                    Text(
+                      '+${_currencyFormat.format(order['commissionAmount'])}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF16A34A),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
+}
+
+/// SliverPersistentHeaderDelegate untuk Sticky Switcher & Search
+class _AffiliateStickyHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+  final double height;
+
+  _AffiliateStickyHeaderDelegate({
+    required this.child,
+    required this.height,
+  });
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) => child;
+
+  @override
+  double get maxExtent => height;
+
+  @override
+  double get minExtent => height;
+
+  @override
+  bool shouldRebuild(covariant _AffiliateStickyHeaderDelegate oldDelegate) =>
+      oldDelegate.height != height || oldDelegate.child != child;
 }

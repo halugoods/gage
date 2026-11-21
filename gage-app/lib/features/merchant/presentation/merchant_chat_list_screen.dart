@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:gage_app/core/services/notification_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
-import 'package:gage_app/features/merchant/presentation/widgets/merchant_bottom_nav_bar.dart';
 
 /// Screen Daftar Percakapan Merchant - Tab 3
 /// Menghubungkan langsung Mitra Dapur dengan Driver Pengambil & Pelanggan Pemesan.
@@ -214,7 +213,6 @@ class _MerchantChatListScreenState extends State<MerchantChatListScreen> {
           },
         ),
       ),
-      bottomNavigationBar: const MerchantBottomNavBar(currentIndex: 3),
     );
   }
 }

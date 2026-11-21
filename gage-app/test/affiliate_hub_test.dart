@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('AffiliateHubScreen builds cleanly with 4 commerce services (Food, Shop, Farm, Build), Keranjang Kuning CTA, and dynamic merchant navigation', (tester) async {
+  testWidgets('AffiliateHubScreen builds cleanly with 3 commerce services (G-Food, G-Shop, G-Farm), Keranjang Kuning CTA, and dynamic merchant navigation', (tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 2.0;
     addTearDown(() {
@@ -29,26 +29,27 @@ void main() {
 
     expect(find.byType(AffiliateHubScreen), findsOneWidget);
 
-    // Verify Tab 1: Penawaran (GAGE Cuan Signature Header & Capsule Tab)
-    expect(find.text('GAGE Cuan'), findsOneWidget);
+    // Verify Tab 1: Penawaran (G-Cuan Signature Header & Capsule Tab)
+    expect(find.text('G-Cuan'), findsOneWidget);
     expect(find.text('Afiliasi Mitra'), findsNothing);
     expect(find.text('Penawaran'), findsOneWidget);
     expect(find.text('Performa'), findsOneWidget);
 
     // Verify 6-char referral banner
-    expect(find.text('AJAK TEMAN CUAN'), findsOneWidget);
+    expect(find.text('Ajak teman dapat cuan'), findsOneWidget);
     expect(find.text('G8K2M9'), findsOneWidget);
-    expect(find.text('Share WhatsApp'), findsOneWidget);
+    expect(find.text('Bagikan'), findsOneWidget);
 
     // Verify Bikin Video Cuan CTA Banner is removed
     expect(find.text('Bikin Video Cuan'), findsNothing);
     expect(find.text('Unggah 📹'), findsNothing);
 
-    // Verify 4 Commerce Services (Food, Shop, Farm, Build)
-    expect(find.text('Food'), findsOneWidget);
-    expect(find.text('Shop'), findsOneWidget);
-    expect(find.text('Farm'), findsOneWidget);
-    expect(find.text('Build'), findsOneWidget);
+    // Verify 3 Commerce Services (G-Food, G-Shop, G-Farm)
+    expect(find.text('G-Food'), findsOneWidget);
+    expect(find.text('G-Shop'), findsOneWidget);
+    expect(find.text('G-Farm'), findsOneWidget);
+    expect(find.text('G-Send'), findsNothing);
+    expect(find.text('Build'), findsNothing);
 
     // Verify Filter Tabs
     expect(find.text('Rekomendasi'), findsOneWidget);
@@ -59,22 +60,17 @@ void main() {
     expect(find.text('Rocket Chicken Pracimantoro'), findsOneWidget);
 
     // Tap on Shop service
-    await tester.tap(find.text('Shop'));
+    await tester.tap(find.text('G-Shop'));
     await tester.pumpAndSettle();
     expect(find.text('Toko Sembako Berkah Fajar'), findsOneWidget);
 
     // Tap on Farm service
-    await tester.tap(find.text('Farm'));
+    await tester.tap(find.text('G-Farm'));
     await tester.pumpAndSettle();
     expect(find.text('Kios Tani Subur Makmur'), findsOneWidget);
 
-    // Tap on Build service
-    await tester.tap(find.text('Build'));
-    await tester.pumpAndSettle();
-    expect(find.text('TB Pracimantoro Bangkit'), findsOneWidget);
-
-    // Tap merchant card in Build service to open AffiliateMerchantDetailScreen
-    await tester.tap(find.text('TB Pracimantoro Bangkit'));
+    // Tap merchant card in Farm service to open AffiliateMerchantDetailScreen
+    await tester.tap(find.text('Kios Tani Subur Makmur'));
     await tester.pumpAndSettle();
     expect(find.byType(AffiliateMerchantDetailScreen), findsOneWidget);
 

@@ -25,48 +25,48 @@ void main() {
       final services = GageServiceGrid.services;
       expect(services.length, equals(8));
 
-      // 1. GAGE Ride (Motor)
+      // 1. G-Ride (Motor)
       expect(services[0]['id'], equals('ride'));
-      expect(services[0]['name'], equals('GAGE Ride'));
+      expect(services[0]['name'], equals('G-Ride'));
       expect(services[0]['icon'], equals('assets/icons/ic_ride.png'));
 
-      // 2. GAGE Car (Mobil)
+      // 2. G-Car (Mobil)
       expect(services[1]['id'], equals('car'));
-      expect(services[1]['name'], equals('GAGE Car'));
+      expect(services[1]['name'], equals('G-Car'));
       expect(services[1]['icon'], equals('assets/icons/ic_car.png'));
 
-      // 3. GAGE Food
+      // 3. G-Food
       expect(services[2]['id'], equals('food'));
-      expect(services[2]['name'], equals('GAGE Food'));
+      expect(services[2]['name'], equals('G-Food'));
       expect(services[2]['icon'], equals('assets/icons/ic_food.png'));
 
-      // 4. GAGE Shop
+      // 4. G-Shop
       expect(services[3]['id'], equals('shop'));
-      expect(services[3]['name'], equals('GAGE Shop'));
+      expect(services[3]['name'], equals('G-Shop'));
       expect(services[3]['icon'], equals('assets/icons/ic_shop.png'));
 
-      // 5. GAGE Send
+      // 5. G-Send
       expect(services[4]['id'], equals('send'));
-      expect(services[4]['name'], equals('GAGE Send'));
+      expect(services[4]['name'], equals('G-Send'));
       expect(services[4]['icon'], equals('assets/icons/ic_send.png'));
 
-      // 6. GAGE Farm
+      // 6. G-Farm
       expect(services[5]['id'], equals('farm'));
-      expect(services[5]['name'], equals('GAGE Farm'));
+      expect(services[5]['name'], equals('G-Farm'));
       expect(services[5]['icon'], equals('assets/icons/ic_farm.png'));
 
-      // 7. GAGE Build
-      expect(services[6]['id'], equals('build'));
-      expect(services[6]['name'], equals('GAGE Build'));
-      expect(services[6]['icon'], equals('assets/icons/ic_build.png'));
+      // 7. G-Cuan
+      expect(services[6]['id'], equals('cuan'));
+      expect(services[6]['name'], equals('G-Cuan'));
+      expect(services[6]['icon'], equals('assets/icons/ic_bonus.png'));
 
-      // 8. GAGE Cuan
-      expect(services[7]['id'], equals('cuan'));
-      expect(services[7]['name'], equals('GAGE Cuan'));
-      expect(services[7]['icon'], equals('assets/icons/ic_bonus.png'));
+      // 8. G-Fit (Sports)
+      expect(services[7]['id'], equals('pacu'));
+      expect(services[7]['name'], equals('G-Fit'));
+      expect(services[7]['icon'], equals('assets/icons/ic_build.png'));
     });
 
-    testWidgets('Renders all 8 items and tapping GAGE Ride pushes RideBookingScreen with ride tab', (WidgetTester tester) async {
+    testWidgets('Renders all 8 items and tapping G-Ride pushes RideBookingScreen with ride tab', (WidgetTester tester) async {
       tester.view.physicalSize = const Size(360, 800);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -94,17 +94,17 @@ void main() {
       );
 
       // Verify all 8 names are rendered
-      expect(find.text('GAGE Ride'), findsOneWidget);
-      expect(find.text('GAGE Car'), findsOneWidget);
-      expect(find.text('GAGE Food'), findsOneWidget);
-      expect(find.text('GAGE Shop'), findsOneWidget);
-      expect(find.text('GAGE Send'), findsOneWidget);
-      expect(find.text('GAGE Farm'), findsOneWidget);
-      expect(find.text('GAGE Build'), findsOneWidget);
-      expect(find.text('GAGE Cuan'), findsOneWidget);
+      expect(find.text('G-Ride'), findsOneWidget);
+      expect(find.text('G-Car'), findsOneWidget);
+      expect(find.text('G-Food'), findsOneWidget);
+      expect(find.text('G-Shop'), findsOneWidget);
+      expect(find.text('G-Send'), findsOneWidget);
+      expect(find.text('G-Farm'), findsOneWidget);
+      expect(find.text('G-Cuan'), findsOneWidget);
+      expect(find.text('G-Fit'), findsOneWidget);
 
-      // Tap GAGE Ride
-      await tester.tap(find.text('GAGE Ride'));
+      // Tap G-Ride
+      await tester.tap(find.text('G-Ride'));
       await tester.pump();
 
       expect(observer.pushedRoutes.length, equals(3));
@@ -116,7 +116,7 @@ void main() {
       expect(builtMap.runtimeType.toString(), contains('FullScreenMapPicker'));
     });
 
-    testWidgets('Tapping GAGE Car pushes RideBookingScreen with car tab', (WidgetTester tester) async {
+    testWidgets('Tapping G-Car pushes RideBookingScreen with car tab', (WidgetTester tester) async {
       tester.view.physicalSize = const Size(360, 800);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -143,8 +143,8 @@ void main() {
         ),
       );
 
-      // Tap GAGE Car
-      await tester.tap(find.text('GAGE Car'));
+      // Tap G-Car
+      await tester.tap(find.text('G-Car'));
       await tester.pump();
 
       expect(observer.pushedRoutes.length, equals(3));
@@ -156,7 +156,7 @@ void main() {
       expect(builtMap.runtimeType.toString(), contains('FullScreenMapPicker'));
     });
 
-    testWidgets('Tapping GAGE Cuan pushes AffiliateHubScreen', (WidgetTester tester) async {
+    testWidgets('Tapping G-Cuan pushes AffiliateHubScreen', (WidgetTester tester) async {
       tester.view.physicalSize = const Size(360, 800);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -175,8 +175,8 @@ void main() {
         ),
       );
 
-      // Tap GAGE Cuan
-      await tester.tap(find.text('GAGE Cuan'));
+      // Tap G-Cuan
+      await tester.tap(find.text('G-Cuan'));
       await tester.pump();
 
       expect(observer.pushedRoutes.length, equals(2));
@@ -185,7 +185,7 @@ void main() {
       expect(builtWidget, isA<AffiliateHubScreen>());
     });
 
-    testWidgets('Tapping GAGE Food invokes onFoodTap callback', (WidgetTester tester) async {
+    testWidgets('Tapping G-Food invokes onFoodTap callback', (WidgetTester tester) async {
       bool foodTapped = false;
 
       await tester.pumpWidget(
@@ -200,7 +200,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.text('GAGE Food'));
+      await tester.tap(find.text('G-Food'));
       await tester.pump();
 
       expect(foodTapped, isTrue);

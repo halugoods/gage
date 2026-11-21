@@ -3,11 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:gage_app/core/services/location_service.dart';
 import 'package:gage_app/core/services/merchant_storefront_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_menu_screen.dart';
-import 'package:gage_app/features/merchant/presentation/widgets/merchant_bottom_nav_bar.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/operating_schedule_editor_sheet.dart';
+import 'package:gage_app/shared/widgets/full_screen_map_picker.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/mini_location_preview_map.dart';
 import 'package:gage_app/shared/widgets/storefront_image.dart';
@@ -38,6 +39,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
   String _activeMerchantId = MerchantStorefrontService.defaultPortalMerchantId;
   String _storeName = 'Dimsum Sewu';
   String _storeAddress = 'Jl. Raya Pracimantoro No. 14, Depan Pasar';
+  String _landmark = '';
   String _storeBio = 'Spesialis Dimsum Kukus & Goreng Hangat Gurih';
   String _storeBanner = 'assets/images/resto_dimsum_sewu.png';
   String _storeLogo = 'assets/images/resto_dimsum_sewu.png';
@@ -91,6 +93,12 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
         if (stored.address != null && stored.address!.trim().isNotEmpty) {
           _storeAddress = stored.address!;
         }
+        if (stored.landmark != null) {
+          _landmark = stored.landmark!;
+        }
+        if (stored.deliveryRadius != null) {
+          _deliveryRadius = stored.deliveryRadius!;
+        }
         if (stored.bio != null && stored.bio!.trim().isNotEmpty) {
           _storeBio = stored.bio!;
         }
@@ -119,21 +127,22 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
   }
 
   Future<void> _persistStorefront() async {
-    await MerchantStorefrontService.saveStorefront(
-      MerchantStorefrontData(
-        merchantId: _activeMerchantId,
-        name: _storeName,
-        address: _storeAddress,
-        bio: _storeBio,
-        bannerPhoto: _storeBanner,
-        logoPhoto: _storeLogo,
-        locationPhoto: _locationPhoto,
-        latitude: _latitude,
-        longitude: _longitude,
-        isOpen: _isOpen,
-        schedule: _schedule,
-      ),
+    final existing = await MerchantStorefrontService.loadStorefront(_activeMerchantId);
+    final dataToSave = (existing ?? MerchantStorefrontData(merchantId: _activeMerchantId)).copyWith(
+      name: _storeName,
+      address: _storeAddress,
+      landmark: _landmark,
+      deliveryRadius: _deliveryRadius,
+      bio: _storeBio,
+      bannerPhoto: _storeBanner,
+      logoPhoto: _storeLogo,
+      locationPhoto: _locationPhoto,
+      latitude: _latitude,
+      longitude: _longitude,
+      isOpen: _isOpen,
+      schedule: _schedule,
     );
+    await MerchantStorefrontService.saveStorefront(dataToSave);
   }
 
   Future<void> _openScheduleEditor() async {
@@ -207,12 +216,12 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                         right: 8,
                         child: InkWell(
                           onTap: _showEditStoreProfileSheet,
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(999),
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                             decoration: BoxDecoration(
                               color: Colors.black.withValues(alpha: 0.65),
-                              borderRadius: BorderRadius.circular(20),
+                              borderRadius: BorderRadius.circular(999),
                             ),
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
@@ -602,6 +611,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                     activeColor: GageTheme.primary,
                     label: '${_deliveryRadius.toStringAsFixed(1)} KM',
                     onChanged: (v) => setState(() => _deliveryRadius = v),
+                    onChangeEnd: (v) => _persistStorefront(),
                   ),
                   const Text(
                     'Menjangkau seluruh pelosok desa di Pracimantoro dan sekitarnya.',
@@ -651,7 +661,6 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: const MerchantBottomNavBar(currentIndex: 4),
     );
   }
 
@@ -688,6 +697,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
   void _showEditStoreProfileSheet() {
     final nameCtrl = TextEditingController(text: _storeName);
     final addrCtrl = TextEditingController(text: _storeAddress);
+    final landmarkCtrl = TextEditingController(text: _landmark);
     final bioCtrl = TextEditingController(text: _storeBio);
     final locationPhotoUrlCtrl = TextEditingController(text: _locationPhoto);
     final latCtrl = TextEditingController(text: _latitude.toStringAsFixed(6));
@@ -760,6 +770,16 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                     controller: addrCtrl,
                     decoration: InputDecoration(
                       labelText: 'Alamat Lengkap Toko',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: landmarkCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Patokan Lapak / Landmark Kurir',
+                      hintText: 'Misal: Samping gapura desa, tenda merah',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     ),
@@ -856,7 +876,73 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                   const SizedBox(height: 14),
 
                   // Koordinat Titik Pin Peta Merchant
-                  const Text('Koordinat Titik Pin Lokasi Toko:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Titik Pin Lokasi Kios / Toko:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      Row(
+                        children: [
+                          InkWell(
+                            onTap: () async {
+                              HapticFeedback.lightImpact();
+                              final pos = await LocationService.getCurrentLocation(forceFresh: true);
+                              setSheetState(() {
+                                latCtrl.text = pos.latitude.toStringAsFixed(6);
+                                lngCtrl.text = pos.longitude.toStringAsFixed(6);
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(999),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.my_location_rounded, size: 13, color: GageTheme.primary),
+                                  const SizedBox(width: 3),
+                                  Text('GPS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: GageTheme.primary)),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          InkWell(
+                            onTap: () async {
+                              HapticFeedback.lightImpact();
+                              final res = await FullScreenMapPicker.open(
+                                context,
+                                title: 'Tentukan Titik Kios Toko',
+                                initialLocation: LatLng(parsedLat, parsedLng),
+                                initialFullAddress: addrCtrl.text,
+                              );
+                              if (res != null) {
+                                setSheetState(() {
+                                  latCtrl.text = res.location.latitude.toStringAsFixed(6);
+                                  lngCtrl.text = res.location.longitude.toStringAsFixed(6);
+                                  if (addrCtrl.text.trim().isEmpty) {
+                                    addrCtrl.text = res.fullAddress;
+                                  }
+                                });
+                              }
+                            },
+                            borderRadius: BorderRadius.circular(999),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: GageTheme.primary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.map_rounded, size: 13, color: GageTheme.primary),
+                                  const SizedBox(width: 4),
+                                  Text('Buka Peta', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: GageTheme.primary)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
@@ -894,6 +980,20 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                         borderRadius: 10,
                         markerImagePath: currentLogo,
                         useMerchantPin: true,
+                        onTap: () async {
+                          final res = await FullScreenMapPicker.open(
+                            context,
+                            title: 'Tentukan Titik Kios Toko',
+                            initialLocation: LatLng(parsedLat, parsedLng),
+                            initialFullAddress: addrCtrl.text,
+                          );
+                          if (res != null) {
+                            setSheetState(() {
+                              latCtrl.text = res.location.latitude.toStringAsFixed(6);
+                              lngCtrl.text = res.location.longitude.toStringAsFixed(6);
+                            });
+                          }
+                        },
                       ),
                     ],
                   ),
@@ -914,6 +1014,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                         setState(() {
                           _storeName = nameCtrl.text.trim().isNotEmpty ? nameCtrl.text.trim() : _storeName;
                           _storeAddress = addrCtrl.text.trim().isNotEmpty ? addrCtrl.text.trim() : _storeAddress;
+                          _landmark = landmarkCtrl.text.trim();
                           _storeBio = bioCtrl.text.trim().isNotEmpty ? bioCtrl.text.trim() : _storeBio;
                           _storeBanner = currentBanner;
                           _storeLogo = currentLogo;

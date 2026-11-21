@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gage_app/core/services/social_profile_service.dart';
-import 'package:gage_app/core/services/gage_video_feed_service.dart';
 import 'package:gage_app/data/models/user_model.dart';
 import 'package:gage_app/features/profile/presentation/profile_screen.dart';
 import 'package:gage_app/providers/auth_provider.dart';
@@ -118,8 +117,9 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Top Header: user handle, share icon, and 3-line menu icon
-      expect(find.byIcon(Icons.share_outlined), findsOneWidget);
+      // Top Header: user handle, edit icon, share icon (reply arrow), and 3-line menu icon
+      expect(find.byIcon(Icons.edit_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.reply_rounded), findsOneWidget);
       expect(find.byIcon(Icons.menu_rounded), findsOneWidget);
 
       // Default tab adalah Profil (Sosmed murni tanpa card cuan)
@@ -127,13 +127,14 @@ void main() {
       expect(find.text('Pengikut'), findsOneWidget);
       expect(find.text('Suka'), findsOneWidget);
       expect(find.textContaining('Cuan'), findsNothing);
-      expect(find.text('Edit Profil'), findsOneWidget);
-      expect(find.text('Buat Video'), findsOneWidget);
+      expect(find.text('Edit Profil'), findsNothing); // Tombol di bawah bio sudah dihapus (ikon pensil di header)
 
-      // Sub-tabs tanpa count kurung
-      expect(find.text('Video'), findsNWidgets(2)); // Sub-tab konten + Bottom Nav Bar
-      expect(find.text('Disukai'), findsOneWidget);
-      expect(find.text('Etalase'), findsOneWidget);
+      // 5 TikTok-style icon tabs below bio (pure icons without text labels, shopping bag for showcase)
+      expect(find.byIcon(Icons.grid_view_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.shopping_bag_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.repeat_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.bookmark_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.favorite_rounded), findsOneWidget);
 
       // Tap 3-line menu icon ke Pengaturan
       await tester.tap(find.byIcon(Icons.menu_rounded));
@@ -147,7 +148,7 @@ void main() {
       // Tap back arrow untuk kembali ke Profil
       await tester.tap(find.byIcon(Icons.arrow_back_ios_new_rounded));
       await tester.pumpAndSettle();
-      expect(find.text('Edit Profil'), findsOneWidget);
+      expect(find.byIcon(Icons.edit_rounded), findsOneWidget);
     });
   });
 }

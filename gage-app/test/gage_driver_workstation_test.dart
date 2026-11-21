@@ -131,7 +131,7 @@ void main() {
       expect(walletProv.availableCodCredit, 0);
 
       // Pelunasan komisi COD via QRIS/Transfer
-      walletProv.topUp(50000, 'QRIS Instant');
+      walletProv.topUp(50000, 'QRIS');
       expect(walletProv.balance, -50000);
       expect(walletProv.availableCodCredit, 50000);
       expect(walletProv.canAcceptCashOrder, isTrue);

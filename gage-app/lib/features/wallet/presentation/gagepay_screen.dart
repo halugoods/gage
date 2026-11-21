@@ -24,10 +24,12 @@ import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 /// dan Stack Kartu Rekening Penarikan yang dapat meluncur keluar (fan-out).
 class GagePayScreen extends StatefulWidget {
   final String? initialAction; // 'withdraw', 'history'
+  final bool isEmbeddedInTab;
 
   const GagePayScreen({
     super.key,
     this.initialAction,
+    this.isEmbeddedInTab = false,
   });
 
   @override
@@ -159,55 +161,21 @@ class _GagePayScreenState extends State<GagePayScreen> {
       return true;
     }).toList();
 
-    return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        title: Text(
-          'GAGEPay',
-          style: TextStyle(
-            fontWeight: FontWeight.w900,
-            fontSize: 18,
-            color: isDark ? Colors.white : const Color(0xFF1E293B),
-            letterSpacing: 0.5,
-          ),
-        ),
-        backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
-        foregroundColor: isDark ? Colors.white : Colors.black87,
-        elevation: 0.5,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add_card_rounded),
-            tooltip: 'Tambah Rekening Penarikan',
-            onPressed: () => _showAccountSelectionSheet(context),
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Pengaturan GAGEPay',
-            onPressed: () {
-              HapticFeedback.lightImpact();
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const GagePaySettingsScreen()),
-              );
-            },
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          final uid = context.read<AuthProvider>().currentUser?.id ??
-              (GageApiClient.useDevSeedData ? 'usr-cust-01' : '');
-          if (uid.isNotEmpty) {
-            await wallet.fetchWallet(uid);
-          }
-        },
-        color: GageTheme.primary,
-        child: SingleChildScrollView(
-          controller: _scrollController,
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    final bodyContent = RefreshIndicator(
+      onRefresh: () async {
+        final uid = context.read<AuthProvider>().currentUser?.id ??
+            (GageApiClient.useDevSeedData ? 'usr-cust-01' : '');
+        if (uid.isNotEmpty) {
+          await wallet.fetchWallet(uid);
+        }
+      },
+      color: GageTheme.primary,
+      child: SingleChildScrollView(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.fromLTRB(16, widget.isEmbeddedInTab ? 12 : 16, 16, widget.isEmbeddedInTab ? 96 : 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 1. Widget Saku Dompet Kulit 3D (Interactive Leather Pocket Wallet dengan 4 Fitur Cepat Terintegrasi)
               GagePocketWallet(
@@ -624,7 +592,47 @@ class _GagePayScreenState extends State<GagePayScreen> {
             ],
           ),
         ),
+      );
+
+    if (widget.isEmbeddedInTab) {
+      return bodyContent;
+    }
+
+    return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        title: Text(
+          'GAGEPay',
+          style: TextStyle(
+            fontWeight: FontWeight.w900,
+            fontSize: 18,
+            color: isDark ? Colors.white : const Color(0xFF1E293B),
+            letterSpacing: 0.5,
+          ),
+        ),
+        backgroundColor: isDark ? GageTheme.darkSurface : Colors.white,
+        foregroundColor: isDark ? Colors.white : Colors.black87,
+        elevation: 0.5,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add_card_rounded),
+            tooltip: 'Tambah Rekening Penarikan',
+            onPressed: () => _showAccountSelectionSheet(context),
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Pengaturan GAGEPay',
+            onPressed: () {
+              HapticFeedback.lightImpact();
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const GagePaySettingsScreen()),
+              );
+            },
+          ),
+        ],
       ),
+      body: bodyContent,
     );
   }
 

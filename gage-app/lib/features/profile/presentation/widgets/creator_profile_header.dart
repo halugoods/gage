@@ -1,9 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:gage_app/core/services/social_profile_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
-import 'package:gage_app/features/affiliate/presentation/affiliate_video_upload_screen.dart';
+import 'package:gage_app/features/chat/presentation/chat_hub_screen.dart';
 import 'package:gage_app/features/profile/presentation/edit_profile_screen.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 
@@ -18,6 +18,8 @@ class CreatorProfileHeader extends StatefulWidget {
   final bool isVerified;
   final bool isOwnProfile;
   final String? targetId;
+  final VoidCallback? onChatTap;
+  final VoidCallback? onCreateVideoTap;
 
   const CreatorProfileHeader({
     super.key,
@@ -28,6 +30,8 @@ class CreatorProfileHeader extends StatefulWidget {
     this.isVerified = false,
     this.isOwnProfile = true,
     this.targetId,
+    this.onChatTap,
+    this.onCreateVideoTap,
   });
 
   @override
@@ -65,15 +69,7 @@ class _CreatorProfileHeaderState extends State<CreatorProfileHeader> {
               color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
             ),
             child: ClipOval(
-              child: widget.avatarUrl.isNotEmpty
-                  ? (widget.avatarUrl.startsWith('assets/')
-                      ? Image.asset(widget.avatarUrl, fit: BoxFit.cover)
-                      : Image.network(
-                          widget.avatarUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _buildFallbackAvatar(isDark),
-                        ))
-                  : _buildFallbackAvatar(isDark),
+              child: _buildAvatarImage(isDark),
             ),
           ),
         ),
@@ -147,162 +143,158 @@ class _CreatorProfileHeaderState extends State<CreatorProfileHeader> {
 
         const SizedBox(height: 16),
 
-        // Barisan Tombol Aksi Utama
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: widget.isOwnProfile
-              ? Row(
-                  children: [
-                    // Tombol Edit Profil
-                    Expanded(
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          shape: const StadiumBorder(),
-                          side: BorderSide(
-                            color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
-                          ),
-                          foregroundColor: isDark ? Colors.white : const Color(0xFF0F172A),
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                        ),
-                        onPressed: () {
-                          HapticFeedback.lightImpact();
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-                          );
-                        },
-                        child: const Text(
-                          'Edit Profil',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
+        // Barisan Tombol Aksi Utama (Chat Unboxed Icon + Buat Video Compact, Terpusat di Tengah)
+        if (widget.isOwnProfile)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Tombol Chat (Hanya Ikon Murni Tanpa Kontainer Box, Seragam dengan Header Beranda)
+                IconButton(
+                  tooltip: 'Pesan',
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    if (widget.onChatTap != null) {
+                      widget.onChatTap!();
+                    } else {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ChatHubScreen()),
+                      );
+                    }
+                  },
+                  icon: Icon(
+                    Icons.chat_rounded,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 8),
 
-                    // Tombol Buat Video (Langsung buka galeri pemilih video)
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: GageTheme.primary,
-                          foregroundColor: Colors.white,
-                          shape: const StadiumBorder(),
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          elevation: 1,
-                        ),
-                        onPressed: () async {
-                          HapticFeedback.selectionClick();
-                          try {
-                            final picker = ImagePicker();
-                            final XFile? picked = await picker.pickVideo(
-                              source: ImageSource.gallery,
-                              maxDuration: const Duration(minutes: 3),
-                            );
-                            if (!context.mounted) return;
-                            if (picked != null) {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => AffiliateVideoUploadScreen(
-                                    initialVideoPath: picked.path,
-                                    initialVideoName: picked.name,
-                                  ),
-                                ),
-                              );
-                              return;
-                            }
-                          } catch (_) {}
-                          if (context.mounted) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const AffiliateVideoUploadScreen(),
-                              ),
-                            );
-                          }
-                        },
-                        icon: const Icon(Icons.videocam_rounded, size: 17),
-                        label: const Text(
-                          'Buat Video',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                        ),
-                      ),
+                // Tombol Buat Video (Kompak, Tidak Melebar Penuh)
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: GageTheme.primary,
+                    foregroundColor: Colors.white,
+                    shape: const StadiumBorder(),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    elevation: 1,
+                  ),
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    widget.onCreateVideoTap?.call();
+                  },
+                  icon: const Icon(Icons.video_call_rounded, size: 20),
+                  label: const Text(
+                    'Buat Video',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                // Tombol Ikuti / Mengikuti
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isFollowing
+                          ? (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))
+                          : GageTheme.primary,
+                      foregroundColor: isFollowing
+                          ? (isDark ? Colors.white : const Color(0xFF0F172A))
+                          : Colors.white,
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
                     ),
-                  ],
-                )
-              : Row(
-                  children: [
-                    // Tombol Ikuti / Mengikuti
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: isFollowing
-                              ? (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))
-                              : GageTheme.primary,
-                          foregroundColor: isFollowing
-                              ? (isDark ? Colors.white : const Color(0xFF0F172A))
-                              : Colors.white,
-                          shape: const StadiumBorder(),
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                        ),
-                        onPressed: () async {
-                          HapticFeedback.selectionClick();
-                          if (widget.targetId != null) {
-                            final nowFollowed = await socialService.toggleFollow(widget.targetId!);
-                            setState(() {});
-                            if (mounted) {
-                              GageToast.show(
-                                context,
-                                nowFollowed
-                                    ? 'Anda sekarang mengikuti ${widget.displayName}'
-                                    : 'Berhenti mengikuti ${widget.displayName}',
-                                type: GageToastType.info,
-                              );
-                            }
-                          }
-                        },
-                        icon: Icon(
-                          isFollowing ? Icons.check_rounded : Icons.person_add_alt_1_rounded,
-                          size: 16,
-                        ),
-                        label: Text(
-                          isFollowing ? 'Mengikuti' : 'Ikuti',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-
-                    // Tombol Kirim Pesan
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          shape: const StadiumBorder(),
-                          side: BorderSide(
-                            color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
-                          ),
-                          foregroundColor: isDark ? Colors.white : const Color(0xFF0F172A),
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                        ),
-                        onPressed: () {
-                          HapticFeedback.selectionClick();
+                    onPressed: () async {
+                      HapticFeedback.selectionClick();
+                      if (widget.targetId != null) {
+                        final nowFollowed = await socialService.toggleFollow(widget.targetId!);
+                        setState(() {});
+                        if (mounted) {
                           GageToast.show(
                             context,
-                            'Membuka obrolan dengan ${widget.displayName}...',
+                            nowFollowed
+                                ? 'Anda sekarang mengikuti ${widget.displayName}'
+                                : 'Berhenti mengikuti ${widget.displayName}',
                             type: GageToastType.info,
                           );
-                        },
-                        icon: const Icon(Icons.chat_bubble_outline_rounded, size: 15),
-                        label: const Text(
-                          'Kirim Pesan',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                        ),
-                      ),
+                        }
+                      }
+                    },
+                    icon: Icon(
+                      isFollowing ? Icons.check_rounded : Icons.person_add_rounded,
+                      size: 16,
                     ),
-                  ],
+                    label: Text(
+                      isFollowing ? 'Mengikuti' : 'Ikuti',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ),
                 ),
-        ),
+                const SizedBox(width: 10),
+
+                // Tombol Kirim Pesan
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      shape: const StadiumBorder(),
+                      side: BorderSide(
+                        color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
+                      ),
+                      foregroundColor: isDark ? Colors.white : const Color(0xFF0F172A),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                    onPressed: () {
+                      HapticFeedback.selectionClick();
+                      GageToast.show(
+                        context,
+                        'Membuka obrolan dengan ${widget.displayName}...',
+                        type: GageToastType.info,
+                      );
+                    },
+                    icon: const Icon(Icons.chat_bubble_rounded, size: 15),
+                    label: const Text(
+                      'Kirim Pesan',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
     );
+  }
+
+  Widget _buildAvatarImage(bool isDark) {
+    if (widget.avatarUrl.trim().isEmpty) {
+      return _buildFallbackAvatar(isDark);
+    }
+    final trimmed = widget.avatarUrl.trim();
+    if (trimmed.startsWith('assets/')) {
+      return Image.asset(trimmed, fit: BoxFit.cover);
+    }
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return Image.network(
+        trimmed,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildFallbackAvatar(isDark),
+      );
+    }
+    try {
+      final file = File(trimmed);
+      if (file.existsSync()) {
+        return Image.file(file, fit: BoxFit.cover);
+      }
+    } catch (_) {}
+    return _buildFallbackAvatar(isDark);
   }
 
   Widget _buildFallbackAvatar(bool isDark) {

@@ -807,9 +807,9 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
     final now = DateTime.now();
     final invoiceNumber = 'GAGE-${now.millisecondsSinceEpoch.toString().substring(5)}';
 
-    String serviceName = 'GAGE Ride Pracimantoro';
-    if (isSend) serviceName = 'GAGE Send Pracimantoro';
-    if (isCar) serviceName = 'GAGE Car Pracimantoro';
+    String serviceName = 'G-Ride Pracimantoro';
+    if (isSend) serviceName = 'G-Send Pracimantoro';
+    if (isCar) serviceName = 'G-Car Pracimantoro';
 
     // Potong saldo GAGEPay jika memakai GAGEPay murni atau split
     if (_selectedPaymentMethod == 'GAGEPAY') {
@@ -1082,8 +1082,8 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
     ];
 
     final pageTitle = isSend
-        ? 'GAGE Send Pracimantoro'
-        : (isCar ? 'GAGE Car Pracimantoro' : 'GAGE Ride Pracimantoro');
+        ? 'G-Send Pracimantoro'
+        : (isCar ? 'G-Car Pracimantoro' : 'G-Ride Pracimantoro');
 
     return Scaffold(
       backgroundColor: isDark ? GageTheme.darkBackground : const Color(0xFFF8F9FA),
@@ -1255,8 +1255,8 @@ class _RideCheckoutScreenState extends State<RideCheckoutScreen> {
                                     children: [
                                       Text(
                                         isSend
-                                            ? 'Pengiriman Paket GAGE Send'
-                                            : (isCar ? 'Perjalanan GAGE Car' : 'Perjalanan GAGE Ride'),
+                                            ? 'Pengiriman Paket G-Send'
+                                            : (isCar ? 'Perjalanan G-Car' : 'Perjalanan G-Ride'),
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 14,

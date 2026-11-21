@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class GageTheme {
   static const Color primary = Color(0xFFE52320); // Merah Semangat GAGE
@@ -37,7 +36,9 @@ class GageTheme {
         surface: surface,
       ),
       scaffoldBackgroundColor: background,
-      textTheme: GoogleFonts.poppinsTextTheme().apply(
+      fontFamily: 'TikTok Sans',
+      textTheme: ThemeData.light().textTheme.apply(
+        fontFamily: 'TikTok Sans',
         bodyColor: textPrimary,
         displayColor: textPrimary,
       ),
@@ -97,7 +98,9 @@ class GageTheme {
         surface: darkSurface,
       ),
       scaffoldBackgroundColor: darkBackground,
-      textTheme: GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme).apply(
+      fontFamily: 'TikTok Sans',
+      textTheme: ThemeData.dark().textTheme.apply(
+        fontFamily: 'TikTok Sans',
         bodyColor: darkTextPrimary,
         displayColor: darkTextPrimary,
       ),

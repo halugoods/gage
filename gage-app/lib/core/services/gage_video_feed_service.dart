@@ -1,18 +1,25 @@
 import 'package:flutter/foundation.dart';
 
-/// Model Data Komentar Video GAGE
+/// Model Data Komentar Video GAGE (Mendukung Threaded / Nested Replies)
 class GageVideoComment {
+  final String id;
   final String username;
   final String text;
   final String timeAgo;
   int likes;
+  final String? replyToUsername;
+  final List<GageVideoComment> replies;
 
   GageVideoComment({
+    String? id,
     required this.username,
     required this.text,
     required this.timeAgo,
     this.likes = 0,
-  });
+    this.replyToUsername,
+    List<GageVideoComment>? replies,
+  })  : id = id ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        replies = replies ?? [];
 }
 
 /// Model Data Katalog Video Kuliner & UMKM Lokal GAGE (Pracimantoro, Wonogiri)
@@ -34,14 +41,17 @@ class GageVideoItem {
   final String productId;
   final String productTitle;
   final int productPrice;
+  final int? originalPrice;
   final String productDescription;
   int likesCount;
   int commentsCount;
   int bookmarksCount;
   int sharesCount;
+  int repostsCount;
   bool isLiked;
   bool isBookmarked;
   bool isFollowing;
+  bool isReposted;
   final List<GageVideoComment> sampleComments;
 
   GageVideoItem({
@@ -62,14 +72,17 @@ class GageVideoItem {
     required this.productId,
     required this.productTitle,
     required this.productPrice,
+    this.originalPrice,
     required this.productDescription,
     required this.likesCount,
     required this.commentsCount,
     required this.bookmarksCount,
     required this.sharesCount,
+    this.repostsCount = 0,
     this.isLiked = false,
     this.isBookmarked = false,
     this.isFollowing = false,
+    this.isReposted = false,
     List<GageVideoComment>? sampleComments,
   }) : sampleComments = sampleComments ?? [];
 }
@@ -111,6 +124,7 @@ class GageVideoFeedService extends ChangeNotifier {
         productId: 'prd-bakso-urat-01',
         productTitle: 'Bakso Urat Jumbo',
         productPrice: 15000,
+        originalPrice: 18000,
         productDescription:
             '1 bakso urat jumbo daging sapi asli + 4 bakso halus, mie kuning, bihun, sawi, tetelan, dan kuah kaldu sapi gurih.',
         likesCount: 12400,
@@ -119,12 +133,32 @@ class GageVideoFeedService extends ChangeNotifier {
         sharesCount: 1200,
         sampleComments: [
           GageVideoComment(
+            id: 'c-praci-01',
             username: '@nisa_praci',
             text: 'Langgananku tiap pulang kerja, tetelannya gak pelit!',
             timeAgo: '12m lalu',
             likes: 34,
+            replies: [
+              GageVideoComment(
+                id: 'r-praci-01-1',
+                username: '@wonogirifoodie',
+                text: '@nisa_praci Kuahnya juga gurih rempah banget kak!',
+                timeAgo: '8m lalu',
+                likes: 6,
+                replyToUsername: '@nisa_praci',
+              ),
+              GageVideoComment(
+                id: 'r-praci-01-2',
+                username: '@dimas.wng',
+                text: '@nisa_praci Tambah tetelan cuma Rp 5rb puas pol.',
+                timeAgo: '5m lalu',
+                likes: 3,
+                replyToUsername: '@nisa_praci',
+              ),
+            ],
           ),
           GageVideoComment(
+            id: 'c-praci-02',
             username: '@dimas.wng',
             text:
                 'Baru aja order lewat GAGE 10 menit langsung sampe masih panas 🔥',
@@ -153,6 +187,7 @@ class GageVideoFeedService extends ChangeNotifier {
         productId: 'prd-dimsum-mix-01',
         productTitle: 'Dimsum Ayam Mix Chili Oil',
         productPrice: 12000,
+        originalPrice: 15000,
         productDescription:
             'Porsi isi 4 pcs dimsum ayam udang premium topping wortel, jamur, keju, lengkap dengan saus dimsum & chili oil.',
         likesCount: 8750,
@@ -267,4 +302,75 @@ class GageVideoFeedService extends ChangeNotifier {
     _videos.insert(0, item);
     notifyListeners();
   }
+
+  /// Toggle suka (like) video
+  void toggleLike(String videoId) {
+    final idx = _videos.indexWhere((v) => v.id == videoId);
+    if (idx != -1) {
+      final item = _videos[idx];
+      item.isLiked = !item.isLiked;
+      item.likesCount += item.isLiked ? 1 : -1;
+      notifyListeners();
+    }
+  }
+
+  /// Toggle simpan / bookmark video ke profil
+  void toggleBookmark(String videoId) {
+    final idx = _videos.indexWhere((v) => v.id == videoId);
+    if (idx != -1) {
+      final item = _videos[idx];
+      item.isBookmarked = !item.isBookmarked;
+      item.bookmarksCount += item.isBookmarked ? 1 : -1;
+      notifyListeners();
+    }
+  }
+
+  /// Toggle posting ulang (repost) video
+  void toggleRepost(String videoId) {
+    final idx = _videos.indexWhere((v) => v.id == videoId);
+    if (idx != -1) {
+      final item = _videos[idx];
+      item.isReposted = !item.isReposted;
+      item.repostsCount += item.isReposted ? 1 : -1;
+      notifyListeners();
+    }
+  }
+
+  /// Toggle mengikuti kreator video
+  void toggleFollow(String videoId) {
+    final idx = _videos.indexWhere((v) => v.id == videoId);
+    if (idx != -1) {
+      final item = _videos[idx];
+      item.isFollowing = !item.isFollowing;
+      notifyListeners();
+    }
+  }
+
+  /// Menambahkan komentar utama atau balasan bersarang (nested reply)
+  void addComment(String videoId, GageVideoComment comment, {String? parentCommentId}) {
+    final idx = _videos.indexWhere((v) => v.id == videoId);
+    if (idx != -1) {
+      final item = _videos[idx];
+      if (parentCommentId != null) {
+        final parent = item.sampleComments.firstWhere(
+          (c) => c.id == parentCommentId,
+          orElse: () => item.sampleComments.first,
+        );
+        parent.replies.add(comment);
+      } else {
+        item.sampleComments.insert(0, comment);
+      }
+      item.commentsCount += 1;
+      notifyListeners();
+    }
+  }
+
+  List<GageVideoItem> get bookmarkedVideos =>
+      _videos.where((v) => v.isBookmarked).toList();
+
+  List<GageVideoItem> get repostedVideos =>
+      _videos.where((v) => v.isReposted).toList();
+
+  List<GageVideoItem> get likedVideos =>
+      _videos.where((v) => v.isLiked).toList();
 }

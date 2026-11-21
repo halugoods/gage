@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
-import 'package:gage_app/features/merchant/presentation/widgets/merchant_bottom_nav_bar.dart';
 
 /// Screen Transaksi & Dompet Mitra Merchant - Tab 2
 /// Dashboard transparansi finansial mitra UMKM (Omset Kotor, Komisi 10%, Penarikan Instan).
@@ -443,7 +442,6 @@ class _MerchantFinanceScreenState extends State<MerchantFinanceScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: const MerchantBottomNavBar(currentIndex: 2),
     );
   }
 

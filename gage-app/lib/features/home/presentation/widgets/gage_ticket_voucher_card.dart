@@ -73,12 +73,19 @@ class GageTicketVoucherCard extends StatelessWidget {
     const map = {
       'GAGE Food': Color(0xFFEA580C),
       'GAGE Ride': Color(0xFF2563EB),
+      'G-Ride': Color(0xFF2563EB),
       'GAGE Car': Color(0xFF4F46E5),
+      'G-Car': Color(0xFF4F46E5),
       'GAGE Mart': Color(0xFF16A34A),
       'GAGE Shop': Color(0xFF16A34A),
+      'G-Shop': Color(0xFF16A34A),
       'GAGE Farm': Color(0xFF059669),
+      'G-Farm': Color(0xFF059669),
       'GAGE Build': Color(0xFFD97706),
       'GAGE Send': Color(0xFFEA580C),
+      'G-Send': Color(0xFFEA580C),
+      'G-Cuan': Color(0xFFEA580C),
+      'G-Fit': Color(0xFF16A34A),
       'GAGE Pay': Color(0xFFD97706),
     };
     return map[service] ?? GageTheme.primary;
@@ -90,21 +97,30 @@ class GageTicketVoucherCard extends StatelessWidget {
     }
     switch (service) {
       case 'GAGE Food':
+      case 'G-Food':
         return Icons.restaurant_rounded;
       case 'GAGE Ride':
+      case 'G-Ride':
         return Icons.two_wheeler_rounded;
       case 'GAGE Car':
+      case 'G-Car':
         return Icons.directions_car_rounded;
       case 'GAGE Mart':
       case 'GAGE Shop':
+      case 'G-Shop':
         return Icons.storefront_rounded;
       case 'GAGE Farm':
+      case 'G-Farm':
         return Icons.agriculture_rounded;
       case 'GAGE Build':
         return Icons.handyman_rounded;
       case 'GAGE Send':
+      case 'G-Send':
         return Icons.inventory_2_rounded;
+      case 'G-Fit':
+        return Icons.directions_run_rounded;
       case 'GAGE Pay':
+      case 'G-Cuan':
         return Icons.account_balance_wallet_rounded;
       default:
         return Icons.local_offer_rounded;
@@ -115,23 +131,31 @@ class GageTicketVoucherCard extends StatelessWidget {
     if (type == 'delivery') return 'Gratis\nOngkir';
     switch (service) {
       case 'GAGE Food':
-        return 'GAGE\nFood';
+      case 'G-Food':
+        return 'G-Food';
       case 'GAGE Ride':
-        return 'GAGE\nRide';
+      case 'G-Ride':
+        return 'G-Ride';
       case 'GAGE Car':
-        return 'GAGE\nCar';
+      case 'G-Car':
+        return 'G-Car';
       case 'GAGE Mart':
-        return 'GAGE\nMart';
       case 'GAGE Shop':
-        return 'GAGE\nShop';
+      case 'G-Shop':
+        return 'G-Shop';
       case 'GAGE Farm':
-        return 'GAGE\nFarm';
+      case 'G-Farm':
+        return 'G-Farm';
       case 'GAGE Build':
         return 'GAGE\nBuild';
       case 'GAGE Send':
-        return 'GAGE\nSend';
+      case 'G-Send':
+        return 'G-Send';
+      case 'G-Fit':
+        return 'G-Fit';
       case 'GAGE Pay':
-        return 'GAGE\nPay';
+      case 'G-Cuan':
+        return 'G-Cuan';
       default:
         return 'Diskon';
     }

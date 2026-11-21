@@ -69,6 +69,7 @@ class OrderModel {
   final String deliveryOption;
   final Map<String, dynamic>? packageDetails;
   final int autoAcceptSecondsRemaining;
+  final String? handoverPin;
 
   const OrderModel({
     required this.id,
@@ -119,9 +120,24 @@ class OrderModel {
     this.deliveryOption = 'REGULER',
     this.packageDetails,
     this.autoAcceptSecondsRemaining = 180,
+    this.handoverPin,
   });
 
   bool get isActive => !['COMPLETED', 'CANCELLED'].contains(status);
+
+  bool get isPickupOrder => isPickup || deliveryOption.toUpperCase() == 'PICKUP';
+  int get merchantGrossOmset => itemsSubtotal;
+  int get platformCommissionAmount => (itemsSubtotal * 0.10).round();
+  int get merchantNetPayout => itemsSubtotal - platformCommissionAmount;
+
+  /// PIN verifikasi penyerahan pesanan unik 4 digit (random atau handoverPin eksplisit)
+  String get courierVerificationPin {
+    if (handoverPin != null && handoverPin!.trim().length == 4) {
+      return handoverPin!.trim();
+    }
+    final hash = (orderNumber.hashCode ^ id.hashCode).abs();
+    return (1000 + (hash % 9000)).toString();
+  }
 
   bool get hasAssignedDriver => driverName != null && driverName!.trim().isNotEmpty;
 
@@ -140,7 +156,7 @@ class OrderModel {
           plateNumber: (driverPlate != null && driverPlate!.trim().isNotEmpty)
               ? driverPlate!.trim()
               : '-',
-          pin: orderNumber.replaceAll(RegExp(r'[^0-9]'), '').padLeft(4, '0').substring(0, 4),
+          pin: courierVerificationPin,
           avatarUrl: driverAvatar,
         )
       : null;
@@ -243,6 +259,7 @@ class OrderModel {
   }
 
   OrderModel copyWith({
+    String? orderNumber,
     String? status,
     String? paymentStatus,
     int? totalAmount,
@@ -278,10 +295,11 @@ class OrderModel {
     double? deliveryLng,
     Map<String, dynamic>? packageDetails,
     int? qrisUniqueCode,
+    String? handoverPin,
   }) {
     return OrderModel(
       id: id,
-      orderNumber: orderNumber,
+      orderNumber: orderNumber ?? this.orderNumber,
       userId: userId,
       merchantId: merchantId,
       merchantName: merchantName,
@@ -328,6 +346,7 @@ class OrderModel {
       deliveryOption: deliveryOption ?? this.deliveryOption,
       packageDetails: packageDetails ?? this.packageDetails,
       autoAcceptSecondsRemaining: autoAcceptSecondsRemaining ?? this.autoAcceptSecondsRemaining,
+      handoverPin: handoverPin ?? this.handoverPin,
     );
   }
 
@@ -509,6 +528,7 @@ class OrderModel {
           .toUpperCase(),
       packageDetails: parsedPkg,
       autoAcceptSecondsRemaining: (json['auto_accept_seconds'] ?? 180) is num ? (json['auto_accept_seconds'] ?? 180).toInt() : 180,
+      handoverPin: json['handover_pin']?.toString(),
     );
   }
 }
@@ -520,6 +540,8 @@ class OrderItemModel {
   final int quantity;
   final int subtotal;
   final String? notes;
+  final String? selectedVariants;
+  final int variantPrice;
   final String? imageUrl;
   final String? merchantName;
   final bool isPicked;
@@ -531,12 +553,14 @@ class OrderItemModel {
     required this.quantity,
     required this.subtotal,
     this.notes,
+    this.selectedVariants,
+    this.variantPrice = 0,
     this.imageUrl,
     this.merchantName,
     this.isPicked = true,
   });
 
-  String? get variant => notes;
+  String? get variant => selectedVariants ?? notes;
 
   OrderItemModel copyWith({
     String? id,
@@ -545,6 +569,8 @@ class OrderItemModel {
     int? quantity,
     int? subtotal,
     String? notes,
+    String? selectedVariants,
+    int? variantPrice,
     String? imageUrl,
     String? merchantName,
     bool? isPicked,
@@ -556,6 +582,8 @@ class OrderItemModel {
       quantity: quantity ?? this.quantity,
       subtotal: subtotal ?? this.subtotal,
       notes: notes ?? this.notes,
+      selectedVariants: selectedVariants ?? this.selectedVariants,
+      variantPrice: variantPrice ?? this.variantPrice,
       imageUrl: imageUrl ?? this.imageUrl,
       merchantName: merchantName ?? this.merchantName,
       isPicked: isPicked ?? this.isPicked,
@@ -566,6 +594,8 @@ class OrderItemModel {
     final qty = (json['quantity'] ?? 1) is num ? (json['quantity'] ?? 1).toInt() : int.tryParse(json['quantity'].toString()) ?? 1;
     final prc = (json['price'] ?? 0) is num ? (json['price'] ?? 0).toInt() : int.tryParse(json['price'].toString()) ?? 0;
     final sub = (json['subtotal'] ?? (prc * qty)) is num ? (json['subtotal'] ?? (prc * qty)).toInt() : int.tryParse(json['subtotal'].toString()) ?? (prc * qty);
+    final varPrc = (json['variant_price'] ?? 0) is num ? (json['variant_price'] ?? 0).toInt() : int.tryParse(json['variant_price']?.toString() ?? '0') ?? 0;
+    final selVar = json['selected_variants']?.toString();
 
     return OrderItemModel(
       id: json['id']?.toString() ?? '',
@@ -573,7 +603,9 @@ class OrderItemModel {
       price: prc,
       quantity: qty,
       subtotal: sub,
-      notes: json['notes']?.toString() ?? json['variant']?.toString(),
+      notes: json['notes']?.toString(),
+      selectedVariants: selVar ?? (json['variant'] != null && json['notes'] != json['variant'] ? json['variant']?.toString() : null),
+      variantPrice: varPrc,
       imageUrl: (json['image_url'] ?? json['imageUrl'] ?? json['image'])?.toString(),
       merchantName: (json['merchant_name'] ?? json['merchantName'])?.toString(),
       isPicked: json['is_picked'] == true || json['is_picked'] == 1 || json['is_picked'] == null,

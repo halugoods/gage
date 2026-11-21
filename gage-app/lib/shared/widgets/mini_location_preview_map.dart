@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:latlong2/latlong.dart' hide Path;
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/shared/widgets/storefront_image.dart';
 
@@ -165,6 +165,13 @@ class _MiniLocationPreviewMapState extends State<MiniLocationPreviewMap> {
           child: Stack(
             fit: StackFit.expand,
             children: [
+              // 0. Base Static Road Map Canvas (Always renders instantly, never gray)
+              const Positioned.fill(
+                child: CustomPaint(
+                  painter: _StaticRoadMapPainter(),
+                ),
+              ),
+
               IgnorePointer(
                 child: FlutterMap(
                   mapController: _mapController,
@@ -227,4 +234,92 @@ class _MiniLocationPreviewMapState extends State<MiniLocationPreviewMap> {
       ),
     );
   }
+}
+
+/// Fallback / Base Static Road Map Painter
+/// Menjamin pratinjau peta di kartu share / delivery selalu menampilkan layout peta visual yang riil
+/// (jalan arteri, persimpangan, area hijau) secara instan tanpa menunggu unduhan network tiles.
+class _StaticRoadMapPainter extends CustomPainter {
+  const _StaticRoadMapPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // 1. Base Land Color
+    final landPaint = Paint()..color = const Color(0xFFF1EDE6);
+    canvas.drawRect(Offset.zero & size, landPaint);
+
+    // 2. Green Parks / Natural Spaces
+    final greenPaint = Paint()..color = const Color(0xFFD6ECD7);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(size.width * 0.05, size.height * 0.08, size.width * 0.35, size.height * 0.28),
+        const Radius.circular(12),
+      ),
+      greenPaint,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(size.width * 0.62, size.height * 0.58, size.width * 0.32, size.height * 0.34),
+        const Radius.circular(14),
+      ),
+      greenPaint,
+    );
+
+    // 3. Minor Roads (Grid lines)
+    final minorRoadPaint = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 3.5
+      ..style = PaintingStyle.stroke;
+
+    final minorRoadBorder = Paint()
+      ..color = const Color(0xFFE2E0D8)
+      ..strokeWidth = 5.0
+      ..style = PaintingStyle.stroke;
+
+    // Horizontal minor roads
+    for (double y = 0.22; y <= 0.85; y += 0.24) {
+      final p1 = Offset(0, size.height * y);
+      final p2 = Offset(size.width, size.height * y);
+      canvas.drawLine(p1, p2, minorRoadBorder);
+      canvas.drawLine(p1, p2, minorRoadPaint);
+    }
+
+    // Vertical minor roads
+    for (double x = 0.28; x <= 0.78; x += 0.26) {
+      final p1 = Offset(size.width * x, 0);
+      final p2 = Offset(size.width * x, size.height);
+      canvas.drawLine(p1, p2, minorRoadBorder);
+      canvas.drawLine(p1, p2, minorRoadPaint);
+    }
+
+    // 4. Major Arterial Road (Jl. Raya Pracimantoro - Yellow / Orange Highlight)
+    final majorBorder = Paint()
+      ..color = const Color(0xFFD4B886)
+      ..strokeWidth = 9.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final majorFill = Paint()
+      ..color = const Color(0xFFFED7AA)
+      ..strokeWidth = 7.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final path = Path()
+      ..moveTo(0, size.height * 0.52)
+      ..cubicTo(
+        size.width * 0.35,
+        size.height * 0.48,
+        size.width * 0.65,
+        size.height * 0.54,
+        size.width,
+        size.height * 0.49,
+      );
+
+    canvas.drawPath(path, majorBorder);
+    canvas.drawPath(path, majorFill);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

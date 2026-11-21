@@ -411,11 +411,30 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
           );
     }
 
-    final resolvedItem = matched ??
-        <String, dynamic>{
-          ...favItem,
-          'gage_price': favItem['gage_price'] ?? _parseInt(favItem['price'], 0),
-        };
+    final resolvedItem = matched != null
+        ? <String, dynamic>{
+            ...matched,
+            if ((matched['image'] == null || matched['image'].toString().isEmpty) &&
+                (favItem['image'] ?? favItem['imageUrl'] ?? favItem['thumbnailUrl']) != null)
+              'image': (favItem['image'] ?? favItem['imageUrl'] ?? favItem['thumbnailUrl']).toString(),
+          }
+        : <String, dynamic>{
+            ...favItem,
+            'name': favItem['name'] ?? favItem['productTitle'] ?? 'Menu Pilihan',
+            'image': (favItem['image'] ?? favItem['imageUrl'] ?? favItem['thumbnailUrl'] ?? '').toString(),
+            'imageUrl': (favItem['imageUrl'] ?? favItem['image'] ?? favItem['thumbnailUrl'] ?? '').toString(),
+            'thumbnailUrl': (favItem['thumbnailUrl'] ?? favItem['image'] ?? favItem['imageUrl'] ?? '').toString(),
+            'gage_price': favItem['gage_price'] ??
+                favItem['price'] ??
+                favItem['productPrice'] ??
+                favItem['product_price'] ??
+                _parseInt(favItem['price'], 0),
+            'price': favItem['price'] ??
+                favItem['gage_price'] ??
+                favItem['productPrice'] ??
+                favItem['product_price'] ??
+                _parseInt(favItem['price'], 0),
+          };
     final cart = context.read<CartProvider>();
     final completedCounts = _completedOrderCounts(context.read<OrderProvider>());
     _showProductDetailModal(
@@ -1091,8 +1110,9 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
   }
 
   String _getMenuItemImage(Map<String, dynamic> item) {
-    if (item['image'] != null && item['image'].toString().isNotEmpty) {
-      return item['image'].toString();
+    final explicit = (item['image'] ?? item['imageUrl'] ?? item['thumbnailUrl'] ?? item['photo'])?.toString().trim();
+    if (explicit != null && explicit.isNotEmpty) {
+      return explicit;
     }
     final name = (item['name'] ?? '').toString().toLowerCase();
     final cat = (item['category'] ?? '').toString().toLowerCase();
@@ -1148,6 +1168,46 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
     if (mId.contains('shop') || mCat.contains('sembako')) return 'assets/images/prod_beras.png';
 
     return 'assets/images/dish_dimsum_original.png';
+  }
+
+  Widget _buildMenuImageWidget({
+    required String imagePath,
+    required String? category,
+    BoxFit fit = BoxFit.cover,
+    double? width,
+    double? height,
+    double iconSize = 28,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isNetwork = imagePath.startsWith('http://') || imagePath.startsWith('https://');
+
+    final fallback = Container(
+      width: width,
+      height: height,
+      color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+      alignment: Alignment.center,
+      child: Icon(_getFallbackIcon(category), size: iconSize, color: GageTheme.primary),
+    );
+
+    if (imagePath.trim().isEmpty) return fallback;
+
+    if (isNetwork) {
+      return Image.network(
+        imagePath,
+        width: width,
+        height: height,
+        fit: fit,
+        errorBuilder: (context, error, stackTrace) => fallback,
+      );
+    } else {
+      return Image.asset(
+        imagePath,
+        width: width,
+        height: height,
+        fit: fit,
+        errorBuilder: (context, error, stackTrace) => fallback,
+      );
+    }
   }
 
   /// Resolves store vouchers from the centralized registry by [_serviceDomain]
@@ -2125,13 +2185,13 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                       child: SizedBox(
                         width: 86,
                         height: 86,
-                        child: Image.asset(
-                          menuImage,
+                        child: _buildMenuImageWidget(
+                          imagePath: menuImage,
+                          category: item['category']?.toString(),
+                          width: 86,
+                          height: 86,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            color: GageTheme.primaryLight,
-                            child: Icon(_getFallbackIcon(item['category']), color: GageTheme.primary),
-                          ),
+                          iconSize: 28,
                         ),
                       ),
                     ),
@@ -2372,13 +2432,11 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                     child: Stack(
                       children: [
                         Positioned.fill(
-                          child: Image.asset(
-                            menuImage,
+                          child: _buildMenuImageWidget(
+                            imagePath: menuImage,
+                            category: item['category']?.toString(),
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => Container(
-                              color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-                              child: Icon(_getFallbackIcon(item['category']), size: 48, color: GageTheme.primary),
-                            ),
+                            iconSize: 48,
                           ),
                         ),
                         if (item['category'] != null && item['category'].toString().isNotEmpty)

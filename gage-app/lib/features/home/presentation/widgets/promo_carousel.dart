@@ -12,8 +12,8 @@ import 'package:gage_app/features/food/presentation/build_screen.dart';
 import 'package:gage_app/features/ride/presentation/ride_booking_screen.dart';
 import 'package:gage_app/features/ride/presentation/send_booking_screen.dart';
 import 'package:gage_app/features/affiliate/presentation/affiliate_hub_screen.dart';
-import 'package:gage_app/features/membership/presentation/membership_screen.dart';
 import 'package:gage_app/features/home/presentation/promo_screen.dart';
+import 'package:gage_app/features/home/presentation/widgets/gage_gleam_plus_banner.dart';
 import 'package:gage_app/providers/wallet_provider.dart';
 import 'package:gage_app/features/wallet/presentation/gagepay_screen.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
@@ -202,16 +202,21 @@ class _PromoCarouselState extends State<PromoCarousel> {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    // Rasio half 16:9 (16:4.5) -> rasio 3.55:1
-    final bannerHeight = (screenWidth - 32) * 4.5 / 16;
+    // Rasio banner proporsional standar superapp (~2.3:1)
+    final bannerHeight = (screenWidth - 32) * 9 / 20;
     final bannerManager = context.watch<BannerManagerService>();
     final isEditMode = LiveAppEditScope.isEditModeActive(context);
 
     return Column(
       children: [
-        // Promo Swipe Carousel (Half 16:9 = 16:4.5)
+        // 1. Banner GAGE Plus Berkilau (Diletakkan di Atas Slider)
+        const GageGleamPlusBanner(),
+
+        const SizedBox(height: 14),
+
+        // 2. Promo Swipe Carousel (Ukuran Standar Proporsional Superapp)
         SizedBox(
-          height: bannerHeight.clamp(85.0, 115.0),
+          height: bannerHeight.clamp(140.0, 165.0),
           child: PageView.builder(
             controller: _controller,
             itemCount: _promoBanners.length,
@@ -286,80 +291,6 @@ class _PromoCarouselState extends State<PromoCarousel> {
           ),
         ),
 
-        const SizedBox(height: 12),
-
-        // Banner Tipis Membership GAGE Plus (Gaya Gojek: "Pasti dapet diskon tiap hari - Lihat keuntungan PLUS ->")
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: InkWell(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (ctx) => const MembershipScreen()),
-              );
-            },
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              constraints: const BoxConstraints(minHeight: 48),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFFFEBEE), Color(0xFFFFCDD2)],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                ),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFEF9A9A), width: 1),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 1)),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(5),
-                    decoration: const BoxDecoration(
-                      color: GageTheme.primary,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.star_rounded, color: Colors.white, size: 14),
-                  ),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                      'Pasti dapet diskon tiap hari',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                        color: GageTheme.primary,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: GageTheme.primary,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Lihat keuntungan PLUS',
-                          style: TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.bold),
-                        ),
-                        SizedBox(width: 3),
-                        Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 12),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-
         const SizedBox(height: 14),
 
         // Hadiah Login Harian (Check-in Streak Gamification)
@@ -400,27 +331,37 @@ class _DailyCheckInCardState extends State<DailyCheckInCard> {
 
     context.read<WalletProvider>().addPoints(100);
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     GageFloatingSheet.show(
       context: context,
       builder: (ctx) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.celebration_rounded, color: Colors.amber, size: 56),
-          const SizedBox(height: 12),
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: GageTheme.primary.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.stars_rounded, color: GageTheme.primary, size: 40),
+          ),
+          const SizedBox(height: 14),
           const Text(
-            'Hore! +100 Koin GAGE',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            'Hore! +100 Koin GAGE Cuan',
+            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
           ),
           const SizedBox(height: 8),
           Text(
-            'Kamu berhasil check-in hari ke-$_currentStreak. Koin sudah ditambahkan ke saldo dompet GAGE Cuan!',
+            'Kamu berhasil check-in hari ke-$_currentStreak. Poin cuan langsung masuk ke saldo dompet GAGE Anda!',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+            style: TextStyle(fontSize: 13, color: isDark ? Colors.white70 : const Color(0xFF64748B)),
           ),
           const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
-            height: 46,
+            height: 44,
             child: ElevatedButton(
               onPressed: () {
                 Navigator.pop(ctx);
@@ -432,13 +373,13 @@ class _DailyCheckInCardState extends State<DailyCheckInCard> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: GageTheme.primary,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: const StadiumBorder(),
                 elevation: 0,
               ),
               child: const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('Lihat Saldo & Poin GAGE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                  Text('Lihat Saldo & Poin Cuan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
                   SizedBox(width: 6),
                   Icon(Icons.arrow_forward_rounded, size: 16),
                 ],
@@ -448,7 +389,7 @@ class _DailyCheckInCardState extends State<DailyCheckInCard> {
           const SizedBox(height: 8),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Tutup', style: TextStyle(color: Colors.grey, fontSize: 12)),
+            child: Text('Tutup', style: TextStyle(color: isDark ? Colors.white60 : Colors.grey.shade600, fontSize: 12)),
           ),
         ],
       ),
@@ -458,32 +399,31 @@ class _DailyCheckInCardState extends State<DailyCheckInCard> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final borderColor = isDark ? Colors.white12 : const Color(0xFFE2E8F0);
+    final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
+    final textSecondary = isDark ? Colors.white60 : const Color(0xFF64748B);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      padding: const EdgeInsets.symmetric(horizontal: 14.0),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          color: cardBg,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isDark ? const Color(0xFF334155) : Colors.amber.shade200,
-            width: 1.2,
-          ),
+          border: Border.all(color: borderColor, width: 1.0),
           boxShadow: [
             BoxShadow(
-              color: isDark
-                  ? Colors.black.withValues(alpha: 0.3)
-                  : Colors.amber.withValues(alpha: 0.12),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
+              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Row: Judul & Badge Streak (Tap membuka GAGE Poin / Wallet)
+            // Header Row: GAGE Red Icon, Title & Streak Capsule Badge
             InkWell(
               onTap: () {
                 HapticFeedback.lightImpact();
@@ -492,20 +432,16 @@ class _DailyCheckInCardState extends State<DailyCheckInCard> {
                   MaterialPageRoute(builder: (_) => const GagePayScreen()),
                 );
               },
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
               child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(6),
+                    padding: const EdgeInsets.all(7),
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF334155) : Colors.amber.shade50,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: isDark ? const Color(0xFF475569) : Colors.amber.shade300,
-                        width: 1,
-                      ),
+                      color: GageTheme.primary.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.card_giftcard_rounded, color: Colors.amber, size: 20),
+                    child: const Icon(Icons.stars_rounded, color: GageTheme.primary, size: 20),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -513,47 +449,40 @@ class _DailyCheckInCardState extends State<DailyCheckInCard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Hadiah Login Harian',
+                          'Hadiah Check-in Harian',
                           style: TextStyle(
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w800,
                             fontSize: 13.5,
-                            color: isDark ? Colors.white : GageTheme.textPrimary,
+                            color: textPrimary,
                           ),
                         ),
                         Text(
-                          'Check-in tiap hari, kumpulkan Koin GAGE Cuan!',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: isDark ? const Color(0xFF94A3B8) : Colors.grey,
-                          ),
+                          'Klaim koin cuan gratis tiap hari untuk potongan belanja',
+                          style: TextStyle(fontSize: 11, color: textSecondary),
                         ),
                       ],
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF334155) : Colors.orange.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isDark ? const Color(0xFF475569) : Colors.orange.shade300,
-                        width: 0.8,
-                      ),
+                      color: GageTheme.primary.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(999),
                     ),
                     child: Row(
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.local_fire_department_rounded,
-                          color: isDark ? const Color(0xFFFB923C) : Colors.deepOrange,
+                          color: GageTheme.primary,
                           size: 14,
                         ),
-                        const SizedBox(width: 2),
+                        const SizedBox(width: 3),
                         Text(
-                          'Streak: $_currentStreak Hari',
-                          style: TextStyle(
+                          '$_currentStreak Hari',
+                          style: const TextStyle(
                             fontSize: 10.5,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? const Color(0xFFFB923C) : Colors.deepOrange,
+                            fontWeight: FontWeight.w800,
+                            color: GageTheme.primary,
                           ),
                         ),
                       ],
@@ -565,7 +494,7 @@ class _DailyCheckInCardState extends State<DailyCheckInCard> {
 
             const SizedBox(height: 12),
 
-            // Row 7 Hari Streak
+            // Row 7 Hari Streak: Bersih, Rapi & Berakar pada Brand GAGE
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: _days.map((d) {
@@ -574,39 +503,41 @@ class _DailyCheckInCardState extends State<DailyCheckInCard> {
                 final isSpecial = d['special'] == true;
 
                 final boxBg = isClaimed
-                    ? (isDark ? const Color(0xFF0F172A) : Colors.grey.shade100)
+                    ? (isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9))
                     : (isToday
-                        ? (isDark ? const Color(0xFF78350F).withValues(alpha: 0.45) : Colors.amber.shade50)
+                        ? GageTheme.primary.withValues(alpha: 0.10)
                         : (isSpecial
-                            ? (isDark ? const Color(0xFF7C2D12).withValues(alpha: 0.45) : Colors.orange.shade50)
-                            : (isDark ? const Color(0xFF0F172A).withValues(alpha: 0.5) : Colors.grey.shade50)));
+                            ? (isDark ? const Color(0xFF281118) : const Color(0xFFFFF1F2))
+                            : (isDark ? const Color(0xFF0F172A).withValues(alpha: 0.4) : const Color(0xFFF8FAFC))));
 
                 final boxBorder = isClaimed
-                    ? (isDark ? const Color(0xFF334155) : Colors.grey.shade300)
+                    ? (isDark ? Colors.white12 : const Color(0xFFE2E8F0))
                     : (isToday
-                        ? (isDark ? const Color(0xFFF59E0B) : Colors.amber.shade700)
+                        ? GageTheme.primary
                         : (isSpecial
-                            ? (isDark ? const Color(0xFFFB923C) : Colors.orange.shade300)
-                            : (isDark ? const Color(0xFF334155) : Colors.grey.shade200)));
+                            ? GageTheme.primary.withValues(alpha: 0.35)
+                            : (isDark ? Colors.white10 : const Color(0xFFE2E8F0))));
 
                 final dayTextColor = isToday
-                    ? (isDark ? const Color(0xFFFDE68A) : Colors.amber.shade900)
-                    : (isDark ? const Color(0xFF94A3B8) : Colors.grey.shade600);
+                    ? GageTheme.primary
+                    : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B));
 
                 final pointsTextColor = isClaimed
-                    ? (isDark ? const Color(0xFF64748B) : Colors.grey)
-                    : (isDark ? Colors.white : GageTheme.textPrimary);
+                    ? (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8))
+                    : (isToday
+                        ? GageTheme.primary
+                        : (isSpecial ? GageTheme.primary : textPrimary));
 
                 return Expanded(
                   child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 2),
-                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                    padding: const EdgeInsets.symmetric(vertical: 7),
                     decoration: BoxDecoration(
                       color: boxBg,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: boxBorder,
-                        width: isToday ? 1.5 : 1,
+                        width: isToday ? 1.5 : 1.0,
                       ),
                     ),
                     child: Column(
@@ -616,23 +547,27 @@ class _DailyCheckInCardState extends State<DailyCheckInCard> {
                           d['day'] as String,
                           style: TextStyle(
                             fontSize: 10,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: isToday ? FontWeight.w800 : FontWeight.w600,
                             color: dayTextColor,
                           ),
                         ),
                         const SizedBox(height: 4),
                         if (isClaimed)
-                          const Icon(Icons.check_circle_rounded, color: Colors.green, size: 16)
+                          const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 16)
                         else if (isSpecial)
-                          const Icon(Icons.redeem_rounded, color: Colors.deepOrange, size: 16)
+                          const Icon(Icons.redeem_rounded, color: GageTheme.primary, size: 16)
                         else
-                          const Icon(Icons.monetization_on_rounded, color: Colors.amber, size: 16),
+                          Icon(
+                            Icons.stars_rounded,
+                            color: isToday ? GageTheme.primary : (isDark ? Colors.white30 : const Color(0xFFCBD5E1)),
+                            size: 16,
+                          ),
                         const SizedBox(height: 4),
                         Text(
                           '+${d['points']}',
                           style: TextStyle(
                             fontSize: 9.5,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: isToday ? FontWeight.w900 : FontWeight.bold,
                             color: pointsTextColor,
                           ),
                         ),
@@ -645,7 +580,7 @@ class _DailyCheckInCardState extends State<DailyCheckInCard> {
 
             const SizedBox(height: 12),
 
-            // Tombol Klaim Hadiah Hari Ini
+            // Tombol Solid Kapsul Klaim Hadiah Hari Ini
             SizedBox(
               width: double.infinity,
               height: 40,
@@ -653,23 +588,23 @@ class _DailyCheckInCardState extends State<DailyCheckInCard> {
                 onPressed: _claimedToday ? null : () => _claimReward(context),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _claimedToday
-                      ? (isDark ? const Color(0xFF334155) : Colors.grey.shade200)
-                      : const Color(0xFFF59E0B),
+                      ? (isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9))
+                      : GageTheme.primary,
                   foregroundColor: _claimedToday
-                      ? (isDark ? const Color(0xFF94A3B8) : Colors.grey.shade600)
+                      ? (isDark ? const Color(0xFF94A3B8) : const Color(0xFF94A3B8))
                       : Colors.white,
                   elevation: _claimedToday ? 0 : 2,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: const StadiumBorder(),
                   padding: EdgeInsets.zero,
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
-                      _claimedToday ? Icons.check_rounded : Icons.touch_app_rounded,
+                      _claimedToday ? Icons.check_circle_rounded : Icons.stars_rounded,
                       size: 16,
                       color: _claimedToday
-                          ? (isDark ? const Color(0xFF94A3B8) : Colors.grey.shade600)
+                          ? (isDark ? const Color(0xFF94A3B8) : const Color(0xFF94A3B8))
                           : Colors.white,
                     ),
                     const SizedBox(width: 6),
@@ -677,11 +612,11 @@ class _DailyCheckInCardState extends State<DailyCheckInCard> {
                       child: Text(
                         _claimedToday
                             ? 'Sudah Klaim Hari Ini'
-                            : 'Klaim Hadiah Hari Ini (+100 Koin)',
+                            : 'Klaim Hadiah Hari Ini (+100 Poin Cuan)',
                         style: TextStyle(
                           fontSize: 12.5,
-                          fontWeight: FontWeight.bold,
-                          color: _claimedToday ? Colors.grey.shade600 : Colors.white,
+                          fontWeight: FontWeight.w800,
+                          color: _claimedToday ? const Color(0xFF94A3B8) : Colors.white,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,

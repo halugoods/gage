@@ -74,7 +74,10 @@ abstract final class MerchantCatalogHelper {
     bool? devSeedOverride,
   }) {
     final menuId = (item['id'] ?? '').toString().trim();
-    final normalPrice = parseInt(item['gage_price'] ?? item['price'] ?? item['offline_price'], 0);
+    final normalPrice = parseInt(
+      item['gage_price'] ?? item['price'] ?? item['productPrice'] ?? item['product_price'] ?? item['offline_price'],
+      0,
+    );
     final explicitOriginal = parseInt(item['original_price'] ?? item['originalPrice'], 0);
 
     // Check explicit Merchant storefront override first (0 means explicitly turned off)

@@ -9,16 +9,18 @@ import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 import 'package:gage_app/core/services/gage_sound_service.dart';
 import 'package:gage_app/core/services/gage_video_feed_service.dart';
+import 'package:gage_app/core/services/social_profile_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/data/models/cart_item_model.dart';
 import 'package:gage_app/providers/cart_provider.dart';
 import 'package:gage_app/shared/widgets/gage_bottom_nav_bar.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
 import 'package:gage_app/features/profile/presentation/profile_screen.dart';
+import 'package:gage_app/features/checkout/presentation/checkout_screen.dart';
 import 'package:gage_app/features/video/presentation/sound_detail_screen.dart';
 import 'package:gage_app/features/video/presentation/video_editor_screen.dart';
+import 'package:gage_app/features/home/presentation/home_screen.dart';
 
 /// Layar GAGE Video Feed (Immersive Full-Screen Vertical Feed + Frosted Glass HUD)
 class VideoFeedScreen extends StatefulWidget {
@@ -281,12 +283,12 @@ class _VideoFeedScreenState extends State<VideoFeedScreen>
                   Container(
                     padding: const EdgeInsets.all(6),
                     decoration: const BoxDecoration(
-                      color: Color(0xFFFFB703),
+                      color: GageTheme.primary,
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
                       Icons.shopping_bag_rounded,
-                      color: Color(0xFF0F172A),
+                      color: Colors.white,
                       size: 16,
                     ),
                   ),
@@ -317,7 +319,7 @@ class _VideoFeedScreenState extends State<VideoFeedScreen>
     setState(() {
       item.sharesCount += 1;
     });
-    _showVideoShareSheet(item);
+    _openShareModal(item);
   }
 
   void _showVideoShareSheet(GageVideoItem item) {
@@ -325,105 +327,134 @@ class _VideoFeedScreenState extends State<VideoFeedScreen>
     final shareUrl = 'https://gage.id/video/${item.id}';
     final shareText = 'Tonton video kuliner $cleanHandle di GAGE: $shareUrl';
 
+    SharePlus.instance.share(ShareParams(
+      text: shareText,
+      subject: 'Video Kuliner GAGE',
+    ));
+  }
+
+  void _openShareModal(GageVideoItem item) {
+    HapticFeedback.lightImpact();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (sheetCtx) => Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF1E293B),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-        ),
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: Container(
-                width: 36,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return Container(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            14,
+            16,
+            18 + MediaQuery.of(context).padding.bottom,
+          ),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            border: Border(
+              top: BorderSide(
+                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+              ),
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 38,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(2),
+                  color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
+                  borderRadius: BorderRadius.circular(99),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Bagikan Video',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Bagikan Video',
+                    style: TextStyle(
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20),
+                    color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 18),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                // WhatsApp
-                _buildShareSheetAction(
-                  icon: Icons.chat_rounded,
-                  color: const Color(0xFF22C55E),
-                  label: 'WhatsApp',
-                  onTap: () async {
-                    Navigator.pop(sheetCtx);
-                    final waUrl = Uri.parse('https://wa.me/?text=${Uri.encodeComponent(shareText)}');
-                    if (await canLaunchUrl(waUrl)) {
-                      await launchUrl(waUrl, mode: LaunchMode.externalApplication);
-                    } else {
-                      SharePlus.instance.share(ShareParams(text: shareText));
-                    }
-                  },
-                ),
-                // Salin Tautan
-                _buildShareSheetAction(
-                  icon: Icons.link_rounded,
-                  color: const Color(0xFF38BDF8),
-                  label: 'Salin Tautan',
-                  onTap: () {
-                    Clipboard.setData(ClipboardData(text: shareUrl));
-                    Navigator.pop(sheetCtx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        behavior: SnackBarBehavior.floating,
-                        backgroundColor: Color(0xFF0F172A),
-                        content: Text('Tautan video berhasil disalin ke clipboard'),
-                      ),
-                    );
-                  },
-                ),
-                // Simpan Video dengan Watermark
-                _buildShareSheetAction(
-                  icon: Icons.download_rounded,
-                  color: const Color(0xFFF59E0B),
-                  label: 'Simpan Video',
-                  onTap: () {
-                    Navigator.pop(sheetCtx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        behavior: SnackBarBehavior.floating,
-                        backgroundColor: Color(0xFF0F172A),
-                        content: Text('Video dengan watermark GAGE disimpan ke galeri'),
-                      ),
-                    );
-                  },
-                ),
-                // Bagikan Sistem / Lainnya
-                _buildShareSheetAction(
-                  icon: Icons.more_horiz_rounded,
-                  color: Colors.white70,
-                  label: 'Lainnya',
-                  onTap: () {
-                    Navigator.pop(sheetCtx);
-                    SharePlus.instance.share(ShareParams(text: shareText));
-                  },
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+              const SizedBox(height: 16),
+              // Baris opsi berbagi
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildShareSheetAction(
+                    icon: Icons.link_rounded,
+                    color: const Color(0xFF3B82F6),
+                    label: 'Salin Tautan',
+                    isDark: isDark,
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      final shareUrl = 'https://gage.id/video/${item.id}';
+                      await Clipboard.setData(ClipboardData(text: shareUrl));
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).clearSnackBars();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            behavior: SnackBarBehavior.floating,
+                            margin: const EdgeInsets.fromLTRB(16, 0, 16, 92),
+                            backgroundColor: const Color(0xFF0F172A),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                              side: const BorderSide(color: Colors.white12),
+                            ),
+                            content: const Row(
+                              children: [
+                                Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 18),
+                                SizedBox(width: 10),
+                                Text(
+                                  'Tautan video berhasil disalin ke papan klip!',
+                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                  _buildShareSheetAction(
+                    icon: Icons.download_rounded,
+                    color: const Color(0xFF10B981),
+                    label: 'Unduh Video',
+                    isDark: isDark,
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _handleDownloadWatermarkedVideo(item);
+                    },
+                  ),
+                  _buildShareSheetAction(
+                    icon: Icons.share_rounded,
+                    color: GageTheme.primary,
+                    label: 'Bagikan via...',
+                    isDark: isDark,
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _showVideoShareSheet(item);
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -431,6 +462,7 @@ class _VideoFeedScreenState extends State<VideoFeedScreen>
     required IconData icon,
     required Color color,
     required String label,
+    required bool isDark,
     required VoidCallback onTap,
   }) {
     return InkWell(
@@ -440,25 +472,25 @@ class _VideoFeedScreenState extends State<VideoFeedScreen>
       },
       borderRadius: BorderRadius.circular(16),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 48,
-              height: 48,
+              width: 50,
+              height: 50,
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.18),
+                color: color.withValues(alpha: 0.16),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: color, size: 24),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
               label,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 11,
+              style: TextStyle(
+                color: isDark ? Colors.white70 : const Color(0xFF334155),
+                fontSize: 11.5,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -470,26 +502,46 @@ class _VideoFeedScreenState extends State<VideoFeedScreen>
 
   Future<void> _handleDownloadWatermarkedVideo(GageVideoItem item) async {
     HapticFeedback.mediumImpact();
-    final candidates = [
-      'assets/videos/watermarked/vt_rocket_chicken_wm.mp4',
-      'assets/videos/watermarked/vt_mie_ayam_wm.mp4',
-      'assets/videos/watermarked/vt_seblak_pedas_wm.mp4',
-    ];
-    String selectedAsset = candidates[0];
-    if (item.videoUrl.contains('mie') || item.caption.toLowerCase().contains('mie')) {
-      selectedAsset = candidates[1];
-    } else if (item.videoUrl.contains('seblak') || item.caption.toLowerCase().contains('seblak') || item.caption.toLowerCase().contains('bakso')) {
-      selectedAsset = candidates[2];
+    final baseName = item.videoUrl.split('/').last.replaceAll('.mp4', '');
+    String selectedAsset = 'assets/videos/watermarked/${baseName}_wm.mp4';
+    try {
+      await rootBundle.load(selectedAsset);
+    } catch (_) {
+      selectedAsset = 'assets/videos/watermarked/vt_rocket_chicken_wm.mp4';
     }
 
-    try {
-      final downloadDir = Directory('/storage/emulated/0/Download');
-      if (await downloadDir.exists()) {
-        final targetFile = File('${downloadDir.path}/GAGE_${item.id}_wm.mp4');
+    final candidateDirs = [
+      Directory('/storage/emulated/0/Movies/Gage by Halu Goods Indonesia'),
+      Directory('/storage/emulated/0/DCIM/Gage by Halu Goods Indonesia'),
+      Directory('/storage/emulated/0/Pictures/Gage by Halu Goods Indonesia'),
+      Directory('/storage/emulated/0/Download/Gage by Halu Goods Indonesia'),
+      Directory('/storage/emulated/0/Movies'),
+      Directory('/storage/emulated/0/DCIM'),
+    ];
+    Directory? targetDir;
+    for (final d in candidateDirs) {
+      try {
+        if (!await d.exists()) {
+          await d.create(recursive: true);
+        }
+        targetDir = d;
+        break;
+      } catch (_) {}
+    }
+
+    if (targetDir != null) {
+      try {
+        final targetFile = File('${targetDir.path}/GAGE_${item.id}_wm.mp4');
         final byteData = await rootBundle.load(selectedAsset);
         await targetFile.writeAsBytes(byteData.buffer.asUint8List());
-      }
-    } catch (_) {}
+
+        // Mendaftarkan berkas ke MediaStore Android via MethodChannel
+        try {
+          const channel = MethodChannel('com.gage/media_scanner');
+          await channel.invokeMethod('scanFile', {'path': targetFile.path});
+        } catch (_) {}
+      } catch (_) {}
+    }
 
     if (mounted) {
       ScaffoldMessenger.of(context).clearSnackBars();
@@ -505,26 +557,40 @@ class _VideoFeedScreenState extends State<VideoFeedScreen>
           content: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(6),
-                decoration: const BoxDecoration(
+                padding: EdgeInsets.all(6),
+                decoration: BoxDecoration(
                   color: Color(0xFF10B981),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.check_rounded,
                   color: Colors.white,
                   size: 16,
                 ),
               ),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Text(
-                  'Video dengan watermark GAGE berhasil diunduh ke galeri!',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                  ),
+              SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Video berhasil disimpan di galeri album "Gage by Halu Goods Indonesia"',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Watermark: Property of GAGE / HaloGoods.Indonesia',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 10.5,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -594,9 +660,25 @@ class _VideoFeedScreenState extends State<VideoFeedScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bottomSafeInset = MediaQuery.of(context).padding.bottom;
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
-      child: Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => const HomeScreen(),
+            transitionDuration: Duration.zero,
+            reverseTransitionDuration: Duration.zero,
+          ),
+        );
+      },
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.light.copyWith(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light,
+        ),
+        child: Scaffold(
         backgroundColor: isDark ? Colors.black : const Color(0xFFF8FAFC),
         extendBody: true,
         body: PageView.builder(
@@ -624,27 +706,144 @@ class _VideoFeedScreenState extends State<VideoFeedScreen>
               onMerchantTap: () => _openMerchantDetails(item),
               onFollowTap: () {
                 HapticFeedback.mediumImpact();
-                setState(() {
-                  item.isFollowing = !item.isFollowing;
-                });
+                GageVideoFeedService.instance.toggleFollow(item.id);
+                SocialProfileService.instance.toggleFollow(item.creatorHandle);
+                ScaffoldMessenger.of(context).clearSnackBars();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    behavior: SnackBarBehavior.floating,
+                    duration: const Duration(milliseconds: 1400),
+                    margin: const EdgeInsets.fromLTRB(16, 0, 16, 92),
+                    backgroundColor: const Color(0xFF0F172A),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      side: const BorderSide(color: Colors.white12),
+                    ),
+                    content: Row(
+                      children: [
+                        Icon(
+                          item.isFollowing
+                              ? Icons.check_circle_rounded
+                              : Icons.person_remove_rounded,
+                          color: item.isFollowing
+                              ? const Color(0xFF10B981)
+                              : Colors.white70,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          item.isFollowing
+                              ? 'Mengikuti ${item.creatorHandle}'
+                              : 'Batal mengikuti ${item.creatorHandle}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
               },
               onLikeToggle: ({bool forceLike = false}) {
                 HapticFeedback.mediumImpact();
-                setState(() {
-                  if (forceLike) {
-                    if (!item.isLiked) {
-                      item.isLiked = true;
-                      item.likesCount += 1;
-                    }
-                  } else {
-                    item.isLiked = !item.isLiked;
-                    item.likesCount += item.isLiked ? 1 : -1;
+                if (forceLike) {
+                  if (!item.isLiked) {
+                    GageVideoFeedService.instance.toggleLike(item.id);
+                    SocialProfileService.instance.toggleLikeVideo(item.id);
                   }
-                });
+                } else {
+                  GageVideoFeedService.instance.toggleLike(item.id);
+                  SocialProfileService.instance.toggleLikeVideo(item.id);
+                }
               },
               onCommentTap: () => _openCommentsSheet(item),
+              onBookmarkTap: () {
+                HapticFeedback.selectionClick();
+                GageVideoFeedService.instance.toggleBookmark(item.id);
+                SocialProfileService.instance.toggleBookmarkVideo(item.id);
+                ScaffoldMessenger.of(context).clearSnackBars();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    behavior: SnackBarBehavior.floating,
+                    duration: const Duration(milliseconds: 1400),
+                    margin: const EdgeInsets.fromLTRB(16, 0, 16, 92),
+                    backgroundColor: const Color(0xFF0F172A),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      side: const BorderSide(color: Colors.white12),
+                    ),
+                    content: Row(
+                      children: [
+                        Icon(
+                          item.isBookmarked
+                              ? Icons.bookmark_added_rounded
+                              : Icons.bookmark_remove_rounded,
+                          color: item.isBookmarked
+                              ? const Color(0xFFF59E0B)
+                              : Colors.white70,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          item.isBookmarked
+                              ? 'Video disimpan ke Bookmark profil'
+                              : 'Video dihapus dari Bookmark',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+              onRepostTap: () {
+                HapticFeedback.selectionClick();
+                GageVideoFeedService.instance.toggleRepost(item.id);
+                SocialProfileService.instance.toggleRepostVideo(item.id);
+                ScaffoldMessenger.of(context).clearSnackBars();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    behavior: SnackBarBehavior.floating,
+                    duration: const Duration(milliseconds: 1400),
+                    margin: const EdgeInsets.fromLTRB(16, 0, 16, 92),
+                    backgroundColor: const Color(0xFF0F172A),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      side: const BorderSide(color: Colors.white12),
+                    ),
+                    content: Row(
+                      children: [
+                        Icon(
+                          item.isReposted
+                              ? Icons.repeat_rounded
+                              : Icons.repeat_on_rounded,
+                          color: item.isReposted
+                              ? const Color(0xFF10B981)
+                              : Colors.white70,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          item.isReposted
+                              ? 'Video berhasil diposting ulang ke profil Anda'
+                              : 'Posting ulang video dibatalkan',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
               onShareTap: () => _handleShare(item),
-              onDownloadTap: () => _handleDownloadWatermarkedVideo(item),
               onSoundTap: () => _openSoundDetail(item),
               onMakeVideoTap: _openCreateVideoFlow,
               onOrderTap: () => _openQuickOrderSheet(item),
@@ -653,7 +852,8 @@ class _VideoFeedScreenState extends State<VideoFeedScreen>
         ),
         bottomNavigationBar: const GageBottomNavBar(currentIndex: 3),
       ),
-    );
+    ),
+  );
   }
 }
 
@@ -671,8 +871,9 @@ class _VideoFeedPage extends StatefulWidget {
   final VoidCallback onFollowTap;
   final void Function({bool forceLike}) onLikeToggle;
   final VoidCallback onCommentTap;
+  final VoidCallback onBookmarkTap;
+  final VoidCallback onRepostTap;
   final VoidCallback onShareTap;
-  final VoidCallback onDownloadTap;
   final VoidCallback onSoundTap;
   final VoidCallback onOrderTap;
 
@@ -689,8 +890,9 @@ class _VideoFeedPage extends StatefulWidget {
     required this.onFollowTap,
     required this.onLikeToggle,
     required this.onCommentTap,
+    required this.onBookmarkTap,
+    required this.onRepostTap,
     required this.onShareTap,
-    required this.onDownloadTap,
     required this.onSoundTap,
     required this.onOrderTap,
   });
@@ -700,11 +902,12 @@ class _VideoFeedPage extends StatefulWidget {
 }
 
 class _VideoFeedPageState extends State<_VideoFeedPage>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   bool _isPausedManually = false;
   bool _isCaptionExpanded = false;
   Offset? _doubleTapPosition;
   late AnimationController _heartBurstCtrl;
+  late AnimationController _discRotateCtrl;
   late Animation<double> _heartScaleAnim;
   late Animation<double> _heartOpacityAnim;
   Timer? _shoppableTagTimer;
@@ -718,6 +921,14 @@ class _VideoFeedPageState extends State<_VideoFeedPage>
       vsync: this,
       duration: const Duration(milliseconds: 650),
     );
+
+    _discRotateCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 5),
+    );
+    if (widget.isActivePage && (widget.controller?.value.isPlaying ?? true)) {
+      _discRotateCtrl.repeat();
+    }
 
     _heartScaleAnim = TweenSequence<double>([
       TweenSequenceItem(
@@ -748,6 +959,15 @@ class _VideoFeedPageState extends State<_VideoFeedPage>
     if (!widget.isActivePage && _isPausedManually) {
       _isPausedManually = false;
     }
+    if (widget.isActivePage != oldWidget.isActivePage) {
+      if (widget.isActivePage) {
+        if (!_isPausedManually && (widget.controller?.value.isPlaying ?? true)) {
+          _discRotateCtrl.repeat();
+        }
+      } else {
+        _discRotateCtrl.stop();
+      }
+    }
     if (oldWidget.item.id != widget.item.id || widget.isActivePage != oldWidget.isActivePage) {
       if (widget.isActivePage) {
         _startShoppableTimer();
@@ -762,7 +982,7 @@ class _VideoFeedPageState extends State<_VideoFeedPage>
     _shoppableTagTimer?.cancel();
     _showShoppableTag = false;
     if (widget.isActivePage) {
-      _shoppableTagTimer = Timer(const Duration(seconds: 5), () {
+      _shoppableTagTimer = Timer(const Duration(milliseconds: 1500), () {
         if (mounted) {
           setState(() {
             _showShoppableTag = true;
@@ -776,6 +996,7 @@ class _VideoFeedPageState extends State<_VideoFeedPage>
   void dispose() {
     _shoppableTagTimer?.cancel();
     _heartBurstCtrl.dispose();
+    _discRotateCtrl.dispose();
     super.dispose();
   }
 
@@ -788,9 +1009,11 @@ class _VideoFeedPageState extends State<_VideoFeedPage>
       if (ctrl.value.isPlaying) {
         ctrl.pause();
         _isPausedManually = true;
+        _discRotateCtrl.stop();
       } else {
         ctrl.play();
         _isPausedManually = false;
+        _discRotateCtrl.repeat();
       }
     });
   }
@@ -955,25 +1178,26 @@ class _VideoFeedPageState extends State<_VideoFeedPage>
               ),
             ),
 
-          // 5. TOP NAVIGATION LAYER (Minimal Clean Buat Video Camera Button)
+          // 5. TOP NAVIGATION LAYER (Unboxed Buat Video Camera Icon)
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
             left: 16,
             child: InkWell(
               onTap: widget.onMakeVideoTap,
               borderRadius: BorderRadius.circular(999),
-              child: Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.black.withValues(alpha: 0.45),
-                  border: Border.all(color: Colors.white24, width: 1),
-                ),
-                child: const Icon(
-                  Icons.videocam_rounded,
+              child: const Padding(
+                padding: EdgeInsets.all(6),
+                child: Icon(
+                  Icons.video_call_rounded,
                   color: Colors.white,
-                  size: 20,
+                  size: 28,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black54,
+                      blurRadius: 8,
+                      offset: Offset(0, 1),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -987,12 +1211,26 @@ class _VideoFeedPageState extends State<_VideoFeedPage>
               item: widget.item,
               isDark: isDark,
               formatCount: widget.formatCount,
-              onFollowTap: widget.onFollowTap,
-              onLikeTap: () => widget.onLikeToggle(forceLike: false),
+              onFollowTap: () {
+                setState(() {});
+                widget.onFollowTap();
+              },
+              onLikeTap: () {
+                setState(() {});
+                widget.onLikeToggle(forceLike: false);
+              },
               onCommentTap: widget.onCommentTap,
+              onBookmarkTap: () {
+                setState(() {});
+                widget.onBookmarkTap();
+              },
+              onRepostTap: () {
+                setState(() {});
+                widget.onRepostTap();
+              },
               onShareTap: widget.onShareTap,
-              onDownloadTap: widget.onDownloadTap,
               onSoundTap: widget.onSoundTap,
+              discRotateAnimation: _discRotateCtrl,
             ),
           ),
 
@@ -1028,9 +1266,11 @@ class _RightVerticalActionBar extends StatelessWidget {
   final VoidCallback onFollowTap;
   final VoidCallback onLikeTap;
   final VoidCallback onCommentTap;
+  final VoidCallback onBookmarkTap;
+  final VoidCallback onRepostTap;
   final VoidCallback onShareTap;
-  final VoidCallback onDownloadTap;
   final VoidCallback onSoundTap;
+  final AnimationController discRotateAnimation;
 
   const _RightVerticalActionBar({
     required this.item,
@@ -1039,9 +1279,11 @@ class _RightVerticalActionBar extends StatelessWidget {
     required this.onFollowTap,
     required this.onLikeTap,
     required this.onCommentTap,
+    required this.onBookmarkTap,
+    required this.onRepostTap,
     required this.onShareTap,
-    required this.onDownloadTap,
     required this.onSoundTap,
+    required this.discRotateAnimation,
   });
 
   @override
@@ -1049,11 +1291,12 @@ class _RightVerticalActionBar extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Creator Avatar + Red '+' Follow Badge
+        // 1. Creator Avatar Profile with TikTok-Style Overlapping Follow Badge
         SizedBox(
-          width: 44,
-          height: 50,
+          width: 48,
+          height: 52,
           child: Stack(
+            clipBehavior: Clip.none,
             alignment: Alignment.topCenter,
             children: [
               GestureDetector(
@@ -1069,8 +1312,8 @@ class _RightVerticalActionBar extends StatelessWidget {
                   );
                 },
                 child: Container(
-                  width: 42,
-                  height: 42,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
@@ -1097,27 +1340,33 @@ class _RightVerticalActionBar extends StatelessWidget {
                   ),
                 ),
               ),
+              // Tombol Follow Interaktif Overlapping Tepi Bawah Foto Profil
               Positioned(
                 bottom: 0,
                 child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
                   onTap: onFollowTap,
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    width: 18,
-                    height: 18,
+                    curve: Curves.easeInOut,
+                    width: 22,
+                    height: 22,
                     decoration: BoxDecoration(
                       color: item.isFollowing
-                          ? const Color(0xFF10B981)
+                          ? const Color(0xFF1E293B).withValues(alpha: 0.9)
                           : GageTheme.primary,
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 1.2),
+                      border: Border.all(color: Colors.white, width: 1.5),
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black45, blurRadius: 4),
+                      ],
                     ),
-                    child: Icon(
-                      item.isFollowing
-                          ? Icons.check_rounded
-                          : Icons.add_rounded,
-                      color: Colors.white,
-                      size: 12,
+                    child: Center(
+                      child: Icon(
+                        item.isFollowing ? Icons.check_rounded : Icons.add_rounded,
+                        color: Colors.white,
+                        size: item.isFollowing ? 13 : 15,
+                      ),
                     ),
                   ),
                 ),
@@ -1126,21 +1375,19 @@ class _RightVerticalActionBar extends StatelessWidget {
           ),
         ),
 
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
 
-        // Like Button
+        // 2. Like Button
         _ActionButtonTile(
-          icon: item.isLiked
-              ? Icons.favorite_rounded
-              : Icons.favorite_rounded,
+          icon: Icons.favorite_rounded,
           color: item.isLiked ? const Color(0xFFEF4444) : Colors.white,
           label: formatCount(item.likesCount),
           onTap: onLikeTap,
         ),
 
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
 
-        // Comment Button
+        // 3. Comment Button
         _ActionButtonTile(
           icon: Icons.chat_bubble_rounded,
           color: Colors.white,
@@ -1148,9 +1395,28 @@ class _RightVerticalActionBar extends StatelessWidget {
           onTap: onCommentTap,
         ),
 
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
 
-        // Share Button (TikTok Right-Curved Arrow)
+        // 4. Simpan / Bookmark Button (Sync ke Bookmark Profil)
+        _ActionButtonTile(
+          icon: Icons.bookmark_rounded,
+          color: item.isBookmarked ? const Color(0xFFF59E0B) : Colors.white,
+          label: formatCount(item.bookmarksCount),
+          onTap: onBookmarkTap,
+        ),
+
+        const SizedBox(height: 14),
+
+        // 5. Repost Button (Murni Icon Tanpa Label Teks, Berubah Warna Saat Aktif)
+        _ActionButtonTile(
+          icon: Icons.repeat_rounded,
+          color: item.isReposted ? const Color(0xFF10B981) : Colors.white,
+          onTap: onRepostTap,
+        ),
+
+        const SizedBox(height: 14),
+
+        // 6. Share Button (TikTok Right-Curved Arrow)
         _ActionButtonTile(
           iconWidget: Transform.flip(
             flipX: true,
@@ -1168,34 +1434,44 @@ class _RightVerticalActionBar extends StatelessWidget {
 
         const SizedBox(height: 16),
 
-        // Download Button (Watermark Video)
-        _ActionButtonTile(
-          icon: Icons.download_rounded,
-          color: Colors.white,
-          label: 'Unduh',
-          onTap: onDownloadTap,
-        ),
-
-        const SizedBox(height: 18),
-
-        // Spinning Vinyl Disc / Music Note
+        // 7. Spinning Vinyl Disc (RotationTransition aktif saat video/audio diputar)
         GestureDetector(
           onTap: onSoundTap,
-          child: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color(0xFF1E293B),
-              border: Border.all(color: Colors.white24, width: 2),
-              boxShadow: const [
-                BoxShadow(color: Colors.black54, blurRadius: 4),
-              ],
-            ),
-            child: const Icon(
-              Icons.music_note_rounded,
-              color: Colors.white,
-              size: 20,
+          child: RotationTransition(
+            turns: discRotateAnimation,
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const RadialGradient(
+                  colors: [
+                    Color(0xFF0F172A),
+                    Color(0xFF1E293B),
+                    Color(0xFF0F172A),
+                  ],
+                  stops: [0.3, 0.7, 1.0],
+                ),
+                border: Border.all(color: Colors.white24, width: 2),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black54, blurRadius: 5),
+                ],
+              ),
+              child: Center(
+                child: Container(
+                  width: 20,
+                  height: 20,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: GageTheme.primary,
+                  ),
+                  child: const Icon(
+                    Icons.music_note_rounded,
+                    color: Colors.white,
+                    size: 13,
+                  ),
+                ),
+              ),
             ),
           ),
         ),
@@ -1208,14 +1484,14 @@ class _ActionButtonTile extends StatelessWidget {
   final IconData? icon;
   final Widget? iconWidget;
   final Color color;
-  final String label;
+  final String? label;
   final VoidCallback onTap;
 
   const _ActionButtonTile({
     this.icon,
     this.iconWidget,
     required this.color,
-    required this.label,
+    this.label,
     required this.onTap,
   });
 
@@ -1234,23 +1510,25 @@ class _ActionButtonTile extends StatelessWidget {
                 size: 30,
                 shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
               ),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 11.5,
-              fontWeight: FontWeight.bold,
-              shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
+          if (label != null && label!.isNotEmpty) ...[
+            const SizedBox(height: 3),
+            Text(
+              label!,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11.5,
+                fontWeight: FontWeight.bold,
+                shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
   }
 }
 
-/// Bottom Overlay: Creator Handle, Caption 2 Baris + Accordion, dan Keranjang Merah di Bawahnya
+/// Bottom Overlay: Keranjang Merah di ATAS Creator Handle dan Caption
 class _BottomContentOverlay extends StatelessWidget {
   final GageVideoItem item;
   final bool isExpanded;
@@ -1277,7 +1555,24 @@ class _BottomContentOverlay extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 1. Creator Handle (Direct text with shadow)
+        // 1. Kartu Keranjang Merah di ATAS Creator Handle & Caption (Muncul halus setelah video diputar 1,5 detik)
+        if (item.productId.isNotEmpty && item.productTitle.isNotEmpty) ...[
+          AnimatedOpacity(
+            opacity: showShoppableTag ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutCubic,
+            child: showShoppableTag
+                ? _ShoppableProductBanner(
+                    item: item,
+                    currencyFormatter: currencyFormatter,
+                    onOrderTap: onOrderTap,
+                  )
+                : const SizedBox.shrink(),
+          ),
+          if (showShoppableTag) const SizedBox(height: 10),
+        ],
+
+        // 2. Creator Handle (Direct text with shadow)
         GestureDetector(
           onTap: () {
             HapticFeedback.lightImpact();
@@ -1306,7 +1601,7 @@ class _BottomContentOverlay extends StatelessWidget {
 
         const SizedBox(height: 6),
 
-        // 2. Caption 2 Baris dengan Accordion Selengkapnya / Lebih Sedikit
+        // 3. Caption 2 Baris dengan Accordion Selengkapnya / Lebih Sedikit
         GestureDetector(
           onTap: isLongCaption ? onToggleExpand : null,
           child: AnimatedSize(
@@ -1341,22 +1636,12 @@ class _BottomContentOverlay extends StatelessWidget {
             ),
           ),
         ),
-
-        // 3. Kartu Keranjang Merah di Bawah Deskripsi Video
-        if (item.productId.isNotEmpty && item.productTitle.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          _ShoppableProductBanner(
-            item: item,
-            currencyFormatter: currencyFormatter,
-            onOrderTap: onOrderTap,
-          ),
-        ],
       ],
     );
   }
 }
 
-/// Compact Keranjang Merah Tag Banner (Afiliasi)
+/// Solid High-Contrast Keranjang Merah Tag Banner (Afiliasi)
 class _ShoppableProductBanner extends StatelessWidget {
   final GageVideoItem item;
   final NumberFormat currencyFormatter;
@@ -1370,81 +1655,139 @@ class _ShoppableProductBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return GestureDetector(
       onTap: onOrderTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.70),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: GageTheme.primary.withValues(alpha: 0.35),
-            width: 1.0,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(5),
-              decoration: const BoxDecoration(
-                color: GageTheme.primary,
-                shape: BoxShape.circle,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? const Color(0xFF0F172A).withValues(alpha: 0.65)
+                  : Colors.white.withValues(alpha: 0.92),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.15)
+                    : Colors.white.withValues(alpha: 0.95),
+                width: 1.0,
               ),
-              child: const Icon(
-                Icons.shopping_bag_rounded,
-                color: Colors.white,
-                size: 13,
-              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    item.productTitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
+            child: Row(
+              children: [
+                // Thumbnail Gambar Menu (48x48)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: item.thumbnailUrl.isNotEmpty
+                        ? (item.thumbnailUrl.startsWith('assets/')
+                            ? Image.asset(item.thumbnailUrl, fit: BoxFit.cover)
+                            : Image.network(
+                                item.thumbnailUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => Container(
+                                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+                                  child: Icon(
+                                    Icons.restaurant_rounded,
+                                    color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                                    size: 22,
+                                  ),
+                                ),
+                              ))
+                        : Container(
+                            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+                            child: Icon(
+                              Icons.restaurant_rounded,
+                              color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                              size: 22,
+                            ),
+                          ),
                   ),
-                  Text(
-                    currencyFormatter.format(item.productPrice),
-                    style: const TextStyle(
-                      color: Color(0xFFF87171),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                    ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        item.productTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          if (item.originalPrice != null && item.originalPrice! > item.productPrice) ...[
+                            Text(
+                              currencyFormatter.format(item.originalPrice),
+                              style: TextStyle(
+                                color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                decoration: TextDecoration.lineThrough,
+                                decorationColor: isDark ? Colors.white70 : const Color(0xFF475569),
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                          ],
+                          Text(
+                            currencyFormatter.format(item.productPrice),
+                            style: const TextStyle(
+                              color: GageTheme.primary,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            Material(
-              color: GageTheme.primary,
-              borderRadius: BorderRadius.circular(999),
-              child: InkWell(
-                onTap: onOrderTap,
-                borderRadius: BorderRadius.circular(999),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                  child: Text(
-                    'Beli',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.bold,
+                ),
+                const SizedBox(width: 10),
+                // Tombol Beli: Bersih teks murni tanpa ikon keranjang
+                Material(
+                  color: GageTheme.primary,
+                  borderRadius: BorderRadius.circular(999),
+                  elevation: 2,
+                  child: InkWell(
+                    onTap: onOrderTap,
+                    borderRadius: BorderRadius.circular(999),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 18, vertical: 8.5),
+                      child: Text(
+                        'Beli',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -1621,8 +1964,8 @@ class _MerchantDetailSheet extends StatelessWidget {
                       const SizedBox(height: 3),
                       Text(
                         currencyFormatter.format(item.productPrice),
-                        style: TextStyle(
-                          color: isDark ? const Color(0xFFFFB703) : const Color(0xFFE52320),
+                        style: const TextStyle(
+                          color: GageTheme.primary,
                           fontWeight: FontWeight.w900,
                           fontSize: 14,
                         ),
@@ -1632,8 +1975,8 @@ class _MerchantDetailSheet extends StatelessWidget {
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFFB703),
-                    foregroundColor: const Color(0xFF0F172A),
+                    backgroundColor: GageTheme.primary,
+                    foregroundColor: Colors.white,
                     shape: const StadiumBorder(),
                     elevation: 0,
                   ),
@@ -1684,11 +2027,32 @@ class _CommentBottomSheet extends StatefulWidget {
 
 class _CommentBottomSheetState extends State<_CommentBottomSheet> {
   final TextEditingController _commentCtrl = TextEditingController();
+  final FocusNode _commentFocusNode = FocusNode();
+  String? _replyToUsername;
+  GageVideoComment? _replyToParentComment;
+  final Set<String> _likedCommentIds = {};
 
   @override
   void dispose() {
     _commentCtrl.dispose();
+    _commentFocusNode.dispose();
     super.dispose();
+  }
+
+  void _startReply({required GageVideoComment parent, required String targetUsername}) {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _replyToParentComment = parent;
+      _replyToUsername = targetUsername;
+    });
+    _commentFocusNode.requestFocus();
+  }
+
+  void _cancelReply() {
+    setState(() {
+      _replyToParentComment = null;
+      _replyToUsername = null;
+    });
   }
 
   void _submitComment() {
@@ -1696,15 +2060,84 @@ class _CommentBottomSheetState extends State<_CommentBottomSheet> {
     if (text.isEmpty) return;
     HapticFeedback.lightImpact();
 
-    final comment = GageVideoComment(
-      username: '@pengguna_gage',
-      text: text,
-      timeAgo: 'Baru saja',
-      likes: 1,
-    );
-    widget.onCommentAdded(comment);
+    if (_replyToParentComment != null) {
+      final targetUser = _replyToUsername ?? _replyToParentComment!.username;
+      final fullText = text.startsWith(targetUser) ? text : '$targetUser $text';
+      final reply = GageVideoComment(
+        id: 'reply-${DateTime.now().millisecondsSinceEpoch}',
+        username: '@pengguna_gage',
+        text: fullText,
+        timeAgo: 'Baru saja',
+        likes: 0,
+        replyToUsername: targetUser,
+      );
+      setState(() {
+        _replyToParentComment!.replies.add(reply);
+        widget.item.commentsCount += 1;
+        _replyToParentComment = null;
+        _replyToUsername = null;
+      });
+      GageVideoFeedService.instance.addComment(
+        widget.item.id,
+        reply,
+        parentCommentId: _replyToParentComment?.id,
+      );
+    } else {
+      final comment = GageVideoComment(
+        id: 'c-${DateTime.now().millisecondsSinceEpoch}',
+        username: '@pengguna_gage',
+        text: text,
+        timeAgo: 'Baru saja',
+        likes: 0,
+      );
+      widget.onCommentAdded(comment);
+      GageVideoFeedService.instance.addComment(widget.item.id, comment);
+    }
     _commentCtrl.clear();
-    setState(() {});
+    setState(() {
+      _replyToParentComment = null;
+      _replyToUsername = null;
+    });
+  }
+
+  Widget _buildCommentTextWithTag(String text, bool isDark) {
+    if (text.startsWith('@')) {
+      final spaceIdx = text.indexOf(' ');
+      if (spaceIdx != -1) {
+        final tag = text.substring(0, spaceIdx);
+        final rest = text.substring(spaceIdx);
+        return Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: tag,
+                style: const TextStyle(
+                  color: GageTheme.primary,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                ),
+              ),
+              TextSpan(
+                text: rest,
+                style: TextStyle(
+                  color: isDark ? Colors.white : const Color(0xFF334155),
+                  fontSize: 12,
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+    return Text(
+      text,
+      style: TextStyle(
+        color: isDark ? Colors.white : const Color(0xFF334155),
+        fontSize: 12,
+        height: 1.35,
+      ),
+    );
   }
 
   @override
@@ -1715,7 +2148,7 @@ class _CommentBottomSheetState extends State<_CommentBottomSheet> {
     return Padding(
       padding: EdgeInsets.only(bottom: bottomInset),
       child: Container(
-        height: MediaQuery.of(context).size.height * 0.56,
+        height: MediaQuery.of(context).size.height * 0.58,
         padding: EdgeInsets.fromLTRB(
           16,
           12,
@@ -1769,72 +2202,278 @@ class _CommentBottomSheetState extends State<_CommentBottomSheet> {
                   : ListView.separated(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       itemCount: widget.item.sampleComments.length,
-                      separatorBuilder: (context, index) => const SizedBox(height: 14),
+                      separatorBuilder: (context, index) => const SizedBox(height: 16),
                       itemBuilder: (context, idx) {
                         final c = widget.item.sampleComments[idx];
-                        return Row(
+                        final isCommentLiked = _likedCommentIds.contains(c.id);
+
+                        return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            CircleAvatar(
-                              radius: 16,
-                              backgroundColor:
-                                  GageTheme.primary.withValues(alpha: 0.16),
-                              child: Text(
-                                c.username.replaceAll('@', '')[0].toUpperCase(),
-                                style: const TextStyle(
-                                  color: GageTheme.primary,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
+                            // 1. Komentar Induk (Parent Comment)
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                CircleAvatar(
+                                  radius: 16,
+                                  backgroundColor:
+                                      GageTheme.primary.withValues(alpha: 0.16),
+                                  child: Text(
+                                    c.username.replaceAll('@', '')[0].toUpperCase(),
+                                    style: const TextStyle(
+                                      color: GageTheme.primary,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
+                                      Row(
+                                        children: [
+                                          Text(
+                                            c.username,
+                                            style: TextStyle(
+                                              color: isDark ? Colors.white70 : const Color(0xFF0F172A),
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            c.timeAgo,
+                                            style: TextStyle(
+                                              color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                                              fontSize: 10.5,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 3),
                                       Text(
-                                        c.username,
+                                        c.text,
                                         style: TextStyle(
-                                          color: isDark ? Colors.white70 : const Color(0xFF0F172A),
-                                          fontSize: 11.5,
-                                          fontWeight: FontWeight.w700,
+                                          color: isDark ? Colors.white : const Color(0xFF334155),
+                                          fontSize: 12.5,
+                                          height: 1.35,
                                         ),
                                       ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        c.timeAgo,
-                                        style: TextStyle(
-                                          color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
-                                          fontSize: 10.5,
+                                      const SizedBox(height: 4),
+                                      // Tombol Balas Komentar
+                                      InkWell(
+                                        onTap: () => _startReply(parent: c, targetUsername: c.username),
+                                        child: Text(
+                                          'Balas',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                                          ),
                                         ),
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 3),
-                                  Text(
-                                    c.text,
-                                    style: TextStyle(
-                                      color: isDark ? Colors.white : const Color(0xFF334155),
-                                      fontSize: 12.5,
-                                      height: 1.35,
-                                    ),
+                                ),
+                                const SizedBox(width: 8),
+                                // Tombol Like Komentar Induk
+                                GestureDetector(
+                                  onTap: () {
+                                    HapticFeedback.selectionClick();
+                                    setState(() {
+                                      if (isCommentLiked) {
+                                        _likedCommentIds.remove(c.id);
+                                        c.likes = (c.likes - 1).clamp(0, 99999);
+                                      } else {
+                                        _likedCommentIds.add(c.id);
+                                        c.likes += 1;
+                                      }
+                                    });
+                                  },
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        isCommentLiked
+                                            ? Icons.favorite_rounded
+                                            : Icons.favorite_border_rounded,
+                                        size: 16,
+                                        color: isCommentLiked
+                                            ? const Color(0xFFEF4444)
+                                            : (isDark ? Colors.white38 : const Color(0xFF94A3B8)),
+                                      ),
+                                      if (c.likes > 0) ...[
+                                        const SizedBox(height: 1),
+                                        Text(
+                                          '${c.likes}',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
+
+                            // 2. Threaded Replies (Nested & Indented under parent comment)
+                            if (c.replies.isNotEmpty) ...[
+                              Padding(
+                                padding: const EdgeInsets.only(left: 42, top: 10),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: c.replies.map((reply) {
+                                    final isReplyLiked = _likedCommentIds.contains(reply.id);
+
+                                    return Padding(
+                                      padding: const EdgeInsets.only(bottom: 8),
+                                      child: Row(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          CircleAvatar(
+                                            radius: 12,
+                                            backgroundColor: GageTheme.primary.withValues(alpha: 0.14),
+                                            child: Text(
+                                              reply.username.replaceAll('@', '')[0].toUpperCase(),
+                                              style: const TextStyle(
+                                                color: GageTheme.primary,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 10,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Row(
+                                                  children: [
+                                                    Text(
+                                                      reply.username,
+                                                      style: TextStyle(
+                                                        color: isDark ? Colors.white70 : const Color(0xFF0F172A),
+                                                        fontSize: 11,
+                                                        fontWeight: FontWeight.w700,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 5),
+                                                    Text(
+                                                      reply.timeAgo,
+                                                      style: TextStyle(
+                                                        color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                                                        fontSize: 10,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 2),
+                                                // RichText highlighting tagged @username
+                                                _buildCommentTextWithTag(reply.text, isDark),
+                                                const SizedBox(height: 3),
+                                                InkWell(
+                                                  onTap: () => _startReply(parent: c, targetUsername: reply.username),
+                                                  child: Text(
+                                                    'Balas',
+                                                    style: TextStyle(
+                                                      fontSize: 10.5,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          GestureDetector(
+                                            onTap: () {
+                                              HapticFeedback.selectionClick();
+                                              setState(() {
+                                                if (isReplyLiked) {
+                                                  _likedCommentIds.remove(reply.id);
+                                                  reply.likes = (reply.likes - 1).clamp(0, 99999);
+                                                } else {
+                                                  _likedCommentIds.add(reply.id);
+                                                  reply.likes += 1;
+                                                }
+                                              });
+                                            },
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  isReplyLiked
+                                                      ? Icons.favorite_rounded
+                                                      : Icons.favorite_border_rounded,
+                                                  size: 14,
+                                                  color: isReplyLiked
+                                                      ? const Color(0xFFEF4444)
+                                                      : (isDark ? Colors.white38 : const Color(0xFF94A3B8)),
+                                                ),
+                                                if (reply.likes > 0)
+                                                  Text(
+                                                    '${reply.likes}',
+                                                    style: TextStyle(
+                                                      fontSize: 9.5,
+                                                      color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
+                            ],
                           ],
                         );
                       },
                     ),
             ),
+            // Banner Membalas Komentar
+            if (_replyToUsername != null)
+              Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: GageTheme.primary.withValues(alpha: isDark ? 0.2 : 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.reply_rounded, size: 16, color: GageTheme.primary),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Membalas $_replyToUsername',
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.bold,
+                          color: GageTheme.primary,
+                        ),
+                      ),
+                    ),
+                    InkWell(
+                      onTap: _cancelReply,
+                      child: const Icon(Icons.close_rounded, size: 16, color: GageTheme.primary),
+                    ),
+                  ],
+                ),
+              ),
             Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _commentCtrl,
+                    focusNode: _commentFocusNode,
                     style: TextStyle(
                       color: isDark ? Colors.white : const Color(0xFF0F172A),
                       fontSize: 13,
@@ -1842,7 +2481,9 @@ class _CommentBottomSheetState extends State<_CommentBottomSheet> {
                     textInputAction: TextInputAction.send,
                     onSubmitted: (_) => _submitComment(),
                     decoration: InputDecoration(
-                      hintText: 'Tulis komentar tentang menu ini...',
+                      hintText: _replyToUsername != null
+                          ? 'Tulis balasan untuk $_replyToUsername...'
+                          : 'Tulis komentar tentang menu ini...',
                       hintStyle: TextStyle(
                         color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
                         fontSize: 12.5,
@@ -1932,19 +2573,21 @@ class _QuickOrderBottomSheetState extends State<_QuickOrderBottomSheet> {
     return Padding(
       padding: EdgeInsets.only(bottom: bottomInset),
       child: Container(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          12,
-          20,
-          20 + MediaQuery.of(context).padding.bottom,
-        ),
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1E293B) : Colors.white,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          border: Border(
-            top: BorderSide(
-              color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.25),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
             ),
+          ],
+          border: Border.all(
+            color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+            width: 1.0,
           ),
         ),
         child: Column(
@@ -1966,34 +2609,19 @@ class _QuickOrderBottomSheetState extends State<_QuickOrderBottomSheet> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
-                  child: Row(
-                    children: [
-                      const Icon(Icons.storefront_rounded, size: 16, color: GageTheme.primary),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          widget.item.merchantName,
-                          style: TextStyle(
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
-                            fontWeight: FontWeight.w900,
-                            fontSize: 13.5,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    widget.item.merchantName,
+                    style: TextStyle(
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      fontWeight: FontWeight.w900,
+                      fontSize: 14,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: GageTheme.primary,
-                    side: const BorderSide(color: GageTheme.primary, width: 1.2),
-                    shape: const StadiumBorder(),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  onPressed: () {
+                InkWell(
+                  onTap: () {
                     Navigator.pop(context);
                     Navigator.push(
                       context,
@@ -2011,10 +2639,20 @@ class _QuickOrderBottomSheetState extends State<_QuickOrderBottomSheet> {
                       ),
                     );
                   },
-                  icon: const Icon(Icons.open_in_new_rounded, size: 13),
-                  label: const Text(
-                    'Buka Toko',
-                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Buka Toko',
+                        style: TextStyle(
+                          color: GageTheme.primary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(width: 4),
+                      Icon(Icons.open_in_new_rounded, size: 14, color: GageTheme.primary),
+                    ],
                   ),
                 ),
               ],
@@ -2023,18 +2661,18 @@ class _QuickOrderBottomSheetState extends State<_QuickOrderBottomSheet> {
             Divider(height: 1, color: isDark ? Colors.white12 : const Color(0xFFF1F5F9)),
             const SizedBox(height: 14),
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                   child: Image.network(
                     widget.item.thumbnailUrl,
-                    width: 72,
-                    height: 72,
+                    width: 64,
+                    height: 64,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) => Container(
-                      width: 72,
-                      height: 72,
+                      width: 64,
+                      height: 64,
                       color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
                       child: Icon(
                         Icons.restaurant_rounded,
@@ -2043,45 +2681,101 @@ class _QuickOrderBottomSheetState extends State<_QuickOrderBottomSheet> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        widget.item.merchantName,
-                        style: const TextStyle(
-                          color: Color(0xFFFFB703),
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
                       Text(
                         widget.item.productTitle,
                         style: TextStyle(
                           color: isDark ? Colors.white : const Color(0xFF0F172A),
-                          fontSize: 16,
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w900,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        widget.currencyFormatter.format(widget.item.productPrice),
+                        style: const TextStyle(
+                          color: GageTheme.primary,
+                          fontSize: 13,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        widget.item.productDescription,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: isDark ? Colors.white60 : const Color(0xFF64748B),
-                          fontSize: 11.5,
-                          height: 1.35,
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Stepper Kuantitas di Kanan Kartu Produk
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.08)
+                        : const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        constraints: const BoxConstraints(
+                          minWidth: 28,
+                          minHeight: 28,
                         ),
+                        padding: EdgeInsets.zero,
+                        icon: Icon(
+                          Icons.remove_rounded,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          size: 16,
+                        ),
+                        onPressed: _quantity > 1
+                            ? () {
+                                HapticFeedback.selectionClick();
+                                setState(() => _quantity--);
+                              }
+                            : null,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        child: Text(
+                          '$_quantity',
+                          style: TextStyle(
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        constraints: const BoxConstraints(
+                          minWidth: 28,
+                          minHeight: 28,
+                        ),
+                        padding: EdgeInsets.zero,
+                        icon: const Icon(
+                          Icons.add_rounded,
+                          color: GageTheme.primary,
+                          size: 16,
+                        ),
+                        onPressed: () {
+                          HapticFeedback.selectionClick();
+                          setState(() => _quantity++);
+                        },
                       ),
                     ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             TextField(
               controller: _noteCtrl,
               style: TextStyle(
@@ -2105,7 +2799,7 @@ class _QuickOrderBottomSheetState extends State<_QuickOrderBottomSheet> {
                     : const Color(0xFFF1F5F9),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 14,
-                  vertical: 12,
+                  vertical: 11,
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
@@ -2121,98 +2815,66 @@ class _QuickOrderBottomSheetState extends State<_QuickOrderBottomSheet> {
                 ),
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 16),
             Row(
               children: [
-                // Quantity Stepper
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.08)
-                        : const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                // Tombol Ikon Keranjang Bulat di Kiri
+                InkWell(
+                  onTap: () {
+                    HapticFeedback.mediumImpact();
+                    widget.onConfirmAddToCart(
+                      _quantity,
+                      _noteCtrl.text.trim(),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(999),
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white10 : const Color(0xFFF1F5F9),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                      ),
                     ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        constraints: const BoxConstraints(
-                          minWidth: 32,
-                          minHeight: 32,
-                        ),
-                        padding: EdgeInsets.zero,
-                        icon: Icon(
-                          Icons.remove_rounded,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
-                          size: 18,
-                        ),
-                        onPressed: _quantity > 1
-                            ? () {
-                                HapticFeedback.selectionClick();
-                                setState(() => _quantity--);
-                              }
-                            : null,
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        child: Text(
-                          '$_quantity',
-                          style: TextStyle(
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
-                            fontSize: 15,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        constraints: const BoxConstraints(
-                          minWidth: 32,
-                          minHeight: 32,
-                        ),
-                        padding: EdgeInsets.zero,
-                        icon: const Icon(
-                          Icons.add_rounded,
-                          color: Color(0xFFFFB703),
-                          size: 18,
-                        ),
-                        onPressed: () {
-                          HapticFeedback.selectionClick();
-                          setState(() => _quantity++);
-                        },
-                      ),
-                    ],
+                    child: const Icon(
+                      Icons.shopping_bag_outlined,
+                      color: GageTheme.primary,
+                      size: 22,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
-                // CTA Tambah ke Keranjang Kuning
+                // Tombol Pesan Langsung Besar di Kanan
                 Expanded(
                   child: SizedBox(
                     height: 48,
-                    child: ElevatedButton.icon(
+                    child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFFB703),
-                        foregroundColor: const Color(0xFF0F172A),
+                        backgroundColor: GageTheme.primary,
+                        foregroundColor: Colors.white,
                         shape: const StadiumBorder(),
                         elevation: 0,
                       ),
-                      icon: const Icon(Icons.shopping_bag_rounded, size: 18),
-                      label: Text(
-                        'Pesan • ${widget.currencyFormatter.format(totalPrice)}',
+                      onPressed: () {
+                        widget.onConfirmAddToCart(
+                          _quantity,
+                          _noteCtrl.text.trim(),
+                        );
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const CheckoutScreen(serviceType: 'food'),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        'Pesan Langsung • ${widget.currencyFormatter.format(totalPrice)}',
                         style: const TextStyle(
                           fontWeight: FontWeight.w900,
                           fontSize: 13.5,
                         ),
-                      ),
-                      onPressed: () => widget.onConfirmAddToCart(
-                        _quantity,
-                        _noteCtrl.text.trim(),
                       ),
                     ),
                   ),

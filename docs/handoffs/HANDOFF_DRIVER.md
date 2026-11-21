@@ -92,7 +92,28 @@ Hasil audit menunjukkan beberapa field penting dari Customer belum tersedia di `
 
 ---
 
-## 4. Handoff Wave 3 Iteration 4: Compact Auto-Detect Invoice Number Format
-- Nomor invoice pada order delivery kini menggunakan format kompak advance: `INV-{BASE36_TIMESTAMP}-{NODE_SEQ}{CHECKSUM}` (contoh: `INV-K9X2B7Q1-P018`).
-- Driver/Kurir dapat mencocokkan nomor invoice ini secara presisi pada rincian pesanan dan struk belanja pelanggan.
+## 6. Handoff Wave 6: Standardisasi Terminologi QRIS & User Ownership Google Auth
+
+1. **Void Kata 'QRIS Instant' di Dompet Driver (`driver_earnings_screen.dart`)**:
+   - Seluruh alur setoran saldo / pelunasan komisi COD oleh driver telah diubah dari 'QRIS Instant' menjadi baku **'QRIS'**.
+   - Nama metode pembayaran di dompet dan histori mutasi seragam 'QRIS' tanpa imbuhan 'Instan' atau 'Instant'.
+2. **Standardisasi Nama Layanan Baru GAGE**:
+   - Master entity layanan pengemudi kini selaras: `G-Ride`, `G-Car`, `G-Send`.
+   - Huruf dan label layanan pada seluruh radar order menggunakan font tebal tegas `FontWeight.w800`.
+3. **User Ownership via Google Auth & Cloudflare D1**:
+   - Akun driver diikat pada `user_id` hasil autentikasi Google. Radar penawaran dan riwayat order divalidasi berdasarkan kepemilikan akun driver terverifikasi.
+
+---
+
+## 7. Handoff Wave 7: PIN 4-Digit Serah Terima Pesanan di Toko Merchant (Driver Input PIN)
+
+1. **Mekanisme Serah Terima Fisik Barang**:
+   - Merchant bertindak sebagai pihak yang men-generate PIN 4-digit acak (`1000 - 9999`) pada layar pesanan toko (`OrderModel.handoverPin`).
+   - Driver yang tiba di toko merchant untuk menjemput pesanan fisik wajib **menanyakan dan menginput 4 digit PIN tersebut** ke dalam aplikasi Driver (`active_trip_screen.dart`), bukan merchant yang menginput PIN milik driver.
+   - Input PIN driver divalidasi terhadap `order.courierVerificationPin` sebelum status pesanan beralih ke `ON_THE_WAY`.
+2. **Kontrak Model & D1**:
+   - Driver Order Provider membaca field `handoverPin` dari data `orders` backend.
+   - Jika merchant melakukan *Acak Ulang PIN* di dapurnya, nilai terbaru otomatis tersinkronisasi via SSE / polling status order.
+
+
 

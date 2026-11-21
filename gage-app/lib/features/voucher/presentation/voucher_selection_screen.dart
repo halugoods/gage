@@ -309,13 +309,13 @@ class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with Si
 
   String get _appBarTitle {
     final effectiveType = _resolveServiceType();
-    if (effectiveType == 'ride') return 'Pilih Voucher GAGE Ride';
-    if (effectiveType == 'car') return 'Pilih Voucher GAGE Car';
-    if (effectiveType == 'send') return 'Pilih Voucher GAGE Send';
-    if (effectiveType == 'shop' || effectiveType == 'mart') return 'Pilih Voucher GAGE Shop';
-    if (effectiveType == 'farm') return 'Pilih Voucher GAGE Farm';
+    if (effectiveType == 'ride') return 'Pilih Voucher G-Ride';
+    if (effectiveType == 'car') return 'Pilih Voucher G-Car';
+    if (effectiveType == 'send') return 'Pilih Voucher G-Send';
+    if (effectiveType == 'shop' || effectiveType == 'mart') return 'Pilih Voucher G-Shop';
+    if (effectiveType == 'farm') return 'Pilih Voucher G-Farm';
     if (effectiveType == 'build') return 'Pilih Voucher GAGE Build';
-    if (effectiveType == 'food') return 'Pilih Voucher GAGE Food';
+    if (effectiveType == 'food') return 'Pilih Voucher G-Food';
     return 'Pilih Voucher Promo';
   }
 
