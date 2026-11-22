@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:gage_app/core/services/gage_audio_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
+import 'package:gage_app/features/merchant/presentation/merchant_order_detail_screen.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_order_detail_sheet.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_thermal_receipt_sheet.dart';
 import 'package:gage_app/providers/merchant_order_provider.dart';
@@ -266,53 +267,56 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
 
     return Column(
       children: [
-        // 1. Segmented Tab Switch Kapsul Penuh 4 Kategori (Universal: Food, Shop, Farm)
+        // 1. Segmented Tab Switch Kapsul Penuh 4 Kategori (Statis, Non-Scrollable)
         Container(
           color: isDark ? GageTheme.darkSurface : Colors.white,
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Container(
-              height: 44,
-              padding: const EdgeInsets.all(3),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(
-                  color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-                  width: 1,
-                ),
+          child: Container(
+            height: 44,
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                width: 1,
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildSegmentItem(
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildSegmentItem(
                     index: 0,
                     label: 'Disiapkan',
                     count: countDisiapkan,
                     isDark: isDark,
                   ),
-                  _buildSegmentItem(
+                ),
+                Expanded(
+                  child: _buildSegmentItem(
                     index: 1,
                     label: 'Siap Diambil',
                     count: countSiap,
                     isDark: isDark,
                   ),
-                  _buildSegmentItem(
+                ),
+                Expanded(
+                  child: _buildSegmentItem(
                     index: 2,
                     label: 'Sedang Diantar',
                     count: countDiantar,
                     isDark: isDark,
                   ),
-                  _buildSegmentItem(
+                ),
+                Expanded(
+                  child: _buildSegmentItem(
                     index: 3,
                     label: 'Selesai',
                     count: countSelesai,
                     isDark: isDark,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -500,7 +504,7 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
     final isSelected = _activeSegment == index;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 1.5),
       child: InkWell(
         onTap: () {
           if (_activeSegment == index) return;
@@ -511,7 +515,7 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeInOut,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 7),
           decoration: BoxDecoration(
             color: isSelected ? GageTheme.primary : Colors.transparent,
             borderRadius: BorderRadius.circular(999),
@@ -526,39 +530,42 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                 : null,
           ),
           alignment: Alignment.center,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                  color: isSelected
-                      ? Colors.white
-                      : (isDark ? Colors.white70 : const Color(0xFF64748B)),
-                ),
-              ),
-              if (count > 0) ...[
-                const SizedBox(width: 5),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                  decoration: BoxDecoration(
-                    color: isSelected ? Colors.white : (isDark ? Colors.white24 : Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(999),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                    color: isSelected
+                        ? Colors.white
+                        : (isDark ? Colors.white70 : const Color(0xFF64748B)),
                   ),
-                  child: Text(
-                    '$count',
-                    style: TextStyle(
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w900,
-                      color: isSelected ? GageTheme.primary : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                ),
+                if (count > 0) ...[
+                  const SizedBox(width: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                    decoration: BoxDecoration(
+                      color: isSelected ? Colors.white : (isDark ? Colors.white24 : Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      '$count',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w900,
+                        color: isSelected ? GageTheme.primary : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                      ),
                     ),
                   ),
-                ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -580,10 +587,16 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
     return InkWell(
       onTap: () {
         HapticFeedback.lightImpact();
-        MerchantOrderDetailSheet.show(
-          context,
-          order,
-          currencyFormatter: widget.currencyFormatter,
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ChangeNotifierProvider.value(
+              value: context.read<MerchantOrderProvider>(),
+              child: MerchantOrderDetailScreen(
+                order: order,
+                currencyFormatter: widget.currencyFormatter,
+              ),
+            ),
+          ),
         );
       },
       borderRadius: BorderRadius.circular(20),
@@ -695,8 +708,6 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
             ),
 
             const SizedBox(height: 10),
-            Divider(height: 1, color: isDark ? GageTheme.darkBorder : Colors.grey.shade200),
-            const SizedBox(height: 10),
 
           // Baris 2: Informasi Pelanggan & Catatan
           Row(
@@ -745,58 +756,67 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
 
           const SizedBox(height: 10),
 
-          // Baris 3: Daftar Menu Hidangan
-          ...order.items.map((item) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${item.quantity}x',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+          // Baris 3: Daftar Item Produk (Container lembut tanpa Divider)
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              children: [
+                ...order.items.map((item) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${item.quantity}x',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item.name,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? Colors.white : const Color(0xFF1E293B),
-                            ),
-                          ),
-                          if (item.notes != null && item.notes!.isNotEmpty)
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                             Text(
-                              item.notes!,
+                              item.name,
                               style: TextStyle(
-                                fontSize: 11,
-                                color: isDark ? Colors.white54 : Colors.grey.shade600,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? Colors.white : const Color(0xFF1E293B),
                               ),
                             ),
-                        ],
+                            if (item.notes != null && item.notes!.isNotEmpty)
+                              Text(
+                                item.notes!,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isDark ? Colors.white54 : Colors.grey.shade600,
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
-                    ),
-                    Text(
-                      widget.currencyFormatter.format(item.price * item.quantity),
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white70 : Colors.grey.shade700,
+                      Text(
+                        widget.currencyFormatter.format(item.price * item.quantity),
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white70 : Colors.grey.shade700,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              )),
+                    ],
+                  ),
+                )),
+              ],
+            ),
+          ),
 
-          const SizedBox(height: 8),
-          Divider(height: 1, color: isDark ? GageTheme.darkBorder : Colors.grey.shade200),
           const SizedBox(height: 10),
 
           // Baris 4: Pendapatan Bersih Toko

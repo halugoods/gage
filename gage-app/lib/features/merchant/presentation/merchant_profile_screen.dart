@@ -452,7 +452,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                       await _persistStorefront();
                     },
                   ),
-                  const Divider(height: 1),
+                  const SizedBox(height: 4),
                   ListTile(
                     onTap: _openScheduleEditor,
                     leading: const Icon(Icons.access_time_rounded, color: GageTheme.primary, size: 20),
@@ -463,7 +463,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                     ),
                     trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
                   ),
-                  const Divider(height: 1),
+                  const SizedBox(height: 4),
                   Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
@@ -472,7 +472,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('Estimasi Waktu Masak Default:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                            const Text('Estimasi Waktu Penyiapan Default:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                             Text('$_cookingTime Menit', style: const TextStyle(fontWeight: FontWeight.w900, color: GageTheme.primary, fontSize: 14)),
                           ],
                         ),
@@ -542,15 +542,15 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                     subtitle: Text('Thermal 58mm (RPP02N / Iware / Panda)', style: TextStyle(fontSize: 11.5, color: GageTheme.textSecondary)),
                     trailing: Text('TERHUBUNG', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: GageTheme.accentGreen)),
                   ),
-                  const Divider(height: 1),
+                  const SizedBox(height: 4),
                   SwitchListTile(
-                    title: const Text('Auto-Print Tiket Dapur', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    title: const Text('Auto-Print Tiket Pesanan', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                     subtitle: const Text('Cetak tiket otomatis saat pesanan baru masuk', style: TextStyle(fontSize: 11.5, color: GageTheme.textSecondary)),
                     value: _autoPrint,
                     activeThumbColor: GageTheme.primary,
                     onChanged: (v) => setState(() => _autoPrint = v),
                   ),
-                  const Divider(height: 1),
+                  const SizedBox(height: 4),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     child: OutlinedButton.icon(

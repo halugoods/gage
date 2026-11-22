@@ -12,9 +12,11 @@ import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
 import 'package:gage_app/features/chat/providers/in_app_chat_provider.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_kitchen_insights_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_menu_screen.dart';
+import 'package:gage_app/features/merchant/presentation/merchant_order_detail_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_review_screen.dart';
 import 'package:gage_app/features/merchant/presentation/tabs/gage_merchant_orders_tab.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_floating_nav_bar.dart';
+import 'package:gage_app/features/merchant/presentation/widgets/merchant_photo_picker_sheet.dart';
 import 'package:gage_app/providers/merchant_order_provider.dart';
 
 void main() {
@@ -463,23 +465,21 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       // Verifikasi header bottom sheet
-      expect(find.text('Tambah Menu Baru Dapur'), findsOneWidget);
+      expect(find.text('Tambah Produk / Menu Baru'), findsOneWidget);
 
-      // Verifikasi Image Picker
-      expect(find.text('Foto Menu Makanan / Minuman'), findsOneWidget);
-      expect(find.text('Upload Foto Menu Baru'), findsOneWidget);
-      expect(find.text('Kamera'), findsOneWidget);
-      expect(find.text('Galeri HP'), findsOneWidget);
+      // Verifikasi Image Picker Android 14 / One UI Ala Nusa Kasir
+      expect(find.text('Foto Produk / Menu'), findsOneWidget);
+      expect(find.text('Pilih Foto Produk'), findsOneWidget);
 
       // Verifikasi Kalkulator Harga In-Place Langsung
-      expect(find.text('Kalkulator Harga & Margin Dapur'), findsOneWidget);
+      expect(find.text('Kalkulator Harga & Margin Produk'), findsOneWidget);
       expect(find.text('Harga Warung (Offline)'), findsOneWidget);
       expect(find.text('Harga Jual di GAGE'), findsOneWidget);
       expect(find.text('Alokasi Komisi Afiliasi / Kreator Video (Maks 20%):'), findsOneWidget);
       expect(find.text('10% (Rekomendasi)'), findsOneWidget);
 
       // Verifikasi Tombol Simpan
-      expect(find.text('Simpan Menu ke Dapur'), findsOneWidget);
+      expect(find.text('Simpan Produk / Menu'), findsOneWidget);
     });
 
     // -------------------------------------------------------------------------
@@ -655,6 +655,109 @@ void main() {
       provider.toggleStoreOpen(false);
       expect(provider.isOpen, isFalse);
       provider.dispose();
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 22: Static Segmented Tab Switch (Non-Scrollable, 4 Kategori Universal)
+    // -------------------------------------------------------------------------
+    testWidgets('Skenario 22: Static Segmented Tab Switch non-scrollable dengan 4 kapsul Expanded', (tester) async {
+      final provider = MerchantOrderProvider();
+      final formatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChangeNotifierProvider<MerchantOrderProvider>.value(
+            value: provider,
+            child: Scaffold(
+              body: GageMerchantOrdersTab(currencyFormatter: formatter),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Pastikan ada 4 label status
+      expect(find.text('Disiapkan'), findsOneWidget);
+      expect(find.text('Siap Diambil'), findsOneWidget);
+      expect(find.text('Sedang Diantar'), findsOneWidget);
+      expect(find.text('Selesai'), findsOneWidget);
+
+      // Verifikasi bahwa segmented switch tidak berada di dalam SingleChildScrollView horizontal
+      final horizontalScrollFinder = find.byWidgetPredicate(
+        (widget) => widget is SingleChildScrollView && widget.scrollDirection == Axis.horizontal,
+      );
+      // Segmented switch tab pesanan kini statis (Row of Expanded)
+      expect(find.descendant(of: find.byType(GageMerchantOrdersTab), matching: horizontalScrollFinder), findsNothing);
+      provider.dispose();
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 23: Navigasi Order Detail Full-Screen Menu (Bukan Floating Sheet)
+    // -------------------------------------------------------------------------
+    testWidgets('Skenario 23: Tap kartu pesanan membuka MerchantOrderDetailScreen full-screen', (tester) async {
+      final provider = MerchantOrderProvider();
+      final formatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChangeNotifierProvider<MerchantOrderProvider>.value(
+            value: provider,
+            child: Scaffold(
+              body: GageMerchantOrdersTab(currencyFormatter: formatter),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Temukan kartu pesanan pertama dan ketuk
+      final orderCard = find.text('Galih Pambudi');
+      expect(orderCard, findsOneWidget);
+      await tester.tap(orderCard);
+      await tester.pumpAndSettle();
+
+      // Verifikasi bahwa MerchantOrderDetailScreen terbuka sebagai Full Screen Page
+      expect(find.byType(MerchantOrderDetailScreen), findsOneWidget);
+      expect(find.text('PIN VERIFIKASI SERAH TERIMA'), findsOneWidget);
+      expect(find.text('Rincian Pembayaran & Pendapatan'), findsOneWidget);
+      expect(find.text('Pendapatan Bersih Toko'), findsOneWidget);
+
+      // Kembali ke halaman pesanan
+      final backBtn = find.byIcon(Icons.arrow_back_ios_new_rounded);
+      expect(backBtn, findsOneWidget);
+      await tester.tap(backBtn);
+      await tester.pumpAndSettle();
+      expect(find.byType(MerchantOrderDetailScreen), findsNothing);
+      provider.dispose();
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 24: MerchantPhotoPickerSheet Android 14 One UI Style
+    // -------------------------------------------------------------------------
+    testWidgets('Skenario 24: MerchantPhotoPickerSheet menampilkan tab multi-vertikal dan tile kamera', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () => MerchantPhotoPickerSheet.show(context),
+                child: const Text('Buka Picker'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Buka Picker'));
+      await tester.pumpAndSettle();
+
+      // Verifikasi elemen Android 14 Photo Picker
+      expect(find.text('Pilih Foto Produk'), findsOneWidget);
+      expect(find.text('Kuliner'), findsOneWidget);
+      expect(find.text('Sembako'), findsOneWidget);
+      expect(find.text('Tani & Ternak'), findsOneWidget);
+      expect(find.text('Kamera'), findsOneWidget);
+      expect(find.text('Galeri HP'), findsOneWidget);
     });
   });
 }

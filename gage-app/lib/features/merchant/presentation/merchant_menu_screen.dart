@@ -7,6 +7,7 @@ import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/services/affiliate_commission_service.dart';
 import 'package:gage_app/core/services/merchant_storefront_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/features/merchant/presentation/widgets/merchant_photo_picker_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 /// Screen Manajemen Katalog Menu & Stok Mitra Merchant
@@ -733,7 +734,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'Tambah Menu Baru Dapur',
+                    'Tambah Produk / Menu Baru',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
@@ -745,7 +746,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
 
                   // FOTO MENU & IMAGE PICKER
                   Text(
-                    'Foto Menu Makanan / Minuman',
+                    'Foto Produk / Menu',
                     style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w700,
@@ -781,9 +782,12 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                                   shape: const CircleBorder(),
                                   child: InkWell(
                                     customBorder: const CircleBorder(),
-                                    onTap: () {
+                                    onTap: () async {
                                       HapticFeedback.selectionClick();
-                                      pickPhoto(ImageSource.gallery);
+                                      final chosen = await MerchantPhotoPickerSheet.show(ctx, initialCategory: category);
+                                      if (chosen != null) {
+                                        setModalState(() => selectedImagePath = chosen);
+                                      }
                                     },
                                     child: const Padding(
                                       padding: EdgeInsets.all(7),
@@ -835,98 +839,58 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                       ),
                     )
                   else
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                    InkWell(
+                      onTap: () async {
+                        HapticFeedback.lightImpact();
+                        final chosen = await MerchantPhotoPickerSheet.show(ctx, initialCategory: category);
+                        if (chosen != null) {
+                          setModalState(() => selectedImagePath = chosen);
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: GageTheme.primary.withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.add_a_photo_rounded, size: 24, color: GageTheme.primary),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              'Pilih Foto Produk',
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Buka Galeri Foto Android 14, Kamera Fisik, atau Preset Produk',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isDark ? Colors.white60 : GageTheme.textSecondary,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
                         ),
                       ),
-                      child: Column(
-                        children: [
-                          const Icon(Icons.add_a_photo_rounded, size: 28, color: GageTheme.primary),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Upload Foto Menu Baru',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Ambil langsung via kamera atau upload dari galeri perangkat',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: isDark ? Colors.white60 : GageTheme.textSecondary,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              OutlinedButton.icon(
-                                style: OutlinedButton.styleFrom(
-                                  shape: const StadiumBorder(),
-                                  side: const BorderSide(color: GageTheme.primary),
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                ),
-                                onPressed: () => pickPhoto(ImageSource.camera),
-                                icon: const Icon(Icons.camera_alt_rounded, size: 16, color: GageTheme.primary),
-                                label: const Text('Kamera', style: TextStyle(fontSize: 12, color: GageTheme.primary, fontWeight: FontWeight.bold)),
-                              ),
-                              const SizedBox(width: 10),
-                              ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: GageTheme.primary,
-                                  shape: const StadiumBorder(),
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                ),
-                                onPressed: () => pickPhoto(ImageSource.gallery),
-                                icon: const Icon(Icons.photo_library_rounded, size: 16, color: Colors.white),
-                                label: const Text('Galeri HP', style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold)),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
                     ),
-                  const SizedBox(height: 8),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        Text(
-                          'Preset cepat: ',
-                          style: TextStyle(fontSize: 11, color: isDark ? Colors.white54 : GageTheme.textSecondary),
-                        ),
-                        ...[
-                          {'label': 'Dimsum Ori', 'img': 'assets/images/dish_dimsum_original.png'},
-                          {'label': 'Dimsum Mentai', 'img': 'assets/images/dish_dimsum_mentai.png'},
-                          {'label': 'Resto Kios', 'img': 'assets/images/resto_dimsum_sewu.png'},
-                        ].map((p) {
-                          final isSel = (selectedImagePath == p['img']);
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 6),
-                            child: ChoiceChip(
-                              label: Text(p['label']!, style: TextStyle(fontSize: 10.5, fontWeight: isSel ? FontWeight.bold : FontWeight.normal)),
-                              selected: isSel,
-                              selectedColor: GageTheme.primary.withValues(alpha: 0.15),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-                              onSelected: (_) {
-                                HapticFeedback.selectionClick();
-                                setModalState(() => selectedImagePath = p['img']!);
-                              },
-                            ),
-                          );
-                        }),
-                      ],
-                    ),
-                  ),
 
                   const SizedBox(height: 14),
                   Text(
@@ -1040,7 +1004,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Kalkulator Harga & Margin Dapur',
+                                'Kalkulator Harga & Margin Produk',
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.bold,
@@ -1239,10 +1203,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                                 _buildCalcRow('MDR Platform GAGE (10%)', '- ${currencyFormatter.format((gagePrice * 0.10).round())}', isDark, isDeduction: true),
                                 const SizedBox(height: 4),
                                 _buildCalcRow('Komisi Kreator (${(affiliateRate * 100).toInt()}%)', '- ${currencyFormatter.format((gagePrice * affiliateRate).round())}', isDark, isDeduction: true),
-                                const Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 6),
-                                  child: Divider(height: 1),
-                                ),
+                                const SizedBox(height: 8),
                                 _buildCalcRow(
                                   'Estimasi Pencairan Bersih',
                                   currencyFormatter.format(gagePrice - (gagePrice * 0.10).round() - (gagePrice * affiliateRate).round()),
@@ -1529,7 +1490,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                             },
                       child: isSubmitting
                           ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : const Text('Simpan Menu ke Dapur', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          : const Text('Simpan Produk / Menu', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],

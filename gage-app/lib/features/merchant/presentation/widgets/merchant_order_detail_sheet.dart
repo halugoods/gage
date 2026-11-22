@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
+import 'package:gage_app/features/merchant/presentation/merchant_order_detail_screen.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_thermal_receipt_sheet.dart';
 import 'package:gage_app/providers/merchant_order_provider.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
@@ -30,12 +31,15 @@ class MerchantOrderDetailSheet extends StatefulWidget {
     final formatter = currencyFormatter ??
         NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
-    return GageFloatingSheet.show(
-      context: context,
-      title: 'Rincian Pesanan',
-      builder: (sheetCtx) => MerchantOrderDetailSheet(
-        order: order,
-        currencyFormatter: formatter,
+    return Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => ChangeNotifierProvider.value(
+          value: context.read<MerchantOrderProvider>(),
+          child: MerchantOrderDetailScreen(
+            order: order,
+            currencyFormatter: formatter,
+          ),
+        ),
       ),
     );
   }
