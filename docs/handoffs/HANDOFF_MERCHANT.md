@@ -755,6 +755,41 @@ Tab 4 Merchant kini mengadopsi widget asli `GagePayScreen` (`isEmbeddedInTab: tr
   - Pengaturan jumlah rangkap struk: **1x**, **2x (Dapur + Kurir)**, **3x (Dapur + Kasir + Kurir)**.
   - Tombol uji cetak sampel struk transaksi.
 
+---
+
+## 14. Dokumentasi Pembaruan Wave 9 (Penyempurnaan Kartu Pesanan, Countdown PIN & SLA Penyiapan, Unifikasi Profil, dan Paritas UI GAGE)
+
+* **Status Pengujian**: Siap diverifikasi otomatis
+* **Komponen Terdampak**: `OrderModel`, `MerchantOrderProvider`, `GageMerchantOrdersTab`, `MerchantOrderDetailScreen`, `MerchantFloatingNavBar`, `MerchantPrinterSettingsSheet`
+
+### A. Perbaikan Logika Chat & Routing Eksplisit
+- Tombol aksi chat pada kartu pesanan luar kini secara eksplisit membuka chat ke **Pelanggan** (`recipientRole: 'customer'`).
+- Jika kurir telah ditetapkan (`hasAssignedDriver`), bagian driver menampilkan tombol chat khusus kurir (`recipientRole: 'driver'`), menghilangkan kebingungan merchant saat berkomunikasi.
+
+### B. Countdown Timer PIN & SLA Penyiapan Toko (Auto-Ready + Penalti -1 Poin)
+- **PIN Live Ticker**: Kartu PIN verifikasi kini menampilkan countdown detik per detik (`MM:SS`) hingga pergantian 5 menit berikutnya.
+- **SLA Penyiapan Pesanan**: Saat pesanan berada pada status `COOKING`, sistem menghitung mundur waktu penyiapan (default 15 menit). Jika waktu habis tanpa merchant menekan *"Pesanan Siap Diambil"*, pesanan otomatis beralih menjadi `READY_FOR_PICKUP` dan toko dikenakan penalti performa -1 Poin.
+
+### C. Unifikasi Kartu Profil Customer & Driver
+- Menggabungkan data pelanggan dan kurir ke dalam 1 kontainer kartu tunggal yang bersih.
+- Dipisahkan oleh garis horizontal halus (`Divider(height: 20, thickness: 0.8)`).
+- Menggunakan `CircleAvatar` ber-border lingkaran untuk foto profil pelanggan dan kurir.
+- Menyeragamkan warna ikon chat ke warna primer `GageTheme.primary` (menghapus campur aduk warna biru vs hijau).
+- Mengeliminasi background container highlight ("efek stabilo") pada rincian Total Bayar Pelanggan.
+
+### D. Mini Image Preview Produk pada Item Card
+- Setiap produk pada rincian pesanan dilengkapi preview thumbnail gambar mini (~38x38, `BorderRadius.circular(8)`) yang proporsional setinggi 2 baris teks.
+
+### E. Nominal Pesanan Warna Merah di Kartu Luar
+- Mengganti teks nominal menjadi *"Total Pesanan:"* dengan font tebal berwarna merah **`GageTheme.primary` (`#E52320`)**, selaras dengan portal customer.
+
+### F. Floating Bottom Nav Bar: Outline Stroke ke Filled
+- Ikon bottom navigation bar menampilkan gaya outline (`*_outlined`) saat tidak aktif dan bertransformasi menjadi filled (`*_rounded`) saat aktif.
+
+### G. Perapian Suite Printer Thermal Kasir
+- Menghapus string dummy MAC address dan merampingkan antarmuka agar intuitif, elegan, dan bersih.
+
+
 
 
 

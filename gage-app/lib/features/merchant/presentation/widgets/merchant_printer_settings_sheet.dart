@@ -39,24 +39,24 @@ class _MerchantPrinterSettingsSheetState extends State<MerchantPrinterSettingsSh
   // Daftar perangkat printer Bluetooth terdeteksi di sekitar kios
   final List<Map<String, String>> _availableDevices = [
     {
-      'name': 'RPP02N-Thermal-58mm',
-      'address': '66:32:B1:88:90:12',
+      'name': 'RPP02N Thermal Printer',
       'type': '58mm',
+      'desc': 'Printer Bluetooth 58mm Mini Portable',
     },
     {
-      'name': 'Zijiang-POS-80mm',
-      'address': 'AA:BB:CC:DD:EE:01',
+      'name': 'Zijiang POS-80',
       'type': '80mm',
+      'desc': 'Printer Kasir Desktop Lebar 80mm',
     },
     {
-      'name': 'Panda-PRJ-58BT',
-      'address': '00:11:22:33:44:55',
+      'name': 'Panda PRJ-58BT',
       'type': '58mm',
+      'desc': 'Printer Struk Kasir Bluetooth',
     },
     {
-      'name': 'Iware-MP58-Bluetooth',
-      'address': '88:44:11:22:99:AA',
+      'name': 'Iware MP-58',
       'type': '58mm',
+      'desc': 'Printer Thermal Struk Kompak',
     },
   ];
 
@@ -68,12 +68,12 @@ class _MerchantPrinterSettingsSheetState extends State<MerchantPrinterSettingsSh
     await Future.delayed(const Duration(milliseconds: 600));
     if (mounted) {
       setState(() => _isScanning = false);
-      GageToast.show(context, 'Ditemukan ${_availableDevices.length} printer thermal aktif');
+      GageToast.show(context, 'Ditemukan ${_availableDevices.length} printer bluetooth');
     }
   }
 
   Future<void> _connectDevice(Map<String, String> device) async {
-    setState(() => _connectingDevice = device['address']);
+    setState(() => _connectingDevice = device['name']);
     HapticFeedback.mediumImpact();
 
     await Future.delayed(const Duration(milliseconds: 400));
@@ -508,7 +508,7 @@ class _MerchantPrinterSettingsSheetState extends State<MerchantPrinterSettingsSh
               Column(
                 children: _availableDevices.map((dev) {
                   final isThisConnected = isConnected && dev['name'] == connectedName;
-                  final isConnecting = _connectingDevice == dev['address'];
+                  final isConnecting = _connectingDevice == dev['name'];
 
                   return Container(
                     margin: const EdgeInsets.only(bottom: 8),
@@ -544,7 +544,7 @@ class _MerchantPrinterSettingsSheetState extends State<MerchantPrinterSettingsSh
                                 ),
                               ),
                               Text(
-                                'MAC: ${dev['address']} • ${dev['type']}',
+                                '${dev['desc'] ?? "Bluetooth SPP"} • ${dev['type']}',
                                 style: TextStyle(
                                   fontSize: 10.5,
                                   color: isDark ? Colors.white60 : Colors.grey.shade600,

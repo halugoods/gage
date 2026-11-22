@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -10,9 +11,9 @@ import 'package:gage_app/shared/widgets/gage_toast.dart';
 
 /// Halaman Layar Penuh (Full-Screen Menu) untuk Rincian Lengkap Pesanan Mitra Usaha GAGE.
 /// Dirancang dengan standar kemewahan (luxury / anti-slop) ala Customer Portal & NUSA Kasir:
-/// - Tanpa garis pembatas horizontal solid (Divider).
 /// - Layout lapang, breathing room proporsional, dan hirarki kartu yang bersih.
-/// - PIN Serah Terima Kurir terpusat dan mudah diverifikasi.
+/// - PIN Serah Terima Kurir terpusat dengan live countdown timer pergantian.
+/// - Countdown batas waktu penyiapan pesanan (SLA) & peringatan penalti performa toko.
 /// - Sticky bottom operational action bar dengan full capsule (StadiumBorder).
 class MerchantOrderDetailScreen extends StatefulWidget {
   final OrderModel order;
@@ -30,11 +31,21 @@ class MerchantOrderDetailScreen extends StatefulWidget {
 
 class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
   late OrderModel _currentOrder;
+  Timer? _tickerTimer;
 
   @override
   void initState() {
     super.initState();
     _currentOrder = widget.order;
+    _tickerTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _tickerTimer?.cancel();
+    super.dispose();
   }
 
   String _formatDateTime(int timestamp) {
@@ -336,6 +347,43 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
                   statusDesc,
                   style: TextStyle(fontSize: 11.5, color: subColor, height: 1.3),
                 ),
+                if (order.status == 'COOKING') ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: GageTheme.primary.withValues(alpha: isDark ? 0.2 : 0.08),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: GageTheme.primary.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.timer_outlined, size: 14, color: GageTheme.primary),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Batas Waktu Penyiapan: ${order.formattedCookingTimeRemaining}',
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w800,
+                              color: GageTheme.primary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Selesaikan sebelum waktu habis untuk menghindari penalti performa toko (-1 Poin).',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      color: isDark ? Colors.white60 : Colors.grey.shade600,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -426,7 +474,7 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
                 const Icon(Icons.timer_outlined, size: 13, color: GageTheme.primary),
                 const SizedBox(width: 5),
                 Text(
-                  'Berganti otomatis setiap 5 menit',
+                  'Berganti otomatis dalam ${order.formattedPinTimeRemaining}',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
@@ -459,16 +507,36 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Pelanggan
+          // 1. Informasi Pelanggan (Avatar Border Lingkaran)
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEFF6FF),
-                  borderRadius: BorderRadius.circular(10),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isDark ? Colors.white24 : Colors.grey.shade300,
+                    width: 1.5,
+                  ),
                 ),
-                child: const Icon(Icons.person_rounded, color: Color(0xFF2563EB), size: 18),
+                child: ClipOval(
+                  child: order.customerAvatar != null && order.customerAvatar!.isNotEmpty
+                      ? Image.network(
+                          order.customerAvatar!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Icon(
+                            Icons.person_rounded,
+                            size: 20,
+                            color: isDark ? Colors.white70 : Colors.grey.shade600,
+                          ),
+                        )
+                      : Icon(
+                          Icons.person_rounded,
+                          size: 20,
+                          color: isDark ? Colors.white70 : Colors.grey.shade600,
+                        ),
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -508,99 +576,108 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
                     ),
                   );
                 },
-                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 20, color: Color(0xFF2563EB)),
+                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 20, color: GageTheme.primary),
                 tooltip: 'Chat Pelanggan',
               ),
             ],
           ),
 
           if (order.notes != null && order.notes!.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFEF3C7),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.notes_rounded, size: 14, color: Color(0xFFB45309)),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'Catatan: ${order.notes}',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF92400E),
-                      ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.notes_rounded, size: 14, color: GageTheme.primary),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Catatan: ${order.notes}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontStyle: FontStyle.italic,
+                      color: subColor,
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ],
 
-          if (order.driverName != null) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(7),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFECFDF5),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.two_wheeler_rounded, color: Color(0xFF059669), size: 18),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          order.driverName!,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: textColor,
-                          ),
-                        ),
-                        Text(
-                          'Plat: ${order.driverPlate ?? "-"} • ${order.driverPhone ?? "-"}',
-                          style: TextStyle(fontSize: 11, color: subColor),
-                        ),
-                      ],
+          // 2. Informasi Kurir (Jika order delivery dan driver sudah ada)
+          if (order.hasAssignedDriver) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Divider(height: 1, thickness: 0.8, color: borderColor),
+            ),
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: GageTheme.primary.withValues(alpha: 0.5),
+                      width: 1.5,
                     ),
                   ),
-                  IconButton(
-                    onPressed: () {
-                      HapticFeedback.lightImpact();
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => InAppChatScreen(
-                            recipientName: order.driverName!,
-                            recipientRole: 'driver',
-                            orderId: order.orderNumber,
-                            recipientPhone: order.driverPhone ?? '',
-                            currentRole: 'merchant',
+                  child: ClipOval(
+                    child: order.driverAvatar != null && order.driverAvatar!.isNotEmpty
+                        ? Image.network(
+                            order.driverAvatar!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => const Icon(
+                              Icons.two_wheeler_rounded,
+                              size: 18,
+                              color: GageTheme.primary,
+                            ),
+                          )
+                        : const Icon(
+                            Icons.two_wheeler_rounded,
+                            size: 18,
+                            color: GageTheme.primary,
                           ),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.chat_bubble_outline_rounded, size: 20, color: Color(0xFF059669)),
-                    tooltip: 'Chat Kurir',
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        order.driverName!,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                        ),
+                      ),
+                      Text(
+                        '${order.driverVehicle ?? "Kurir G-Ride"} • ${order.driverPlate ?? "-"}',
+                        style: TextStyle(fontSize: 11, color: subColor),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => InAppChatScreen(
+                          recipientName: order.driverName!,
+                          recipientRole: 'driver',
+                          orderId: order.orderNumber,
+                          recipientPhone: order.driverPhone ?? '',
+                          currentRole: 'merchant',
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 20, color: GageTheme.primary),
+                  tooltip: 'Chat Kurir',
+                ),
+              ],
             ),
           ],
         ],
@@ -653,8 +730,35 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      color: isDark ? Colors.white10 : Colors.grey.shade200,
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: (item.imageUrl != null && item.imageUrl!.isNotEmpty)
+                          ? Image.network(
+                              item.imageUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => Icon(
+                                Icons.inventory_2_outlined,
+                                size: 18,
+                                color: isDark ? Colors.white54 : Colors.grey.shade500,
+                              ),
+                            )
+                          : Icon(
+                              Icons.inventory_2_outlined,
+                              size: 18,
+                              color: isDark ? Colors.white54 : Colors.grey.shade500,
+                            ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                     decoration: BoxDecoration(
@@ -737,28 +841,30 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
           _buildRow('Subtotal Produk', widget.currencyFormatter.format(order.itemsSubtotal), textColor, subColor),
           _buildRow('Ongkos Kirim', widget.currencyFormatter.format(order.shippingFee), textColor, subColor),
           _buildRow('Biaya Layanan', widget.currencyFormatter.format(order.adminFee), textColor, subColor),
-          const SizedBox(height: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(8),
-            ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Divider(height: 12, thickness: 0.8, color: borderColor),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   'Total Bayar Pelanggan',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textColor),
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: textColor),
                 ),
                 Text(
                   widget.currencyFormatter.format(order.totalAmount),
-                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: textColor),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: textColor),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Divider(height: 12, thickness: 0.8, color: borderColor),
+          ),
           _buildRow(
             'Potongan Komisi GAGE (10%)',
             '- ${widget.currencyFormatter.format(order.platformCommissionAmount)}',

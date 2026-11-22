@@ -69,6 +69,7 @@ class OrderModel {
   final String deliveryOption;
   final Map<String, dynamic>? packageDetails;
   final int autoAcceptSecondsRemaining;
+  final int cookingSecondsRemaining;
   final String? handoverPin;
 
   const OrderModel({
@@ -120,6 +121,7 @@ class OrderModel {
     this.deliveryOption = 'REGULER',
     this.packageDetails,
     this.autoAcceptSecondsRemaining = 180,
+    this.cookingSecondsRemaining = 900,
     this.handoverPin,
   });
 
@@ -145,6 +147,20 @@ class OrderModel {
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     final elapsedInWindow = (nowMs % 300000) ~/ 1000;
     return (300 - elapsedInWindow).clamp(0, 300);
+  }
+
+  /// Format sisa waktu penyiapan pesanan (SLA toko) ke format MM:SS
+  String get formattedCookingTimeRemaining {
+    final mins = cookingSecondsRemaining ~/ 60;
+    final secs = cookingSecondsRemaining % 60;
+    return '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+  }
+
+  /// Format sisa waktu pergantian PIN 5 menit ke format MM:SS
+  String get formattedPinTimeRemaining {
+    final mins = pinSecondsRemaining ~/ 60;
+    final secs = pinSecondsRemaining % 60;
+    return '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
   }
 
   bool get hasAssignedDriver => driverName != null && driverName!.trim().isNotEmpty;
@@ -292,6 +308,7 @@ class OrderModel {
     int? codAdjustment,
     int? refundAmount,
     int? autoAcceptSecondsRemaining,
+    int? cookingSecondsRemaining,
     String? channel,
     String? serviceType,
     bool? isPickup,
@@ -354,6 +371,7 @@ class OrderModel {
       deliveryOption: deliveryOption ?? this.deliveryOption,
       packageDetails: packageDetails ?? this.packageDetails,
       autoAcceptSecondsRemaining: autoAcceptSecondsRemaining ?? this.autoAcceptSecondsRemaining,
+      cookingSecondsRemaining: cookingSecondsRemaining ?? this.cookingSecondsRemaining,
       handoverPin: handoverPin ?? this.handoverPin,
     );
   }
@@ -536,6 +554,7 @@ class OrderModel {
           .toUpperCase(),
       packageDetails: parsedPkg,
       autoAcceptSecondsRemaining: (json['auto_accept_seconds'] ?? 180) is num ? (json['auto_accept_seconds'] ?? 180).toInt() : 180,
+      cookingSecondsRemaining: (json['cooking_seconds'] ?? 900) is num ? (json['cooking_seconds'] ?? 900).toInt() : 900,
       handoverPin: json['handover_pin']?.toString(),
     );
   }

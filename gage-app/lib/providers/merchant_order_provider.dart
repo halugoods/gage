@@ -19,6 +19,7 @@ class MerchantOrderProvider extends ChangeNotifier {
   bool _printerConnected = true;
   bool _isLoading = false;
   int _cookingTime = 15; // Estimasi waktu masak (menit)
+  int _penaltyPoints = 0;
   double _acceptanceScore = 98.0; // Poin Performa Penerimaan Mitra (%)
   int _dailyAcceptedCount = 42;
   int _dailyRejectedCount = 1;
@@ -49,6 +50,7 @@ class MerchantOrderProvider extends ChangeNotifier {
   bool get soundAlarmEnabled => _soundAlarmEnabled;
   bool get isLoading => _isLoading;
   int get cookingTime => _cookingTime;
+  int get penaltyPoints => _penaltyPoints;
   double get acceptanceScore => _acceptanceScore;
   int get dailyAcceptedCount => _dailyAcceptedCount;
   int get dailyRejectedCount => _dailyRejectedCount;
@@ -164,6 +166,7 @@ class MerchantOrderProvider extends ChangeNotifier {
       }
 
       for (int i = 0; i < _orders.length; i++) {
+        // 1. Countdown Auto-Accept Pesanan Baru
         if ((_orders[i].status == 'NEW' || _orders[i].status == 'PAID') && _orders[i].autoAcceptSecondsRemaining > 0) {
           final nextSec = _orders[i].autoAcceptSecondsRemaining - 1;
           _orders[i] = _orders[i].copyWith(autoAcceptSecondsRemaining: nextSec);
@@ -171,7 +174,10 @@ class MerchantOrderProvider extends ChangeNotifier {
           if (nextSec == 0) {
             if (_autoAccept && _isOpen && !_isBusy) {
               // Auto accept trigger ke status COOKING
-              _orders[i] = _orders[i].copyWith(status: 'COOKING');
+              _orders[i] = _orders[i].copyWith(
+                status: 'COOKING',
+                cookingSecondsRemaining: _cookingTime * 60 > 0 ? _cookingTime * 60 : 900,
+              );
               _dailyAcceptedCount++;
               _recalculateAcceptanceScore();
               _checkAndManageOrderAlert();
@@ -192,11 +198,38 @@ class MerchantOrderProvider extends ChangeNotifier {
             }
           }
         }
+
+        // 2. Countdown Batas Waktu Penyiapan Pesanan (COOKING SLA)
+        if (_orders[i].status == 'COOKING' && _orders[i].cookingSecondsRemaining > 0) {
+          final nextCooking = _orders[i].cookingSecondsRemaining - 1;
+          _orders[i] = _orders[i].copyWith(cookingSecondsRemaining: nextCooking);
+          changed = true;
+          if (nextCooking == 0) {
+            // Waktu habis! Otomatis siap & merchant kena penalti 1 poin
+            _orders[i] = _orders[i].copyWith(status: 'READY_FOR_PICKUP');
+            _penaltyPoints += 1;
+            GageApiClient.updateMerchantOrderStage(_orders[i].id, 'READY_FOR_PICKUP');
+          }
+        }
       }
       if (changed) {
         notifyListeners();
       }
     });
+  }
+
+  @visibleForTesting
+  void triggerCookingTimeoutForTesting(String orderId) {
+    final idx = _orders.indexWhere((o) => o.id == orderId);
+    if (idx != -1 && _orders[idx].status == 'COOKING') {
+      _orders[idx] = _orders[idx].copyWith(
+        cookingSecondsRemaining: 0,
+        status: 'READY_FOR_PICKUP',
+      );
+      _penaltyPoints += 1;
+      GageApiClient.updateMerchantOrderStage(orderId, 'READY_FOR_PICKUP');
+      notifyListeners();
+    }
   }
 
   void _recalculateAcceptanceScore() {
@@ -280,6 +313,7 @@ class MerchantOrderProvider extends ChangeNotifier {
         distanceKm: 1.2,
         trackingToken: 'trk-fd-8821',
         createdAt: now.subtract(const Duration(minutes: 12)).millisecondsSinceEpoch ~/ 1000,
+        cookingSecondsRemaining: 720,
         notes: 'Sambal dipisah ya mas, jangan terlalu pedas.',
         channel: 'food',
         items: const [
@@ -545,7 +579,10 @@ class MerchantOrderProvider extends ChangeNotifier {
     HapticFeedback.mediumImpact();
     final idx = _orders.indexWhere((o) => o.id == orderId);
     if (idx >= 0) {
-      _orders[idx] = _orders[idx].copyWith(status: 'COOKING');
+      _orders[idx] = _orders[idx].copyWith(
+        status: 'COOKING',
+        cookingSecondsRemaining: _cookingTime * 60 > 0 ? _cookingTime * 60 : 900,
+      );
       _dailyAcceptedCount++;
       _recalculateAcceptanceScore();
       _checkAndManageOrderAlert();
@@ -591,7 +628,10 @@ class MerchantOrderProvider extends ChangeNotifier {
     HapticFeedback.mediumImpact();
     final idx = _orders.indexWhere((o) => o.id == orderId);
     if (idx >= 0) {
-      _orders[idx] = _orders[idx].copyWith(status: 'READY_FOR_PICKUP');
+      _orders[idx] = _orders[idx].copyWith(
+        status: 'READY_FOR_PICKUP',
+        cookingSecondsRemaining: 0,
+      );
       notifyListeners();
 
       try {

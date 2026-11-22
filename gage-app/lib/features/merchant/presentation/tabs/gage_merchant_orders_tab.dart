@@ -250,7 +250,6 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
     final provider = context.watch<MerchantOrderProvider>();
     final allOrders = provider.orders;
 
-    final countBaru = allOrders.where((o) => o.status == 'NEW' || o.status == 'PAID').length;
     final countDisiapkan = allOrders.where((o) =>
         o.status == 'NEW' || o.status == 'PAID' || o.status == 'COOKING').length;
     final countSiap = allOrders.where((o) =>
@@ -320,108 +319,23 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
           ),
         ),
 
-        // Banner Alarm Audio Pesanan Masuk saat ada pesanan baru
-        if (countBaru > 0)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF7F1D1D).withValues(alpha: 0.35) : const Color(0xFFFEE2E2),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: GageTheme.primary, width: 1.2),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: GageTheme.primary,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: const Icon(Icons.notifications_active_rounded, size: 18, color: Colors.white),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '$countBaru Pesanan Baru Masuk!',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w800,
-                            color: isDark ? Colors.white : const Color(0xFF991B1B),
-                          ),
-                        ),
-                        Text(
-                          'Segera konfirmasi agar waktu tunggu pelanggan optimal.',
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            color: isDark ? Colors.white70 : const Color(0xFFB91C1C),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  InkWell(
-                    onTap: () {
-                      provider.toggleSoundAlarm(!provider.soundAlarmEnabled);
-                    },
-                    borderRadius: BorderRadius.circular(999),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: provider.soundAlarmEnabled
-                            ? GageTheme.primary
-                            : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            provider.soundAlarmEnabled ? Icons.volume_up_rounded : Icons.volume_off_rounded,
-                            size: 14,
-                            color: provider.soundAlarmEnabled ? Colors.white : Colors.grey.shade600,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            provider.soundAlarmEnabled ? 'Alarm Nyala' : 'Hening',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: provider.soundAlarmEnabled ? Colors.white : Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-        // Quick Search Bar Mewah Kapsul Penuh (999)
+        // Quick Search Bar Mewah Paritas Customer (Height 38, Radius 20, Icon 19)
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
           child: Container(
             height: 38,
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF0F172A) : Colors.white,
-              borderRadius: BorderRadius.circular(999),
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
                 width: 1,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-                  blurRadius: 4,
-                  offset: const Offset(0, 1),
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
@@ -430,8 +344,8 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
               children: [
                 Icon(
                   Icons.search_rounded,
-                  size: 18,
-                  color: isDark ? Colors.white60 : Colors.grey.shade500,
+                  size: 19,
+                  color: isDark ? Colors.white70 : Colors.grey.shade600,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -439,15 +353,15 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                     controller: _searchCtrl,
                     onChanged: (val) => setState(() => _searchQuery = val),
                     style: TextStyle(
-                      fontSize: 12.5,
+                      fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: isDark ? Colors.white : const Color(0xFF0F172A),
                     ),
                     decoration: InputDecoration(
                       hintText: 'Cari invoice atau nama pelanggan...',
                       hintStyle: TextStyle(
-                        fontSize: 12,
-                        color: isDark ? Colors.white38 : Colors.grey.shade400,
+                        fontSize: 12.5,
+                        color: isDark ? Colors.white38 : Colors.grey.shade500,
                       ),
                       border: InputBorder.none,
                       isDense: true,
@@ -728,54 +642,183 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
 
             const SizedBox(height: 10),
 
-          // Baris 2: Informasi Pelanggan & Catatan
+          // Baris 2: Informasi Pelanggan
           Row(
             children: [
-              Icon(
-                Icons.person_outline_rounded,
-                size: 16,
-                color: isDark ? Colors.white70 : Colors.grey.shade600,
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  order.customerName ?? 'Pelanggan GAGE',
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isDark ? Colors.white24 : Colors.grey.shade300,
+                    width: 1.2,
                   ),
                 ),
-              ),
-              if (order.hasAssignedDriver) ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white10 : const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.two_wheeler_rounded, size: 14, color: GageTheme.primary),
-                      const SizedBox(width: 4),
-                      Text(
-                        order.driverName ?? 'Driver',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white70 : const Color(0xFF334155),
+                child: ClipOval(
+                  child: order.customerAvatar != null && order.customerAvatar!.isNotEmpty
+                      ? Image.network(
+                          order.customerAvatar!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Icon(
+                            Icons.person_rounded,
+                            size: 16,
+                            color: isDark ? Colors.white70 : Colors.grey.shade600,
+                          ),
+                        )
+                      : Icon(
+                          Icons.person_rounded,
+                          size: 16,
+                          color: isDark ? Colors.white70 : Colors.grey.shade600,
                         ),
-                      ),
-                    ],
-                  ),
                 ),
-              ],
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      order.customerName ?? 'Pelanggan GAGE',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                    ),
+                    Text(
+                      order.deliveryAddress,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? Colors.white54 : Colors.grey.shade500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
 
+          // Baris 2b: Dedicated Section Driver 1-Baris Penuh (Jika sudah dapat driver)
+          if (order.hasAssignedDriver) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                  width: 0.8,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 26,
+                    height: 26,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: GageTheme.primary.withValues(alpha: 0.6),
+                        width: 1.2,
+                      ),
+                    ),
+                    child: ClipOval(
+                      child: order.driverAvatar != null && order.driverAvatar!.isNotEmpty
+                          ? Image.network(
+                              order.driverAvatar!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => const Icon(
+                                Icons.two_wheeler_rounded,
+                                size: 14,
+                                color: GageTheme.primary,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.two_wheeler_rounded,
+                              size: 14,
+                              color: GageTheme.primary,
+                            ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          order.driverName ?? 'Driver GAGE',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          '${order.driverVehicle ?? "Kurir G-Ride"} • ${order.driverPlate ?? "Plat Terverifikasi"}',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: isDark ? Colors.white60 : Colors.grey.shade600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => InAppChatScreen(
+                            recipientName: order.driverName ?? 'Driver GAGE',
+                            recipientRole: 'driver',
+                            orderId: order.orderNumber,
+                            recipientPhone: order.driverPhone ?? '',
+                            currentRole: 'merchant',
+                          ),
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(999),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: GageTheme.primary.withValues(alpha: isDark ? 0.2 : 0.08),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.chat_bubble_outline_rounded, size: 12, color: GageTheme.primary),
+                          SizedBox(width: 4),
+                          Text(
+                            'Chat Driver',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              color: GageTheme.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
           const SizedBox(height: 10),
 
-          // Baris 3: Daftar Item Produk (Container lembut tanpa Divider)
+          // Baris 3: Daftar Item Produk (dengan Mini Preview Image Ukuran 2-Baris Teks)
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
@@ -785,10 +828,37 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
             child: Column(
               children: [
                 ...order.items.map((item) => Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
+                  padding: const EdgeInsets.only(bottom: 8),
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          color: isDark ? Colors.white10 : Colors.grey.shade200,
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: (item.imageUrl != null && item.imageUrl!.isNotEmpty)
+                              ? Image.network(
+                                  item.imageUrl!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) => const Icon(
+                                    Icons.inventory_2_outlined,
+                                    size: 16,
+                                    color: Colors.grey,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.inventory_2_outlined,
+                                  size: 16,
+                                  color: Colors.grey,
+                                ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Text(
                         '${item.quantity}x',
                         style: TextStyle(
@@ -838,12 +908,12 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
 
           const SizedBox(height: 10),
 
-          // Baris 4: Pendapatan Bersih Toko
+          // Baris 4: Total Pesanan (Merah Konsisten dengan Customer Portal)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Pendapatan Bersih Toko:',
+                'Total Pesanan:',
                 style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
@@ -851,11 +921,11 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                 ),
               ),
               Text(
-                widget.currencyFormatter.format(order.merchantNetPayout),
+                widget.currencyFormatter.format(order.itemsSubtotal),
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w900,
-                  color: Color(0xFF16A34A),
+                  color: GageTheme.primary,
                 ),
               ),
             ],
@@ -916,7 +986,7 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
           // Baris 6: Tombol Aksi Ergonomis
           Row(
             children: [
-              // Tombol Chat Pelanggan/Driver
+              // Tombol Chat Pelanggan
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
                   shape: const StadiumBorder(),
@@ -926,21 +996,18 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                   ),
                 ),
                 icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
-                label: const Text('Chat', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                label: const Text('Chat Pembeli', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                 onPressed: () {
                   HapticFeedback.lightImpact();
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => InAppChatScreen(
-                        recipientName: order.hasAssignedDriver
-                            ? (order.driverName ?? 'Driver GAGE')
-                            : (order.customerName ?? 'Pelanggan GAGE'),
-                        recipientRole: order.hasAssignedDriver ? 'driver' : 'customer',
+                        recipientName: order.customerName ?? 'Pelanggan GAGE',
+                        recipientRole: 'customer',
                         orderId: order.orderNumber,
-                        recipientPhone: order.hasAssignedDriver
-                            ? (order.driverPhone ?? '')
-                            : (order.customerPhone ?? ''),
+                        recipientPhone: order.customerPhone ?? '',
+                        currentRole: 'merchant',
                       ),
                     ),
                   );
@@ -1020,6 +1087,25 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                             },
                             child: const Text(
                               'Selesaikan (Ambil di Toko)',
+                              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
+                            ),
+                          )
+                        : (isReadyForPickup && !order.isPickup)
+                        ? ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: GageTheme.primary,
+                              foregroundColor: Colors.white,
+                              shape: const StadiumBorder(),
+                              padding: const EdgeInsets.symmetric(vertical: 11),
+                              elevation: 0,
+                            ),
+                            onPressed: () {
+                              HapticFeedback.mediumImpact();
+                              provider.handoverToCourier(order.id);
+                              GageToast.show(context, 'Pesanan #${order.orderNumber} diserahkan ke kurir');
+                            },
+                            child: const Text(
+                              'Serahkan ke Driver',
                               style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
                             ),
                           )

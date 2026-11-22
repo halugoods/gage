@@ -76,7 +76,8 @@ class MerchantFloatingNavBar extends StatelessWidget {
                             context: context,
                             index: 0,
                             label: 'Pesanan',
-                            icon: Icons.receipt,
+                            unselectedIcon: Icons.receipt_long_outlined,
+                            selectedIcon: Icons.receipt_long_rounded,
                             badgeText: newOrderCount > 0
                                 ? (newOrderCount > 99 ? '99+' : '$newOrderCount')
                                 : null,
@@ -88,7 +89,8 @@ class MerchantFloatingNavBar extends StatelessWidget {
                             context: context,
                             index: 1,
                             label: 'Chat',
-                            icon: Icons.chat_bubble_rounded,
+                            unselectedIcon: Icons.chat_bubble_outline_rounded,
+                            selectedIcon: Icons.chat_bubble_rounded,
                             badgeText: unreadChatCount > 0
                                 ? (unreadChatCount > 99 ? '99+' : '$unreadChatCount')
                                 : null,
@@ -100,7 +102,8 @@ class MerchantFloatingNavBar extends StatelessWidget {
                             context: context,
                             index: 2,
                             label: 'Outlet',
-                            icon: Icons.storefront_rounded,
+                            unselectedIcon: Icons.storefront_outlined,
+                            selectedIcon: Icons.storefront_rounded,
                             isDark: isDark,
                           ),
                         ),
@@ -109,7 +112,8 @@ class MerchantFloatingNavBar extends StatelessWidget {
                             context: context,
                             index: 3,
                             label: 'Marketing',
-                            icon: Icons.campaign_rounded,
+                            unselectedIcon: Icons.campaign_outlined,
+                            selectedIcon: Icons.campaign_rounded,
                             isDark: isDark,
                           ),
                         ),
@@ -118,7 +122,8 @@ class MerchantFloatingNavBar extends StatelessWidget {
                             context: context,
                             index: 4,
                             label: 'GagePay',
-                            icon: Icons.account_balance_wallet_rounded,
+                            unselectedIcon: Icons.account_balance_wallet_outlined,
+                            selectedIcon: Icons.account_balance_wallet_rounded,
                             isDark: isDark,
                           ),
                         ),
@@ -138,7 +143,8 @@ class MerchantFloatingNavBar extends StatelessWidget {
     required BuildContext context,
     required int index,
     required String label,
-    required IconData icon,
+    required IconData unselectedIcon,
+    required IconData selectedIcon,
     String? badgeText,
     required bool isDark,
   }) {
@@ -154,25 +160,17 @@ class MerchantFloatingNavBar extends StatelessWidget {
         ? Colors.white.withValues(alpha: 0.22)
         : Colors.white.withValues(alpha: 0.55);
 
+    final currentIcon = isSelected ? selectedIcon : unselectedIcon;
+
     final iconWidget = Stack(
       clipBehavior: Clip.none,
       alignment: Alignment.center,
       children: [
-        icon == Icons.receipt
-            ? Transform.scale(
-                scaleX: 0.85,
-                scaleY: 0.95,
-                child: Icon(
-                  icon,
-                  size: 20,
-                  color: isSelected ? activeTextColor : inactiveColor,
-                ),
-              )
-            : Icon(
-                icon,
-                size: 20,
-                color: isSelected ? activeTextColor : inactiveColor,
-              ),
+        Icon(
+          currentIcon,
+          size: 20,
+          color: isSelected ? activeTextColor : inactiveColor,
+        ),
         if (badgeText != null && badgeText.isNotEmpty)
           Positioned(
             top: -4,

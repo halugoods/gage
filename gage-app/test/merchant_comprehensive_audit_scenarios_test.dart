@@ -299,29 +299,33 @@ void main() {
     });
 
     // -------------------------------------------------------------------------
-    // Skenario 10: Paritas Geometri Kapsul 999 & Ikon Tetap Solid pada Navbar
+    // Skenario 10: Paritas Geometri Kapsul 999 & Dynamic Outline/Filled Icons
     // -------------------------------------------------------------------------
-    testWidgets('Skenario 10: Paritas geometri kapsul 999 dan non-morphing icons pada MerchantFloatingNavBar',
+    testWidgets('Skenario 10: Paritas geometri kapsul 999 dan dynamic outline/filled icons pada MerchantFloatingNavBar',
         (tester) async {
       int selected = 0;
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            bottomNavigationBar: MerchantFloatingNavBar(
-              currentIndex: selected,
-              onTabSelected: (i) => selected = i,
+        StatefulBuilder(
+          builder: (context, setState) => MaterialApp(
+            home: Scaffold(
+              bottomNavigationBar: MerchantFloatingNavBar(
+                currentIndex: selected,
+                onTabSelected: (i) {
+                  setState(() => selected = i);
+                },
+              ),
             ),
           ),
         ),
       );
       await tester.pump();
 
-      // Verifikasi 5 ikon tab merchant konsisten berbentuk solid
-      expect(find.byIcon(Icons.receipt), findsOneWidget);
-      expect(find.byIcon(Icons.chat_bubble_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.storefront_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.campaign_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.account_balance_wallet_rounded), findsOneWidget);
+      // Verifikasi ikon tab merchant: Tab 0 terpilih (filled), tab lainnya unselected (outline stroke)
+      expect(find.byIcon(Icons.receipt_long_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.chat_bubble_outline_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.storefront_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.campaign_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.account_balance_wallet_outlined), findsOneWidget);
 
       // Verifikasi label 5 tab
       expect(find.text('Pesanan'), findsOneWidget);
@@ -329,6 +333,13 @@ void main() {
       expect(find.text('Outlet'), findsOneWidget);
       expect(find.text('Marketing'), findsOneWidget);
       expect(find.text('GagePay'), findsOneWidget);
+
+      // Tap tab Chat (index 1), verifikasi Chat berubah jadi filled dan Pesanan jadi outline
+      await tester.tap(find.text('Chat'));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.receipt_long_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.chat_bubble_rounded), findsOneWidget);
     });
 
     // -------------------------------------------------------------------------
@@ -755,6 +766,59 @@ void main() {
       expect(find.text('Pilih Sumber Foto Produk'), findsOneWidget);
       expect(find.text('Ambil Foto Kamera'), findsOneWidget);
       expect(find.text('Pilih dari Galeri HP'), findsOneWidget);
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 25: Countdown SLA Penyiapan Pesanan & Penalti Poin Toko
+    // -------------------------------------------------------------------------
+    test('Skenario 25: SLA Countdown penyiapan pesanan & penalti toko saat timer habis', () {
+      final provider = MerchantOrderProvider();
+      expect(provider.penaltyPoints, 0);
+
+      final cookingOrder = provider.orders.firstWhere((o) => o.status == 'COOKING');
+      expect(cookingOrder.cookingSecondsRemaining, greaterThan(0));
+      expect(cookingOrder.formattedCookingTimeRemaining.contains(':'), isTrue);
+      expect(cookingOrder.formattedPinTimeRemaining.contains(':'), isTrue);
+
+      // Simulasi cooking timer habis
+      provider.triggerCookingTimeoutForTesting(cookingOrder.id);
+      
+      final updatedOrder = provider.orders.firstWhere((o) => o.id == cookingOrder.id);
+      expect(updatedOrder.status, 'READY_FOR_PICKUP');
+      expect(provider.penaltyPoints, 1);
+      provider.dispose();
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 26: Paritas Kartu Pesanan Luar (Total Pesanan Merah & Chat Pembeli)
+    // -------------------------------------------------------------------------
+    testWidgets('Skenario 26: Paritas Kartu Pesanan Luar (Total Pesanan, Chat Pembeli, Avatar Berlingkar)', (tester) async {
+      final provider = MerchantOrderProvider();
+      final formatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0);
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<MerchantOrderProvider>.value(value: provider),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: GageMerchantOrdersTab(currencyFormatter: formatter),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Verifikasi label nominal luar adalah Total Pesanan (bukan Pendapatan Bersih)
+      expect(find.text('Total Pesanan:'), findsWidgets);
+
+      // Verifikasi tombol Chat Pembeli eksplisit
+      expect(find.text('Chat Pembeli'), findsWidgets);
+
+      // Verifikasi avatar lingkaran customer & driver
+      expect(find.byType(ClipOval), findsWidgets);
+
+      provider.dispose();
     });
   });
 }
