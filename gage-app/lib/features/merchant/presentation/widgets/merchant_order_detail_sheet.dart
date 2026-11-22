@@ -722,11 +722,11 @@ class _MerchantOrderDetailSheetState extends State<MerchantOrderDetailSheet> {
           if (context.mounted) {
             final msg = (provider.autoPrintOnAccept && provider.printerConnected)
                 ? 'Pesanan diterima & ${provider.receiptCopies} rangkap struk dicetak otomatis!'
-                : 'Pesanan diterima! Mulai memasak.';
+                : 'Pesanan diterima! Mulai siapkan.';
             GageToast.show(context, msg);
           }
         },
-        child: const Text('Terima & Masak', style: TextStyle(fontWeight: FontWeight.bold)),
+        child: const Text('Terima Pesanan', style: TextStyle(fontWeight: FontWeight.bold)),
       );
     }
 

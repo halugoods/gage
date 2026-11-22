@@ -11,14 +11,12 @@ import 'package:gage_app/providers/merchant_order_provider.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 
-/// Tab 0: Pesanan Masuk & Dapur (Workstation Mitra Usaha GAGE)
-/// Dilengkapi 6 Segmented Tab Kapsul GAGE:
-/// - Semua
-/// - Perlu Konfirmasi (NEW, PAID)
-/// - Sedang Dimasak (COOKING)
+/// Tab 0: Pesanan Masuk & Operasional (Workstation Mitra Usaha GAGE - Food, Shop, Farm)
+/// Dilengkapi 4 Segmented Tab Kapsul GAGE:
+/// - Disiapkan (NEW, PAID, COOKING)
 /// - Siap Diambil (READY_FOR_PICKUP, DRIVER_ASSIGNED, AT_MERCHANT)
-/// - Selesai (COMPLETED)
-/// - Dibatalkan (CANCELLED)
+/// - Sedang Diantar (PICKED_UP, ON_DELIVERY)
+/// - Selesai (COMPLETED, CANCELLED)
 /// Serta penampil PIN Penyerahan 4-digit yang diinput oleh mitra driver.
 class GageMerchantOrdersTab extends StatefulWidget {
   final NumberFormat currencyFormatter;
@@ -33,7 +31,7 @@ class GageMerchantOrdersTab extends StatefulWidget {
 }
 
 class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
-  int _activeSegment = 0; // 0: Semua, 1: Perlu Konfirmasi, 2: Sedang Dimasak, 3: Siap Diambil, 4: Selesai, 5: Dibatalkan
+  int _activeSegment = 0; // 0: Disiapkan, 1: Siap Diambil, 2: Sedang Diantar, 3: Selesai
   String _searchQuery = '';
   final TextEditingController _searchCtrl = TextEditingController();
 
@@ -47,25 +45,22 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
     List<OrderModel> byStatus;
     switch (_activeSegment) {
       case 0:
-        byStatus = orders;
+        byStatus = orders.where((o) =>
+            o.status == 'NEW' || o.status == 'PAID' || o.status == 'COOKING').toList();
         break;
       case 1:
-        byStatus = orders.where((o) => o.status == 'NEW' || o.status == 'PAID').toList();
-        break;
-      case 2:
-        byStatus = orders.where((o) => o.status == 'COOKING').toList();
-        break;
-      case 3:
         byStatus = orders.where((o) =>
             o.status == 'READY_FOR_PICKUP' ||
             o.status == 'DRIVER_ASSIGNED' ||
             o.status == 'AT_MERCHANT').toList();
         break;
-      case 4:
-        byStatus = orders.where((o) => o.status == 'COMPLETED').toList();
+      case 2:
+        byStatus = orders.where((o) =>
+            o.status == 'PICKED_UP' || o.status == 'ON_DELIVERY').toList();
         break;
-      case 5:
-        byStatus = orders.where((o) => o.status == 'CANCELLED').toList();
+      case 3:
+        byStatus = orders.where((o) =>
+            o.status == 'COMPLETED' || o.status == 'CANCELLED').toList();
         break;
       default:
         byStatus = orders;
@@ -92,8 +87,8 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final noteCtrl = TextEditingController();
     final reasons = [
-      'Bahan baku habis (Menu tidak dapat disajikan)',
-      'Kios sedang sangat ramai / antre panjang',
+      'Stok produk habis',
+      'Toko sedang sangat ramai / antre panjang',
       'Toko tutup mendadak / kendala operasional',
       'Kendala teknis / cuaca buruk / lainnya',
     ];
@@ -255,21 +250,23 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
     final provider = context.watch<MerchantOrderProvider>();
     final allOrders = provider.orders;
 
-    final countSemua = allOrders.length;
-    final countKonfirmasi = allOrders.where((o) => o.status == 'NEW' || o.status == 'PAID').length;
-    final countCooking = allOrders.where((o) => o.status == 'COOKING').length;
+    final countBaru = allOrders.where((o) => o.status == 'NEW' || o.status == 'PAID').length;
+    final countDisiapkan = allOrders.where((o) =>
+        o.status == 'NEW' || o.status == 'PAID' || o.status == 'COOKING').length;
     final countSiap = allOrders.where((o) =>
         o.status == 'READY_FOR_PICKUP' ||
         o.status == 'DRIVER_ASSIGNED' ||
         o.status == 'AT_MERCHANT').length;
-    final countSelesai = allOrders.where((o) => o.status == 'COMPLETED').length;
-    final countDibatalkan = allOrders.where((o) => o.status == 'CANCELLED').length;
+    final countDiantar = allOrders.where((o) =>
+        o.status == 'PICKED_UP' || o.status == 'ON_DELIVERY').length;
+    final countSelesai = allOrders.where((o) =>
+        o.status == 'COMPLETED' || o.status == 'CANCELLED').length;
 
     final displayedOrders = _filterOrders(allOrders);
 
     return Column(
       children: [
-        // 1. Segmented Tab Switch Kapsul Penuh 6 Kategori (BorderRadius.circular(999))
+        // 1. Segmented Tab Switch Kapsul Penuh 4 Kategori (Universal: Food, Shop, Farm)
         Container(
           color: isDark ? GageTheme.darkSurface : Colors.white,
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
@@ -292,38 +289,26 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                 children: [
                   _buildSegmentItem(
                     index: 0,
-                    label: 'Semua',
-                    count: countSemua,
+                    label: 'Disiapkan',
+                    count: countDisiapkan,
                     isDark: isDark,
                   ),
                   _buildSegmentItem(
                     index: 1,
-                    label: 'Perlu Konfirmasi',
-                    count: countKonfirmasi,
-                    isDark: isDark,
-                  ),
-                  _buildSegmentItem(
-                    index: 2,
-                    label: 'Sedang Dimasak',
-                    count: countCooking,
-                    isDark: isDark,
-                  ),
-                  _buildSegmentItem(
-                    index: 3,
                     label: 'Siap Diambil',
                     count: countSiap,
                     isDark: isDark,
                   ),
                   _buildSegmentItem(
-                    index: 4,
-                    label: 'Selesai',
-                    count: countSelesai,
+                    index: 2,
+                    label: 'Sedang Diantar',
+                    count: countDiantar,
                     isDark: isDark,
                   ),
                   _buildSegmentItem(
-                    index: 5,
-                    label: 'Dibatalkan',
-                    count: countDibatalkan,
+                    index: 3,
+                    label: 'Selesai',
+                    count: countSelesai,
                     isDark: isDark,
                   ),
                 ],
@@ -332,8 +317,8 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
           ),
         ),
 
-        // Banner Alarm Audio Dapur Bising saat ada pesanan baru masuk
-        if (countKonfirmasi > 0)
+        // Banner Alarm Audio Pesanan Masuk saat ada pesanan baru
+        if (countBaru > 0)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
             child: Container(
@@ -360,7 +345,7 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '$countKonfirmasi Pesanan Baru Masuk!',
+                          '$countBaru Pesanan Baru Masuk!',
                           style: TextStyle(
                             fontSize: 12.5,
                             fontWeight: FontWeight.w800,
@@ -863,7 +848,7 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                           ),
                         ),
                         Text(
-                          'Tunjukkan PIN ini ke Driver saat mengambil makanan',
+                          'Tunjukkan PIN ini ke Driver saat mengambil pesanan',
                           style: TextStyle(
                             fontSize: 10,
                             color: Color(0xFFB45309),
@@ -957,7 +942,7 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                           GageToast.show(context, 'Pesanan #${order.orderNumber} diterima!');
                         },
                         child: const Text(
-                          'Terima & Masak',
+                          'Terima Pesanan',
                           style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
                         ),
                       )
@@ -973,7 +958,7 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                         onPressed: () {
                           HapticFeedback.mediumImpact();
                           provider.markReadyForPickup(order.id);
-                          GageToast.show(context, 'Makanan #${order.orderNumber} siap diambil!');
+                          GageToast.show(context, 'Pesanan #${order.orderNumber} siap diambil!');
                         },
                         child: const Text(
                           'Pesanan Siap Diambil',

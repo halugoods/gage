@@ -508,9 +508,9 @@ void main() {
     });
 
     // -------------------------------------------------------------------------
-    // Skenario 17: Filter 6 Kategori Status Pesanan Kapsul 999
+    // Skenario 17: Filter 4 Kategori Status Pesanan Kapsul Universal
     // -------------------------------------------------------------------------
-    testWidgets('Skenario 17: Filter 6 kategori status pesanan kapsul 999 pada GageMerchantOrdersTab',
+    testWidgets('Skenario 17: Filter 4 kategori status pesanan kapsul universal pada GageMerchantOrdersTab',
         (tester) async {
       final provider = MerchantOrderProvider();
       final formatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
@@ -527,16 +527,14 @@ void main() {
       );
       await tester.pump();
 
-      // Verifikasi 6 label filter kapsul
-      expect(find.text('Semua'), findsOneWidget);
-      expect(find.text('Perlu Konfirmasi'), findsOneWidget);
-      expect(find.text('Sedang Dimasak'), findsOneWidget);
+      // Verifikasi 4 label filter kapsul universal (Food, Shop, Farm)
+      expect(find.text('Disiapkan'), findsOneWidget);
       expect(find.text('Siap Diambil'), findsOneWidget);
+      expect(find.text('Sedang Diantar'), findsOneWidget);
       expect(find.text('Selesai'), findsOneWidget);
-      expect(find.text('Dibatalkan'), findsOneWidget);
 
-      // Ketuk tab "Sedang Dimasak"
-      await tester.tap(find.text('Sedang Dimasak'));
+      // Ketuk tab "Siap Diambil"
+      await tester.tap(find.text('Siap Diambil'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
 
@@ -553,12 +551,12 @@ void main() {
 
       await provider.rejectOrder(
         targetOrder.id,
-        'Bahan baku habis (Menu tidak dapat disajikan) (Stok ayam habis)',
+        'Stok produk habis (Stok beras habis)',
       );
 
       final rejected = provider.orders.firstWhere((o) => o.id == targetOrder.id);
       expect(rejected.status, equals('CANCELLED'));
-      expect(rejected.cancellationReason, contains('Bahan baku habis'));
+      expect(rejected.cancellationReason, contains('Stok produk habis'));
       expect(rejected.refundAmount, equals(totalBefore));
       provider.dispose();
     });
