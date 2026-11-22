@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/services/affiliate_commission_service.dart';
@@ -571,18 +573,115 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // TAMBAH MENU BARU + KALKULATOR MARKUP AFILIASI DINAMIS (0% - 20%)
+  // TAMBAH MENU BARU + IMAGE PICKER + KALKULATOR HARGA & MARGIN LANGSUNG
   // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildMenuItemImage(dynamic imageVal, {double? width, double? height, BoxFit fit = BoxFit.cover}) {
+    final img = imageVal?.toString() ?? '';
+    if (img.isEmpty) {
+      return Container(
+        width: width,
+        height: height,
+        color: GageTheme.primaryLight,
+        child: const Icon(Icons.fastfood_rounded, color: GageTheme.primary, size: 26),
+      );
+    }
+    if (img.startsWith('assets/')) {
+      return Image.asset(
+        img,
+        width: width,
+        height: height,
+        fit: fit,
+        errorBuilder: (_, _, _) => Container(
+          width: width,
+          height: height,
+          color: GageTheme.primaryLight,
+          child: const Icon(Icons.fastfood_rounded, color: GageTheme.primary, size: 26),
+        ),
+      );
+    }
+    if (img.startsWith('http://') || img.startsWith('https://')) {
+      return Image.network(
+        img,
+        width: width,
+        height: height,
+        fit: fit,
+        errorBuilder: (_, _, _) => Container(
+          width: width,
+          height: height,
+          color: GageTheme.primaryLight,
+          child: const Icon(Icons.fastfood_rounded, color: GageTheme.primary, size: 26),
+        ),
+      );
+    }
+    final file = File(img);
+    if (file.existsSync()) {
+      return Image.file(
+        file,
+        width: width,
+        height: height,
+        fit: fit,
+        errorBuilder: (_, _, _) => Container(
+          width: width,
+          height: height,
+          color: GageTheme.primaryLight,
+          child: const Icon(Icons.fastfood_rounded, color: GageTheme.primary, size: 26),
+        ),
+      );
+    }
+    return Image.asset(
+      'assets/images/dish_dimsum_original.png',
+      width: width,
+      height: height,
+      fit: fit,
+      errorBuilder: (_, _, _) => Container(
+        width: width,
+        height: height,
+        color: GageTheme.primaryLight,
+        child: const Icon(Icons.fastfood_rounded, color: GageTheme.primary, size: 26),
+      ),
+    );
+  }
+
+  Widget _buildCalcRow(String label, String value, bool isDark, {bool isDeduction = false, bool isHighlight = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: isHighlight ? 12 : 11,
+            fontWeight: isHighlight ? FontWeight.bold : FontWeight.normal,
+            color: isHighlight
+                ? (isDark ? Colors.white : const Color(0xFF0F172A))
+                : (isDark ? Colors.white60 : GageTheme.textSecondary),
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: isHighlight ? 13.5 : 11,
+            fontWeight: isHighlight ? FontWeight.w900 : (isDeduction ? FontWeight.w600 : FontWeight.bold),
+            color: isHighlight
+                ? GageTheme.primary
+                : (isDeduction ? Colors.red.shade600 : (isDark ? Colors.white : const Color(0xFF0F172A))),
+          ),
+        ),
+      ],
+    );
+  }
 
   void _showAddMenuDialog() {
     final nameCtrl = TextEditingController();
     final descCtrl = TextEditingController();
-    final priceCtrl = TextEditingController();
+    final offlinePriceCtrl = TextEditingController();
+    final gagePriceCtrl = TextEditingController();
     String category = _categories.firstWhere((c) => c != 'Semua', orElse: () => 'Dimsum Kukus');
-    String selectedImage = 'assets/images/dish_dimsum_original.png';
+    String? selectedImagePath;
     int offlinePrice = 0;
+    int gagePrice = 0;
     double affiliateRate = 0.10; // Default 10% rekomendasi (Maks 20%)
-    int suggestedGage = 0;
+    bool isAutoPricing = true;
     bool isSubmitting = false;
 
     showModalBottomSheet(
@@ -595,6 +694,20 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setModalState) {
           final isDark = Theme.of(context).brightness == Brightness.dark;
+
+          Future<void> pickPhoto(ImageSource source) async {
+            try {
+              HapticFeedback.selectionClick();
+              final picker = ImagePicker();
+              final picked = await picker.pickImage(source: source, imageQuality: 85);
+              if (picked != null) {
+                setModalState(() {
+                  selectedImagePath = picked.path;
+                });
+              }
+            } catch (_) {}
+          }
+
           return Padding(
             padding: EdgeInsets.only(
               left: 20,
@@ -624,10 +737,197 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'Menu otomatis disinkronkan ke Cloudflare D1 Dimsum Sewu & aplikasi pelanggan.',
+                    'Lengkapi foto, nama, serta kalkulator harga jual transparan untuk aplikasi pelanggan.',
                     style: TextStyle(fontSize: 12, color: GageTheme.textSecondary),
                   ),
                   const SizedBox(height: 16),
+
+                  // FOTO MENU & IMAGE PICKER
+                  Text(
+                    'Foto Menu Makanan / Minuman',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  if (selectedImagePath != null && selectedImagePath!.isNotEmpty)
+                    Container(
+                      height: 130,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                      ),
+                      child: Stack(
+                        children: [
+                          Positioned.fill(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: _buildMenuItemImage(selectedImagePath, fit: BoxFit.cover),
+                            ),
+                          ),
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Material(
+                                  color: Colors.black.withValues(alpha: 0.65),
+                                  shape: const CircleBorder(),
+                                  child: InkWell(
+                                    customBorder: const CircleBorder(),
+                                    onTap: () {
+                                      HapticFeedback.selectionClick();
+                                      pickPhoto(ImageSource.gallery);
+                                    },
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(7),
+                                      child: Icon(Icons.edit_rounded, color: Colors.white, size: 16),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Material(
+                                  color: Colors.red.withValues(alpha: 0.85),
+                                  shape: const CircleBorder(),
+                                  child: InkWell(
+                                    customBorder: const CircleBorder(),
+                                    onTap: () {
+                                      HapticFeedback.selectionClick();
+                                      setModalState(() {
+                                        selectedImagePath = null;
+                                      });
+                                    },
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(7),
+                                      child: Icon(Icons.delete_outline_rounded, color: Colors.white, size: 16),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 8,
+                            left: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.7),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.check_circle_rounded, color: Color(0xFF22C55E), size: 12),
+                                  SizedBox(width: 4),
+                                  Text('Foto Terpasang', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          const Icon(Icons.add_a_photo_rounded, size: 28, color: GageTheme.primary),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Upload Foto Menu Baru',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Ambil langsung via kamera atau upload dari galeri perangkat',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: isDark ? Colors.white60 : GageTheme.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  shape: const StadiumBorder(),
+                                  side: const BorderSide(color: GageTheme.primary),
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                ),
+                                onPressed: () => pickPhoto(ImageSource.camera),
+                                icon: const Icon(Icons.camera_alt_rounded, size: 16, color: GageTheme.primary),
+                                label: const Text('Kamera', style: TextStyle(fontSize: 12, color: GageTheme.primary, fontWeight: FontWeight.bold)),
+                              ),
+                              const SizedBox(width: 10),
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: GageTheme.primary,
+                                  shape: const StadiumBorder(),
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                ),
+                                onPressed: () => pickPhoto(ImageSource.gallery),
+                                icon: const Icon(Icons.photo_library_rounded, size: 16, color: Colors.white),
+                                label: const Text('Galeri HP', style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        Text(
+                          'Preset cepat: ',
+                          style: TextStyle(fontSize: 11, color: isDark ? Colors.white54 : GageTheme.textSecondary),
+                        ),
+                        ...[
+                          {'label': 'Dimsum Ori', 'img': 'assets/images/dish_dimsum_original.png'},
+                          {'label': 'Dimsum Mentai', 'img': 'assets/images/dish_dimsum_mentai.png'},
+                          {'label': 'Resto Kios', 'img': 'assets/images/resto_dimsum_sewu.png'},
+                        ].map((p) {
+                          final isSel = (selectedImagePath == p['img']);
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: ChoiceChip(
+                              label: Text(p['label']!, style: TextStyle(fontSize: 10.5, fontWeight: isSel ? FontWeight.bold : FontWeight.normal)),
+                              selected: isSel,
+                              selectedColor: GageTheme.primary.withValues(alpha: 0.15),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+                              onSelected: (_) {
+                                HapticFeedback.selectionClick();
+                                setModalState(() => selectedImagePath = p['img']!);
+                              },
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 14),
                   Text(
                     'Nama Menu',
                     style: TextStyle(
@@ -688,200 +988,299 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Kategori',
-                              style: TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w700,
-                                color: isDark ? Colors.white : const Color(0xFF0F172A),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            DropdownButtonFormField<String>(
-                              initialValue: category,
-                              decoration: InputDecoration(
-                                filled: true,
-                                fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                  borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                  borderSide: const BorderSide(color: GageTheme.primary, width: 1.8),
-                                ),
-                              ),
-                              items: _categories
-                                  .where((c) => c != 'Semua')
-                                  .map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 12.5))))
-                                  .toList(),
-                              onChanged: (val) {
-                                if (val != null) setModalState(() => category = val);
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Harga Warung',
-                              style: TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w700,
-                                color: isDark ? Colors.white : const Color(0xFF0F172A),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            TextField(
-                              controller: priceCtrl,
-                              keyboardType: TextInputType.number,
-                              style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A)),
-                              decoration: InputDecoration(
-                                prefixText: 'Rp ',
-                                prefixStyle: const TextStyle(fontWeight: FontWeight.bold, color: GageTheme.primary),
-                                filled: true,
-                                fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                  borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                  borderSide: const BorderSide(color: GageTheme.primary, width: 1.8),
-                                ),
-                              ),
-                              onChanged: (val) {
-                                final num = int.tryParse(val) ?? 0;
-                                setModalState(() {
-                                  offlinePrice = num;
-                                  suggestedGage = AffiliateCommissionService.calculateRecommendedOnlinePrice(
-                                    offlinePrice,
-                                    platformRate: 0.10,
-                                    affiliateRate: affiliateRate,
-                                  );
-                                });
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Komisi Affiliasi Dinamis (0% - 20%)
-                  const Text(
-                    'Alokasi Komisi Kreator / Affiliasi (Maks 20%):',
-                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [0.0, 0.05, 0.10, 0.15, 0.20].map((rate) {
-                      final isSel = (affiliateRate == rate);
-                      final label = rate == 0.0 ? '0%' : (rate == 0.10 ? '10% (Rekomendasi)' : '${(rate * 100).toInt()}%');
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: ChoiceChip(
-                          label: Text(label, style: TextStyle(fontSize: 10.5, fontWeight: isSel ? FontWeight.bold : FontWeight.normal)),
-                          selected: isSel,
-                          selectedColor: GageTheme.primary.withValues(alpha: 0.15),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-                          onSelected: (_) {
-                            HapticFeedback.selectionClick();
-                            setModalState(() {
-                              affiliateRate = rate;
-                              suggestedGage = AffiliateCommissionService.calculateRecommendedOnlinePrice(
-                                offlinePrice,
-                                platformRate: 0.10,
-                                affiliateRate: affiliateRate,
-                              );
-                            });
-                          },
-                        ),
-                      );
-                    }).toList(),
-                  ),
-
-                  const SizedBox(height: 12),
-                  const Text('Pilih Foto / Gambar Produk:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 6),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        {'label': 'Dimsum Original', 'img': 'assets/images/dish_dimsum_original.png'},
-                        {'label': 'Dimsum Mentai', 'img': 'assets/images/dish_dimsum_mentai.png'},
-                        {'label': 'Katalog Toko', 'img': 'assets/images/resto_dimsum_sewu.png'},
-                      ].map((p) {
-                        final isSel = selectedImage == p['img'];
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: ChoiceChip(
-                            label: Text(p['label']!),
-                            selected: isSel,
-                            onSelected: (_) => setModalState(() => selectedImage = p['img']!),
-                            selectedColor: GageTheme.primary.withValues(alpha: 0.15),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-                          ),
-                        );
-                      }).toList(),
+                  Text(
+                    'Kategori Menu',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
                     ),
                   ),
-                  if (suggestedGage > 0) ...[
-                    const SizedBox(height: 14),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: GageTheme.primaryLight,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: GageTheme.primary.withValues(alpha: 0.2)),
+                  const SizedBox(height: 6),
+                  DropdownButtonFormField<String>(
+                    initialValue: category,
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Column(
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: GageTheme.primary, width: 1.8),
+                      ),
+                    ),
+                    items: _categories
+                        .where((c) => c != 'Semua')
+                        .map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 12.5))))
+                        .toList(),
+                    onChanged: (val) {
+                      if (val != null) setModalState(() => category = val);
+                    },
+                  ),
+
+                  // ─── KALKULATOR HARGA & MARGIN LANGSUNG ───
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.calculate_rounded, size: 18, color: GageTheme.primary),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Kalkulator Harga & Margin Dapur',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
+                              ),
+                            ),
+                            if (!isAutoPricing)
+                              InkWell(
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  setModalState(() {
+                                    isAutoPricing = true;
+                                    gagePrice = AffiliateCommissionService.calculateRecommendedOnlinePrice(
+                                      offlinePrice,
+                                      platformRate: 0.10,
+                                      affiliateRate: affiliateRate,
+                                    );
+                                    gagePriceCtrl.text = gagePrice > 0 ? gagePrice.toString() : '';
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: GageTheme.primary.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.auto_mode_rounded, size: 12, color: GageTheme.primary),
+                                      SizedBox(width: 4),
+                                      Text('Auto Anti-Rugi', style: TextStyle(fontSize: 10, color: GageTheme.primary, fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Harga Rekomendasi GAGE (${(10 + affiliateRate * 100).toInt()}% Potongan):',
-                                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                                    'Harga Warung (Offline)',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                    ),
                                   ),
-                                  Text(
-                                    'MDR Platform 10% + Komisi Kreator ${(affiliateRate * 100).toInt()}%',
-                                    style: const TextStyle(fontSize: 9.5, color: GageTheme.textSecondary),
+                                  const SizedBox(height: 6),
+                                  TextField(
+                                    controller: offlinePriceCtrl,
+                                    keyboardType: TextInputType.number,
+                                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                                    decoration: InputDecoration(
+                                      prefixText: 'Rp ',
+                                      prefixStyle: const TextStyle(fontWeight: FontWeight.bold, color: GageTheme.primary),
+                                      filled: true,
+                                      fillColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: const BorderSide(color: GageTheme.primary, width: 1.8),
+                                      ),
+                                    ),
+                                    onChanged: (val) {
+                                      final numVal = int.tryParse(val.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+                                      setModalState(() {
+                                        offlinePrice = numVal;
+                                        if (isAutoPricing) {
+                                          gagePrice = AffiliateCommissionService.calculateRecommendedOnlinePrice(
+                                            offlinePrice,
+                                            platformRate: 0.10,
+                                            affiliateRate: affiliateRate,
+                                          );
+                                          gagePriceCtrl.text = gagePrice > 0 ? gagePrice.toString() : '';
+                                        }
+                                      });
+                                    },
                                   ),
                                 ],
                               ),
-                              Text(
-                                currencyFormatter.format(suggestedGage),
-                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: GageTheme.primary),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Harga Jual di GAGE',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  TextField(
+                                    controller: gagePriceCtrl,
+                                    keyboardType: TextInputType.number,
+                                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                                    decoration: InputDecoration(
+                                      prefixText: 'Rp ',
+                                      prefixStyle: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF15803D)),
+                                      filled: true,
+                                      fillColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: const BorderSide(color: GageTheme.primary, width: 1.8),
+                                      ),
+                                    ),
+                                    onChanged: (val) {
+                                      final numVal = int.tryParse(val.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+                                      setModalState(() {
+                                        gagePrice = numVal;
+                                        isAutoPricing = false;
+                                      });
+                                    },
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Alokasi Komisi Afiliasi / Kreator Video (Maks 20%):',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white70 : const Color(0xFF475569),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '✓ Pencairan bersih Anda tetap utuh ${currencyFormatter.format(offlinePrice)} (Bebas Rugi!).',
-                            style: const TextStyle(fontSize: 10, color: Color(0xFF15803D), fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 6),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [0.0, 0.05, 0.10, 0.15, 0.20].map((rate) {
+                              final isSel = (affiliateRate == rate);
+                              final label = rate == 0.0 ? '0%' : (rate == 0.10 ? '10% (Rekomendasi)' : '${(rate * 100).toInt()}%');
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 6),
+                                child: ChoiceChip(
+                                  label: Text(label, style: TextStyle(fontSize: 10.5, fontWeight: isSel ? FontWeight.bold : FontWeight.normal)),
+                                  selected: isSel,
+                                  selectedColor: GageTheme.primary.withValues(alpha: 0.15),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+                                  onSelected: (_) {
+                                    HapticFeedback.selectionClick();
+                                    setModalState(() {
+                                      affiliateRate = rate;
+                                      if (isAutoPricing) {
+                                        gagePrice = AffiliateCommissionService.calculateRecommendedOnlinePrice(
+                                          offlinePrice,
+                                          platformRate: 0.10,
+                                          affiliateRate: affiliateRate,
+                                        );
+                                        gagePriceCtrl.text = gagePrice > 0 ? gagePrice.toString() : '';
+                                      }
+                                    });
+                                  },
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+
+                        // Live Breakdown Table
+                        if (gagePrice > 0) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
+                            ),
+                            child: Column(
+                              children: [
+                                _buildCalcRow('Harga Jual ke Pelanggan', currencyFormatter.format(gagePrice), isDark),
+                                const SizedBox(height: 4),
+                                _buildCalcRow('MDR Platform GAGE (10%)', '- ${currencyFormatter.format((gagePrice * 0.10).round())}', isDark, isDeduction: true),
+                                const SizedBox(height: 4),
+                                _buildCalcRow('Komisi Kreator (${(affiliateRate * 100).toInt()}%)', '- ${currencyFormatter.format((gagePrice * affiliateRate).round())}', isDark, isDeduction: true),
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 6),
+                                  child: Divider(height: 1),
+                                ),
+                                _buildCalcRow(
+                                  'Estimasi Pencairan Bersih',
+                                  currencyFormatter.format(gagePrice - (gagePrice * 0.10).round() - (gagePrice * affiliateRate).round()),
+                                  isDark,
+                                  isHighlight: true,
+                                ),
+                                const SizedBox(height: 6),
+                                Builder(builder: (context) {
+                                  final netPayout = gagePrice - (gagePrice * 0.10).round() - (gagePrice * affiliateRate).round();
+                                  final margin = netPayout - offlinePrice;
+                                  final isSafe = margin >= 0;
+                                  return Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: isSafe ? const Color(0xFFDCFCE7) : const Color(0xFFFEF3C7),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: isSafe ? const Color(0xFF22C55E) : const Color(0xFFF59E0B)),
+                                    ),
+                                    child: Text(
+                                      isSafe
+                                          ? '✓ Margin Bersih Aman: +${currencyFormatter.format(margin)} di atas modal warung (Bebas Rugi!)'
+                                          : '⚠ Margin Tipis: Estimasi bersih ${currencyFormatter.format(-margin)} di bawah harga warung fisik!',
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: isSafe ? const Color(0xFF15803D) : const Color(0xFFB45309),
+                                      ),
+                                    ),
+                                  );
+                                }),
+                              ],
+                            ),
                           ),
                         ],
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
+
                   const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
@@ -889,7 +1288,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: GageTheme.primary,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
                       onPressed: isSubmitting
                           ? null
@@ -904,20 +1303,22 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                                 return;
                               }
                               setModalState(() => isSubmitting = true);
+                              final finalGagePrice = gagePrice > 0 ? gagePrice : offlinePrice;
                               final res = await GageApiClient.createMerchantMenu(
                                 merchantId: MerchantStorefrontService.defaultPortalMerchantId,
                                 name: name,
                                 description: descCtrl.text.trim(),
                                 category: category,
                                 offlinePrice: offlinePrice,
-                                gagePrice: suggestedGage,
+                                gagePrice: finalGagePrice,
+                                image: selectedImagePath ?? 'assets/images/dish_dimsum_original.png',
                               );
                               if (!mounted) return;
                               setModalState(() => isSubmitting = false);
                               navigator.pop();
                               if (res != null) {
                                 messenger.showSnackBar(
-                                  const SnackBar(content: Text('Menu baru berhasil ditambahkan.')),
+                                  const SnackBar(content: Text('Menu baru berhasil ditambahkan ke dapur.')),
                                 );
                                 _fetchMenuCatalog();
                               } else {
@@ -1152,21 +1553,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(10),
-              child: item['image'] != null && item['image'].toString().isNotEmpty
-                  ? Image.asset(
-                      item['image'].toString(),
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => const Icon(
-                        Icons.fastfood_rounded,
-                        color: GageTheme.primary,
-                        size: 26,
-                      ),
-                    )
-                  : const Icon(
-                      Icons.fastfood_rounded,
-                      color: GageTheme.primary,
-                      size: 26,
-                    ),
+              child: _buildMenuItemImage(item['image'], width: 58, height: 58, fit: BoxFit.cover),
             ),
           ),
           const SizedBox(width: 12),

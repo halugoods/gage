@@ -2883,6 +2883,7 @@ class GageApiClient {
     required String category,
     required int offlinePrice,
     int? gagePrice,
+    String? image,
   }) async {
     try {
       final res = await http.post(
@@ -2895,6 +2896,7 @@ class GageApiClient {
           'category': category,
           'offline_price': offlinePrice,
           'gage_price': gagePrice,
+          'image': image,
         }),
       ).timeout(const Duration(seconds: 5));
 
@@ -2905,6 +2907,30 @@ class GageApiClient {
         }
       }
     } catch (_) {}
+
+    if (useDevSeedData) {
+      final newItem = {
+        'id': 'menu-${DateTime.now().millisecondsSinceEpoch}',
+        'merchant_id': merchantId,
+        'name': name,
+        'description': description ?? '',
+        'category': category,
+        'offline_price': offlinePrice,
+        'gage_price': gagePrice ?? offlinePrice,
+        'price': gagePrice ?? offlinePrice,
+        'image': image ?? 'assets/images/dish_dimsum_original.png',
+        'is_available': 1,
+        'isDevSeed': true,
+      };
+      final trimmedId = merchantId.trim();
+      if (_cachedMenusByMerchant.containsKey(trimmedId)) {
+        _cachedMenusByMerchant[trimmedId]!.insert(0, newItem);
+      } else {
+        _cachedMenusByMerchant[trimmedId] = [newItem];
+      }
+      return newItem;
+    }
+
     return null;
   }
 

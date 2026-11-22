@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:gage_app/core/network/gage_api_client.dart';
+import 'package:gage_app/core/services/affiliate_commission_service.dart';
 import 'package:gage_app/core/services/merchant_storefront_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
 import 'package:gage_app/features/chat/providers/in_app_chat_provider.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_kitchen_insights_screen.dart';
+import 'package:gage_app/features/merchant/presentation/merchant_menu_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_review_screen.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_floating_nav_bar.dart';
 import 'package:gage_app/providers/merchant_order_provider.dart';
@@ -378,6 +380,103 @@ void main() {
       expect(find.text('Waktu Masak'), findsOneWidget);
       expect(find.text('Jam Sibuk Dapur & Pesanan'), findsOneWidget);
       expect(find.byType(AppBar), findsOneWidget);
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 13: Kalkulator Harga In-Place Langsung di Tambah Menu
+    // -------------------------------------------------------------------------
+    test('Skenario 13: Kalkulator harga in-place (MDR 10%, komisi afiliasi, net payout & margin)', () {
+      int offlinePrice = 15000;
+      double affiliateRate = 0.10; // 10%
+      int gagePrice = AffiliateCommissionService.calculateRecommendedOnlinePrice(
+        offlinePrice,
+        platformRate: 0.10,
+        affiliateRate: affiliateRate,
+      );
+
+      // Verifikasi harga rekomendasi anti-rugi
+      expect(gagePrice, greaterThanOrEqualTo(offlinePrice));
+
+      int platformFee = (gagePrice * 0.10).round();
+      int affiliateFee = (gagePrice * affiliateRate).round();
+      int netPayout = gagePrice - platformFee - affiliateFee;
+      int margin = netPayout - offlinePrice;
+
+      // Pencairan bersih tidak boleh di bawah harga warung fisik
+      expect(netPayout, greaterThanOrEqualTo(offlinePrice));
+      expect(margin, greaterThanOrEqualTo(0));
+
+      // Verifikasi saat merchant set harga manual terlalu murah (di bawah modal)
+      int cheapGagePrice = 14000;
+      int cheapPlatformFee = (cheapGagePrice * 0.10).round();
+      int cheapAffiliateFee = (cheapGagePrice * affiliateRate).round();
+      int cheapNetPayout = cheapGagePrice - cheapPlatformFee - cheapAffiliateFee;
+      int cheapMargin = cheapNetPayout - offlinePrice;
+
+      // Terdeteksi margin tipis/rugi
+      expect(cheapNetPayout, lessThan(offlinePrice));
+      expect(cheapMargin, lessThan(0));
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 14: Integrasi Image Picker & createMerchantMenu dengan Image Path
+    // -------------------------------------------------------------------------
+    test('Skenario 14: GageApiClient.createMerchantMenu meneruskan image path foto produk', () async {
+      final res = await GageApiClient.createMerchantMenu(
+        merchantId: MerchantStorefrontService.defaultPortalMerchantId,
+        name: 'Dimsum Kulit Tahu Krispi',
+        description: 'Kulit tahu renyah isi udang segar',
+        category: 'Dimsum Goreng',
+        offlinePrice: 15000,
+        gagePrice: 18500,
+        image: '/data/user/0/com.gagepracimantoro.merchant/cache/menu_sample.jpg',
+      );
+
+      expect(res, isNotNull);
+      expect(res!['name'], equals('Dimsum Kulit Tahu Krispi'));
+      expect(res['offline_price'], equals(15000));
+      expect(res['gage_price'], equals(18500));
+      expect(res['image'], equals('/data/user/0/com.gagepracimantoro.merchant/cache/menu_sample.jpg'));
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 15: Tambah Menu menampilkan Image Picker interaktif & Kalkulator Harga in-place
+    // -------------------------------------------------------------------------
+    testWidgets('Skenario 15: Tambah Menu menampilkan Image Picker interaktif & Kalkulator Harga in-place',
+        (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: MerchantMenuScreen(),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Temukan tombol Menu Baru
+      final addBtn = find.text('Menu Baru');
+      expect(addBtn, findsOneWidget);
+      await tester.tap(addBtn);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Verifikasi header bottom sheet
+      expect(find.text('Tambah Menu Baru Dapur'), findsOneWidget);
+
+      // Verifikasi Image Picker
+      expect(find.text('Foto Menu Makanan / Minuman'), findsOneWidget);
+      expect(find.text('Upload Foto Menu Baru'), findsOneWidget);
+      expect(find.text('Kamera'), findsOneWidget);
+      expect(find.text('Galeri HP'), findsOneWidget);
+
+      // Verifikasi Kalkulator Harga In-Place Langsung
+      expect(find.text('Kalkulator Harga & Margin Dapur'), findsOneWidget);
+      expect(find.text('Harga Warung (Offline)'), findsOneWidget);
+      expect(find.text('Harga Jual di GAGE'), findsOneWidget);
+      expect(find.text('Alokasi Komisi Afiliasi / Kreator Video (Maks 20%):'), findsOneWidget);
+      expect(find.text('10% (Rekomendasi)'), findsOneWidget);
+
+      // Verifikasi Tombol Simpan
+      expect(find.text('Simpan Menu ke Dapur'), findsOneWidget);
     });
   });
 }
