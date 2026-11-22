@@ -661,6 +661,51 @@ Tab 4 Merchant kini mengadopsi widget asli `GagePayScreen` (`isEmbeddedInTab: tr
   - Header utama toko kini menampilkan live countdown jeda: `ISTIRAHAT (30m)` dengan indikator bulat oranye.
   - Kontras tema gelap di seluruh form, badge, dan modal dialog tervalidasi memenuhi rasio kontras WCAG AA.
 
+---
+
+## 12. Dokumentasi Pembaruan Wave 7 (Luxury Refinement, Static Segmented Tabs, Full-Screen Order Detail, dan Android 14 Photo Picker ala NUSA Kasir)
+
+* **Commit**: `8eaa9e0`
+* **GitHub Release**: [`v1.0.4+39`](https://github.com/halugoods/gage/releases/tag/v1.0.4%2B39)
+* **Status Pengujian**: **35 / 35 Tests PASSED (100%)**
+
+### A. Segmented Tab Switch Statis (Non-Scrollable 4 Kategori Universal)
+- **File**: `lib/features/merchant/presentation/tabs/gage_merchant_orders_tab.dart`
+- Menghapus pembungkus `SingleChildScrollView` horizontal.
+- Menggunakan `Container` kapsul penuh 999 (`height: 44`, padding 3px) yang membungkus `Row` dengan 4 segmen `Expanded` proporsional.
+- Dilengkapi `FittedBox(fit: BoxFit.scaleDown)` pada label (*Disiapkan*, *Siap Diambil*, *Sedang Diantar*, *Selesai*) dan badge counter untuk mencegah pemotongan teks maupun horizontal scrolling pada seluruh rasio layar ponsel.
+
+### B. Eliminasi Total Garis Pembatas Horizontal Solid (`Divider`)
+- Menghapus seluruh instansi `Divider(height: 1)` pada kontainer kartu pesanan, item breakdown, rincian pembayaran margin, kalkulator harga, dan menu profil.
+- Menggantikannya dengan hierarki visual *breathing room* dan *tint grouping* lembut (`#F8FAFC` pada mode terang, `#0F172A` pada mode gelap).
+
+### C. Detail Pesanan Layar Penuh (`MerchantOrderDetailScreen`)
+- **File Baru**: `lib/features/merchant/presentation/merchant_order_detail_screen.dart`
+- Menghadirkan halaman layar penuh mandiri:
+  - Custom AppBar dengan badge nomor pesanan dan tag jenis layanan (*Pesan Antar* / *Ambil Sendiri*).
+  - Kartu Status Operasional Universal dengan ikon dan deskripsi progresif.
+  - Kartu PIN Verifikasi Kurir terpusat dengan teks tombol acak ulang PIN.
+  - Kartu Informasi Pemesan & Kurir GAGE dengan integrasi tombol chat in-app.
+  - Rincian produk dan transparansi margin kasir (MDR 10% dan pencairan bersih) tanpa garis solid.
+  - *Sticky bottom action bar* berkapsul penuh (StadiumBorder) untuk tombol operasional (*Terima Pesanan*, *Pesanan Siap Diambil*, *Serahkan Pesanan*).
+- **Kompatibilitas**: `merchant_order_detail_sheet.dart` bertindak sebagai *router forwarder* otomatis dengan injeksi `ChangeNotifierProvider.value`.
+
+### D. Android 14 / One UI Photo Picker ala NUSA Kasir
+- **File Baru**: `lib/features/merchant/presentation/widgets/merchant_photo_picker_sheet.dart`
+- Mengadopsi arsitektur `mock_gallery_sheet.dart` dari NUSA Kasir:
+  - Header native Android 14 dengan drag handle dan tombol tutup.
+  - Segmented category switch kapsul 999: **Kuliner (Food)**, **Sembako (Shop)**, dan **Tani & Ternak (Farm)**.
+  - GridView 3-kolom:
+    - **Slot 0**: Tile Kamera fisik (`Icons.camera_alt_outlined`).
+    - **Slot 1**: Tile Galeri perangkat (`Icons.photo_library_outlined`).
+    - **Slot 2..N**: Katalog preset produk resmi beresolusi tinggi dengan *circular checkmark indicator* biru (`#1A73E8`).
+  - Haptic feedback pada setiap ketukan.
+
+### E. Standarisasi Luxury Form Fields & Penghapusan Sisa Bias Kuliner
+- Form field seragam ber-background `#F8FAFC` / `#0F172A`, border `#E2E8F0`, rounded 14px, dan focus `#E52320`.
+- Istilah *"Estimasi Waktu Masak Default"* diubah menjadi *"Estimasi Waktu Penyiapan Default"*, *"Auto-Print Tiket Dapur"* menjadi *"Auto-Print Tiket Pesanan"*, dan kalkulator dapur menjadi kalkulator produk universal.
+
+
 
 
 
