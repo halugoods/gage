@@ -561,6 +561,38 @@ Tab 4 Merchant kini mengadopsi widget asli `GagePayScreen` (`isEmbeddedInTab: tr
 ### E. Quick Replies Khusus Dapur & Kasir
 - Menambahkan 5 Quick Replies khusus dapur saat `currentRole == 'merchant'` di `in_app_chat_screen.dart` untuk komunikasi cepat dengan Driver dan Pelanggan tanpa mengetik manual saat jam sibuk.
 
+---
+
+## 8. Pembaruan Wave 5: Image Picker Kamera/Galeri & Kalkulator Harga In-Place Tambah Menu
+
+* **Hasil Verifikasi Test Suite Komprehensif**: **24 / 24 Tests Passed (0 Failures)** (`test/merchant_handoff_contracts_test.dart` & `test/merchant_comprehensive_audit_scenarios_test.dart`).
+
+### A. Image Picker Interaktif Foto Produk Menu Dapur
+- **Masalah Teratasi**: Sebelumnya tambah menu hanya menyediakan chip statis preset tanpa opsi memilih foto riil dari perangkat.
+- **Implementasi Baru di `merchant_menu_screen.dart`**:
+  - Box upload foto interaktif dengan dua opsi tombol aksi cepat:
+    1. **Kamera (`ImageSource.camera`)**: Memungkinkan staf dapur/kasir langsung memotret masakan segar dari wajan/meja saji.
+    2. **Galeri HP (`ImageSource.gallery`)**: Memilih foto olahan grafis atau foto katalog yang sudah tersimpan di galeri perangkat.
+  - Preview foto terpilih langsung ditampilkan dalam kontainer berukuran proporsional dengan tombol ganti foto dan hapus foto.
+  - Opsi foto preset cepat (`Dimsum Ori`, `Dimsum Mentai`, `Resto Kios`) tetap disediakan sebagai fallback darurat.
+  - Kompatibel dengan semua jenis URI/Path melalui helper `_buildMenuItemImage` (mendukung path lokal dari ImagePicker, URL http/https, maupun aset aplikasi).
+  - Terintegrasi langsung ke parameter `image` pada `GageApiClient.createMerchantMenu`.
+
+### B. Kalkulator Harga & Margin Bersih Terintegrasi In-Place (Anti-Rugi)
+- **Masalah Teratasi**: Sebelumnya kalkulator harga terpisah dan tidak terintegrasi langsung di samping kolom harga pada form Tambah Menu, sehingga membingungkan mitra toko.
+- **Implementasi Baru di `merchant_menu_screen.dart`**:
+  - Kolom input **Harga Warung (Offline/Modal)** dan **Harga Jual di GAGE** kini ditempatkan berdampingan dalam satu card terpadu.
+  - Saat Harga Warung diketik, sistem secara cerdas menghitung harga jual rekomendasi anti-rugi secara otomatis menggunakan `AffiliateCommissionService.calculateRecommendedOnlinePrice`.
+  - Mitra juga dapat mengedit harga jual di GAGE secara fleksibel, dan disediakan tombol **Auto Anti-Rugi** untuk mengembalikan perhitungan ke formula resmi sewaktu-waktu.
+  - **Tabel Rincian Kalkulator Transparan (Real-Time Live Breakdown)**:
+    - Harga Jual ke Pelanggan: `Rp XX.XXX`
+    - Potongan MDR Platform GAGE (10%): `- Rp X.XXX`
+    - Potongan Komisi Kreator/Afiliasi (0% s/d 20%): `- Rp Y.YYY`
+    - **Estimasi Pencairan Bersih Masuk Saldo**: `= Rp Z.ZZZ`
+    - **Banner Analisis Margin Laba**:
+      - Jika margin positif: Badge hijau *"✓ Margin Bersih Aman: +Rp ... di atas modal warung (Bebas Rugi!)"*.
+      - Jika margin tipis/negatif: Badge peringatan *"⚠ Margin Tipis: Estimasi bersih Rp ... di bawah harga warung fisik!"*.
+
 
 
 
