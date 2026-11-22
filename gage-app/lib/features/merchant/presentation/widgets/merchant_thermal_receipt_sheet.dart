@@ -46,6 +46,7 @@ class MerchantThermalReceiptSheet extends StatefulWidget {
 class _MerchantThermalReceiptSheetState
     extends State<MerchantThermalReceiptSheet> {
   String _paperSize = '58mm'; // '58mm' | '80mm'
+  int _activePreviewCopy = 1; // 1: Dapur, 2: Kurir/Pelanggan, 3: Kasir
   bool _isPrinting = false;
 
   String _formatDateTime(int timestamp) {
@@ -54,7 +55,7 @@ class _MerchantThermalReceiptSheetState
     return DateFormat('dd/MM/yyyy HH:mm', 'id_ID').format(dt);
   }
 
-  String _generatePlainTextReceipt() {
+  String _generatePlainTextReceipt({int copyIndex = 1}) {
     final o = widget.order;
     final divider = _paperSize == '58mm'
         ? '--------------------------------'
@@ -64,6 +65,13 @@ class _MerchantThermalReceiptSheetState
     buf.writeln('        ${o.merchantName}        ');
     buf.writeln('   ${o.merchantAddress}   ');
     buf.writeln(divider);
+    if (copyIndex == 1) {
+      buf.writeln('>>> [ RANGKAP 1: SALINAN DAPUR ] <<<');
+    } else if (copyIndex == 2) {
+      buf.writeln('>>> [ RANGKAP 2: KURIR / PELANGGAN ] <<<');
+    } else if (copyIndex == 3) {
+      buf.writeln('>>> [ RANGKAP 3: ARSIP KASIR ] <<<');
+    }
     buf.writeln('No. Nota : ${o.orderNumber}');
     buf.writeln('Waktu    : ${_formatDateTime(o.createdAt)}');
     buf.writeln('Pelanggan: ${o.customerName} (${o.customerPhone})');
@@ -108,11 +116,12 @@ class _MerchantThermalReceiptSheetState
     }
 
     setState(() => _isPrinting = true);
-    final ok = await provider.printOrderReceipt(widget.order.id, paperSize: _paperSize);
+    final copies = provider.receiptCopies;
+    final ok = await provider.printOrderReceipt(widget.order.id, paperSize: _paperSize, copies: copies);
     if (!mounted) return;
     setState(() => _isPrinting = false);
     if (ok) {
-      GageToast.show(context, 'Struk berhasil dikirim ke printer $_paperSize');
+      GageToast.show(context, 'Struk berhasil dicetak ($copies rangkap) ke printer $_paperSize');
       Navigator.pop(context);
     } else {
       GageToast.show(context, 'Gagal mencetak struk thermal.');
@@ -121,7 +130,7 @@ class _MerchantThermalReceiptSheetState
 
   void _copyToClipboard(BuildContext context) {
     HapticFeedback.lightImpact();
-    Clipboard.setData(ClipboardData(text: _generatePlainTextReceipt()));
+    Clipboard.setData(ClipboardData(text: _generatePlainTextReceipt(copyIndex: _activePreviewCopy)));
     GageToast.show(context, 'Teks struk berhasil disalin ke papan klip');
   }
 
@@ -269,6 +278,118 @@ class _MerchantThermalReceiptSheetState
               ],
             ),
           ),
+          const SizedBox(height: 10),
+
+          // 2b. Pengaturan Rangkap Struk (Kapsul Penuh 999)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Jumlah Rangkap Cetak:',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white70 : const Color(0xFF334155),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  width: double.infinity,
+                  height: 34,
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(child: _buildCopyPill(provider, 1, '1x Tunggal', isDark)),
+                      Expanded(child: _buildCopyPill(provider, 2, '2x (Dapur+Kurir)', isDark)),
+                      Expanded(child: _buildCopyPill(provider, 3, '3x (+Kasir)', isDark)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.bolt_rounded, size: 16, color: GageTheme.primary),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Cetak Otomatis saat Pesanan Diterima (${provider.receiptCopies} rangkap)',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white : const Color(0xFF1E293B),
+                        ),
+                      ),
+                    ),
+                    Transform.scale(
+                      scale: 0.8,
+                      child: Switch(
+                        value: provider.autoPrintOnAccept,
+                        activeColor: GageTheme.primary,
+                        onChanged: (val) {
+                          provider.toggleAutoPrintOnAccept(val);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Tab Pratinjau Salinan jika Multi-Rangkap
+          if (provider.receiptCopies > 1)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: Row(
+                  children: [
+                    Text(
+                      'Pilih Pratinjau: ',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white60 : Colors.grey.shade600,
+                      ),
+                    ),
+                    for (int i = 1; i <= provider.receiptCopies; i++) ...[
+                      Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: ChoiceChip(
+                          label: Text(
+                            i == 1 ? 'Rangkap 1 (Dapur)' : (i == 2 ? 'Rangkap 2 (Kurir)' : 'Rangkap 3 (Kasir)'),
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: _activePreviewCopy == i ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                          selected: _activePreviewCopy == i,
+                          selectedColor: GageTheme.primary.withValues(alpha: 0.15),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+                          onSelected: (_) {
+                            HapticFeedback.selectionClick();
+                            setState(() => _activePreviewCopy = i);
+                          },
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
           const SizedBox(height: 12),
 
           // 3. Roll Kertas Thermal Preview (Fisik Putih ala Kertas Kasir)
@@ -295,6 +416,37 @@ class _MerchantThermalReceiptSheetState
                     Center(
                       child: Column(
                         children: [
+                          if (_activePreviewCopy == 1)
+                            const Text(
+                              '>>> [ RANGKAP 1: DAPUR ] <<<',
+                              style: TextStyle(
+                                fontFamily: 'Courier',
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFDC2626),
+                              ),
+                            )
+                          else if (_activePreviewCopy == 2)
+                            const Text(
+                              '>>> [ RANGKAP 2: KURIR / PELANGGAN ] <<<',
+                              style: TextStyle(
+                                fontFamily: 'Courier',
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF2563EB),
+                              ),
+                            )
+                          else if (_activePreviewCopy == 3)
+                            const Text(
+                              '>>> [ RANGKAP 3: ARSIP KASIR ] <<<',
+                              style: TextStyle(
+                                fontFamily: 'Courier',
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF059669),
+                              ),
+                            ),
+                          const SizedBox(height: 2),
                           const Text(
                             'GAGE FOOD PRACIMANTORO',
                             style: TextStyle(
@@ -572,6 +724,42 @@ class _MerchantThermalReceiptSheetState
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCopyPill(MerchantOrderProvider provider, int copies, String label, bool isDark) {
+    final isSelected = provider.receiptCopies == copies;
+    return InkWell(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        provider.setReceiptCopies(copies);
+        if (_activePreviewCopy > copies) {
+          setState(() => _activePreviewCopy = 1);
+        }
+      },
+      borderRadius: BorderRadius.circular(999),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSelected ? GageTheme.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+            color: isSelected
+                ? Colors.white
+                : (isDark ? Colors.white70 : const Color(0xFF475569)),
+          ),
+        ),
       ),
     );
   }

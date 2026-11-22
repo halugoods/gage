@@ -2884,6 +2884,7 @@ class GageApiClient {
     required int offlinePrice,
     int? gagePrice,
     String? image,
+    List<Map<String, dynamic>>? variantGroups,
   }) async {
     try {
       final res = await http.post(
@@ -2897,6 +2898,7 @@ class GageApiClient {
           'offline_price': offlinePrice,
           'gage_price': gagePrice,
           'image': image,
+          'variant_groups': variantGroups,
         }),
       ).timeout(const Duration(seconds: 5));
 
@@ -2919,6 +2921,8 @@ class GageApiClient {
         'gage_price': gagePrice ?? offlinePrice,
         'price': gagePrice ?? offlinePrice,
         'image': image ?? 'assets/images/dish_dimsum_original.png',
+        'variant_groups': variantGroups ?? [],
+        'has_variants': variantGroups != null && variantGroups.isNotEmpty,
         'is_available': 1,
         'isDevSeed': true,
       };

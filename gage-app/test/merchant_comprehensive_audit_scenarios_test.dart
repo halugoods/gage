@@ -1,9 +1,11 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/services/affiliate_commission_service.dart';
+import 'package:gage_app/core/services/gage_audio_service.dart';
 import 'package:gage_app/core/services/merchant_storefront_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
@@ -11,6 +13,7 @@ import 'package:gage_app/features/chat/providers/in_app_chat_provider.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_kitchen_insights_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_menu_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_review_screen.dart';
+import 'package:gage_app/features/merchant/presentation/tabs/gage_merchant_orders_tab.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_floating_nav_bar.dart';
 import 'package:gage_app/providers/merchant_order_provider.dart';
 
@@ -477,6 +480,183 @@ void main() {
 
       // Verifikasi Tombol Simpan
       expect(find.text('Simpan Menu ke Dapur'), findsOneWidget);
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 16: Audio Alarm Pesanan Masuk Dapur Bising
+    // -------------------------------------------------------------------------
+    test('Skenario 16: Audio alarm pesanan masuk dapur bising aktif & auto-stop saat pesanan diterima', () async {
+      final provider = MerchantOrderProvider();
+      expect(provider.soundAlarmEnabled, isTrue);
+
+      // Toggle sound alarm
+      provider.toggleSoundAlarm(false);
+      expect(provider.soundAlarmEnabled, isFalse);
+      expect(GageAudioService.instance.isOrderAlertRunning, isFalse);
+
+      provider.toggleSoundAlarm(true);
+      expect(provider.soundAlarmEnabled, isTrue);
+
+      // Terima order baru
+      final newOrder = provider.orders.firstWhere((o) => o.status == 'NEW' || o.status == 'PAID');
+      await provider.acceptOrder(newOrder.id);
+
+      final accepted = provider.orders.firstWhere((o) => o.id == newOrder.id);
+      expect(accepted.status, equals('COOKING'));
+      expect(GageAudioService.instance.isOrderAlertRunning, isFalse);
+      provider.dispose();
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 17: Filter 6 Kategori Status Pesanan Kapsul 999
+    // -------------------------------------------------------------------------
+    testWidgets('Skenario 17: Filter 6 kategori status pesanan kapsul 999 pada GageMerchantOrdersTab',
+        (tester) async {
+      final provider = MerchantOrderProvider();
+      final formatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChangeNotifierProvider<MerchantOrderProvider>.value(
+            value: provider,
+            child: Scaffold(
+              body: GageMerchantOrdersTab(currencyFormatter: formatter),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Verifikasi 6 label filter kapsul
+      expect(find.text('Semua'), findsOneWidget);
+      expect(find.text('Perlu Konfirmasi'), findsOneWidget);
+      expect(find.text('Sedang Dimasak'), findsOneWidget);
+      expect(find.text('Siap Diambil'), findsOneWidget);
+      expect(find.text('Selesai'), findsOneWidget);
+      expect(find.text('Dibatalkan'), findsOneWidget);
+
+      // Ketuk tab "Sedang Dimasak"
+      await tester.tap(find.text('Sedang Dimasak'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      provider.dispose();
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 18: Alur Penolakan Pesanan Beradab (Alasan Operasional & 100% Refund)
+    // -------------------------------------------------------------------------
+    test('Skenario 18: Alur penolakan pesanan beradab menyimpan alasan operasional & 100% refund', () async {
+      final provider = MerchantOrderProvider();
+      final targetOrder = provider.orders.firstWhere((o) => o.status == 'NEW' || o.status == 'PAID');
+      final totalBefore = targetOrder.totalAmount;
+
+      await provider.rejectOrder(
+        targetOrder.id,
+        'Bahan baku habis (Menu tidak dapat disajikan) (Stok ayam habis)',
+      );
+
+      final rejected = provider.orders.firstWhere((o) => o.id == targetOrder.id);
+      expect(rejected.status, equals('CANCELLED'));
+      expect(rejected.cancellationReason, contains('Bahan baku habis'));
+      expect(rejected.refundAmount, equals(totalBefore));
+      provider.dispose();
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 19: Cetak Struk Multi-Rangkap (1x, 2x Dapur+Kurir, 3x) & Auto-Print
+    // -------------------------------------------------------------------------
+    test('Skenario 19: Cetak struk multi-rangkap (1x, 2x Dapur+Kurir, 3x) & auto-print on accept', () async {
+      final provider = MerchantOrderProvider();
+
+      // Default adalah 2 rangkap (1x Dapur, 1x Kurir/Pelanggan)
+      expect(provider.receiptCopies, equals(2));
+      expect(provider.autoPrintOnAccept, isTrue);
+      expect(provider.preferredPaperSize, equals('58mm'));
+
+      // Ubah ke 3 rangkap (+ Kasir)
+      provider.setReceiptCopies(3);
+      expect(provider.receiptCopies, equals(3));
+
+      // Test eksekusi cetak struk multi-rangkap
+      final printOk = await provider.printOrderReceipt('ord-8822', paperSize: '58mm', copies: 3);
+      expect(printOk, isTrue);
+
+      // Toggle auto-print
+      provider.toggleAutoPrintOnAccept(false);
+      expect(provider.autoPrintOnAccept, isFalse);
+      provider.dispose();
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 20: Builder Varian & Modifiers Menu (Add-ons / Topping)
+    // -------------------------------------------------------------------------
+    test('Skenario 20: Builder varian & modifiers menu (Add-ons / Topping) via GageApiClient', () async {
+      final variantGroups = [
+        {
+          'name': 'Level Pedas',
+          'title': 'Level Pedas',
+          'required': true,
+          'multi_select': false,
+          'options': [
+            {'name': 'Level 0 (Original)', 'price': 0},
+            {'name': 'Level 1 (Sedang)', 'price': 0},
+            {'name': 'Level 2 (Pedas)', 'price': 2000},
+          ],
+        },
+        {
+          'name': 'Ekstra Topping',
+          'title': 'Ekstra Topping',
+          'required': false,
+          'multi_select': true,
+          'options': [
+            {'name': 'Keju Mozzarella', 'price': 3000},
+          ],
+        },
+      ];
+
+      final res = await GageApiClient.createMerchantMenu(
+        merchantId: MerchantStorefrontService.defaultPortalMerchantId,
+        name: 'Siomay Dimsum Pedas Mozza',
+        description: 'Siomay ayam udang dengan varian pedas dan keju leleh',
+        category: 'Dimsum Kukus',
+        offlinePrice: 16000,
+        gagePrice: 19500,
+        variantGroups: variantGroups,
+      );
+
+      expect(res, isNotNull);
+      expect(res!['has_variants'], isTrue);
+      expect(res['variant_groups'], isA<List>());
+      final groups = res['variant_groups'] as List;
+      expect(groups.length, equals(2));
+      expect(groups[0]['name'], equals('Level Pedas'));
+      expect(groups[1]['name'], equals('Ekstra Topping'));
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 21: Quick Status Operasional Lapak (Buka Normal, Istirahat, Tutup)
+    // -------------------------------------------------------------------------
+    test('Skenario 21: Quick status operasional lapak (Buka Normal, Istirahat 30 Menit, Tutup Toko)', () {
+      final provider = MerchantOrderProvider();
+      expect(provider.isOpen, isTrue);
+      expect(provider.isBusy, isFalse);
+
+      // Aktifkan Mode Istirahat 30 Menit
+      provider.pauseOrders(const Duration(minutes: 30), reason: 'Istirahat Siang Dapur');
+      expect(provider.isBusy, isTrue);
+      expect(provider.busyRemainingMinutes, greaterThanOrEqualTo(29));
+      expect(provider.busyReason, equals('Istirahat Siang Dapur'));
+
+      // Resume Toko
+      provider.resumeOrders();
+      expect(provider.isBusy, isFalse);
+      expect(provider.busyRemainingMinutes, equals(0));
+
+      // Tutup Toko
+      provider.toggleStoreOpen(false);
+      expect(provider.isOpen, isFalse);
+      provider.dispose();
     });
   });
 }

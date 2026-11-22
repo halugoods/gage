@@ -205,7 +205,7 @@ class _MerchantRootScreenState extends State<MerchantRootScreen> {
                         const SizedBox(width: 5),
                         Text(
                           merchant.isBusy
-                              ? 'DAPUR SIBUK'
+                              ? 'ISTIRAHAT (${merchant.busyRemainingMinutes}m)'
                               : (merchant.isOpen ? 'TOKO BUKA' : 'TOKO TUTUP'),
                           style: TextStyle(
                             fontSize: 10,
@@ -309,6 +309,7 @@ class _MerchantRootScreenState extends State<MerchantRootScreen> {
 // MODAL STATUS OPERASIONAL LAPAK (BUKA / MODE SIBUK / TUTUP)
 // ─────────────────────────────────────────────────────────────────────────────
 void _showStoreStatusSheet(BuildContext context, MerchantOrderProvider merchant) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
   GageFloatingSheet.show<void>(
     context: context,
     builder: (ctx) {
@@ -316,13 +317,17 @@ void _showStoreStatusSheet(BuildContext context, MerchantOrderProvider merchant)
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.storefront_rounded, color: GageTheme.primary, size: 22),
-              SizedBox(width: 10),
+              const Icon(Icons.storefront_rounded, color: GageTheme.primary, size: 22),
+              const SizedBox(width: 10),
               Text(
                 'Pengaturan Status Toko',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
               ),
             ],
           ),
@@ -339,22 +344,39 @@ void _showStoreStatusSheet(BuildContext context, MerchantOrderProvider merchant)
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: merchant.isOpen && !merchant.isBusy ? const Color(0xFFDCFCE7) : const Color(0xFFF8FAFC),
+                color: merchant.isOpen && !merchant.isBusy
+                    ? (isDark ? const Color(0xFF064E3B) : const Color(0xFFDCFCE7))
+                    : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: merchant.isOpen && !merchant.isBusy ? const Color(0xFF16A34A) : const Color(0xFFE2E8F0),
+                  color: merchant.isOpen && !merchant.isBusy
+                      ? const Color(0xFF16A34A)
+                      : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
                 ),
               ),
               child: Row(
                 children: [
                   const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 20),
                   const SizedBox(width: 10),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Toko Buka Normal', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
-                        Text('Menerima semua pesanan masuk tanpa jeda', style: TextStyle(fontSize: 11, color: GageTheme.textSecondary)),
+                        Text(
+                          'Toko Buka Normal',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                        ),
+                        Text(
+                          'Menerima semua pesanan masuk tanpa jeda',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? Colors.white60 : GageTheme.textSecondary,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -378,22 +400,39 @@ void _showStoreStatusSheet(BuildContext context, MerchantOrderProvider merchant)
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: merchant.isBusy ? const Color(0xFFFEF3C7) : const Color(0xFFF8FAFC),
+                color: merchant.isBusy
+                    ? (isDark ? const Color(0xFF78350F) : const Color(0xFFFEF3C7))
+                    : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: merchant.isBusy ? const Color(0xFFD97706) : const Color(0xFFE2E8F0),
+                  color: merchant.isBusy
+                      ? const Color(0xFFD97706)
+                      : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
                 ),
               ),
               child: Row(
                 children: [
                   const Icon(Icons.timer_rounded, color: Color(0xFFD97706), size: 20),
                   const SizedBox(width: 10),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Mode Sibuk (Jeda 15 Menit)', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
-                        Text('Dapur sedang ramai. Jeda pesanan baru sementara.', style: TextStyle(fontSize: 11, color: GageTheme.textSecondary)),
+                        Text(
+                          'Mode Sibuk (Jeda 15 Menit)',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                        ),
+                        Text(
+                          'Dapur sedang ramai. Jeda pesanan baru sementara.',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? Colors.white60 : GageTheme.textSecondary,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -417,20 +456,33 @@ void _showStoreStatusSheet(BuildContext context, MerchantOrderProvider merchant)
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
+                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.more_time_rounded, color: Color(0xFFD97706), size: 20),
-                  SizedBox(width: 10),
+                  const Icon(Icons.more_time_rounded, color: Color(0xFFD97706), size: 20),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Mode Sibuk (Jeda 30 Menit)', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
-                        Text('Jeda pesanan 30 menit dengan auto-resume', style: TextStyle(fontSize: 11, color: GageTheme.textSecondary)),
+                        Text(
+                          'Mode Sibuk (Jeda 30 Menit)',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                        ),
+                        Text(
+                          'Jeda pesanan 30 menit dengan auto-resume',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? Colors.white60 : GageTheme.textSecondary,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -451,22 +503,39 @@ void _showStoreStatusSheet(BuildContext context, MerchantOrderProvider merchant)
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: !merchant.isOpen ? const Color(0xFFFEE2E2) : const Color(0xFFF8FAFC),
+                color: !merchant.isOpen
+                    ? (isDark ? const Color(0xFF7F1D1D) : const Color(0xFFFEE2E2))
+                    : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: !merchant.isOpen ? const Color(0xFFDC2626) : const Color(0xFFE2E8F0),
+                  color: !merchant.isOpen
+                      ? const Color(0xFFDC2626)
+                      : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
                 ),
               ),
               child: Row(
                 children: [
                   const Icon(Icons.block_flipped, color: Color(0xFFDC2626), size: 20),
                   const SizedBox(width: 10),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Tutup Toko Sementara', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
-                        Text('Toko tutup total dan tidak menerima pesanan apapun', style: TextStyle(fontSize: 11, color: GageTheme.textSecondary)),
+                        Text(
+                          'Tutup Toko Sementara',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                        ),
+                        Text(
+                          'Toko tutup total dan tidak menerima pesanan apapun',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? Colors.white60 : GageTheme.textSecondary,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -476,6 +545,7 @@ void _showStoreStatusSheet(BuildContext context, MerchantOrderProvider merchant)
               ),
             ),
           ),
+          const SizedBox(height: 12),
         ],
       );
     },

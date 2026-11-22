@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:record/record.dart';
 
 /// Lightweight self-contained audio service for physical voice recording and sound effects.
@@ -11,22 +13,43 @@ class GageAudioService {
   GageAudioService._();
   static final GageAudioService instance = GageAudioService._();
 
-  final AudioPlayer _player = AudioPlayer();
-  final AudioRecorder _recorder = AudioRecorder();
+  AudioPlayer? _player;
+  AudioRecorder? _recorder;
+  bool _audioDisabled = false;
+
+  AudioPlayer? get _safePlayer {
+    if (_audioDisabled) return null;
+    try {
+      _player ??= AudioPlayer();
+      return _player;
+    } catch (e) {
+      debugPrint('[GageAudio] AudioPlayer init disabled/bypassed: $e');
+      _audioDisabled = true;
+      return null;
+    }
+  }
+
+  AudioRecorder get _safeRecorder {
+    _recorder ??= AudioRecorder();
+    return _recorder!;
+  }
 
   bool _isPlaying = false;
   bool _isRecording = false;
   String? _currentlyPlayingId;
   String? _currentRecordingPath;
+  Timer? _orderAlertTimer;
+  bool _isOrderAlertRunning = false;
 
   bool get isPlaying => _isPlaying;
   bool get isRecording => _isRecording;
+  bool get isOrderAlertRunning => _isOrderAlertRunning;
   String? get currentlyPlayingId => _currentlyPlayingId;
 
   /// Start recording voice note from device microphone
   Future<bool> startRecording() async {
     try {
-      final hasPerm = await _recorder.hasPermission();
+      final hasPerm = await _safeRecorder.hasPermission();
       if (!hasPerm) {
         debugPrint('[GageAudio] Microphone permission not granted');
         return false;
@@ -39,7 +62,7 @@ class GageAudioService {
       final filePath = '$tempDir/gage_vn_${DateTime.now().millisecondsSinceEpoch}.m4a';
       _currentRecordingPath = filePath;
 
-      await _recorder.start(
+      await _safeRecorder.start(
         const RecordConfig(
           encoder: AudioEncoder.aacLc,
           bitRate: 128000,
@@ -60,7 +83,7 @@ class GageAudioService {
   Future<String?> stopRecording() async {
     try {
       if (!_isRecording) return null;
-      final path = await _recorder.stop();
+      final path = await _safeRecorder.stop();
       _isRecording = false;
       return path ?? _currentRecordingPath;
     } catch (e) {
@@ -74,7 +97,7 @@ class GageAudioService {
   Future<void> cancelRecording() async {
     try {
       if (_isRecording) {
-        await _recorder.cancel();
+        await _safeRecorder.cancel();
         _isRecording = false;
       }
     } catch (e) {
@@ -94,11 +117,14 @@ class GageAudioService {
         return;
       }
 
-      await _player.stop();
+      final player = _safePlayer;
+      if (player == null) return;
+
+      await player.stop();
       _isPlaying = true;
       _currentlyPlayingId = voiceNoteId;
 
-      _player.onPlayerComplete.listen((_) {
+      player.onPlayerComplete.listen((_) {
         _isPlaying = false;
         _currentlyPlayingId = null;
         if (onComplete != null) onComplete();
@@ -106,7 +132,7 @@ class GageAudioService {
 
       final file = File(filePath);
       if (await file.exists()) {
-        await _player.play(DeviceFileSource(filePath));
+        await player.play(DeviceFileSource(filePath));
       } else {
         await playVoiceNote(voiceNoteId: voiceNoteId, onComplete: onComplete);
       }
@@ -172,6 +198,9 @@ class GageAudioService {
   /// Play a recording start chime (880Hz -> 1320Hz double beep).
   Future<void> playRecordStartChime() async {
     try {
+      final player = _safePlayer;
+      if (player == null) return;
+
       final wav = createWav(
         sampleRate: 22050,
         durationSec: 0.18,
@@ -181,8 +210,8 @@ class GageAudioService {
           return sin(2 * pi * freq * t) * 0.35 * env;
         },
       );
-      await _player.stop();
-      await _player.play(BytesSource(wav));
+      await player.stop();
+      await player.play(BytesSource(wav));
     } catch (e) {
       debugPrint('[GageAudio] playRecordStartChime error: $e');
     }
@@ -200,7 +229,10 @@ class GageAudioService {
         return;
       }
 
-      await _player.stop();
+      final player = _safePlayer;
+      if (player == null) return;
+
+      await player.stop();
       _isPlaying = true;
       _currentlyPlayingId = voiceNoteId;
 
@@ -217,13 +249,13 @@ class GageAudioService {
         },
       );
 
-      _player.onPlayerComplete.listen((_) {
+      player.onPlayerComplete.listen((_) {
         _isPlaying = false;
         _currentlyPlayingId = null;
         if (onComplete != null) onComplete();
       });
 
-      await _player.play(BytesSource(wav));
+      await player.play(BytesSource(wav));
     } catch (e) {
       debugPrint('[GageAudio] playVoiceNote error: $e');
       await stopVoiceNote();
@@ -233,14 +265,78 @@ class GageAudioService {
   /// Stop voice note playback immediately.
   Future<void> stopVoiceNote() async {
     try {
-      await _player.stop();
+      await _safePlayer?.stop();
     } catch (_) {}
     _isPlaying = false;
     _currentlyPlayingId = null;
   }
 
+  /// Play a loud, pleasant kitchen order chime for incoming orders (3-tone melodic arpeggio: 587Hz -> 784Hz -> 1046Hz).
+  Future<void> playOrderIncomingChime() async {
+    try {
+      final player = _safePlayer;
+      if (player == null) return;
+
+      final wav = createWav(
+        sampleRate: 22050,
+        durationSec: 0.55,
+        waveform: (t) {
+          double freq;
+          double localT;
+          if (t < 0.16) {
+            freq = 587.33; // D5
+            localT = t;
+          } else if (t < 0.32) {
+            freq = 783.99; // G5
+            localT = t - 0.16;
+          } else {
+            freq = 1046.50; // C6
+            localT = t - 0.32;
+          }
+          final env = (1.0 - (localT / 0.22)).clamp(0.0, 1.0);
+          final fundamental = sin(2 * pi * freq * t);
+          final overtone = sin(2 * pi * (freq * 2) * t) * 0.28;
+          return (fundamental + overtone) * 0.42 * env;
+        },
+      );
+      await player.stop();
+      await player.play(BytesSource(wav));
+    } catch (e) {
+      debugPrint('[GageAudio] playOrderIncomingChime error: $e');
+    }
+  }
+
+  /// Start repeating kitchen alarm loop for incoming orders (loud kitchen environment)
+  void startOrderAlertLoop({Duration interval = const Duration(seconds: 4)}) {
+    if (_isOrderAlertRunning) return;
+    _isOrderAlertRunning = true;
+    playOrderIncomingChime();
+    _orderAlertTimer?.cancel();
+    _orderAlertTimer = Timer.periodic(interval, (_) {
+      if (!_isOrderAlertRunning) {
+        _orderAlertTimer?.cancel();
+        return;
+      }
+      playOrderIncomingChime();
+      try {
+        HapticFeedback.heavyImpact();
+      } catch (_) {}
+    });
+  }
+
+  /// Stop repeating kitchen alarm loop immediately
+  void stopOrderAlertLoop() {
+    _isOrderAlertRunning = false;
+    _orderAlertTimer?.cancel();
+    _orderAlertTimer = null;
+    stopVoiceNote();
+  }
+
   void dispose() {
-    _player.dispose();
-    _recorder.dispose();
+    stopOrderAlertLoop();
+    try {
+      _player?.dispose();
+      _recorder?.dispose();
+    } catch (_) {}
   }
 }

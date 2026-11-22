@@ -593,6 +593,74 @@ Tab 4 Merchant kini mengadopsi widget asli `GagePayScreen` (`isEmbeddedInTab: tr
       - Jika margin positif: Badge hijau *"✓ Margin Bersih Aman: +Rp ... di atas modal warung (Bebas Rugi!)"*.
       - Jika margin tipis/negatif: Badge peringatan *"⚠ Margin Tipis: Estimasi bersih Rp ... di bawah harga warung fisik!"*.
 
+---
+
+## 9. Pembaruan Wave 6: Audio Alarm Dapur Bising, Filter 6 Kategori Kapsul 999, Alur Tolak Beradab, Thermal Multi-Rangkap, Varian/Topping Builder, & Quick Status Operasional
+
+* **Hasil Verifikasi Test Suite Komprehensif**: **32 / 32 Tests Passed (0 Failures)** (`test/merchant_workstation_widget_test.dart`, `test/merchant_handoff_contracts_test.dart`, & `test/merchant_comprehensive_audit_scenarios_test.dart`).
+* **Verifikasi Hardware Fisik**: Berhasil diuji dan berjalan mulus pada Samsung Galaxy Z Flip3 (`R5CR81GTJDD`, Android 14) via build single flavor `app-merchant-debug.apk` (`applicationId = "com.gagepracimantoro.merchant"`).
+* **Fix Responsif Struk Thermal pada Layar Fisik**: Layout pill selector rangkap cetak (1x, 2x, 3x) distrukturkan full-width horizontal kapsul 999 dengan `Expanded`, dan preview chips dibungkus `SingleChildScrollView` sehingga bebas dari segala overflow layout (0 overflow errors).
+
+### A. Sistem Notifikasi Audio & Alarm Pesanan Masuk (Dapur Bising)
+- **`GageAudioService`**:
+  - `playOrderIncomingChime()`: Menghasilkan melodi arpeggio bertingkat 3 nada (D5 587Hz -> G5 784Hz -> C6 1046Hz) dengan harmonik overtone jernih berbasis sintesis waveform in-memory.
+  - `startOrderAlertLoop()`: Mengulang alarm chime setiap 4 detik disertai getaran `HapticFeedback.heavyImpact()`, ideal untuk staf restoran dalam suasana dapur yang bising.
+  - `stopOrderAlertLoop()`: Menghentikan loop alarm seketika saat kasir merespons pesanan.
+  - Arsitektur lazy & safely guarded: Mencegah `MissingPluginException` pada eksekusi widget test headless tanpa mock platform channel.
+- **`MerchantOrderProvider`**:
+  - Properti `soundAlarmEnabled` (default `true`) dan toggle `toggleSoundAlarm`.
+  - Otomatis membunyikan alarm loop saat pesanan berstatus `NEW`/`PAID` masuk, dan seketika berhenti saat pesanan diterima (`acceptOrder`) atau ditolak (`rejectOrder`).
+  - Banner peringatan darurat di bagian atas tab pesanan dengan tombol instan *Heningkan Alarm* / *Alarm Nyala*.
+
+### B. Filter Kategori Status Pesanan Lengkap: 6 Kategori Kapsul 999
+- **`gage_merchant_orders_tab.dart`**:
+  - 6 Kategori Kapsul Kebugaran UX:
+    1. **Semua**: Seluruh riwayat pesanan aktif maupun selesai.
+    2. **Perlu Konfirmasi**: Pesanan baru masuk (`NEW`, `PAID`) yang membutuhkan penerimaan kasir segera.
+    3. **Sedang Dimasak**: Pesanan yang sedang diproses di dapur (`COOKING`).
+    4. **Siap Diambil**: Pesanan matang yang menunggu penjemputan (`READY_FOR_PICKUP`, `DRIVER_ASSIGNED`, `AT_MERCHANT`).
+    5. **Selesai**: Pesanan tuntas (`COMPLETED`).
+    6. **Dibatalkan**: Pesanan batal (`CANCELLED`).
+  - Desain horizontal scrollable dengan pill kapsul penuh `BorderRadius.circular(999)`, badge counter jumlah pesanan per kategori, active thumb `#E52320` dengan label putih tebal dan `HapticFeedback.selectionClick()`.
+
+### C. Alur Penolakan / Pembatalan Pesanan Beradab
+- Modal floating sheet tolak pesanan terstruktur di `gage_merchant_orders_tab.dart`:
+  - 4 Alasan operasional resmi:
+    - *Bahan baku habis (Menu tidak dapat disajikan)*
+    - *Kios sedang sangat ramai / antre panjang*
+    - *Toko tutup mendadak / kendala operasional*
+    - *Kendala teknis / cuaca buruk / lainnya*
+  - Input catatan tambahan kustom untuk pelanggan (Radius 14, styling mewah anti-slop).
+  - Callout edukasi kepastian konsumen: Pelanggan menerima notifikasi resmi serta pengembalian dana 100% instan ke saldo GagePay, dan driver dibebastugaskan tanpa penalti.
+
+### D. Cetak Struk Kasir Thermal Multi-Rangkap & Auto-Print
+- **`merchant_thermal_receipt_sheet.dart`**:
+  - Selector rangkap kapsul 999: `1x Tunggal`, `2x Rangkap (1 Dapur + 1 Kurir)`, `3x Rangkap (+ Kasir)`.
+  - Toggle switch *Cetak Otomatis saat Pesanan Diterima* (`provider.autoPrintOnAccept`).
+  - Pratinjau dinamis tiap lembar rangkap dengan header pembeda:
+    - `>>> [ RANGKAP 1: SALINAN DAPUR ] <<<` (Merah Dapur)
+    - `>>> [ RANGKAP 2: KURIR / PELANGGAN ] <<<` (Biru Kurir)
+    - `>>> [ RANGKAP 3: ARSIP KASIR ] <<<` (Hijau Kasir)
+  - Di `merchant_order_detail_sheet.dart` dan `gage_merchant_orders_tab.dart`: Saat tombol *Terima & Masak* ditekan, pesanan diterima sekaligus memicu pencetakan struk multi-rangkap secara otomatis ke printer thermal.
+
+### E. Sistem Varian & Modifiers Menu (Add-ons / Topping Builder)
+- **`merchant_menu_screen.dart`**:
+  - Modul pembangun varian di dalam bottom sheet Tambah Menu Baru.
+  - Pilihan preset cepat:
+    - `+ Level Pedas` (Level 0 s/d Level 3)
+    - `+ Pilihan Sambal` (Sambal Dimsum, Sambal Bangkok, Saus Mentai)
+    - `+ Ekstra Topping` (Keju Mozzarella, Ekstra Siomay 1 pcs)
+  - Tampilan tag visual per opsi dan tambahan biaya Rp.
+  - Kartu daftar menu katalog menampilkan badge `✦ Varian` bila menu memiliki modifiers.
+  - Tersimpan dan tersinkronisasi via `GageApiClient.createMerchantMenu(variantGroups: ...)`.
+
+### F. Quick Status Operasional Toko (Buka / Istirahat / Tutup) & Audit Dark Mode
+- **`merchant_root_screen.dart`**:
+  - Bottom sheet cepat status toko dengan dukungan Dark Mode penuh (`0xFF1E293B`, `0xFF0F172A`).
+  - Opsi: *Toko Buka Normal*, *Mode Sibuk (Jeda 15 Menit)*, *Mode Sibuk (Jeda 30 Menit)*, *Tutup Toko Sementara*.
+  - Header utama toko kini menampilkan live countdown jeda: `ISTIRAHAT (30m)` dengan indikator bulat oranye.
+  - Kontras tema gelap di seluruh form, badge, dan modal dialog tervalidasi memenuhi rasio kontras WCAG AA.
+
 
 
 

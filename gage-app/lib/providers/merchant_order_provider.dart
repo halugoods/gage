@@ -25,6 +25,12 @@ class MerchantOrderProvider extends ChangeNotifier {
   int _dailyRejectedCount = 1;
   String _selectedStageFilter = 'SEMUA'; // 'SEMUA' | 'NEW' | 'COOKING' | 'READY_FOR_PICKUP'
 
+  // Pengaturan Audio Alarm Dapur Bising & Thermal Multi-Rangkap
+  bool _soundAlarmEnabled = true;
+  bool _autoPrintOnAccept = true;
+  int _receiptCopies = 2; // Default 2 rangkap: 1x Dapur, 1x Kurir/Pelanggan
+  String _preferredPaperSize = '58mm';
+
   List<OrderModel> _orders = [];
   Timer? _countdownTimer;
   Timer? _pollingTimer;
@@ -41,6 +47,17 @@ class MerchantOrderProvider extends ChangeNotifier {
   int get dailyAcceptedCount => _dailyAcceptedCount;
   int get dailyRejectedCount => _dailyRejectedCount;
   String get selectedStageFilter => _selectedStageFilter;
+
+  bool get soundAlarmEnabled => _soundAlarmEnabled;
+  bool get autoPrintOnAccept => _autoPrintOnAccept;
+  int get receiptCopies => _receiptCopies;
+  String get preferredPaperSize => _preferredPaperSize;
+
+  int get busyRemainingMinutes {
+    if (_busyUntil == null) return 0;
+    final diff = _busyUntil!.difference(DateTime.now()).inMinutes;
+    return diff > 0 ? diff : 1;
+  }
 
   List<OrderModel> get allOrders => List.unmodifiable(_orders);
   List<OrderModel> get orders => allOrders;
@@ -97,6 +114,7 @@ class MerchantOrderProvider extends ChangeNotifier {
   void dispose() {
     _countdownTimer?.cancel();
     _pollingTimer?.cancel();
+    GageAudioService.instance.stopOrderAlertLoop();
     super.dispose();
   }
 
@@ -154,6 +172,10 @@ class MerchantOrderProvider extends ChangeNotifier {
               _orders[i] = _orders[i].copyWith(status: 'COOKING');
               _dailyAcceptedCount++;
               _recalculateAcceptanceScore();
+              _checkAndManageOrderAlert();
+              if (_autoPrintOnAccept && _printerConnected) {
+                printOrderReceipt(_orders[i].id, paperSize: _preferredPaperSize, copies: _receiptCopies);
+              }
               GageApiClient.updateMerchantOrderStage(_orders[i].id, 'COOKING');
             } else if (!_autoAccept) {
               // Timeout konfirmasi habis: auto-cancel agar tidak menggantung
@@ -163,6 +185,7 @@ class MerchantOrderProvider extends ChangeNotifier {
               );
               _dailyRejectedCount++;
               _recalculateAcceptanceScore();
+              _checkAndManageOrderAlert();
               GageApiClient.updateMerchantOrderStage(_orders[i].id, 'CANCELLED');
             }
           }
@@ -425,7 +448,7 @@ class MerchantOrderProvider extends ChangeNotifier {
         }
 
         if (hasNewIncoming) {
-          GageAudioService.instance.playRecordStartChime();
+          _checkAndManageOrderAlert();
           HapticFeedback.heavyImpact();
         }
       }
@@ -446,6 +469,7 @@ class MerchantOrderProvider extends ChangeNotifier {
   void toggleStoreOpen(bool val) {
     HapticFeedback.mediumImpact();
     _isOpen = val;
+    _checkAndManageOrderAlert();
     notifyListeners();
   }
 
@@ -461,6 +485,46 @@ class MerchantOrderProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void toggleSoundAlarm(bool val) {
+    HapticFeedback.lightImpact();
+    _soundAlarmEnabled = val;
+    _checkAndManageOrderAlert();
+    notifyListeners();
+  }
+
+  void toggleAutoPrintOnAccept(bool val) {
+    HapticFeedback.lightImpact();
+    _autoPrintOnAccept = val;
+    notifyListeners();
+  }
+
+  void setReceiptCopies(int copies) {
+    HapticFeedback.selectionClick();
+    _receiptCopies = copies.clamp(1, 3);
+    notifyListeners();
+  }
+
+  void setPreferredPaperSize(String size) {
+    HapticFeedback.selectionClick();
+    _preferredPaperSize = size;
+    notifyListeners();
+  }
+
+  void _checkAndManageOrderAlert() {
+    if (!_isOpen || !_soundAlarmEnabled) {
+      if (GageAudioService.instance.isOrderAlertRunning) {
+        GageAudioService.instance.stopOrderAlertLoop();
+      }
+      return;
+    }
+    final hasNew = _orders.any((o) => o.status == 'NEW' || o.status == 'PAID');
+    if (hasNew && !GageAudioService.instance.isOrderAlertRunning) {
+      GageAudioService.instance.startOrderAlertLoop();
+    } else if (!hasNew && GageAudioService.instance.isOrderAlertRunning) {
+      GageAudioService.instance.stopOrderAlertLoop();
+    }
+  }
+
   void setCookingTime(int minutes) {
     _cookingTime = minutes;
     notifyListeners();
@@ -474,6 +538,12 @@ class MerchantOrderProvider extends ChangeNotifier {
       _orders[idx] = _orders[idx].copyWith(status: 'COOKING');
       _dailyAcceptedCount++;
       _recalculateAcceptanceScore();
+      _checkAndManageOrderAlert();
+
+      if (_autoPrintOnAccept && _printerConnected) {
+        printOrderReceipt(orderId, paperSize: _preferredPaperSize, copies: _receiptCopies);
+      }
+
       notifyListeners();
 
       try {
@@ -497,6 +567,7 @@ class MerchantOrderProvider extends ChangeNotifier {
         cancellationReason: reason,
         refundAmount: ord.totalAmount, // Refund 100% jika sudah dibayar
       );
+      _checkAndManageOrderAlert();
       notifyListeners();
 
       try {
@@ -534,13 +605,13 @@ class MerchantOrderProvider extends ChangeNotifier {
     return '';
   }
 
-  /// Trigger cetak struk thermal SPP Bluetooth (58mm / 80mm)
-  Future<bool> printOrderReceipt(String orderId, {String paperSize = '58mm'}) async {
+  /// Trigger cetak struk thermal SPP Bluetooth (58mm / 80mm) dengan dukungan multi-rangkap
+  Future<bool> printOrderReceipt(String orderId, {String paperSize = '58mm', int copies = 1}) async {
     HapticFeedback.mediumImpact();
     if (!_printerConnected) {
       return false;
     }
-    await Future.delayed(const Duration(milliseconds: 350));
+    await Future.delayed(Duration(milliseconds: 250 * copies));
     return true;
   }
 

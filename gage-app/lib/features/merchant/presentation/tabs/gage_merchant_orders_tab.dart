@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:gage_app/core/services/gage_audio_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_order_detail_sheet.dart';
@@ -11,11 +12,13 @@ import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 
 /// Tab 0: Pesanan Masuk & Dapur (Workstation Mitra Usaha GAGE)
-/// Dilengkapi 4 Segmented Tab Kapsul GAGE:
-/// - Disiapkan (NEW, PAID, COOKING)
+/// Dilengkapi 6 Segmented Tab Kapsul GAGE:
+/// - Semua
+/// - Perlu Konfirmasi (NEW, PAID)
+/// - Sedang Dimasak (COOKING)
 /// - Siap Diambil (READY_FOR_PICKUP, DRIVER_ASSIGNED, AT_MERCHANT)
-/// - Sedang Diantar (PICKED_UP, ON_DELIVERY)
-/// - Selesai (COMPLETED, CANCELLED)
+/// - Selesai (COMPLETED)
+/// - Dibatalkan (CANCELLED)
 /// Serta penampil PIN Penyerahan 4-digit yang diinput oleh mitra driver.
 class GageMerchantOrdersTab extends StatefulWidget {
   final NumberFormat currencyFormatter;
@@ -30,7 +33,7 @@ class GageMerchantOrdersTab extends StatefulWidget {
 }
 
 class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
-  int _activeSegment = 0; // 0: Disiapkan, 1: Siap Diambil, 2: Sedang Diantar, 3: Selesai
+  int _activeSegment = 0; // 0: Semua, 1: Perlu Konfirmasi, 2: Sedang Dimasak, 3: Siap Diambil, 4: Selesai, 5: Dibatalkan
   String _searchQuery = '';
   final TextEditingController _searchCtrl = TextEditingController();
 
@@ -44,22 +47,25 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
     List<OrderModel> byStatus;
     switch (_activeSegment) {
       case 0:
-        byStatus = orders.where((o) =>
-            o.status == 'NEW' || o.status == 'PAID' || o.status == 'COOKING').toList();
+        byStatus = orders;
         break;
       case 1:
+        byStatus = orders.where((o) => o.status == 'NEW' || o.status == 'PAID').toList();
+        break;
+      case 2:
+        byStatus = orders.where((o) => o.status == 'COOKING').toList();
+        break;
+      case 3:
         byStatus = orders.where((o) =>
             o.status == 'READY_FOR_PICKUP' ||
             o.status == 'DRIVER_ASSIGNED' ||
             o.status == 'AT_MERCHANT').toList();
         break;
-      case 2:
-        byStatus = orders.where((o) =>
-            o.status == 'PICKED_UP' || o.status == 'ON_DELIVERY').toList();
+      case 4:
+        byStatus = orders.where((o) => o.status == 'COMPLETED').toList();
         break;
-      case 3:
-        byStatus = orders.where((o) =>
-            o.status == 'COMPLETED' || o.status == 'CANCELLED').toList();
+      case 5:
+        byStatus = orders.where((o) => o.status == 'CANCELLED').toList();
         break;
       default:
         byStatus = orders;
@@ -84,11 +90,12 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
   void _showRejectOrderDialog(BuildContext context, OrderModel order) {
     HapticFeedback.mediumImpact();
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final noteCtrl = TextEditingController();
     final reasons = [
-      'Bahan baku habis',
-      'Kios sedang sangat ramai / antre',
-      'Toko bersiap tutup',
-      'Lainnya',
+      'Bahan baku habis (Menu tidak dapat disajikan)',
+      'Kios sedang sangat ramai / antre panjang',
+      'Toko tutup mendadak / kendala operasional',
+      'Kendala teknis / cuaca buruk / lainnya',
     ];
     String selectedReason = reasons.first;
 
@@ -103,7 +110,7 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Pilih alasan resmi penolakan untuk pelanggan:',
+                'Pilih alasan resmi penolakan untuk pelanggan & mitra kurir:',
                 style: TextStyle(
                   fontSize: 12,
                   color: isDark ? Colors.white60 : Colors.grey.shade600,
@@ -139,12 +146,14 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                           color: isSelected ? GageTheme.primary : Colors.grey.shade500,
                         ),
                         const SizedBox(width: 12),
-                        Text(
-                          r,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        Expanded(
+                          child: Text(
+                            r,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            ),
                           ),
                         ),
                       ],
@@ -152,6 +161,51 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                   ),
                 );
               }),
+              const SizedBox(height: 10),
+              TextField(
+                controller: noteCtrl,
+                style: TextStyle(fontSize: 12.5, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                decoration: InputDecoration(
+                  hintText: 'Catatan tambahan untuk pelanggan (opsional)...',
+                  hintStyle: TextStyle(fontSize: 11.5, color: isDark ? Colors.white38 : Colors.grey.shade400),
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: GageTheme.primary, width: 1.8),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF451A03).withValues(alpha: 0.3) : const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFF59E0B)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFFD97706)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Pelanggan akan menerima notifikasi resmi & pengembalian saldo 100% instan ke GagePay.',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? const Color(0xFFFDE68A) : const Color(0xFF92400E),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 14),
               Row(
                 children: [
@@ -177,7 +231,9 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                       ),
                       onPressed: () {
                         Navigator.pop(ctx);
-                        context.read<MerchantOrderProvider>().rejectOrder(order.id, selectedReason);
+                        final extra = noteCtrl.text.trim();
+                        final finalReason = extra.isNotEmpty ? '$selectedReason ($extra)' : selectedReason;
+                        context.read<MerchantOrderProvider>().rejectOrder(order.id, finalReason);
                         GageToast.show(context, 'Pesanan #${order.orderNumber} telah ditolak');
                       },
                       child: const Text('Konfirmasi Tolak', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -199,66 +255,167 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
     final provider = context.watch<MerchantOrderProvider>();
     final allOrders = provider.orders;
 
-    final countDisiapkan = allOrders.where((o) =>
-        o.status == 'NEW' || o.status == 'PAID' || o.status == 'COOKING').length;
+    final countSemua = allOrders.length;
+    final countKonfirmasi = allOrders.where((o) => o.status == 'NEW' || o.status == 'PAID').length;
+    final countCooking = allOrders.where((o) => o.status == 'COOKING').length;
     final countSiap = allOrders.where((o) =>
         o.status == 'READY_FOR_PICKUP' ||
         o.status == 'DRIVER_ASSIGNED' ||
         o.status == 'AT_MERCHANT').length;
-    final countDiantar = allOrders.where((o) =>
-        o.status == 'PICKED_UP' || o.status == 'ON_DELIVERY').length;
-    final countSelesai = allOrders.where((o) =>
-        o.status == 'COMPLETED' || o.status == 'CANCELLED').length;
+    final countSelesai = allOrders.where((o) => o.status == 'COMPLETED').length;
+    final countDibatalkan = allOrders.where((o) => o.status == 'CANCELLED').length;
 
     final displayedOrders = _filterOrders(allOrders);
 
     return Column(
       children: [
-        // 1. Segmented Tab Switch Kapsul Penuh (BorderRadius.circular(999))
+        // 1. Segmented Tab Switch Kapsul Penuh 6 Kategori (BorderRadius.circular(999))
         Container(
           color: isDark ? GageTheme.darkSurface : Colors.white,
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-          child: Container(
-            height: 44,
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-                width: 1,
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Container(
+              height: 44,
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                  width: 1,
+                ),
               ),
-            ),
-            child: Row(
-              children: [
-                _buildSegmentItem(
-                  index: 0,
-                  label: 'Disiapkan',
-                  count: countDisiapkan,
-                  isDark: isDark,
-                ),
-                _buildSegmentItem(
-                  index: 1,
-                  label: 'Siap',
-                  count: countSiap,
-                  isDark: isDark,
-                ),
-                _buildSegmentItem(
-                  index: 2,
-                  label: 'Diantar',
-                  count: countDiantar,
-                  isDark: isDark,
-                ),
-                _buildSegmentItem(
-                  index: 3,
-                  label: 'Selesai',
-                  count: countSelesai,
-                  isDark: isDark,
-                ),
-              ],
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildSegmentItem(
+                    index: 0,
+                    label: 'Semua',
+                    count: countSemua,
+                    isDark: isDark,
+                  ),
+                  _buildSegmentItem(
+                    index: 1,
+                    label: 'Perlu Konfirmasi',
+                    count: countKonfirmasi,
+                    isDark: isDark,
+                  ),
+                  _buildSegmentItem(
+                    index: 2,
+                    label: 'Sedang Dimasak',
+                    count: countCooking,
+                    isDark: isDark,
+                  ),
+                  _buildSegmentItem(
+                    index: 3,
+                    label: 'Siap Diambil',
+                    count: countSiap,
+                    isDark: isDark,
+                  ),
+                  _buildSegmentItem(
+                    index: 4,
+                    label: 'Selesai',
+                    count: countSelesai,
+                    isDark: isDark,
+                  ),
+                  _buildSegmentItem(
+                    index: 5,
+                    label: 'Dibatalkan',
+                    count: countDibatalkan,
+                    isDark: isDark,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
+
+        // Banner Alarm Audio Dapur Bising saat ada pesanan baru masuk
+        if (countKonfirmasi > 0)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF7F1D1D).withValues(alpha: 0.35) : const Color(0xFFFEE2E2),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: GageTheme.primary, width: 1.2),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: GageTheme.primary,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Icon(Icons.notifications_active_rounded, size: 18, color: Colors.white),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '$countKonfirmasi Pesanan Baru Masuk!',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w800,
+                            color: isDark ? Colors.white : const Color(0xFF991B1B),
+                          ),
+                        ),
+                        Text(
+                          'Segera konfirmasi agar waktu tunggu pelanggan optimal.',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            color: isDark ? Colors.white70 : const Color(0xFFB91C1C),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  InkWell(
+                    onTap: () {
+                      provider.toggleSoundAlarm(!provider.soundAlarmEnabled);
+                    },
+                    borderRadius: BorderRadius.circular(999),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: provider.soundAlarmEnabled
+                            ? GageTheme.primary
+                            : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            provider.soundAlarmEnabled ? Icons.volume_up_rounded : Icons.volume_off_rounded,
+                            size: 14,
+                            color: provider.soundAlarmEnabled ? Colors.white : Colors.grey.shade600,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            provider.soundAlarmEnabled ? 'Alarm Nyala' : 'Hening',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: provider.soundAlarmEnabled ? Colors.white : Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
 
         // Quick Search Bar Mewah Kapsul Penuh (999)
         Padding(
@@ -357,16 +514,19 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
   }) {
     final isSelected = _activeSegment == index;
 
-    return Expanded(
-      child: GestureDetector(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: InkWell(
         onTap: () {
           if (_activeSegment == index) return;
           HapticFeedback.selectionClick();
           setState(() => _activeSegment = index);
         },
+        borderRadius: BorderRadius.circular(999),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeInOut,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
           decoration: BoxDecoration(
             color: isSelected ? GageTheme.primary : Colors.transparent,
             borderRadius: BorderRadius.circular(999),
@@ -381,41 +541,39 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                 : null,
           ),
           alignment: Alignment.center,
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                    color: isSelected
-                        ? Colors.white
-                        : (isDark ? Colors.white70 : const Color(0xFF64748B)),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                  color: isSelected
+                      ? Colors.white
+                      : (isDark ? Colors.white70 : const Color(0xFF64748B)),
+                ),
+              ),
+              if (count > 0) ...[
+                const SizedBox(width: 5),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                  decoration: BoxDecoration(
+                    color: isSelected ? Colors.white : (isDark ? Colors.white24 : Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    '$count',
+                    style: TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w900,
+                      color: isSelected ? GageTheme.primary : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                    ),
                   ),
                 ),
-                if (count > 0) ...[
-                  const SizedBox(width: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: isSelected ? Colors.white : (isDark ? Colors.white24 : Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      '$count',
-                      style: TextStyle(
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.w900,
-                        color: isSelected ? GageTheme.primary : (isDark ? Colors.white : const Color(0xFF0F172A)),
-                      ),
-                    ),
-                  ),
-                ],
               ],
-            ),
+            ],
           ),
         ),
       ),
@@ -428,7 +586,8 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
     MerchantOrderProvider provider,
     bool isDark,
   ) {
-    final isCooking = order.status == 'COOKING' || order.status == 'NEW' || order.status == 'PAID';
+    final isNew = order.status == 'NEW' || order.status == 'PAID';
+    final isCooking = order.status == 'COOKING';
     final isReadyForPickup = order.status == 'READY_FOR_PICKUP' ||
         order.status == 'DRIVER_ASSIGNED' ||
         order.status == 'AT_MERCHANT';
@@ -783,10 +942,29 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
 
               // Tombol Utama Aksi Operasional
               Expanded(
-                child: isCooking
+                child: isNew
                     ? ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: GageTheme.primary,
+                          foregroundColor: Colors.white,
+                          shape: const StadiumBorder(),
+                          padding: const EdgeInsets.symmetric(vertical: 11),
+                          elevation: 0,
+                        ),
+                        onPressed: () {
+                          HapticFeedback.mediumImpact();
+                          provider.acceptOrder(order.id);
+                          GageToast.show(context, 'Pesanan #${order.orderNumber} diterima!');
+                        },
+                        child: const Text(
+                          'Terima & Masak',
+                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
+                        ),
+                      )
+                    : isCooking
+                    ? ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF059669),
                           foregroundColor: Colors.white,
                           shape: const StadiumBorder(),
                           padding: const EdgeInsets.symmetric(vertical: 11),

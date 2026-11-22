@@ -720,7 +720,10 @@ class _MerchantOrderDetailSheetState extends State<MerchantOrderDetailSheet> {
         onPressed: () async {
           await provider.acceptOrder(order.id);
           if (context.mounted) {
-            GageToast.show(context, 'Pesanan diterima! Mulai memasak.');
+            final msg = (provider.autoPrintOnAccept && provider.printerConnected)
+                ? 'Pesanan diterima & ${provider.receiptCopies} rangkap struk dicetak otomatis!'
+                : 'Pesanan diterima! Mulai memasak.';
+            GageToast.show(context, msg);
           }
         },
         child: const Text('Terima & Masak', style: TextStyle(fontWeight: FontWeight.bold)),

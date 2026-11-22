@@ -678,6 +678,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
     final gagePriceCtrl = TextEditingController();
     String category = _categories.firstWhere((c) => c != 'Semua', orElse: () => 'Dimsum Kukus');
     String? selectedImagePath;
+    List<Map<String, dynamic>> variantGroups = [];
     int offlinePrice = 0;
     int gagePrice = 0;
     double affiliateRate = 0.10; // Default 10% rekomendasi (Maks 20%)
@@ -1281,6 +1282,204 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                     ),
                   ),
 
+                  // ─── BUILDER VARIAN & MODIFIERS (ADD-ONS / TOPPING) ───
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.tune_rounded, size: 18, color: GageTheme.primary),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Varian & Modifiers (Opsional)',
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  Text(
+                                    'Level pedas, pilihan sambal, ekstra topping untuk pelanggan',
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      color: isDark ? Colors.white60 : GageTheme.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Preset Cepat Varian
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              Text(
+                                'Preset cepat: ',
+                                style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white54 : GageTheme.textSecondary),
+                              ),
+                              ...[
+                                {
+                                  'label': '+ Level Pedas',
+                                  'group': {
+                                    'name': 'Level Pedas',
+                                    'title': 'Level Pedas',
+                                    'required': true,
+                                    'multi_select': false,
+                                    'options': [
+                                      {'name': 'Level 0 (Original)', 'price': 0},
+                                      {'name': 'Level 1 (Sedang)', 'price': 0},
+                                      {'name': 'Level 2 (Pedas)', 'price': 2000},
+                                      {'name': 'Level 3 (Ekstra Pedas)', 'price': 3000},
+                                    ],
+                                  },
+                                },
+                                {
+                                  'label': '+ Pilihan Sambal',
+                                  'group': {
+                                    'name': 'Pilihan Sambal',
+                                    'title': 'Pilihan Sambal',
+                                    'required': false,
+                                    'multi_select': false,
+                                    'options': [
+                                      {'name': 'Saus Sambal Dimsum', 'price': 0},
+                                      {'name': 'Sambal Bangkok', 'price': 1000},
+                                      {'name': 'Saus Mentai Creamy', 'price': 3000},
+                                    ],
+                                  },
+                                },
+                                {
+                                  'label': '+ Ekstra Topping',
+                                  'group': {
+                                    'name': 'Ekstra Topping',
+                                    'title': 'Ekstra Topping',
+                                    'required': false,
+                                    'multi_select': true,
+                                    'options': [
+                                      {'name': 'Keju Mozzarella Lumer', 'price': 3000},
+                                      {'name': 'Ekstra Siomay 1 pcs', 'price': 4000},
+                                    ],
+                                  },
+                                },
+                              ].map((preset) {
+                                final grp = preset['group'] as Map<String, dynamic>;
+                                final alreadyAdded = variantGroups.any((g) => g['name'] == grp['name']);
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 6),
+                                  child: ActionChip(
+                                    label: Text(
+                                      preset['label'] as String,
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: alreadyAdded ? Colors.grey : GageTheme.primary,
+                                      ),
+                                    ),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+                                    backgroundColor: alreadyAdded
+                                        ? (isDark ? Colors.white10 : Colors.grey.shade200)
+                                        : GageTheme.primary.withValues(alpha: 0.12),
+                                    onPressed: alreadyAdded
+                                        ? null
+                                        : () {
+                                            HapticFeedback.selectionClick();
+                                            setModalState(() {
+                                              variantGroups.add(Map<String, dynamic>.from(grp));
+                                            });
+                                          },
+                                  ),
+                                );
+                              }),
+                            ],
+                          ),
+                        ),
+
+                        // Daftar Grup Varian yang Telah Ditambahkan
+                        if (variantGroups.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          ...variantGroups.asMap().entries.map((entry) {
+                            final gIdx = entry.key;
+                            final g = entry.value;
+                            final options = (g['options'] as List<dynamic>?) ?? [];
+                            final isRequired = g['required'] == true;
+                            final isMulti = g['multi_select'] == true;
+
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          '${g['name']} (${isRequired ? "Wajib" : "Opsional"}${isMulti ? " • Multi" : " • 1 Pilihan"})',
+                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                        ),
+                                      ),
+                                      InkWell(
+                                        onTap: () {
+                                          HapticFeedback.lightImpact();
+                                          setModalState(() => variantGroups.removeAt(gIdx));
+                                        },
+                                        child: const Icon(Icons.close_rounded, size: 16, color: Colors.red),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Wrap(
+                                    spacing: 6,
+                                    runSpacing: 4,
+                                    children: options.map<Widget>((opt) {
+                                      final optMap = opt is Map ? opt : {'name': opt.toString(), 'price': 0};
+                                      final price = (optMap['price'] ?? 0) as int;
+                                      return Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: isDark ? Colors.white10 : const Color(0xFFF1F5F9),
+                                          borderRadius: BorderRadius.circular(999),
+                                        ),
+                                        child: Text(
+                                          price > 0 ? '${optMap['name']} (+${currencyFormatter.format(price)})' : '${optMap['name']} (Gratis)',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                            color: isDark ? Colors.white70 : const Color(0xFF334155),
+                                          ),
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+                        ],
+                      ],
+                    ),
+                  ),
+
                   const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
@@ -1312,6 +1511,7 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                                 offlinePrice: offlinePrice,
                                 gagePrice: finalGagePrice,
                                 image: selectedImagePath ?? 'assets/images/dish_dimsum_original.png',
+                                variantGroups: variantGroups.isNotEmpty ? variantGroups : null,
                               );
                               if (!mounted) return;
                               setModalState(() => isSubmitting = false);
@@ -1635,6 +1835,24 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                         ),
                       ),
                     ),
+                    if (item['has_variants'] == true || item['variant_groups'] != null || item['variants'] != null) ...[
+                      const SizedBox(width: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: GageTheme.primary.withValues(alpha: isDark ? 0.25 : 0.10),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          '✦ Varian',
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.bold,
+                            color: GageTheme.primary,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 6),
