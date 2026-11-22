@@ -52,17 +52,6 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
     }
   }
 
-  void _regeneratePin(BuildContext context) {
-    final provider = Provider.of<MerchantOrderProvider>(context, listen: false);
-    final newPin = provider.regenerateHandoverPin(_currentOrder.id);
-    if (newPin.isNotEmpty) {
-      setState(() {
-        _currentOrder = _currentOrder.copyWith(handoverPin: newPin);
-      });
-      GageToast.show(context, 'PIN Serah Terima diperbarui: $newPin');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -424,28 +413,27 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 11, color: subColor, height: 1.3),
           ),
-          const SizedBox(height: 8),
-          InkWell(
-            onTap: () => _regeneratePin(context),
-            borderRadius: BorderRadius.circular(999),
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.refresh_rounded, size: 14, color: GageTheme.primary),
-                  SizedBox(width: 4),
-                  Text(
-                    'Acak Ulang PIN',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.bold,
-                      color: GageTheme.primary,
-                      decoration: TextDecoration.underline,
-                    ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            decoration: BoxDecoration(
+              color: GageTheme.primary.withValues(alpha: isDark ? 0.20 : 0.08),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.timer_outlined, size: 13, color: GageTheme.primary),
+                const SizedBox(width: 5),
+                Text(
+                  'Berganti otomatis setiap 5 menit',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? const Color(0xFFFCA5A5) : GageTheme.primary,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],
@@ -867,7 +855,7 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
     if (order.status == 'COOKING') {
       return ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF059669),
+          backgroundColor: GageTheme.primary,
           foregroundColor: Colors.white,
           shape: const StadiumBorder(),
           padding: const EdgeInsets.symmetric(vertical: 14),
@@ -886,7 +874,7 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
     if (order.status == 'READY_FOR_PICKUP' || order.status == 'AT_MERCHANT') {
       return ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF2563EB),
+          backgroundColor: GageTheme.primary,
           foregroundColor: Colors.white,
           shape: const StadiumBorder(),
           padding: const EdgeInsets.symmetric(vertical: 14),

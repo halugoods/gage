@@ -130,13 +130,21 @@ class OrderModel {
   int get platformCommissionAmount => (itemsSubtotal * 0.10).round();
   int get merchantNetPayout => itemsSubtotal - platformCommissionAmount;
 
-  /// PIN verifikasi penyerahan pesanan unik 4 digit (random atau handoverPin eksplisit)
+  /// PIN verifikasi penyerahan pesanan 4 digit otomatis berganti tiap 5 menit (time-window 300 detik)
   String get courierVerificationPin {
     if (handoverPin != null && handoverPin!.trim().length == 4) {
       return handoverPin!.trim();
     }
-    final hash = (orderNumber.hashCode ^ id.hashCode).abs();
+    final timeWindow = DateTime.now().millisecondsSinceEpoch ~/ 300000;
+    final hash = (orderNumber.hashCode ^ id.hashCode ^ timeWindow).abs();
     return (1000 + (hash % 9000)).toString();
+  }
+
+  /// Sisa waktu (detik) hingga PIN berganti di interval 5 menit berikutnya
+  int get pinSecondsRemaining {
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final elapsedInWindow = (nowMs % 300000) ~/ 1000;
+    return (300 - elapsedInWindow).clamp(0, 300);
   }
 
   bool get hasAssignedDriver => driverName != null && driverName!.trim().isNotEmpty;

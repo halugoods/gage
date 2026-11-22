@@ -335,7 +335,7 @@ class _MerchantThermalReceiptSheetState
                       scale: 0.8,
                       child: Switch(
                         value: provider.autoPrintOnAccept,
-                        activeColor: GageTheme.primary,
+                        activeThumbColor: GageTheme.primary,
                         onChanged: (val) {
                           provider.toggleAutoPrintOnAccept(val);
                         },

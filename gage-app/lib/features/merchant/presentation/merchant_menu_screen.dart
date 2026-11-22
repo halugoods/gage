@@ -1,12 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/services/affiliate_commission_service.dart';
 import 'package:gage_app/core/services/merchant_storefront_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/features/merchant/presentation/widgets/gage_image_crop_rotate_dialog.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_photo_picker_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
@@ -697,19 +697,6 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
         builder: (context, setModalState) {
           final isDark = Theme.of(context).brightness == Brightness.dark;
 
-          Future<void> pickPhoto(ImageSource source) async {
-            try {
-              HapticFeedback.selectionClick();
-              final picker = ImagePicker();
-              final picked = await picker.pickImage(source: source, imageQuality: 85);
-              if (picked != null) {
-                setModalState(() {
-                  selectedImagePath = picked.path;
-                });
-              }
-            } catch (_) {}
-          }
-
           return Padding(
             padding: EdgeInsets.only(
               left: 20,
@@ -755,87 +742,119 @@ class _MerchantMenuScreenState extends State<MerchantMenuScreen> {
                   ),
                   const SizedBox(height: 6),
                   if (selectedImagePath != null && selectedImagePath!.isNotEmpty)
-                    Container(
-                      height: 130,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-                      ),
-                      child: Stack(
-                        children: [
-                          Positioned.fill(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(14),
-                              child: _buildMenuItemImage(selectedImagePath, fit: BoxFit.cover),
+                    Center(
+                      child: Container(
+                        width: 160,
+                        height: 160,
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: GageTheme.primary, width: 1.5),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
                             ),
-                          ),
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Material(
-                                  color: Colors.black.withValues(alpha: 0.65),
-                                  shape: const CircleBorder(),
-                                  child: InkWell(
-                                    customBorder: const CircleBorder(),
-                                    onTap: () async {
-                                      HapticFeedback.selectionClick();
-                                      final chosen = await MerchantPhotoPickerSheet.show(ctx, initialCategory: category);
-                                      if (chosen != null) {
-                                        setModalState(() => selectedImagePath = chosen);
-                                      }
-                                    },
-                                    child: const Padding(
-                                      padding: EdgeInsets.all(7),
-                                      child: Icon(Icons.edit_rounded, color: Colors.white, size: 16),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Material(
-                                  color: Colors.red.withValues(alpha: 0.85),
-                                  shape: const CircleBorder(),
-                                  child: InkWell(
-                                    customBorder: const CircleBorder(),
-                                    onTap: () {
-                                      HapticFeedback.selectionClick();
-                                      setModalState(() {
-                                        selectedImagePath = null;
-                                      });
-                                    },
-                                    child: const Padding(
-                                      padding: EdgeInsets.all(7),
-                                      child: Icon(Icons.delete_outline_rounded, color: Colors.white, size: 16),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Positioned(
-                            bottom: 8,
-                            left: 8,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.7),
-                                borderRadius: BorderRadius.circular(8),
+                          ],
+                        ),
+                        child: Stack(
+                          children: [
+                            Positioned.fill(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(14),
+                                child: _buildMenuItemImage(selectedImagePath, fit: BoxFit.cover),
                               ),
-                              child: const Row(
+                            ),
+                            // Tombol Aksi Crop/Rotate, Ganti, dan Hapus
+                            Positioned(
+                              top: 6,
+                              right: 6,
+                              child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.check_circle_rounded, color: Color(0xFF22C55E), size: 12),
-                                  SizedBox(width: 4),
-                                  Text('Foto Terpasang', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                  // Tombol Re-crop / Putar 90 Derajat
+                                  Material(
+                                    color: Colors.black.withValues(alpha: 0.70),
+                                    shape: const CircleBorder(),
+                                    child: InkWell(
+                                      customBorder: const CircleBorder(),
+                                      onTap: () async {
+                                        HapticFeedback.selectionClick();
+                                        final recropped = await GageImageCropRotateDialog.show(ctx, selectedImagePath!);
+                                        if (recropped != null) {
+                                          setModalState(() => selectedImagePath = recropped);
+                                        }
+                                      },
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(6),
+                                        child: Icon(Icons.crop_rotate_rounded, color: Colors.white, size: 15),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  // Tombol Ganti Foto
+                                  Material(
+                                    color: Colors.black.withValues(alpha: 0.70),
+                                    shape: const CircleBorder(),
+                                    child: InkWell(
+                                      customBorder: const CircleBorder(),
+                                      onTap: () async {
+                                        HapticFeedback.selectionClick();
+                                        final chosen = await MerchantPhotoPickerSheet.show(ctx, initialCategory: category);
+                                        if (chosen != null) {
+                                          setModalState(() => selectedImagePath = chosen);
+                                        }
+                                      },
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(6),
+                                        child: Icon(Icons.edit_rounded, color: Colors.white, size: 15),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  // Tombol Hapus
+                                  Material(
+                                    color: Colors.red.withValues(alpha: 0.85),
+                                    shape: const CircleBorder(),
+                                    child: InkWell(
+                                      customBorder: const CircleBorder(),
+                                      onTap: () {
+                                        HapticFeedback.selectionClick();
+                                        setModalState(() {
+                                          selectedImagePath = null;
+                                        });
+                                      },
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(6),
+                                        child: Icon(Icons.delete_outline_rounded, color: Colors.white, size: 15),
+                                      ),
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
-                          ),
-                        ],
+                            Positioned(
+                              bottom: 6,
+                              left: 6,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.75),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.crop_square_rounded, color: GageTheme.primary, size: 11),
+                                    SizedBox(width: 4),
+                                    Text('1:1 Persegi', style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     )
                   else

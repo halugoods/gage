@@ -7,6 +7,7 @@ import 'package:gage_app/core/services/location_service.dart';
 import 'package:gage_app/core/services/merchant_storefront_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_menu_screen.dart';
+import 'package:gage_app/features/merchant/presentation/widgets/merchant_printer_settings_sheet.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/operating_schedule_editor_sheet.dart';
 import 'package:gage_app/shared/widgets/full_screen_map_picker.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
@@ -536,13 +537,31 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
               ),
               child: Column(
                 children: [
-                  const ListTile(
-                    leading: Icon(Icons.print_rounded, color: GageTheme.primary, size: 22),
-                    title: Text('Printer SPP Bluetooth', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
-                    subtitle: Text('Thermal 58mm (RPP02N / Iware / Panda)', style: TextStyle(fontSize: 11.5, color: GageTheme.textSecondary)),
-                    trailing: Text('TERHUBUNG', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: GageTheme.accentGreen)),
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: GageTheme.primary.withValues(alpha: isDark ? 0.25 : 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.print_rounded, color: GageTheme.primary, size: 20),
+                    ),
+                    title: const Text('Printer SPP Bluetooth', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                    subtitle: const Text('Thermal 58mm / 80mm • Auto-Print & Rangkap', style: TextStyle(fontSize: 11.5, color: GageTheme.textSecondary)),
+                    trailing: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        shape: const StadiumBorder(),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        side: BorderSide(color: isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
+                      ),
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        MerchantPrinterSettingsSheet.show(context);
+                      },
+                      child: const Text('Atur', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   SwitchListTile(
                     title: const Text('Auto-Print Tiket Pesanan', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                     subtitle: const Text('Cetak tiket otomatis saat pesanan baru masuk', style: TextStyle(fontSize: 11.5, color: GageTheme.textSecondary)),
@@ -550,25 +569,25 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                     activeThumbColor: GageTheme.primary,
                     onChanged: (v) => setState(() => _autoPrint = v),
                   ),
-                  const SizedBox(height: 4),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        minimumSize: const Size(double.infinity, 40),
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: GageTheme.primary,
+                          foregroundColor: Colors.white,
+                          shape: const StadiumBorder(),
+                          padding: const EdgeInsets.symmetric(vertical: 11),
+                          elevation: 0,
+                        ),
+                        icon: const Icon(Icons.tune_rounded, size: 16),
+                        label: const Text('Buka Konfigurasi Printer Lengkap', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          MerchantPrinterSettingsSheet.show(context);
+                        },
                       ),
-                      icon: const Icon(Icons.receipt_long_rounded, size: 16),
-                      label: const Text('Uji Cetak Sample 58mm', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                      onPressed: () {
-                        HapticFeedback.lightImpact();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Test print 58mm dikirim ke printer bluetooth SPP.'),
-                            backgroundColor: GageTheme.accentGreen,
-                          ),
-                        );
-                      },
                     ),
                   ),
                 ],

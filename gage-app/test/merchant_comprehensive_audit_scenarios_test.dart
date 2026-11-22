@@ -527,14 +527,14 @@ void main() {
       );
       await tester.pump();
 
-      // Verifikasi 4 label filter kapsul universal (Food, Shop, Farm)
+      // Verifikasi 4 label filter kapsul universal ringkas (Food, Shop, Farm)
       expect(find.text('Disiapkan'), findsOneWidget);
-      expect(find.text('Siap Diambil'), findsOneWidget);
-      expect(find.text('Sedang Diantar'), findsOneWidget);
+      expect(find.text('Siap'), findsOneWidget);
+      expect(find.text('Diantar'), findsOneWidget);
       expect(find.text('Selesai'), findsOneWidget);
 
-      // Ketuk tab "Siap Diambil"
-      await tester.tap(find.text('Siap Diambil'));
+      // Ketuk tab "Siap"
+      await tester.tap(find.text('Siap'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
 
@@ -676,10 +676,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Pastikan ada 4 label status
+      // Pastikan ada 4 label status ringkas
       expect(find.text('Disiapkan'), findsOneWidget);
-      expect(find.text('Siap Diambil'), findsOneWidget);
-      expect(find.text('Sedang Diantar'), findsOneWidget);
+      expect(find.text('Siap'), findsOneWidget);
+      expect(find.text('Diantar'), findsOneWidget);
       expect(find.text('Selesai'), findsOneWidget);
 
       // Verifikasi bahwa segmented switch tidak berada di dalam SingleChildScrollView horizontal
@@ -732,9 +732,9 @@ void main() {
     });
 
     // -------------------------------------------------------------------------
-    // Skenario 24: MerchantPhotoPickerSheet Android 14 One UI Style
+    // Skenario 24: Production 1:1 Photo Picker & Crop/Rotate Architecture
     // -------------------------------------------------------------------------
-    testWidgets('Skenario 24: MerchantPhotoPickerSheet menampilkan tab multi-vertikal dan tile kamera', (tester) async {
+    testWidgets('Skenario 24: MerchantPhotoPickerSheet menampilkan opsi Kamera dan Galeri riil (Production 1:1)', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -751,13 +751,10 @@ void main() {
       await tester.tap(find.text('Buka Picker'));
       await tester.pumpAndSettle();
 
-      // Verifikasi elemen Android 14 Photo Picker
-      expect(find.text('Pilih Foto Produk'), findsOneWidget);
-      expect(find.text('Kuliner'), findsOneWidget);
-      expect(find.text('Sembako'), findsOneWidget);
-      expect(find.text('Tani & Ternak'), findsOneWidget);
-      expect(find.text('Kamera'), findsOneWidget);
-      expect(find.text('Galeri HP'), findsOneWidget);
+      // Verifikasi elemen Production-Grade Photo Picker (Bukan Sandbox Mock Presets)
+      expect(find.text('Pilih Sumber Foto Produk'), findsOneWidget);
+      expect(find.text('Ambil Foto Kamera'), findsOneWidget);
+      expect(find.text('Pilih dari Galeri HP'), findsOneWidget);
     });
   });
 }

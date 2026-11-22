@@ -7,7 +7,6 @@ import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_order_detail_screen.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_thermal_receipt_sheet.dart';
 import 'package:gage_app/providers/merchant_order_provider.dart';
-import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 
 /// Modal Floating Sheet untuk Rincian Lengkap Pesanan Mitra Usaha GAGE

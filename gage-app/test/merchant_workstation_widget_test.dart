@@ -45,10 +45,10 @@ void main() {
     expect(find.descendant(of: navFinder, matching: find.text('Marketing')), findsOneWidget);
     expect(find.descendant(of: navFinder, matching: find.text('GagePay')), findsOneWidget);
 
-    // 3. Verifikasi 4 Segmented Tab Kapsul Universal (Food, Shop, Farm) pada Tab 0 (Pesanan)
+    // 3. Verifikasi 4 Segmented Tab Kapsul Universal Ringkas pada Tab 0 (Pesanan)
     expect(find.text('Disiapkan'), findsOneWidget);
-    expect(find.text('Siap Diambil'), findsOneWidget);
-    expect(find.text('Sedang Diantar'), findsOneWidget);
+    expect(find.text('Siap'), findsOneWidget);
+    expect(find.text('Diantar'), findsOneWidget);
     expect(find.text('Selesai'), findsOneWidget);
   });
 

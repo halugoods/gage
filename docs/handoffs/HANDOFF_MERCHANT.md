@@ -705,6 +705,57 @@ Tab 4 Merchant kini mengadopsi widget asli `GagePayScreen` (`isEmbeddedInTab: tr
 - Form field seragam ber-background `#F8FAFC` / `#0F172A`, border `#E2E8F0`, rounded 14px, dan focus `#E52320`.
 - Istilah *"Estimasi Waktu Masak Default"* diubah menjadi *"Estimasi Waktu Penyiapan Default"*, *"Auto-Print Tiket Dapur"* menjadi *"Auto-Print Tiket Pesanan"*, dan kalkulator dapur menjadi kalkulator produk universal.
 
+---
+
+## 13. Dokumentasi Pembaruan Wave 8 (Production 1:1 Image Cropper/Rotator, 5-Min Auto-Regenerating PIN, Sticky Clean Header Pesanan, Standarisasi Invoice Cloudflare, & GAGE Thermal Printer Suite)
+
+* **GitHub Release**: [`v1.0.4+40`](https://github.com/halugoods/gage/releases/tag/v1.0.4%2B40)
+* **Status Pengujian**: **26 / 26 Widget & Integration Scenarios PASSED (100%)**
+* **Analisis Kode**: **0 Issues Found (`flutter analyze` clean)**
+
+### A. Production-Grade 1:1 Image Cropper & Rotator (Zero Mock Sandbox)
+- **File**: `lib/features/merchant/presentation/widgets/gage_image_crop_rotate_dialog.dart` & `merchant_photo_picker_sheet.dart`
+- Menghapus seluruh preset foto mock/sandbox.
+- Menghadirkan opsi riil: **Ambil Foto Kamera** fisik & **Pilih dari Galeri HP** via `image_picker` dengan `maxWidth: 1024`.
+- Dialog interaktif murni Flutter:
+  - Rasio aspek 1:1 (persegi) resmi katalog.
+  - Fitur gesture pinch-to-zoom & pan (`InteractiveViewer`).
+  - Fitur rotasi 90° berulang (`RotatedBox`).
+  - Render hasil potongan dan orientasi langsung ke byte memory buffer PNG/JPG via `RepaintBoundary`.
+- Di halaman edit/tambah menu (`merchant_menu_screen.dart`), preview foto produk 1:1 (160x160) dilengkapi tombol aksi potong ulang / putar (`Icons.crop_rotate_rounded`), ganti foto, dan hapus foto.
+
+### B. Auto-Regenerating 5-Minute Handover PIN (Kurir & Dapur)
+- **Model**: `lib/data/models/order_model.dart`
+- PIN serah terima kurir tidak lagi diacak manual oleh merchant (mencegah desinkronisasi antara Merchant dan Driver).
+- Menggunakan formula time-window modulo 5 menit berbasis waktu deterministik:
+  `final window = DateTime.now().millisecondsSinceEpoch ~/ 300000;`
+  `final pin = (orderNumber.hashCode ^ id.hashCode ^ window).abs() % 9000 + 1000;`
+- Getter `pinSecondsRemaining` untuk menghitung sisa detik pada window aktif.
+- Menghapus tombol manual "Acak Ulang PIN" pada `MerchantOrderDetailScreen`, digantikan dengan badge kapsul informatif *"Berganti otomatis setiap 5 menit"*.
+
+### C. Sticky Clean Header & Tab Pesanan Tanpa Box Kontainer Belakang
+- **File**: `lib/features/merchant/presentation/tabs/gage_merchant_orders_tab.dart`
+- Menghilangkan kontainer background kaku/tebal di belakang search bar dan segmented switch.
+- Struktur sticky bar melayang jernih menyatu dengan background scaffold (`#F8FAFC` / `#0F172A`), tetap mengambang di puncak saat daftar pesanan digulir ke bawah (identik dengan pengalaman di beranda customer).
+- Segmented switch 4 kapsul statis dengan penamaan ringkas yang pas dan tidak meluap (overflow): **Disiapkan**, **Siap**, **Diantar**, **Selesai**.
+- Menghapus badge status internal mentah AI-slop seperti `READY_FOR_PICKUP`.
+
+### D. Standarisasi Warna Tombol Aksi & Format Invoice Cloudflare D1
+- Seluruh tombol aksi alur kerja pesanan distandarisasi menggunakan `GageTheme.primary` (`#E52320`), menghapus inkonsistensi warna tombol hijau (`#059669` / `#16A34A`).
+- Kartu keterangan pesanan selesai memiliki tinggi dan padding konsisten dengan tombol aksi lainnya (`padding: vertical 11`, `StadiumBorder()`), dengan keterangan ringkas cukup: `"Selesai"`.
+- Format invoice distandarisasi mengikuti pola Cloudflare D1 platform (`#INV-XXXX` / `INV-YYYYMMDD-XXXX`), menghapus penamaan invoice mock personal seperti `#RATNA-3304`. Chip invoice dapat diklik untuk menyalin nomor invoice ke clipboard disertai toast konfirmasi.
+
+### E. GAGE Bluetooth Thermal Printer Suite (Adaptasi NUSA Kasir)
+- **File**: `lib/features/merchant/presentation/widgets/merchant_printer_settings_sheet.dart`
+- Pengaturan printer thermal Bluetooth terpadu dengan desain mewah khas GAGE (kapsul 999, tanpa garis solid).
+- Fitur:
+  - Pindai dan koneksi printer Bluetooth SPP.
+  - Pemilihan ukuran kertas: **58mm** vs **80mm** (segmented capsule).
+  - Sakelar cetak otomatis saat pesanan diterima (*Auto-print on accept*).
+  - Pengaturan jumlah rangkap struk: **1x**, **2x (Dapur + Kurir)**, **3x (Dapur + Kasir + Kurir)**.
+  - Tombol uji cetak sampel struk transaksi.
+
+
 
 
 

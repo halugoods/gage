@@ -2,11 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:gage_app/core/services/gage_audio_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_order_detail_screen.dart';
-import 'package:gage_app/features/merchant/presentation/widgets/merchant_order_detail_sheet.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_thermal_receipt_sheet.dart';
 import 'package:gage_app/providers/merchant_order_provider.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
@@ -15,9 +13,10 @@ import 'package:gage_app/shared/widgets/gage_toast.dart';
 /// Tab 0: Pesanan Masuk & Operasional (Workstation Mitra Usaha GAGE - Food, Shop, Farm)
 /// Dilengkapi 4 Segmented Tab Kapsul GAGE:
 /// - Disiapkan (NEW, PAID, COOKING)
-/// - Siap Diambil (READY_FOR_PICKUP, DRIVER_ASSIGNED, AT_MERCHANT)
-/// - Sedang Diantar (PICKED_UP, ON_DELIVERY)
+/// - Siap (READY_FOR_PICKUP, DRIVER_ASSIGNED, AT_MERCHANT)
+/// - Diantar (PICKED_UP, ON_DELIVERY)
 /// - Selesai (COMPLETED, CANCELLED)
+/// Serta penampil PIN Penyerahan 4-digit otomatis berganti tiap 5 menit.
 /// Serta penampil PIN Penyerahan 4-digit yang diinput oleh mitra driver.
 class GageMerchantOrdersTab extends StatefulWidget {
   final NumberFormat currencyFormatter;
@@ -267,12 +266,12 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
 
     return Column(
       children: [
-        // 1. Segmented Tab Switch Kapsul Penuh 4 Kategori (Statis, Non-Scrollable)
+        // 1. Sticky Header Segmented Tabs (Menyatu Jernih dengan Latar Layar, Tanpa Kontainer Box Belakang)
         Container(
-          color: isDark ? GageTheme.darkSurface : Colors.white,
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+          color: isDark ? GageTheme.darkBackground : const Color(0xFFF8FAFC),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
           child: Container(
-            height: 44,
+            height: 42,
             padding: const EdgeInsets.all(3),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
@@ -295,7 +294,7 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                 Expanded(
                   child: _buildSegmentItem(
                     index: 1,
-                    label: 'Siap Diambil',
+                    label: 'Siap',
                     count: countSiap,
                     isDark: isDark,
                   ),
@@ -303,7 +302,7 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                 Expanded(
                   child: _buildSegmentItem(
                     index: 2,
-                    label: 'Sedang Diantar',
+                    label: 'Diantar',
                     count: countDiantar,
                     isDark: isDark,
                   ),
@@ -628,22 +627,42 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                   child: Row(
                     children: [
                       Flexible(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: GageTheme.primary.withValues(alpha: isDark ? 0.25 : 0.10),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            order.orderNumber.contains('/')
-                                ? '#${order.orderNumber.split('/').last}'
-                                : '#${order.orderNumber}',
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w900,
-                              color: GageTheme.primary,
+                        child: InkWell(
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            Clipboard.setData(ClipboardData(text: order.orderNumber));
+                            GageToast.show(context, 'Invoice disalin: ${order.orderNumber}');
+                          },
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: GageTheme.primary.withValues(alpha: isDark ? 0.22 : 0.08),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    order.orderNumber.startsWith('INV-')
+                                        ? '#${order.orderNumber}'
+                                        : (order.orderNumber.contains('/')
+                                            ? '#${order.orderNumber.split('/').last}'
+                                            : '#${order.orderNumber}'),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                    style: const TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: -0.2,
+                                      color: GageTheme.primary,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                const Icon(Icons.copy_rounded, size: 12, color: GageTheme.primary),
+                              ],
                             ),
                           ),
                         ),
@@ -860,7 +879,7 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'PIN Penyerahan ke Driver',
+                          'PIN Penyerahan ke Driver (Otomatis 5 Menit)',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
@@ -868,7 +887,7 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                           ),
                         ),
                         Text(
-                          'Tunjukkan PIN ini ke Driver saat mengambil pesanan',
+                          'Tunjukkan ke Driver • Berganti otomatis tiap 5 menit',
                           style: TextStyle(
                             fontSize: 10,
                             color: Color(0xFFB45309),
@@ -969,7 +988,7 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                     : isCooking
                     ? ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF059669),
+                          backgroundColor: GageTheme.primary,
                           foregroundColor: Colors.white,
                           shape: const StadiumBorder(),
                           padding: const EdgeInsets.symmetric(vertical: 11),
@@ -988,7 +1007,7 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                     : (isReadyForPickup && order.isPickup)
                         ? ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF16A34A),
+                              backgroundColor: GageTheme.primary,
                               foregroundColor: Colors.white,
                               shape: const StadiumBorder(),
                               padding: const EdgeInsets.symmetric(vertical: 11),
@@ -1006,40 +1025,48 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                           )
                         : (order.status == 'COMPLETED')
                             ? Container(
-                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                padding: const EdgeInsets.symmetric(vertical: 11),
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFECFDF5),
+                                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
                                   borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                    color: isDark ? Colors.white12 : const Color(0xFFCBD5E1),
+                                    width: 1,
+                                  ),
                                 ),
-                                child: const Text(
-                                  '✓ Transaksi Selesai',
+                                child: Text(
+                                  'Selesai',
                                   style: TextStyle(
-                                    fontSize: 12,
+                                    fontSize: 12.5,
                                     fontWeight: FontWeight.w800,
-                                    color: Color(0xFF047857),
+                                    color: isDark ? Colors.white70 : const Color(0xFF475569),
                                   ),
                                 ),
                               )
                             : (order.status == 'CANCELLED')
                                 ? Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    padding: const EdgeInsets.symmetric(vertical: 11),
                                     alignment: Alignment.center,
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFFEF2F2),
+                                      color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEF2F2),
                                       borderRadius: BorderRadius.circular(999),
+                                      border: Border.all(
+                                        color: isDark ? Colors.red.withValues(alpha: 0.3) : const Color(0xFFFECACA),
+                                        width: 1,
+                                      ),
                                     ),
-                                    child: const Text(
-                                      'Pesanan Dibatalkan',
+                                    child: Text(
+                                      'Dibatalkan',
                                       style: TextStyle(
-                                        fontSize: 12,
+                                        fontSize: 12.5,
                                         fontWeight: FontWeight.w800,
-                                        color: Color(0xFFDC2626),
+                                        color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFFDC2626),
                                       ),
                                     ),
                                   )
                                 : Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    padding: const EdgeInsets.symmetric(vertical: 11),
                                     alignment: Alignment.center,
                                     decoration: BoxDecoration(
                                       color: isDark ? Colors.white10 : const Color(0xFFF1F5F9),

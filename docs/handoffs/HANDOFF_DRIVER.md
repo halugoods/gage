@@ -105,15 +105,15 @@ Hasil audit menunjukkan beberapa field penting dari Customer belum tersedia di `
 
 ---
 
-## 7. Handoff Wave 7: PIN 4-Digit Serah Terima Pesanan di Toko Merchant (Driver Input PIN)
+## 7. Handoff Wave 7 & 8: PIN 4-Digit Serah Terima Pesanan & Standarisasi Invoice Cloudflare
 
-1. **Mekanisme Serah Terima Fisik Barang**:
-   - Merchant bertindak sebagai pihak yang men-generate PIN 4-digit acak (`1000 - 9999`) pada layar pesanan toko (`OrderModel.handoverPin`).
-   - Driver yang tiba di toko merchant untuk menjemput pesanan fisik wajib **menanyakan dan menginput 4 digit PIN tersebut** ke dalam aplikasi Driver (`active_trip_screen.dart`), bukan merchant yang menginput PIN milik driver.
-   - Input PIN driver divalidasi terhadap `order.courierVerificationPin` sebelum status pesanan beralih ke `ON_THE_WAY`.
-2. **Kontrak Model & D1**:
-   - Driver Order Provider membaca field `handoverPin` dari data `orders` backend.
-   - Jika merchant melakukan *Acak Ulang PIN* di dapurnya, nilai terbaru otomatis tersinkronisasi via SSE / polling status order.
+1. **Mekanisme Serah Terima Fisik Barang & PIN 5 Menit Otomatis (Wave 8)**:
+   - Merchant menampilkan 4-digit PIN serah terima di dasbor toko (`OrderModel.currentPin`).
+   - **Regenerasi Otomatis 5 Menit**: PIN tidak lagi diacak manual oleh merchant untuk mencegah desinkronisasi. PIN dihitung dengan formula deterministik berbasis window waktu 5 menit (`DateTime.now().millisecondsSinceEpoch ~/ 300000`).
+   - Driver yang tiba di toko wajib menanyakan dan menginput PIN tersebut ke aplikasi Driver (`active_trip_screen.dart`) sebelum status pesanan berubah ke `ON_THE_WAY`.
+2. **Standarisasi Nomor Invoice Platform Cloudflare D1**:
+   - Seluruh invoice pesanan kini terstandarisasi dengan format resmi Cloudflare D1 (`#INV-XXXX` / `INV-YYYYMMDD-XXXX`), menggantikan penamaan acak personal (seperti `#RATNA-3304`). Driver dapat memverifikasi nomor invoice yang identik dengan struk pemesan dan merchant.
+
 
 
 

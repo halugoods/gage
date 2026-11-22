@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gage_app/core/network/gage_api_client.dart';
@@ -30,6 +29,7 @@ class MerchantOrderProvider extends ChangeNotifier {
   bool _autoPrintOnAccept = true;
   int _receiptCopies = 2; // Default 2 rangkap: 1x Dapur, 1x Kurir/Pelanggan
   String _preferredPaperSize = '58mm';
+  String _printerDeviceName = 'RPP02N-Thermal-58mm';
 
   List<OrderModel> _orders = [];
   Timer? _countdownTimer;
@@ -41,6 +41,12 @@ class MerchantOrderProvider extends ChangeNotifier {
   String? get busyReason => _busyReason;
   bool get autoAccept => _autoAccept;
   bool get printerConnected => _printerConnected;
+  String get printerDeviceName => _printerDeviceName;
+  String get printerPaperSize => _preferredPaperSize;
+  String get preferredPaperSize => _preferredPaperSize;
+  bool get autoPrintOnAccept => _autoPrintOnAccept;
+  int get receiptCopies => _receiptCopies;
+  bool get soundAlarmEnabled => _soundAlarmEnabled;
   bool get isLoading => _isLoading;
   int get cookingTime => _cookingTime;
   double get acceptanceScore => _acceptanceScore;
@@ -48,10 +54,6 @@ class MerchantOrderProvider extends ChangeNotifier {
   int get dailyRejectedCount => _dailyRejectedCount;
   String get selectedStageFilter => _selectedStageFilter;
 
-  bool get soundAlarmEnabled => _soundAlarmEnabled;
-  bool get autoPrintOnAccept => _autoPrintOnAccept;
-  int get receiptCopies => _receiptCopies;
-  String get preferredPaperSize => _preferredPaperSize;
 
   int get busyRemainingMinutes {
     if (_busyUntil == null) return 0;
@@ -211,7 +213,7 @@ class MerchantOrderProvider extends ChangeNotifier {
       // 1. Pesanan Baru (Perlu Dikonfirmasi)
       OrderModel(
         id: 'ord-8822',
-        orderNumber: 'INV/GG/20261103/FD/GALIH-8822',
+        orderNumber: 'INV-20261103-8822',
         userId: 'usr-cust-02',
         merchantId: MerchantStorefrontService.defaultPortalMerchantId,
         merchantName: 'Dimsum Sewu Pracimantoro',
@@ -256,7 +258,7 @@ class MerchantOrderProvider extends ChangeNotifier {
       // 2. Pesanan Sedang Disiapkan
       OrderModel(
         id: 'ord-8821',
-        orderNumber: 'INV/GG/20261103/FD/BUDI-8821',
+        orderNumber: 'INV-20261103-8821',
         userId: 'usr-cust-01',
         merchantId: MerchantStorefrontService.defaultPortalMerchantId,
         merchantName: 'Dimsum Sewu Pracimantoro',
@@ -303,7 +305,7 @@ class MerchantOrderProvider extends ChangeNotifier {
       // 3. Pesanan Siap Dijemput
       OrderModel(
         id: 'ord-3304',
-        orderNumber: 'INV/GG/20261103/SH/RATNA-3304',
+        orderNumber: 'INV-20261103-3304',
         userId: 'usr-cust-03',
         merchantId: MerchantStorefrontService.defaultPortalMerchantId,
         merchantName: 'Toko Berkah Mart Pracimantoro',
@@ -349,7 +351,7 @@ class MerchantOrderProvider extends ChangeNotifier {
       // 4. Riwayat Selesai
       OrderModel(
         id: 'ord-8799',
-        orderNumber: 'INV/GG/20261102/FD/SITI-8799',
+        orderNumber: 'INV-20261102-8799',
         userId: 'usr-cust-04',
         merchantId: MerchantStorefrontService.defaultPortalMerchantId,
         merchantName: 'Dimsum Sewu Pracimantoro',
@@ -358,7 +360,7 @@ class MerchantOrderProvider extends ChangeNotifier {
         customerPhone: '081654321098',
         driverName: 'Mas Bambang',
         driverPlate: 'AD 9911 QA',
-        driverPhone: '081223344556',
+        driverPhone: '081226002000',
         status: 'COMPLETED',
         paymentMethod: 'GAGEPAY',
         paymentStatus: 'PAID',
@@ -386,7 +388,7 @@ class MerchantOrderProvider extends ChangeNotifier {
       // 5. Pesanan Ambil Sendiri (Pickup) Siap di Counter Kasir
       OrderModel(
         id: 'ord-5511',
-        orderNumber: 'INV/GG/20261103/FD/HENDRA-5511',
+        orderNumber: 'INV-20261103-5511',
         userId: 'usr-cust-05',
         merchantId: MerchantStorefrontService.defaultPortalMerchantId,
         merchantName: 'Dimsum Sewu Pracimantoro',
@@ -510,6 +512,14 @@ class MerchantOrderProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setPrinterConnected(bool val) => togglePrinter(val);
+  void setPrinterDeviceName(String name) {
+    _printerDeviceName = name;
+    notifyListeners();
+  }
+  void setPrinterPaperSize(String size) => setPreferredPaperSize(size);
+  void toggleAutoPrint(bool val) => toggleAutoPrintOnAccept(val);
+
   void _checkAndManageOrderAlert() {
     if (!_isOpen || !_soundAlarmEnabled) {
       if (GageAudioService.instance.isOrderAlertRunning) {
@@ -590,17 +600,13 @@ class MerchantOrderProvider extends ChangeNotifier {
     }
   }
 
-  /// Regenerasi PIN penyerahan kurir secara acak (4 digit angka 1000-9999)
-  /// Dibuat di sisi Merchant untuk divalidasi oleh Mitra Driver saat serah terima
+  /// Mengambil atau memperbarui PIN penyerahan kurir secara otomatis (4 digit interval 5 menit)
   String regenerateHandoverPin(String orderId) {
-    HapticFeedback.selectionClick();
     final idx = _orders.indexWhere((o) => o.id == orderId);
     if (idx >= 0) {
-      final random = Random();
-      final newPin = (1000 + random.nextInt(9000)).toString();
-      _orders[idx] = _orders[idx].copyWith(handoverPin: newPin);
+      final pin = _orders[idx].courierVerificationPin;
       notifyListeners();
-      return newPin;
+      return pin;
     }
     return '';
   }
