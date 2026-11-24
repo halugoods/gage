@@ -589,6 +589,49 @@ class OrderItemModel {
 
   String? get variant => selectedVariants ?? notes;
 
+  /// Mengambil gambar produk yang valid. Jika kosong, menginferensi dari aset lokal berdasarkan nama item
+  /// untuk menghemat kuota backend D1 (Zero D1 Query Overhead).
+  String get effectiveImageUrl {
+    if (imageUrl != null && imageUrl!.trim().isNotEmpty) {
+      return imageUrl!.trim();
+    }
+    final text = name.toLowerCase();
+    if (text.contains('ayam') || text.contains('chicken') || text.contains('rocket')) {
+      return 'assets/images/dish_rocket_1.png';
+    }
+    if (text.contains('mentai')) {
+      return 'assets/images/dish_dimsum_mentai.png';
+    }
+    if (text.contains('dimsum') || text.contains('siomay')) {
+      return 'assets/images/dish_dimsum_original.png';
+    }
+    if (text.contains('kentang') || text.contains('fries')) {
+      return 'assets/images/dish_seblak_komplit.png';
+    }
+    if (text.contains('bakso')) {
+      return 'assets/images/dish_bakso_urat.png';
+    }
+    if (text.contains('roti')) {
+      return 'assets/images/dish_roti_cokelat.png';
+    }
+    if (text.contains('beras')) {
+      return 'assets/images/prod_beras.png';
+    }
+    if (text.contains('minyak')) {
+      return 'assets/images/prod_minyak.png';
+    }
+    if (text.contains('semen')) {
+      return 'assets/images/prod_semen.png';
+    }
+    if (text.contains('besi') || text.contains('baja')) {
+      return 'assets/images/prod_besi.png';
+    }
+    if (text.contains('cat')) {
+      return 'assets/images/prod_cat.png';
+    }
+    return 'assets/images/dish_dimsum_original.png';
+  }
+
   OrderItemModel copyWith({
     String? id,
     String? name,

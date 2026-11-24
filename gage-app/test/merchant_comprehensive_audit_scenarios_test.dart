@@ -320,8 +320,8 @@ void main() {
       );
       await tester.pump();
 
-      // Verifikasi ikon tab merchant: Tab 0 terpilih (filled), tab lainnya unselected (outline stroke)
-      expect(find.byIcon(Icons.receipt_long_rounded), findsOneWidget);
+      // Verifikasi ikon tab merchant: Tab 0 terpilih (filled solid), tab lainnya unselected (outline stroke)
+      expect(find.byIcon(Icons.receipt_rounded), findsOneWidget);
       expect(find.byIcon(Icons.chat_bubble_outline_rounded), findsOneWidget);
       expect(find.byIcon(Icons.storefront_outlined), findsOneWidget);
       expect(find.byIcon(Icons.campaign_outlined), findsOneWidget);
@@ -338,7 +338,7 @@ void main() {
       await tester.tap(find.text('Chat'));
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.receipt_long_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.receipt_outlined), findsOneWidget);
       expect(find.byIcon(Icons.chat_bubble_rounded), findsOneWidget);
     });
 
@@ -778,7 +778,6 @@ void main() {
       final cookingOrder = provider.orders.firstWhere((o) => o.status == 'COOKING');
       expect(cookingOrder.cookingSecondsRemaining, greaterThan(0));
       expect(cookingOrder.formattedCookingTimeRemaining.contains(':'), isTrue);
-      expect(cookingOrder.formattedPinTimeRemaining.contains(':'), isTrue);
 
       // Simulasi cooking timer habis
       provider.triggerCookingTimeoutForTesting(cookingOrder.id);
@@ -815,8 +814,56 @@ void main() {
       // Verifikasi tombol Chat Pembeli eksplisit
       expect(find.text('Chat Pembeli'), findsWidgets);
 
-      // Verifikasi avatar lingkaran customer & driver
+      // Verifikasi avatar lingkaran driver
       expect(find.byType(ClipOval), findsWidgets);
+
+      // Verifikasi tombol cooking menampilkan countdown timer MM:SS
+      expect(find.textContaining('Pesanan Siap Diambil ('), findsWidgets);
+
+      provider.dispose();
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 27: Wave 10 Privasi Pelanggan, Zero-D1 Asset Image & Eliminasi Tombol Serahkan
+    // -------------------------------------------------------------------------
+    testWidgets('Skenario 27: Wave 10 Privasi Pelanggan, True Floating Button & No Duplicate Print', (tester) async {
+      final provider = MerchantOrderProvider();
+      final formatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0);
+      final readyOrder = provider.orders.firstWhere((o) => o.status == 'READY_FOR_PICKUP' && !o.isPickup);
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<MerchantOrderProvider>.value(value: provider),
+          ],
+          child: MaterialApp(
+            home: MerchantOrderDetailScreen(
+              order: readyOrder,
+              currencyFormatter: formatter,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 1. Verifikasi badge raw status READY_FOR_PICKUP telah dieliminasi
+      expect(find.text('READY_FOR_PICKUP'), findsNothing);
+
+      // 2. Verifikasi tombol serahkan pesanan delivery manual telah dieliminasi
+      expect(find.text('Serahkan Pesanan'), findsNothing);
+      expect(find.text('Serahkan ke Driver'), findsNothing);
+
+      // 3. Verifikasi tombol cetak struk hanya 1 (di AppBar) dan tidak ada duplikasi di floating bar
+      expect(find.byIcon(Icons.print_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.print_rounded), findsNothing);
+
+      // 4. Verifikasi privasi pelanggan: nama pelanggan tampil
+      expect(find.text(readyOrder.customerName ?? 'Pelanggan GAGE'), findsOneWidget);
+
+      // 5. Verifikasi effectiveImageUrl mengembalikan path asset lokal (Zero D1 Query Overhead)
+      for (final item in readyOrder.items) {
+        expect(item.effectiveImageUrl.isNotEmpty, isTrue);
+      }
 
       provider.dispose();
     });

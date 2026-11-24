@@ -76,8 +76,8 @@ class MerchantFloatingNavBar extends StatelessWidget {
                             context: context,
                             index: 0,
                             label: 'Pesanan',
-                            unselectedIcon: Icons.receipt_long_outlined,
-                            selectedIcon: Icons.receipt_long_rounded,
+                            unselectedIcon: Icons.receipt_outlined,
+                            selectedIcon: Icons.receipt_rounded,
                             badgeText: newOrderCount > 0
                                 ? (newOrderCount > 99 ? '99+' : '$newOrderCount')
                                 : null,

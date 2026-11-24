@@ -789,6 +789,52 @@ Tab 4 Merchant kini mengadopsi widget asli `GagePayScreen` (`isEmbeddedInTab: tr
 ### G. Perapian Suite Printer Thermal Kasir
 - Menghapus string dummy MAC address dan merampingkan antarmuka agar intuitif, elegan, dan bersih.
 
+---
+
+## 15. Dokumentasi Pembaruan Wave 10 (Eliminasi Badge Raw READY_FOR_PICKUP, Paritas Driver-First & Privasi Pelanggan, Live Countdown Tombol Luar, True Floating Action Bar, & Zero-D1 Image Loader)
+
+* **GitHub Release**: [`v1.0.4+42`](https://github.com/halugoods/gage/releases/tag/v1.0.4%2B42)
+* **Status Pengujian**: **29 / 29 Widget & Comprehensive Audit Scenarios PASSED (100%)**
+* **Analisis Kode**: **0 Issues Found (`flutter analyze` clean)**
+
+### A. Eliminasi Total Badge Status Raw `READY_FOR_PICKUP` & Enum Lainnya
+- Menghapus badge pill raw status enum `order.status` (`READY_FOR_PICKUP`, `COOKING`, `NEW`, `PAID`, dll.) dari banner kartu status atas `MerchantOrderDetailScreen`.
+- Judul banner `"Pesanan Siap Diambil"` kini tampil bersih, elegan, dan proporsional tanpa badge duplikat teknis yang membingungkan mitra merchant.
+- Pengujian otomatis secara ketat memverifikasi bahwa `find.text('READY_FOR_PICKUP')` tidak muncul di seluruh tampilan UI detail order.
+
+### B. Serah Terima Otomatis Kurir (Tanpa Tombol Manual "Serahkan ke Driver")
+- Menghapus tombol manual *"Serahkan ke Driver"* / *"Serahkan Pesanan"* pada pesanan siap diambil (delivery).
+- Secara arsitektural, status beralih tuntas otomatis saat mitra kurir menginput PIN verifikasi di aplikasi Driver.
+- Untuk pesanan ambil di toko (*Self-Pickup*), tombol aksi berubah menjadi *"Selesaikan (Ambil di Toko)"*.
+
+### C. Reposisi Driver ke Atas & Privasi Pelanggan
+- Pada kartu pesanan dan layar detail order, informasi Driver ditempatkan di **atas** informasi Pelanggan saat driver telah ditetapkan (`hasAssignedDriver`).
+- Menghilangkan kontainer tebal/kaku pada blok info driver dan beralih ke layout baris inline yang rapi.
+- Demi menjaga privasi data pelanggan pada terminal usaha (merchant), foto avatar profil dan alamat pengantaran lengkap pelanggan dihilangkan dari kartu pesanan. Hanya nama pelanggan dan tombol aksi *"Chat Pembeli"* yang ditampilkan.
+
+### D. Live Countdown SLA Masak pada Tombol Kartu Pesanan Luar
+- Tombol aksi penyiapan di kartu pesanan luar kini menampilkan hitung mundur menit & detik secara langsung:
+  `"Pesanan Siap Diambil (${order.formattedCookingTimeRemaining})"` (misal: `Pesanan Siap Diambil (14:32)`).
+
+### E. PIN Serah Terima Sederhana & Stabil (Tanpa Auto-Regenerate 5 Menit)
+- Menghapus mekanisme regenerasi otomatis PIN tiap 5 menit dan teks *"Berganti otomatis tiap 5 menit"*.
+- PIN serah terima dibuat stabil, to-the-point, dan tidak berganti-ganti di tengah proses penyiapan, mencegah miss-komunikasi antara toko dan kurir.
+
+### F. Smart Product Image Loader (Zero D1 Database Query Overhead)
+- Menambahkan getter `effectiveImageUrl` pada `OrderItemModel` yang memetakan item pesanan secara cerdas:
+  1. Aset lokal instan (`assets/images/dish_...png`, `prod_...png`) jika tersedia.
+  2. URL remote Cloudflare / HTTP jika telah terisi.
+  3. Inferensi fallback cerdas dari nama produk ke aset visual yang relevan.
+- Seluruh thumbnail produk pada kartu pesanan luar (`34x34`, radius 8px) dan detail order (`38x38`, radius 8px) tampil instan dengan **0 kali pemanggilan query D1**, menjaga limit kuota Cloudflare tetap aman maksimal.
+
+### G. Bottom Nav Bar: Ikon Pesanan Solid Filled saat Aktif
+- Tab Pesanan (Index 0) kini menggunakan `Icons.receipt_rounded` (solid filled) saat aktif dan `Icons.receipt_outlined` saat tidak aktif, konsisten dengan standar ikonografi GAGE.
+
+### H. True Floating Bottom Action Button & Search Bar Paritas Kapsul 42px
+- Menghapus kontainer putih solid penutup di belakang tombol aksi bawah detail pesanan, menjadikannya tombol aksi yang benar-benar melayang (*true floating button*).
+- Search bar pesanan diseragamkan tingginya menjadi 42px dengan kapsul penuh `BorderRadius.circular(999)`, melayang jernih tanpa box background.
+
+
 
 
 
