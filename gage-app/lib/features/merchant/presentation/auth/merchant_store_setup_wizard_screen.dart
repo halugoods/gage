@@ -45,7 +45,6 @@ class _MerchantStoreSetupWizardScreenState extends State<MerchantStoreSetupWizar
   // Step 2: Branding & Foto
   String _storeLogo = 'assets/images/resto_dimsum_sewu.png';
   String _storeBanner = 'assets/images/resto_dimsum_sewu.png';
-  final TextEditingController _bioCtrl = TextEditingController(text: 'Spesialis Dimsum Kukus & Goreng Hangat Gurih');
 
   // Step 3: Alamat & Lokasi
   final TextEditingController _addressCtrl = TextEditingController(text: 'Jl. Raya Pracimantoro No. 14, Depan Pasar');
@@ -62,7 +61,6 @@ class _MerchantStoreSetupWizardScreenState extends State<MerchantStoreSetupWizar
   void dispose() {
     _storeNameCtrl.dispose();
     _whatsappCtrl.dispose();
-    _bioCtrl.dispose();
     _addressCtrl.dispose();
     _landmarkCtrl.dispose();
     super.dispose();
@@ -111,7 +109,7 @@ class _MerchantStoreSetupWizardScreenState extends State<MerchantStoreSetupWizar
         name: _storeNameCtrl.text.trim(),
         address: _addressCtrl.text.trim(),
         landmark: _landmarkCtrl.text.trim(),
-        bio: _bioCtrl.text.trim(),
+        bio: '',
         bannerPhoto: _storeBanner,
         logoPhoto: _storeLogo,
         locationPhoto: _storeLogo,
@@ -413,11 +411,6 @@ class _MerchantStoreSetupWizardScreenState extends State<MerchantStoreSetupWizar
             ],
           ),
         ),
-        const SizedBox(height: 16),
-
-        _buildLabel('Slogan / Bio Singkat Toko', isDark),
-        const SizedBox(height: 6),
-        _buildTextField(_bioCtrl, 'Misal: Dimsum kukus dan goreng hangat gurih', Icons.info_outline_rounded, isDark),
       ],
     );
   }

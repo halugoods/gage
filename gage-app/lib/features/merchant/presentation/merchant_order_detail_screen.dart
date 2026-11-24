@@ -177,8 +177,9 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+      floatingActionButton: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 14),
         child: _buildStageButton(context, latestOrder, provider, isDark, textColor, borderColor),
       ),
     );
@@ -367,33 +368,6 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
                     ),
                   ],
                 ),
-              ),
-              ElevatedButton.icon(
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => InAppChatScreen(
-                        recipientName: order.driverName!,
-                        recipientRole: 'driver',
-                        orderId: order.orderNumber,
-                        recipientPhone: order.driverPhone ?? '',
-                        currentRole: 'merchant',
-                      ),
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: GageTheme.primary.withValues(alpha: isDark ? 0.2 : 0.08),
-                  foregroundColor: GageTheme.primary,
-                  elevation: 0,
-                  shape: const StadiumBorder(),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  visualDensity: VisualDensity.compact,
-                ),
-                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 14),
-                label: const Text('Chat Driver', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -758,13 +732,15 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
   ) {
     if (order.status == 'NEW' || order.status == 'PAID') {
       return Container(
+        width: double.infinity,
+        height: 50,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(999),
           boxShadow: [
             BoxShadow(
-              color: GageTheme.primary.withValues(alpha: 0.35),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
+              color: GageTheme.primary.withValues(alpha: 0.22),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
@@ -773,10 +749,10 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
             backgroundColor: GageTheme.primary,
             foregroundColor: Colors.white,
             shape: const StadiumBorder(),
-            padding: const EdgeInsets.symmetric(vertical: 14),
             elevation: 0,
           ),
           onPressed: () async {
+            HapticFeedback.mediumImpact();
             await provider.acceptOrder(order.id);
             if (context.mounted) {
               final msg = (provider.autoPrintOnAccept && provider.printerConnected)
@@ -785,20 +761,22 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
               GageToast.show(context, msg);
             }
           },
-          child: const Text('Terima Pesanan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+          child: const Text('Terima Pesanan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
         ),
       );
     }
 
     if (order.status == 'COOKING') {
       return Container(
+        width: double.infinity,
+        height: 50,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(999),
           boxShadow: [
             BoxShadow(
-              color: GageTheme.primary.withValues(alpha: 0.35),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
+              color: GageTheme.primary.withValues(alpha: 0.22),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
@@ -807,16 +785,16 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
             backgroundColor: GageTheme.primary,
             foregroundColor: Colors.white,
             shape: const StadiumBorder(),
-            padding: const EdgeInsets.symmetric(vertical: 14),
             elevation: 0,
           ),
           onPressed: () async {
+            HapticFeedback.mediumImpact();
             await provider.markReadyForPickup(order.id);
             if (context.mounted) {
               GageToast.show(context, 'Pesanan siap diambil kurir / pembeli!');
             }
           },
-          child: Text('Pesanan Siap Diambil (${order.formattedCookingTimeRemaining})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+          child: Text('Pesanan Siap Diambil (${order.formattedCookingTimeRemaining})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
         ),
       );
     }
@@ -824,13 +802,15 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
     if (order.status == 'READY_FOR_PICKUP' || order.status == 'AT_MERCHANT') {
       if (order.isPickup) {
         return Container(
+          width: double.infinity,
+          height: 50,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
             boxShadow: [
               BoxShadow(
-                color: GageTheme.primary.withValues(alpha: 0.35),
-                blurRadius: 14,
-                offset: const Offset(0, 4),
+                color: GageTheme.primary.withValues(alpha: 0.22),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
@@ -839,27 +819,29 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
               backgroundColor: GageTheme.primary,
               foregroundColor: Colors.white,
               shape: const StadiumBorder(),
-              padding: const EdgeInsets.symmetric(vertical: 14),
               elevation: 0,
             ),
             onPressed: () async {
+              HapticFeedback.mediumImpact();
               await provider.completeOrder(order.id);
               if (context.mounted) {
                 GageToast.show(context, 'Pesanan telah diserahkan ke pelanggan');
               }
             },
-            child: const Text('Selesaikan (Ambil di Toko)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+            child: const Text('Selesaikan (Ambil di Toko)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
           ),
         );
       }
       return Container(
+        width: double.infinity,
+        height: 50,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(999),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+              color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
@@ -869,23 +851,27 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
             foregroundColor: textColor,
             shape: const StadiumBorder(),
             side: BorderSide(color: borderColor),
-            padding: const EdgeInsets.symmetric(vertical: 14),
             elevation: 0,
           ),
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Kembali ke Pesanan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            Navigator.of(context).pop();
+          },
+          child: const Text('Kembali ke Pesanan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
         ),
       );
     }
 
     return Container(
+      width: double.infinity,
+      height: 50,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -895,11 +881,13 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
           foregroundColor: textColor,
           shape: const StadiumBorder(),
           side: BorderSide(color: borderColor),
-          padding: const EdgeInsets.symmetric(vertical: 14),
           elevation: 0,
         ),
-        onPressed: () => Navigator.of(context).pop(),
-        child: const Text('Kembali ke Pesanan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+        onPressed: () {
+          HapticFeedback.lightImpact();
+          Navigator.of(context).pop();
+        },
+        child: const Text('Kembali ke Pesanan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
       ),
     );
   }

@@ -426,6 +426,42 @@ ALTER TABLE notifications ADD COLUMN action_url TEXT;
   - `NotificationService` otomatis mengurai `imageUrl` dan `actionUrl`.
   - Item notifikasi pada tab Notifikasi Customer, Merchant, dan Driver menjadi interaktif dan dapat dibuka ke layar penuh `NotificationDetailScreen` dengan banner gambar resolusi tinggi.
 
+---
+
+## 16. Handoff Wave 13: Verifikasi & Persetujuan Pengajuan Pindah Lokasi Kios Merchant
+
+### 16.1. Kebijakan Lokasi Kios Terverifikasi
+- Alamat kios fisik dan titik GPS adalah data resmi yang diverifikasi saat onboarding awal merchant di Kecamatan Pracimantoro.
+- Merchant tidak diperbolehkan mengubah alamat dan titik peta secara mandiri. Perubahan dilakukan melalui formulir resmi *Pengajuan Pindah Lokasi Kios* yang membutuhkan verifikasi dan persetujuan Admin GAGE.
+
+### 16.2. Skema Tabel Cloudflare D1 `merchant_location_requests`
+```sql
+CREATE TABLE IF NOT EXISTS merchant_location_requests (
+  id TEXT PRIMARY KEY,
+  merchant_id TEXT NOT NULL REFERENCES merchants(id),
+  current_address TEXT NOT NULL,
+  new_address TEXT NOT NULL,
+  new_landmark TEXT,
+  new_latitude REAL NOT NULL,
+  new_longitude REAL NOT NULL,
+  reason TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'PENDING', -- 'PENDING' | 'APPROVED' | 'REJECTED'
+  admin_notes TEXT,
+  submitted_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+  reviewed_at INTEGER,
+  reviewed_by TEXT REFERENCES users(id)
+);
+```
+
+### 16.3. API Endpoint Admin Review
+1. `GET /api/admin/merchant-location-requests?status=PENDING`:
+   - Mengambil daftar antrean pengajuan pindah kios dari mitra merchant yang menunggu ditinjau.
+2. `PUT /api/admin/merchant-location-requests/:id/review`:
+   - Payload: `{"action": "APPROVE" | "REJECT", "admin_notes": "..."}`
+   - Jika `APPROVE`: Otomatis memperbarui kolom `address`, `landmark`, `latitude`, `longitude` pada tabel `merchants`, dan status permohonan menjadi `APPROVED`.
+   - Jika `REJECT`: Status menjadi `REJECTED` beserta alasan penolakan agar tampil di lembar *Pengajuan Saya* merchant.
+
+
 
 
 

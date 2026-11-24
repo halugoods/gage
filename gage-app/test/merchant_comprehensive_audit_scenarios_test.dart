@@ -11,6 +11,8 @@ import 'package:gage_app/core/services/merchant_storefront_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
 import 'package:gage_app/features/chat/providers/in_app_chat_provider.dart';
+import 'package:gage_app/features/merchant/presentation/merchant_profile_screen.dart';
+import 'package:gage_app/features/merchant/presentation/auth/merchant_store_setup_wizard_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_kitchen_insights_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_menu_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_order_detail_screen.dart';
@@ -1045,6 +1047,141 @@ void main() {
       await MerchantStorefrontService.markStoreSetupCompleted(testMerchantId);
       final isCompletedAfter = await MerchantStorefrontService.hasCompletedStoreSetup(testMerchantId);
       expect(isCompletedAfter, isTrue);
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 33: Wave 13 Floating Action Button Full-Width & Eliminasi Tombol Chat Driver
+    // -------------------------------------------------------------------------
+    testWidgets('Skenario 33: Wave 13 Floating Action Button Full-Width & Eliminasi Tombol Chat Driver', (tester) async {
+      final provider = MerchantOrderProvider();
+      final orderWithDriver = provider.orders.firstWhere((o) => o.hasAssignedDriver);
+      final formatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0);
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider<MerchantOrderProvider>.value(
+          value: provider,
+          child: MaterialApp(
+            home: Scaffold(
+              body: MerchantOrderDetailScreen(
+                order: orderWithDriver,
+                currencyFormatter: formatter,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Verifikasi Tombol Chat Driver dilarang dan dihapus total
+      expect(find.text('Chat Driver'), findsNothing);
+
+      // Verifikasi Tombol Chat Pembeli tetap tersedia
+      expect(find.text('Chat Pembeli'), findsOneWidget);
+
+      // Verifikasi stage action button memiliki layout full-width dock
+      expect(find.byType(ElevatedButton), findsWidgets);
+
+      provider.dispose();
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 34: Wave 13 Kartu Pesanan Luar Rounded Penuh & Red Driver Dock Terintegrasi
+    // -------------------------------------------------------------------------
+    testWidgets('Skenario 34: Wave 13 Kartu Pesanan Luar Rounded Penuh & Red Driver Dock Terintegrasi', (tester) async {
+      final provider = MerchantOrderProvider();
+      final formatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0);
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider<MerchantOrderProvider>.value(
+          value: provider,
+          child: MaterialApp(
+            home: Scaffold(
+              body: GageMerchantOrdersTab(currencyFormatter: formatter),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Verifikasi tidak ada tombol Chat Driver di kartu pesanan luar
+      expect(find.text('Chat Driver'), findsNothing);
+
+      provider.dispose();
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 35: Wave 13 Setup Wizard Domain Strict (Food, Shop, Farm Only & No Bio Field)
+    // -------------------------------------------------------------------------
+    testWidgets('Skenario 35: Wave 13 Setup Wizard Domain Strict (Food, Shop, Farm Only & No Bio Field)', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: MerchantStoreSetupWizardScreen(),
+        ),
+      );
+      await tester.pump();
+
+      // Verifikasi domain valid: Kuliner (Food), Kelontong (Shop), Tani (Farm)
+      expect(find.text('Kuliner (Food)'), findsOneWidget);
+      expect(find.text('Kelontong (Shop)'), findsOneWidget);
+      expect(find.text('Tani (Farm)'), findsOneWidget);
+      expect(find.text('Bangunan (Build)'), findsNothing);
+
+      // Lanjut ke step 2
+      final lanjutBtn = find.text('Lanjutkan');
+      await tester.tap(lanjutBtn);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Verifikasi bio / slogan toko dihapus
+      expect(find.text('Slogan / Bio Singkat Toko'), findsNothing);
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 36: Wave 13 Shopee Partner Settings Grid & Pengajuan Pindah Lokasi Kios
+    // -------------------------------------------------------------------------
+    testWidgets('Skenario 36: Wave 13 Shopee Partner Settings Grid & Pengajuan Pindah Lokasi Kios', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: MerchantProfileScreen(),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Verifikasi Header Shopee Partner
+      expect(find.text('Pengaturan'), findsOneWidget);
+      expect(find.text('TERVERIFIKASI'), findsOneWidget);
+      expect(find.textContaining('ID Toko:'), findsOneWidget);
+      expect(find.text('Menu'), findsOneWidget);
+
+      // Verifikasi 7 Tile Grid Menu Shopee Partner
+      expect(find.text('Informasi\nToko'), findsOneWidget);
+      expect(find.text('Pengaturan\nPesanan'), findsOneWidget);
+      expect(find.text('Pengaturan\nNotifikasi'), findsOneWidget);
+      expect(find.text('Printer\nThermal'), findsOneWidget);
+      expect(find.text('Pengaturan\nStruk'), findsOneWidget);
+      expect(find.text('Pengajuan\nSaya'), findsOneWidget);
+      expect(find.text('Pusat\nBantuan'), findsOneWidget);
+
+      // Verifikasi model & persistence Pengajuan Pindah Lokasi Kios
+      final req = MerchantLocationChangeRequest(
+        id: 'test-req-01',
+        merchantId: 'm-test',
+        currentAddress: 'Jl. Raya Pracimantoro No. 14',
+        newAddress: 'Jl. Raya Pracimantoro No. 88',
+        newLandmark: 'Samping Kantor Pos',
+        newLatitude: -8.089,
+        newLongitude: 110.837,
+        reason: 'Pindah ke ruko sendiri',
+        submittedAt: DateTime.now(),
+      );
+      await MerchantStorefrontService.saveLocationChangeRequest(req);
+      final loaded = await MerchantStorefrontService.loadLocationChangeRequest('m-test');
+      expect(loaded, isNotNull);
+      expect(loaded!.newAddress, equals('Jl. Raya Pracimantoro No. 88'));
+      expect(loaded.status, equals('PENDING'));
     });
   });
 }

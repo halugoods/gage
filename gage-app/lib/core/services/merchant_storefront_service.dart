@@ -837,4 +837,81 @@ class MerchantStorefrontService {
       'reply': null,
     },
   ];
+
+  static const String _locationChangeRequestKeyPrefix = 'gage_merchant_location_change_req_';
+
+  static Future<void> saveLocationChangeRequest(MerchantLocationChangeRequest req) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('$_locationChangeRequestKeyPrefix${req.merchantId}', jsonEncode(req.toJson()));
+  }
+
+  static Future<MerchantLocationChangeRequest?> loadLocationChangeRequest(String merchantId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('$_locationChangeRequestKeyPrefix$merchantId');
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final json = jsonDecode(raw) as Map<String, dynamic>;
+      return MerchantLocationChangeRequest.fromJson(json);
+    } catch (_) {
+      return null;
+    }
+  }
 }
+
+/// Model pengajuan resmi perubahan lokasi kios merchant ke Admin GAGE.
+class MerchantLocationChangeRequest {
+  final String id;
+  final String merchantId;
+  final String currentAddress;
+  final String newAddress;
+  final String newLandmark;
+  final double newLatitude;
+  final double newLongitude;
+  final String reason;
+  final String status; // 'PENDING', 'APPROVED', 'REJECTED'
+  final DateTime submittedAt;
+
+  const MerchantLocationChangeRequest({
+    required this.id,
+    required this.merchantId,
+    required this.currentAddress,
+    required this.newAddress,
+    required this.newLandmark,
+    required this.newLatitude,
+    required this.newLongitude,
+    required this.reason,
+    this.status = 'PENDING',
+    required this.submittedAt,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'merchantId': merchantId,
+    'currentAddress': currentAddress,
+    'newAddress': newAddress,
+    'newLandmark': newLandmark,
+    'newLatitude': newLatitude,
+    'newLongitude': newLongitude,
+    'reason': reason,
+    'status': status,
+    'submittedAt': submittedAt.toIso8601String(),
+  };
+
+  factory MerchantLocationChangeRequest.fromJson(Map<String, dynamic> json) {
+    return MerchantLocationChangeRequest(
+      id: json['id'] ?? '',
+      merchantId: json['merchantId'] ?? '',
+      currentAddress: json['currentAddress'] ?? '',
+      newAddress: json['newAddress'] ?? '',
+      newLandmark: json['newLandmark'] ?? '',
+      newLatitude: (json['newLatitude'] as num?)?.toDouble() ?? 0.0,
+      newLongitude: (json['newLongitude'] as num?)?.toDouble() ?? 0.0,
+      reason: json['reason'] ?? '',
+      status: json['status'] ?? 'PENDING',
+      submittedAt: json['submittedAt'] != null
+          ? DateTime.tryParse(json['submittedAt']) ?? DateTime.now()
+          : DateTime.now(),
+    );
+  }
+}
+

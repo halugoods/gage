@@ -922,6 +922,44 @@ Tab 4 Merchant kini mengadopsi widget asli `GagePayScreen` (`isEmbeddedInTab: tr
   - Tombol aksi utama: *"Buka Toko & Mulai Jualan"*.
 - Jika toko sudah disetup, langsung masuk ke Dashboard Toko GAGE.
 
+---
+
+## 21. Wave 13: Full-Width Floating Action Bar, Eliminasi Chat Driver, Domain Murni (Food, Shop, Farm), & Arsitektur Pengaturan Paritas Shopee Partner
+
+* **Tanggal Rilis**: `2026-11-24`
+* **Target Build & Flavor**: `applicationId = "com.gagepracimantoro.merchant"`, entrypoint `lib/main_merchant.dart`, flavor `merchant` (`v1.0.4+45`).
+
+### A. Full-Width Floating Action Bar di Detail Pesanan (`MerchantOrderDetailScreen`)
+- Menggantikan floating action button kerdil canggung di tengah (`centerFloat`) menjadi **Full-Width Floating Action Dock**.
+- Menggunakan `width: double.infinity, height: 50`, margin `EdgeInsets.fromLTRB(16, 0, 16, 14)`, `StadiumBorder()`, dan bayangan elegan halus (alpha 0.22, blur 10, offset (0, 3)).
+- Tombol responsif terhadap status: *"Terima Pesanan"*, *"Pesanan Siap Diambil"*, *"Selesaikan (Ambil di Toko)"*, *"Kembali ke Pesanan"*.
+
+### B. Eliminasi Total Fitur Chat Driver & Red Driver Dock Terintegrasi
+- **Larangan Chat Driver**: Merchant dilarang berkomunikasi langsung via chat dengan driver untuk mencegah deviasi alur penjemputan. Tombol *"Chat Driver"* dihapus total dari `MerchantOrderDetailScreen` dan `GageMerchantOrdersTab`. Merchant hanya memiliki saluran komunikasi resmi *"Chat Pembeli"*.
+- **Red Driver Dock Terintegrasi**: Posisikan kontainer driver merah lembut (`#FEF2F2` / `#450A0A`, `BorderRadius.circular(14)`) di DALAM padding kartu pesanan luar di bawah tombol aksi, mempertahankan sudut rounded halus `BorderRadius.circular(20)` pada kontainer putih kartu luar.
+
+### C. Domain Bisnis Murni: Hanya Food, Shop, Farm (Void Build)
+- Menegaskan domain merchant di GAGE Pracimantoro hanya terdiri dari 3 pilar: `Food` (Kuliner), `Shop` (Kelontong/Sembako), dan `Farm` (Pertanian/Peternakan).
+- Domain `Build` (Material Bangunan) telah ditiadakan total dari wizard dan katalog.
+- Menghapus input deskripsi singkat / slogan bio toko pada form pendaftaran dan pengaturan toko karena tidak ditampilkan di sisi aplikasi pelanggan.
+
+### D. Rombak Pengaturan Mengadopsi Arsitektur Shopee Partner
+- **Header Toko**: Avatar 1:1 bulat (`_storeLogo`), Nama Toko, Lokasi Singkat (`Kecamatan Pracimantoro, Kab. Wonogiri`), Badge Kapsul `TERVERIFIKASI`, ID Toko (`#M-22467742` + tombol salin cepat ke clipboard), dan tombol kapsul *"Menu"* ke Katalog Produk.
+- **Shopee Partner Grid Menu (7 Tile)**:
+  1. *Informasi Toko*: Foto Profil (1:1), Banner Toko (16:9), Nama Usaha, Kontak WhatsApp, dan Alamat Kios Terverifikasi.
+  2. *Pengaturan Pesanan*: Estimasi waktu penyiapan makanan default (10, 15, 20, 25 menit segmented kapsul), toggle pesanan ambil di toko (self-pickup), dan auto-konfirmasi pesanan.
+  3. *Pengaturan Notifikasi*: Dering alarm pesanan baru berulang (audio dapur bising) dan popup layar kunci.
+  4. *Printer Thermal*: Terintegrasi dengan `MerchantPrinterSettingsSheet` (Nusa Kasir ESC/POS engine).
+  5. *Pengaturan Struk*: Terintegrasi dengan `MerchantReceiptSettingsSheet` (Monospace 58mm/80mm preview, footer kustom, logo).
+  6. *Pengajuan Saya*: Status peninjauan permohonan merchant oleh Admin GAGE (termasuk Pengajuan Pindah Lokasi Kios fisik).
+  7. *Pusat Bantuan*: Direct WhatsApp Help Center ke CS GAGE Pracimantoro.
+- **Alur Pengajuan Pindah Lokasi Kios (`MerchantLocationChangeRequestSheet`)**:
+  - Alamat kios fisik dan titik GPS adalah data resmi terverifikasi saat pendaftaran awal dan tidak dapat diubah bebas oleh merchant.
+  - Jika merchant pindah ruko/lapak, mereka mengisi formulir resmi *Ajukan Pindah Lokasi Kios* dengan alamat baru, patokan, titik peta via `FullScreenMapPicker`, dan alasan pemindahan.
+  - Data pengajuan disimpan ke persistence (`MerchantStorefrontService.saveLocationChangeRequest`) dan berstatus `PENDING` (menunggu persetujuan Admin GAGE).
+- **Kepatuhan UI**: Semua segmented tab, switch, dan action buttons wajib full-rounded kapsul (`StadiumBorder()`). Outline field halus `Color(0xFFE2E8F0)`, background soft `#F8FAFC`. Bebas em dash (`\u2014`).
+
+
 
 
 
