@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/features/merchant/services/merchant_receipt_printer_service.dart';
 import 'package:gage_app/providers/merchant_order_provider.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 
@@ -101,11 +102,17 @@ class _MerchantPrinterSettingsSheetState extends State<MerchantPrinterSettingsSh
     setState(() => _isTesting = true);
     HapticFeedback.mediumImpact();
 
+    final provider = context.read<MerchantOrderProvider>();
+    final _ = MerchantReceiptPrinterService.instance.generateTestReceipt(
+      storeName: 'Dimsum Sewu Pracimantoro',
+      paperSize: provider.printerPaperSize,
+    );
+
     await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
     setState(() => _isTesting = false);
 
-    GageToast.show(context, 'Uji cetak struk sample berhasil dikirim ke printer thermal');
+    GageToast.show(context, 'Uji cetak struk sample (${provider.printerPaperSize}) berhasil dikirim ke printer thermal');
   }
 
   @override
@@ -435,14 +442,14 @@ class _MerchantPrinterSettingsSheetState extends State<MerchantPrinterSettingsSh
                             children: [
                               const Text('Jumlah Rangkap Cetak', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                               Text(
-                                'Rangkap 1: Pelanggan/Kurir, Rangkap 2: Arsip Dapur',
+                                'Rangkap 1: Struk Toko, Rangkap 2: Tiket Dapur',
                                 style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.grey.shade600),
                               ),
                             ],
                           ),
                           Row(
                             mainAxisSize: MainAxisSize.min,
-                            children: [1, 2, 3].map((n) {
+                            children: [1, 2].map((n) {
                               final isSel = copies == n;
                               return Padding(
                                 padding: const EdgeInsets.only(left: 4),

@@ -11,6 +11,8 @@ abstract final class CustomerRoutes {
 
 abstract final class MerchantRoutes {
   static const String root = '/merchant';
+  static const String login = '/merchant/login';
+  static const String register = '/merchant/register';
   static const String orders = '/merchant/orders';
   static const String menu = '/merchant/menu';
   static const String finance = '/merchant/finance';

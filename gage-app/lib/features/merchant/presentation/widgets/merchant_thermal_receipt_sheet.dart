@@ -3,13 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/features/merchant/services/merchant_receipt_printer_service.dart';
+import 'package:gage_app/features/merchant/presentation/widgets/merchant_printer_settings_sheet.dart';
 import 'package:gage_app/providers/merchant_order_provider.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 
 /// Modal Floating Sheet untuk Pratinjau & Cetak Struk Kasir Thermal (58mm / 80mm)
-/// Meniru roll kertas kasir fisik asli dengan font monospace, garis putus-putus,
-/// rincian pesanan, serta PIN verifikasi kurir 4-digit acak.
+/// Mengadopsi arsitektur Nusa Kasir dengan monospace presisi dan tanpa rangkap kurir.
 class MerchantThermalReceiptSheet extends StatefulWidget {
   final OrderModel order;
   final NumberFormat currencyFormatter;
@@ -46,63 +47,16 @@ class MerchantThermalReceiptSheet extends StatefulWidget {
 class _MerchantThermalReceiptSheetState
     extends State<MerchantThermalReceiptSheet> {
   String _paperSize = '58mm'; // '58mm' | '80mm'
-  int _activePreviewCopy = 1; // 1: Dapur, 2: Kurir/Pelanggan, 3: Kasir
+  int _activePreviewCopy = 1; // 1: Toko, 2: Dapur
   bool _isPrinting = false;
 
-  String _formatDateTime(int timestamp) {
-    if (timestamp <= 0) return '-';
-    final dt = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
-    return DateFormat('dd/MM/yyyy HH:mm', 'id_ID').format(dt);
-  }
-
   String _generatePlainTextReceipt({int copyIndex = 1}) {
-    final o = widget.order;
-    final divider = _paperSize == '58mm'
-        ? '--------------------------------'
-        : '------------------------------------------------';
-    final buf = StringBuffer();
-    buf.writeln('          GAGE FOOD PRACIMANTORO          ');
-    buf.writeln('        ${o.merchantName}        ');
-    buf.writeln('   ${o.merchantAddress}   ');
-    buf.writeln(divider);
-    if (copyIndex == 1) {
-      buf.writeln('>>> [ RANGKAP 1: SALINAN DAPUR ] <<<');
-    } else if (copyIndex == 2) {
-      buf.writeln('>>> [ RANGKAP 2: KURIR / PELANGGAN ] <<<');
-    } else if (copyIndex == 3) {
-      buf.writeln('>>> [ RANGKAP 3: ARSIP KASIR ] <<<');
-    }
-    buf.writeln('No. Nota : ${o.orderNumber}');
-    buf.writeln('Waktu    : ${_formatDateTime(o.createdAt)}');
-    buf.writeln('Pelanggan: ${o.customerName} (${o.customerPhone})');
-    if (o.driverName != null) {
-      buf.writeln('Driver   : ${o.driverName} (${o.driverPlate ?? "-"})');
-    }
-    buf.writeln(divider);
-    buf.writeln('PESANAN:');
-    for (final it in o.items) {
-      buf.writeln('${it.quantity}x ${it.name}');
-      if (it.notes != null && it.notes!.isNotEmpty) {
-        buf.writeln('   Catatan: ${it.notes}');
-      }
-      buf.writeln('   @${widget.currencyFormatter.format(it.price)} = ${widget.currencyFormatter.format(it.subtotal)}');
-    }
-    buf.writeln(divider);
-    buf.writeln('Subtotal Menu  : ${widget.currencyFormatter.format(o.itemsSubtotal)}');
-    buf.writeln('Ongkos Kirim   : ${widget.currencyFormatter.format(o.shippingFee)}');
-    buf.writeln('Biaya Layanan  : ${widget.currencyFormatter.format(o.adminFee)}');
-    buf.writeln('TOTAL BAYAR    : ${widget.currencyFormatter.format(o.totalAmount)}');
-    buf.writeln('Metode Bayar   : ${o.paymentMethod} (${o.paymentStatus})');
-    buf.writeln(divider);
-    buf.writeln('PAYOUT BERSIH  : ${widget.currencyFormatter.format(o.merchantNetPayout)}');
-    buf.writeln('(MDR Komisi GAGE: ${widget.currencyFormatter.format(o.platformCommissionAmount)})');
-    buf.writeln(divider);
-    buf.writeln('*** PIN VERIFIKASI KURIR: [ ${o.courierVerificationPin} ] ***');
-    buf.writeln('Berikan PIN ini ke kurir saat menyerahkan makanan.');
-    buf.writeln(divider);
-    buf.writeln('      Terima Kasih Atas Pesanan Anda!     ');
-    buf.writeln('           Simpan Struk Ini Kasir         ');
-    return buf.toString();
+    return MerchantReceiptPrinterService.instance.generateReceiptText(
+      order: widget.order,
+      currencyFormatter: widget.currencyFormatter,
+      paperSize: _paperSize,
+      copyIndex: copyIndex,
+    );
   }
 
   Future<void> _handlePrint() async {
@@ -125,6 +79,21 @@ class _MerchantThermalReceiptSheetState
       Navigator.pop(context);
     } else {
       GageToast.show(context, 'Gagal mencetak struk thermal.');
+    }
+  }
+
+  String _formatDateTime(int timestamp) {
+    if (timestamp <= 0) return '-';
+    final dt = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+    try {
+      return DateFormat('dd/MM/yyyy HH:mm', 'id_ID').format(dt);
+    } catch (_) {
+      final y = dt.year;
+      final m = dt.month.toString().padLeft(2, '0');
+      final d = dt.day.toString().padLeft(2, '0');
+      final h = dt.hour.toString().padLeft(2, '0');
+      final min = dt.minute.toString().padLeft(2, '0');
+      return '$d/$m/$y $h:$min';
     }
   }
 
@@ -310,9 +279,8 @@ class _MerchantThermalReceiptSheetState
                   ),
                   child: Row(
                     children: [
-                      Expanded(child: _buildCopyPill(provider, 1, '1x Tunggal', isDark)),
-                      Expanded(child: _buildCopyPill(provider, 2, '2x (Dapur+Kurir)', isDark)),
-                      Expanded(child: _buildCopyPill(provider, 3, '3x (+Kasir)', isDark)),
+                      Expanded(child: _buildCopyPill(provider, 1, '1x Struk Toko', isDark)),
+                      Expanded(child: _buildCopyPill(provider, 2, '2x (Toko + Dapur)', isDark)),
                     ],
                   ),
                 ),
@@ -370,7 +338,7 @@ class _MerchantThermalReceiptSheetState
                         padding: const EdgeInsets.only(right: 6),
                         child: ChoiceChip(
                           label: Text(
-                            i == 1 ? 'Rangkap 1 (Dapur)' : (i == 2 ? 'Rangkap 2 (Kurir)' : 'Rangkap 3 (Kasir)'),
+                            i == 1 ? 'Salinan 1 (Toko)' : 'Salinan 2 (Dapur)',
                             style: TextStyle(
                               fontSize: 10.5,
                               fontWeight: _activePreviewCopy == i ? FontWeight.bold : FontWeight.normal,

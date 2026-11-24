@@ -400,6 +400,32 @@ ALTER TABLE users ADD COLUMN handle TEXT;
    - Checkout Customer -> D1 `orders` -> Dapur Merchant -> Radar Driver (`order_type == 'DELIVERY'`) -> Monitoring Admin Dispatcher.
    - Penarikan komisi afiliasi G-Cuan langsung cair ke saldo GAGEPay pengguna via D1 `wallet_transactions`.
 
+## 15. Handoff Wave 11: Siaran Notifikasi Interaktif Media Gambar (`imageUrl`) & Integrasi D1
+
+### 15.1. Skema Tabel Cloudflare D1 `notifications`
+```sql
+ALTER TABLE notifications ADD COLUMN image_url TEXT;
+ALTER TABLE notifications ADD COLUMN action_url TEXT;
+```
+
+### 15.2. Endpoint Broadcast Notifikasi Admin (`POST /api/admin/notifications/broadcast`)
+* **Metode**: `POST`
+* **Header**: `Authorization: Bearer <admin_token>`
+* **Payload JSON**:
+  ```json
+  {
+    "title": "Promo Festival Kuliner Pracimantoro!",
+    "body": "Nikmati diskon s.d. 30% di seluruh mitra GAGE Food terpilih hari ini.",
+    "type": "promo",
+    "image_url": "https://pub-r2.gage.id/promos/festival_kuliner.png",
+    "action_url": "gage://promo/festival-kuliner",
+    "target_role": "all"
+  }
+  ```
+* **Perilaku Client Mobile**:
+  - `NotificationService` otomatis mengurai `imageUrl` dan `actionUrl`.
+  - Item notifikasi pada tab Notifikasi Customer, Merchant, dan Driver menjadi interaktif dan dapat dibuka ke layar penuh `NotificationDetailScreen` dengan banner gambar resolusi tinggi.
+
 
 
 

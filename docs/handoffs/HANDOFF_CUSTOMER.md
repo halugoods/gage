@@ -35,3 +35,17 @@
     - GagePay: `Icons.account_balance_wallet_outlined` -> `Icons.account_balance_wallet_rounded`
     - Akun: `Icons.person_outline_rounded` -> `Icons.person_rounded`
   - Haptic feedback tetap dipicu saat tab berubah: `HapticFeedback.selectionClick()`.
+
+---
+
+## 3. Notifikasi Interaktif Full-Screen & Media Gambar Admin (`imageUrl` & `actionUrl`)
+
+* **Lokasi Target**:
+  - `lib/core/services/notification_service.dart`
+  - `lib/features/notification/presentation/notification_screen.dart`
+  - `lib/features/notification/presentation/notification_detail_screen.dart`
+* **Spesifikasi Model & UI**:
+  - Model `GageNotification` memiliki field: `imageUrl` (`String?`) dan `actionUrl` (`String?`).
+  - Item notifikasi pada daftar kini dapat ditekan (*tappable*) dan membuka layar penuh `NotificationDetailScreen`.
+  - Jika notifikasi menyertakan `imageUrl` (broadcast promo/informasi dari Admin), render gambar dengan `ClipRRect(borderRadius: BorderRadius.circular(16))` di layar detail, dan thumbnail kompak di kartu list.
+

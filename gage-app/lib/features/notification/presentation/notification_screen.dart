@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/core/services/notification_service.dart';
+import 'package:gage_app/features/notification/presentation/notification_detail_screen.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 
 typedef InboxScreen = NotificationScreen;
@@ -19,7 +20,6 @@ class NotificationScreen extends StatefulWidget {
 }
 
 class _NotificationScreenState extends State<NotificationScreen> {
-  final Set<String> _expandedNotifIds = {};
   final Set<String> _sessionUnreadIds = {};
 
   @override
@@ -166,7 +166,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
       itemBuilder: (context, idx) {
         final notif = allNotifs[idx];
         final isUnread = !notif.isRead || _sessionUnreadIds.contains(notif.id);
-        final isExpanded = _expandedNotifIds.contains(notif.id);
         final color = _getTypeColor(notif.type);
         final icon = _getTypeIcon(notif.type);
 
@@ -216,12 +215,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   }
                   setState(() {
                     _sessionUnreadIds.remove(notif.id);
-                    if (isExpanded) {
-                      _expandedNotifIds.remove(notif.id);
-                    } else {
-                      _expandedNotifIds.add(notif.id);
-                    }
                   });
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => NotificationDetailScreen(notification: notif),
+                    ),
+                  );
                 },
                 child: Padding(
                   padding: const EdgeInsets.all(14),
@@ -276,9 +276,22 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                 height: 1.4,
                                 color: isDark ? Colors.grey.shade300 : const Color(0xFF334155),
                               ),
-                              maxLines: isExpanded ? 10 : 2,
+                              maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
+                            if (notif.imageUrl != null && notif.imageUrl!.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.network(
+                                  notif.imageUrl!,
+                                  height: 80,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                                ),
+                              ),
+                            ],
                             if (isUnread) ...[
                               const SizedBox(height: 8),
                               Container(

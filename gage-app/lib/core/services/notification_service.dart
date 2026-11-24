@@ -8,8 +8,10 @@ class GageNotification {
   final String id;
   final String title;
   final String body;
-  final String category; // 'transaksi' | 'promo' | 'sistem'
+  final String category; // 'transaksi' | 'promo' | 'sistem' | 'admin'
   final DateTime timestamp;
+  final String? imageUrl; // Lampiran media gambar promo / pengumuman resmi admin
+  final String? actionUrl;
   bool isRead;
 
   String get type => category;
@@ -20,6 +22,8 @@ class GageNotification {
     required this.body,
     required this.category,
     required this.timestamp,
+    this.imageUrl,
+    this.actionUrl,
     this.isRead = false,
   });
 
@@ -29,6 +33,8 @@ class GageNotification {
     'body': body,
     'category': category,
     'timestamp': timestamp.toIso8601String(),
+    'imageUrl': imageUrl,
+    'actionUrl': actionUrl,
     'isRead': isRead,
   };
 
@@ -38,6 +44,8 @@ class GageNotification {
     body: json['body'] ?? '',
     category: json['category'] ?? 'sistem',
     timestamp: json['timestamp'] != null ? DateTime.parse(json['timestamp']) : DateTime.now(),
+    imageUrl: json['imageUrl'] as String?,
+    actionUrl: json['actionUrl'] as String?,
     isRead: json['isRead'] ?? false,
   );
 }
@@ -221,6 +229,8 @@ class NotificationService extends ChangeNotifier {
     required String body,
     String category = 'sistem',
     String type = 'sistem',
+    String? imageUrl,
+    String? actionUrl,
   }) async {
     final cat = category != 'sistem' ? category : type;
     if (cat == 'promo') {
@@ -232,6 +242,8 @@ class NotificationService extends ChangeNotifier {
       body: body,
       category: cat,
       timestamp: DateTime.now(),
+      imageUrl: imageUrl,
+      actionUrl: actionUrl,
       isRead: false,
     );
     _items.insert(0, newNotif);

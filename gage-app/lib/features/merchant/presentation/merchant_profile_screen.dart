@@ -616,25 +616,49 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Radius Layanan:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                      Text('${_deliveryRadius.toStringAsFixed(1)} KM', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: GageTheme.primary)),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: GageTheme.primary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.location_on_rounded, color: GageTheme.primary, size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Cakupan Wilayah Layanan',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              ),
+                            ),
+                            const Text(
+                              'Kecamatan Pracimantoro (Penuh)',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: GageTheme.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
-                  Slider(
-                    value: _deliveryRadius,
-                    min: 2.0,
-                    max: 12.0,
-                    divisions: 10,
-                    activeColor: GageTheme.primary,
-                    label: '${_deliveryRadius.toStringAsFixed(1)} KM',
-                    onChanged: (v) => setState(() => _deliveryRadius = v),
-                    onChangeEnd: (v) => _persistStorefront(),
-                  ),
-                  const Text(
-                    'Menjangkau seluruh pelosok desa di Pracimantoro dan sekitarnya.',
-                    style: TextStyle(fontSize: 11, color: GageTheme.textSecondary),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Pesanan diantar langsung oleh Kurir Resmi GAGE ke seluruh desa di wilayah Pracimantoro tanpa batasan radius per-kios.',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: isDark ? Colors.grey.shade400 : GageTheme.textSecondary,
+                      height: 1.4,
+                    ),
                   ),
                 ],
               ),

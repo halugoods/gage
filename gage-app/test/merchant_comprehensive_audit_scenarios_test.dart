@@ -17,6 +17,8 @@ import 'package:gage_app/features/merchant/presentation/merchant_review_screen.d
 import 'package:gage_app/features/merchant/presentation/tabs/gage_merchant_orders_tab.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_floating_nav_bar.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_photo_picker_sheet.dart';
+import 'package:gage_app/features/merchant/services/merchant_receipt_printer_service.dart';
+import 'package:gage_app/core/services/notification_service.dart';
 import 'package:gage_app/providers/merchant_order_provider.dart';
 
 void main() {
@@ -729,7 +731,7 @@ void main() {
 
       // Verifikasi bahwa MerchantOrderDetailScreen terbuka sebagai Full Screen Page
       expect(find.byType(MerchantOrderDetailScreen), findsOneWidget);
-      expect(find.text('PIN VERIFIKASI SERAH TERIMA'), findsOneWidget);
+      expect(find.text('PIN Verifikasi Serah Terima'), findsOneWidget);
       expect(find.text('Rincian Pembayaran & Pendapatan'), findsOneWidget);
       expect(find.text('Pendapatan Bersih Toko'), findsOneWidget);
 
@@ -864,6 +866,105 @@ void main() {
       for (final item in readyOrder.items) {
         expect(item.effectiveImageUrl.isNotEmpty, isTrue);
       }
+
+      provider.dispose();
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 28: Wave 11 Eliminasi Status Banner & Pemisahan Kontainer Pembeli / Driver
+    // -------------------------------------------------------------------------
+    testWidgets('Skenario 28: Wave 11 Detail Order Banner Status Dieliminasi & Header Kontainer Terpisah', (tester) async {
+      final provider = MerchantOrderProvider();
+      final formatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0);
+      final readyOrder = provider.orders.firstWhere((o) => o.status == 'READY_FOR_PICKUP');
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<MerchantOrderProvider>.value(value: provider),
+          ],
+          child: MaterialApp(
+            home: MerchantOrderDetailScreen(
+              order: readyOrder,
+              currencyFormatter: formatter,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 1. Verifikasi banner status atas dieliminasi total
+      expect(find.text('Pesanan Siap Diambil'), findsNothing);
+      expect(find.text('READY_FOR_PICKUP'), findsNothing);
+      expect(find.text('Toko telah menyelesaikan penyiapan, menunggu kurir / pembeli.'), findsNothing);
+
+      // 2. Verifikasi PIN serah terima kurir tampil dengan label PIN Verifikasi Serah Terima
+      expect(find.text('PIN Verifikasi Serah Terima'), findsOneWidget);
+
+      // 3. Verifikasi kontainer pembeli terpisah dengan header Pembeli
+      expect(find.text('Pembeli'), findsOneWidget);
+
+      provider.dispose();
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 29: Wave 11 Engine Cetak Struk Monospace & Notifikasi Interaktif imageUrl
+    // -------------------------------------------------------------------------
+    test('Skenario 29: Wave 11 MerchantReceiptPrinterService ESC/POS Formatting & Notifikasi Media', () {
+      final provider = MerchantOrderProvider();
+      final order = provider.orders.first;
+      final formatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0);
+
+      // Test format 58mm (32 kolom)
+      final receipt58 = MerchantReceiptPrinterService.instance.generateReceiptText(
+        order: order,
+        paperSize: '58mm',
+        currencyFormatter: formatter,
+        copyIndex: 1,
+      );
+      expect(receipt58.contains('GAGE PRACIMANTORO'), isTrue);
+      expect(receipt58.contains(order.orderNumber), isTrue);
+
+      // Test format 80mm (48 kolom)
+      final receipt80 = MerchantReceiptPrinterService.instance.generateReceiptText(
+        order: order,
+        paperSize: '80mm',
+        currencyFormatter: formatter,
+        copyIndex: 1,
+      );
+      expect(receipt80.contains('GAGE PRACIMANTORO'), isTrue);
+
+      // Test format salinan tiket dapur
+      final kitchenTicket = MerchantReceiptPrinterService.instance.generateReceiptText(
+        order: order,
+        paperSize: '58mm',
+        currencyFormatter: formatter,
+        copyIndex: 2,
+      );
+      expect(kitchenTicket.contains('SALINAN TIKET DAPUR'), isTrue);
+
+      // Test formatTwoColumns & formatCenter
+      final twoCol = MerchantReceiptPrinterService.formatTwoColumns('Kiri', 'Kanan', 32);
+      expect(twoCol.startsWith('Kiri'), isTrue);
+      expect(twoCol.endsWith('Kanan'), isTrue);
+
+      // Test GageNotification model serialization dengan imageUrl
+      final notif = GageNotification(
+        id: 'notif-test-01',
+        title: 'Promo Spesial',
+        body: 'Diskon 30%',
+        category: 'promo',
+        timestamp: DateTime.now(),
+        imageUrl: 'https://pub-r2.gage.id/promos/test.png',
+        actionUrl: 'gage://promo/test',
+      );
+      final json = notif.toJson();
+      expect(json['imageUrl'], equals('https://pub-r2.gage.id/promos/test.png'));
+      expect(json['actionUrl'], equals('gage://promo/test'));
+
+      final reconstructed = GageNotification.fromJson(json);
+      expect(reconstructed.imageUrl, equals('https://pub-r2.gage.id/promos/test.png'));
+      expect(reconstructed.actionUrl, equals('gage://promo/test'));
 
       provider.dispose();
     });

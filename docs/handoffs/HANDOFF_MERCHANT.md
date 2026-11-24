@@ -834,6 +834,49 @@ Tab 4 Merchant kini mengadopsi widget asli `GagePayScreen` (`isEmbeddedInTab: tr
 - Menghapus kontainer putih solid penutup di belakang tombol aksi bawah detail pesanan, menjadikannya tombol aksi yang benar-benar melayang (*true floating button*).
 - Search bar pesanan diseragamkan tingginya menjadi 42px dengan kapsul penuh `BorderRadius.circular(999)`, melayang jernih tanpa box background.
 
+## 16. Dokumentasi Pembaruan Wave 11 (Detail Pesanan Tanpa Banner Status, Modern PIN Digit Tiles, Placement Driver Bawah Total Pesanan, Engine Cetak Struk Nusa Kasir, Notifikasi Interaktif Media Gambar, Rombak Pengaturan Eliminasi Radius, & Portal Auth Mitra Usaha)
+
+### A. Eliminasi Total Banner Status Operasional pada Layar Detail Pesanan
+- Menghapus komponen banner status kartu atas (`_buildStatusCard`) dari `MerchantOrderDetailScreen`.
+- Detail pesanan kini langsung berfokus pada informasi esensial: PIN Serah Terima, Driver/Kurir penjemput, Data Pembeli, Rincian Produk, dan Ringkasan Finansial Toko.
+
+### B. Desain Baru PIN Serah Terima Kurir (Individual Modern Digit Tiles)
+- Rombak total kotak PIN Serah Terima kurir dari sebelumnya ber-border merah muda kaku menjadi 4 kotak ubin digit individual (`44x48`, rounded 12) dengan jarak lega, font tebal 22px, dan tombol salin PIN satu sentuhan.
+
+### C. Pemisahan Kontainer Pembeli dan Driver / Kurir GAGE Berjudul
+- Memisahkan blok informasi Pembeli dan Driver menjadi 2 kontainer terpisah yang bersih:
+  - Header kontainer: `"Driver / Kurir GAGE"` dan `"Pembeli"`.
+  - Menggunakan avatar profil lingkaran (`CircleAvatar`).
+  - Tombol aksi chat terstandardisasi menggunakan warna merah `GageTheme.primary`.
+
+### D. Kartu Pesanan Luar: Placement Driver di Bawah Total Pesanan & Ukuran Tombol Seragam
+- Pada `gage_merchant_orders_tab.dart`, section informasi Driver dipindahkan ke **bawah Total Pesanan** dalam kontainer warna tipis (`#F8FAFC` / `#0F172A`).
+- Tombol aksi `"Menunggu Verifikasi PIN Driver"` diseragamkan ukurannya (`minHeight: 44px`, `StadiumBorder()`) agar identik 1:1 dengan tombol operasional lainnya.
+
+### E. True Floating Bottom Action Button
+- Menghilangkan dock kontainer putih di belakang tombol aksi bawah `MerchantOrderDetailScreen` menggunakan `extendBody: true` dan padding transparan dengan efek bayangan melayang (*drop shadow*).
+
+### F. Engine Cetak Struk Nusa Kasir (`MerchantReceiptPrinterService`)
+- Membangun `MerchantReceiptPrinterService` yang mengadopsi standar cetak thermal Nusa Kasir.
+- Format monospace ketat 58mm (32 kolom) dan 80mm (48 kolom) untuk Struk Transaksi Toko dan Tiket Dapur.
+- Menghapus konsep print driver yang tidak terpakai, dan menyederhanakan opsi rangkap struk (1x Struk Toko & 2x Toko + Dapur).
+- Pengaturan printer Bluetooth thermal dipindahkan ke menu Pengaturan Toko / Outlet.
+
+### G. Notifikasi Interaktif Layar Penuh & Dukungan Media Gambar Admin
+- Menambahkan field `imageUrl` dan `actionUrl` pada model `GageNotification` di `NotificationService`.
+- Mengetuk item notifikasi kini membuka layar penuh `NotificationDetailScreen` yang menampilkan banner gambar broadcast dari Admin, chip kategori, waktu lengkap, dan isi pesan detail.
+
+### H. Rombak Pengaturan Outlet & Eliminasi Radius Layanan
+- Menghapus slider radius layanan (`_deliveryRadius`) pada `merchant_profile_screen.dart` dan `gage_merchant_outlet_tab.dart` karena layanan GAGE mencakup seluruh desa di Kecamatan Pracimantoro tanpa pembatasan radius toko.
+- Menambahkan Grid Operasional 8 fitur lengkap (Menu & Stok, Printer Thermal, Jadwal Toko, Lokasi & Kios, Ulasan, Wawasan, Komisi MDR 10%, Bantuan).
+- Menambahkan card informasi cakupan wilayah Pracimantoro dan opsi Logout Akun Toko.
+
+### I. Screen Auth Login & Registrasi Mitra Usaha Baru
+- Membangun `MerchantLoginScreen` (`/merchant/login`): Login via WhatsApp Toko & PIN 6-Digit dengan Dev Quick Login.
+- Membangun `MerchantRegisterScreen` (`/merchant/register`): Pendaftaran toko baru lengkap dengan pilihan kategori (Food, Shop, Farm, Build), pilihan desa Pracimantoro, dan persetujuan komisi MDR 10%.
+- Mendaftarkan rute di `MerchantRoutes` dan `main_merchant.dart`.
+
+
 
 
 

@@ -8,9 +8,12 @@ import 'package:gage_app/features/merchant/presentation/merchant_menu_screen.dar
 import 'package:gage_app/features/merchant/presentation/merchant_profile_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_review_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_kitchen_insights_screen.dart';
+import 'package:gage_app/features/merchant/presentation/widgets/merchant_printer_settings_sheet.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_support_sheet.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/operating_schedule_editor_sheet.dart';
+import 'package:gage_app/providers/auth_provider.dart';
 import 'package:gage_app/providers/merchant_order_provider.dart';
+import 'package:gage_app/core/routing/portal_routes.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 
@@ -134,6 +137,130 @@ class GageMerchantOutletTab extends StatelessWidget {
             const SizedBox(height: 10),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showMdrInfoSheet(BuildContext context, bool isDark) {
+    HapticFeedback.lightImpact();
+    GageFloatingSheet.show(
+      context: context,
+      title: 'Ketentuan Komisi & Bagi Hasil',
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFBFDBFE)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.verified_user_rounded, color: Color(0xFF2563EB), size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'MDR 10% Transparan • Bebas Biaya Langganan Bulanan',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF1E40AF)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            _buildMdrBullet('Komisi Platform Tetap 10%', 'Potongan 10% hanya dikenakan saat pesanan berhasil diselesaikan pembeli/kurir.'),
+            const SizedBox(height: 10),
+            _buildMdrBullet('Pencairan Otomatis ke Saldo', 'Pendapatan bersih 90% langsung masuk ke saldo GagePay dan dapat ditarik ke rekening bank lokal kapan saja.'),
+            const SizedBox(height: 10),
+            _buildMdrBullet('Tanpa Biaya Tersembunyi', 'Tidak ada biaya pendaftaran, sewa etalase, atau denda bulanan bagi UMKM Pracimantoro.'),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: GageTheme.primary,
+                  foregroundColor: Colors.white,
+                  shape: const StadiumBorder(),
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                ),
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Saya Mengerti', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static Widget _buildMdrBullet(String title, String desc) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(top: 2),
+          child: Icon(Icons.check_circle_outline_rounded, color: Color(0xFF16A34A), size: 16),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 2),
+              Text(desc, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _confirmLogout(BuildContext context, bool isDark) {
+    HapticFeedback.mediumImpact();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Keluar Akun Mitra?', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+        content: const Text(
+          'Anda dapat masuk kembali kapan saja menggunakan nomor WhatsApp toko atau PIN mitra terdaftar.',
+          style: TextStyle(fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: GageTheme.primary,
+              foregroundColor: Colors.white,
+              shape: const StadiumBorder(),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+              elevation: 0,
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final auth = Provider.of<AuthProvider>(context, listen: false);
+              await auth.signOut();
+              if (context.mounted) {
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  MerchantRoutes.login,
+                  (route) => false,
+                );
+              }
+            },
+            child: const Text('Ya, Keluar', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }
@@ -424,7 +551,7 @@ class GageMerchantOutletTab extends StatelessWidget {
             ),
             child: Column(
               children: [
-                // Baris 1: Menu & Stok, Jadwal Toko, Lokasi & Peta
+                // Baris 1: Menu & Stok, Printer Thermal, Jadwal Toko, Lokasi & Peta
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
@@ -444,8 +571,18 @@ class GageMerchantOutletTab extends StatelessWidget {
                       isDark: isDark,
                     ),
                     _buildGridItem(
-                      icon: Icons.schedule_rounded,
+                      icon: Icons.print_rounded,
                       color: const Color(0xFF0284C7),
+                      label: 'Printer Thermal',
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        MerchantPrinterSettingsSheet.show(context);
+                      },
+                      isDark: isDark,
+                    ),
+                    _buildGridItem(
+                      icon: Icons.schedule_rounded,
+                      color: const Color(0xFF8B5CF6),
                       label: 'Jadwal Toko',
                       onTap: () {
                         HapticFeedback.lightImpact();
@@ -458,7 +595,7 @@ class GageMerchantOutletTab extends StatelessWidget {
                     ),
                     _buildGridItem(
                       icon: Icons.storefront_rounded,
-                      color: const Color(0xFF8B5CF6),
+                      color: const Color(0xFF10B981),
                       label: 'Lokasi & Peta',
                       onTap: () {
                         HapticFeedback.lightImpact();
@@ -475,7 +612,7 @@ class GageMerchantOutletTab extends StatelessWidget {
                 ),
                 const SizedBox(height: 18),
 
-                // Baris 2: Penilaian, Wawasan Dapur, Pusat Bantuan
+                // Baris 2: Penilaian, Wawasan Dapur, Komisi 10%, Pusat Bantuan
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
@@ -497,7 +634,7 @@ class GageMerchantOutletTab extends StatelessWidget {
                     _buildGridItem(
                       icon: Icons.insights_rounded,
                       color: const Color(0xFF16A34A),
-                      label: 'Wawasan Dapur',
+                      label: 'Wawasan',
                       onTap: () {
                         HapticFeedback.lightImpact();
                         Navigator.push(
@@ -510,9 +647,16 @@ class GageMerchantOutletTab extends StatelessWidget {
                       isDark: isDark,
                     ),
                     _buildGridItem(
+                      icon: Icons.percent_rounded,
+                      color: const Color(0xFF6366F1),
+                      label: 'Komisi MDR',
+                      onTap: () => _showMdrInfoSheet(context, isDark),
+                      isDark: isDark,
+                    ),
+                    _buildGridItem(
                       icon: Icons.support_agent_rounded,
-                      color: const Color(0xFF0D9488),
-                      label: 'Pusat Bantuan',
+                      color: const Color(0xFFEC4899),
+                      label: 'Bantuan',
                       onTap: () {
                         HapticFeedback.lightImpact();
                         MerchantSupportSheet.show(context);
@@ -527,8 +671,179 @@ class GageMerchantOutletTab extends StatelessWidget {
 
           const SizedBox(height: 20),
 
-          // 5. Banner Carousel Slider Interaktif Star Resto GAGE
+          // 5. Cakupan Layanan GAGE (Kecamatan Pracimantoro - Tanpa Batasan Radius KM Toko)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(Icons.share_location_rounded, color: Color(0xFF2563EB), size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'Cakupan Layanan GAGE',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFDCFCE7),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: const Text(
+                              'Aktif',
+                              style: TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF166534),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Seluruh Wilayah Kecamatan Pracimantoro dilayani penuh oleh armada resmi Driver Kurir GAGE tanpa batasan radius per-kios.',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? Colors.white70 : Colors.grey.shade600,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // 6. Banner Carousel Slider Interaktif Star Resto GAGE
           MerchantPromoBannerSlider(isDark: isDark),
+
+          const SizedBox(height: 20),
+
+          // 7. Pengaturan Akun Mitra Usaha & Logout
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Akun & Keamanan Mitra',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: const Text(
+                        'ID: #MRCH-PRC-001',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF475569),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: GageTheme.primary.withValues(alpha: 0.12),
+                      child: const Icon(Icons.person_rounded, color: GageTheme.primary, size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Syams Djuhair Hibatullah',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '0851-5695-5735 • Rekening GagePay / Bank Jateng',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: isDark ? Colors.white60 : Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFDC2626),
+                      side: const BorderSide(color: Color(0xFFFCA5A5)),
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                    ),
+                    icon: const Icon(Icons.logout_rounded, size: 16),
+                    label: const Text(
+                      'Keluar Akun Mitra',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                    ),
+                    onPressed: () => _confirmLogout(context, isDark),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

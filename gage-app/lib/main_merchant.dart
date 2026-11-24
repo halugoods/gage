@@ -15,6 +15,8 @@ import 'package:gage_app/features/merchant/presentation/merchant_menu_screen.dar
 import 'package:gage_app/features/merchant/presentation/merchant_finance_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_chat_list_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_profile_screen.dart';
+import 'package:gage_app/features/merchant/presentation/auth/merchant_login_screen.dart';
+import 'package:gage_app/features/merchant/presentation/auth/merchant_register_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -58,6 +60,8 @@ class GageMerchantApp extends StatelessWidget {
       home: const MerchantRootScreen(),
       routes: {
         MerchantRoutes.root: (context) => const MerchantRootScreen(),
+        MerchantRoutes.login: (context) => const MerchantLoginScreen(),
+        MerchantRoutes.register: (context) => const MerchantRegisterScreen(),
         MerchantRoutes.orders: (context) => const MerchantScreen(),
         MerchantRoutes.menu: (context) => const MerchantMenuScreen(),
         MerchantRoutes.finance: (context) => const MerchantFinanceScreen(),

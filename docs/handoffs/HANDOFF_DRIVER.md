@@ -114,6 +114,16 @@ Hasil audit menunjukkan beberapa field penting dari Customer belum tersedia di `
 2. **Standarisasi Nomor Invoice Platform Cloudflare D1**:
    - Seluruh invoice pesanan kini terstandarisasi dengan format resmi Cloudflare D1 (`#INV-XXXX` / `INV-YYYYMMDD-XXXX`), menggantikan penamaan acak personal (seperti `#RATNA-3304`). Driver dapat memverifikasi nomor invoice yang identik dengan struk pemesan dan merchant.
 
+---
+
+## 8. Handoff Wave 11: PIN Serah Terima Stabil & Notifikasi Interaktif Media Gambar
+
+1. **PIN Serah Terima Stabil**:
+   - Menghapus regenerasi otomatis per 5 menit pada PIN serah terima agar kurir tidak mengalami penolakan PIN saat terjadi latensi jaringan di kios merchant. PIN bersifat stabil per pesanan.
+2. **Notifikasi Interaktif & Media Gambar Broadcast Admin**:
+   - Driver Portal mengadopsi pembaruan `GageNotification` (`imageUrl` & `actionUrl`), di mana notifikasi promosi atau penugasan khusus dari admin dapat menampilkan media gambar resolusi tinggi dan membuka `NotificationDetailScreen`.
+
+
 
 
 
