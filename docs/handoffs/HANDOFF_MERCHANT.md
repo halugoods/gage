@@ -876,6 +876,53 @@ Tab 4 Merchant kini mengadopsi widget asli `GagePayScreen` (`isEmbeddedInTab: tr
 - Membangun `MerchantRegisterScreen` (`/merchant/register`): Pendaftaran toko baru lengkap dengan pilihan kategori (Food, Shop, Farm, Build), pilihan desa Pracimantoro, dan persetujuan komisi MDR 10%.
 - Mendaftarkan rute di `MerchantRoutes` dan `main_merchant.dart`.
 
+## 17. Dokumentasi Pembaruan Wave 12 (Detail Pesanan Bersih, Red Driver Dock, Nusa Kasir Real Bluetooth & Struk Monospace, Rombak Pengaturan Bebas Slop, Google-First Wizard Setup Toko)
+
+### A. Detail Pesanan Bersih & Eliminasi Seluruh Badges Berlebihan
+- Membuang total badge "Kurir Terpasang" dan "Pesan Antar" pada kartu Driver dan Pembeli di `MerchantOrderDetailScreen`.
+- Menghapus teks subtitle "Pengantaran kurir ke alamat pembeli" pada blok Pembeli.
+- Mengubah judul blok menjadi bersih dan to the point: `"Driver"` dan `"Pembeli"` (void `"Driver / Kurir GAGE"`).
+- Menghapus badge `"Wajib Validasi"` pada kartu PIN serah terima.
+- Memastikan tombol aksi bawah benar-benar floating melayang bebas tanpa kontainer putih di belakangnya (`extendBody: true`, `FloatingActionButtonLocation.centerFloat`).
+
+### B. Kartu Pesanan Luar: Red Driver Dock Layer & Smart Product Images
+- Penugasan driver pada kartu pesanan (`gage_merchant_orders_tab.dart`) kini diposisikan di layer paling bawah kartu sebagai **kontainer footer merah lembut / soft red** terintegrasi dengan radius kartu (`BorderRadius.vertical(bottom: Radius.circular(20))`).
+- Tombol aksi "Pesanan Siap Diambil" dilengkapi countdown timer dinamis penyiapan masakan (`11:51`).
+- Pemuat gambar produk cerdas (`_buildProductImage`) menampilkan thumbnail produk mini (34x34 & 38x38) yang selaras dengan katalog menu dan asset lokal.
+- Search bar dan segmented switch mengambang bersih di atas list tanpa kontainer putih pembungkus di belakangnya.
+
+### C. Pengecekan Bluetooth Riil & Engine Printer Nusa Kasir (Paritas 1:1)
+- Integrasi bridge native SPP Bluetooth di `BluetoothUtils` dan `MainActivity.kt`.
+- Pengecekan fisik riil status Bluetooth adapter: jika Bluetooth non-aktif, sheet menampilkan banner oranye peringatan *"Bluetooth Belum Aktif"* dan tombol *"Aktifkan"*. Tidak ada lagi status palsu "ONLINE" saat Bluetooth mati.
+- Toggle Cetak Otomatis setelah transaksi diterima dan Buka Laci Uang Otomatis (Cash Drawer).
+- Segmented switch ukuran kertas [58mm | 80mm] kapsul penuh 999.
+- Tombol aksi: Pindai Perangkat, Uji Coba Cetak (Test Print monospace presisi), dan Cetak Ulang Struk Terakhir.
+
+### D. Pengaturan Struk Toko Monospace (`MerchantReceiptSettingsSheet`)
+- Lembar pengaturan struk mandiri dengan live preview monospaced receipt dinamis.
+- Slider ukuran font header toko (12 - 36 px) dengan counter interaktif.
+- Input kustomisasi baris footer ucapan terima kasih toko dan nomor kontak layanan pelanggan.
+
+### E. Rombak Menu Pengaturan (Bebas AI Slop)
+- Judul halaman dan AppBar disederhanakan menjadi cukup **"Pengaturan"**.
+- Menghapus 100% input teks teknis koordinat Latitude/Longitude angka mentah (`-8.089200, 110.837400`).
+- Menggantikannya dengan Card Titik Lokasi Peta GPS interaktif + tombol kapsul *"Buka Peta"* (`FullScreenMapPicker`) dan *"GPS"*.
+- Menghapus total chips placeholder slop: *"Lapak Utama"*, *"Toko Sembako"*, *"Etalase Resto"* dan input path teks manual `assets/images/resto_dimsum_sewu.png`.
+- Memasang Image Picker riil (Kamera/Galeri) dengan dialog Crop & Rotate interaktif: rasio 1:1 untuk Foto Profil/Logo dan rasio 16:9 untuk Banner Sampul Toko.
+- Seksi `PERANGKAT` mengadopsi 1:1 layout Nusa Kasir dengan opsi `Printer` dan `Pengaturan Struk`.
+
+### F. Google-First Authentication & Multi-Step Wizard Setup Toko Mitra Usaha
+- Masuk / Daftar akun Mitra Usaha berpusat pada Google Sign-In (`auth.signInWithGoogle()`).
+- Deteksi otomatis status setup toko via `MerchantStorefrontService.hasCompletedStoreSetup(merchantId)`.
+- Jika toko baru belum disetup, merchant langsung diarahkan ke **Wizard Setup Toko (`MerchantStoreSetupWizardScreen`)**:
+  - Langkah 1: Identitas Toko, Nomor WhatsApp Operasional Toko (wajib), dan Kategori Usaha.
+  - Langkah 2: Branding Visual (Logo 1:1 & Banner 16:9 via Image Picker interaktif) + Bio Singkat.
+  - Langkah 3: Alamat Kios di Kecamatan Pracimantoro, Patokan/Landmark, dan Titik GPS Peta Interaktif.
+  - Langkah 4: Jam Operasional Toko (Buka/Tutup via Time Picker) & Transparansi Biaya Platform (MDR 10%).
+  - Tombol aksi utama: *"Buka Toko & Mulai Jualan"*.
+- Jika toko sudah disetup, langsung masuk ke Dashboard Toko GAGE.
+
+
 
 
 
