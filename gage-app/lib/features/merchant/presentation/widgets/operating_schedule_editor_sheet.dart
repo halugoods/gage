@@ -178,108 +178,104 @@ class _OperatingScheduleEditorSheetState extends State<_OperatingScheduleEditorS
               ),
             )
           else
-            Flexible(
-              child: ListView.separated(
-                shrinkWrap: true,
-                itemCount: MerchantOperatingSchedule.orderedWeekdays.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 8),
-                itemBuilder: (ctx, idx) {
-                  final weekday = MerchantOperatingSchedule.orderedWeekdays[idx];
-                  final dayName = MerchantOperatingSchedule.weekdayLabel(weekday);
-                  final entry = _days[weekday] ?? DayOperatingHours(openTime: _everydayOpen, closeTime: _everydayClose);
+            Column(
+              children: MerchantOperatingSchedule.orderedWeekdays.map((weekday) {
+                final dayName = MerchantOperatingSchedule.weekdayLabel(weekday);
+                final entry = _days[weekday] ?? DayOperatingHours(openTime: _everydayOpen, closeTime: _everydayClose);
 
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: cardBg,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: entry.isOpen
-                            ? (isDark ? Colors.white12 : Colors.grey.shade200)
-                            : Colors.red.withValues(alpha: 0.25),
-                      ),
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: cardBg,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: entry.isOpen
+                          ? (isDark ? Colors.white12 : Colors.grey.shade200)
+                          : Colors.red.withValues(alpha: 0.25),
                     ),
-                    child: Column(
-                      children: [
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Text(
+                                  dayName,
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: entry.isOpen
+                                        ? GageTheme.primary.withValues(alpha: 0.12)
+                                        : Colors.red.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    entry.isOpen ? 'Buka' : 'Tutup',
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: entry.isOpen ? GageTheme.primary : Colors.red,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch.adaptive(
+                            value: entry.isOpen,
+                            activeTrackColor: GageTheme.primary.withValues(alpha: 0.5),
+                            activeThumbColor: GageTheme.primary,
+                            onChanged: (v) {
+                              HapticFeedback.lightImpact();
+                              setState(() {
+                                _days[weekday] = entry.copyWith(isOpen: v);
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                      if (entry.isOpen) ...[
+                        const SizedBox(height: 8),
                         Row(
                           children: [
                             Expanded(
-                              child: Row(
-                                children: [
-                                  Text(
-                                    dayName,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: entry.isOpen
-                                          ? const Color(0xFF16A34A).withValues(alpha: 0.12)
-                                          : Colors.red.withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Text(
-                                      entry.isOpen ? 'Buka' : 'Tutup',
-                                      style: TextStyle(
-                                        fontSize: 10.5,
-                                        fontWeight: FontWeight.bold,
-                                        color: entry.isOpen ? const Color(0xFF16A34A) : Colors.red,
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                              child: _TimeChipButton(
+                                label: 'Buka',
+                                value: '${entry.openTime} WIB',
+                                onTap: () async {
+                                  final res = await _pickTime(entry.openTime);
+                                  if (res != null) {
+                                    setState(() => _days[weekday] = entry.copyWith(openTime: res));
+                                  }
+                                },
                               ),
                             ),
-                            Switch.adaptive(
-                              value: entry.isOpen,
-                              activeTrackColor: GageTheme.accentGreen,
-                              onChanged: (v) {
-                                HapticFeedback.lightImpact();
-                                setState(() {
-                                  _days[weekday] = entry.copyWith(isOpen: v);
-                                });
-                              },
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _TimeChipButton(
+                                label: 'Tutup',
+                                value: '${entry.closeTime} WIB',
+                                onTap: () async {
+                                  final res = await _pickTime(entry.closeTime);
+                                  if (res != null) {
+                                    setState(() => _days[weekday] = entry.copyWith(closeTime: res));
+                                  }
+                                },
+                              ),
                             ),
                           ],
                         ),
-                        if (entry.isOpen) ...[
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _TimeChipButton(
-                                  label: 'Buka',
-                                  value: '${entry.openTime} WIB',
-                                  onTap: () async {
-                                    final res = await _pickTime(entry.openTime);
-                                    if (res != null) {
-                                      setState(() => _days[weekday] = entry.copyWith(openTime: res));
-                                    }
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _TimeChipButton(
-                                  label: 'Tutup',
-                                  value: '${entry.closeTime} WIB',
-                                  onTap: () async {
-                                    final res = await _pickTime(entry.closeTime);
-                                    if (res != null) {
-                                      setState(() => _days[weekday] = entry.copyWith(closeTime: res));
-                                    }
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
                       ],
-                    ),
-                  );
-                },
-              ),
+                    ],
+                  ),
+                );
+              }).toList(),
             ),
 
           const SizedBox(height: 16),

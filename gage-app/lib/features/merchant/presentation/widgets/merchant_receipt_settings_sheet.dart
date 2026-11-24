@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 
 /// Sheet Pengaturan Struk Thermal Paritas 1:1 Nusa Kasir (Gambar 5).
@@ -16,10 +17,9 @@ class MerchantReceiptSettingsSheet extends StatefulWidget {
   });
 
   static Future<void> show(BuildContext context, {String? storeName}) {
-    return showModalBottomSheet(
+    return GageFloatingSheet.show(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
+      title: 'Pengaturan Struk',
       builder: (_) => MerchantReceiptSettingsSheet(
         storeName: storeName ?? 'Dimsum Sewu Pracimantoro',
       ),

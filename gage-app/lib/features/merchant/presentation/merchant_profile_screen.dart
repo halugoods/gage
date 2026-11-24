@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/core/services/merchant_storefront_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
-import 'package:gage_app/features/merchant/presentation/merchant_menu_screen.dart';
+import 'package:gage_app/features/merchant/presentation/merchant_review_screen.dart';
+import 'package:gage_app/features/merchant/presentation/merchant_terms_and_privacy_screen.dart';
+import 'package:gage_app/features/merchant/presentation/widgets/merchant_help_center_sheet.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_location_change_request_sheet.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_photo_picker_sheet.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_printer_settings_sheet.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_receipt_settings_sheet.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/operating_schedule_editor_sheet.dart';
+import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/mini_location_preview_map.dart';
 import 'package:gage_app/shared/widgets/storefront_image.dart';
@@ -159,8 +161,16 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
   }
 
   String get _storeIdFormatted {
-    final raw = _activeMerchantId.replaceAll('usr-m-', '').replaceAll('m-', '');
-    return '#M-${raw.length > 8 ? raw.substring(0, 8).toUpperCase() : "22467742"}';
+    final cleanId = _activeMerchantId.toLowerCase();
+    String sector = 'FD';
+    if (cleanId.contains('shop') || cleanId.contains('toko') || cleanId.contains('sembako')) {
+      sector = 'SH';
+    } else if (cleanId.contains('farm') || cleanId.contains('tani') || cleanId.contains('kebun')) {
+      sector = 'FM';
+    }
+    final digits = RegExp(r'\d+').allMatches(cleanId).map((m) => m.group(0)).join();
+    final seq = digits.isNotEmpty ? digits.padLeft(2, '0').substring(0, digits.length > 2 ? 2 : digits.length) : '01';
+    return 'GAGE-PRC-$sector$seq';
   }
 
   @override
@@ -209,15 +219,16 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
               ),
               child: Row(
                 children: [
-                  // Avatar Bulat 1:1
+                  // Avatar Kotak Rounded 14px
                   Container(
                     width: 52,
                     height: 52,
                     decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: GageTheme.primary, width: 2),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: GageTheme.primary.withValues(alpha: 0.5), width: 1.5),
                     ),
-                    child: ClipOval(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
                       child: StorefrontImage(
                         path: _storeLogo,
                         fit: BoxFit.cover,
@@ -299,26 +310,6 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                       ],
                     ),
                   ),
-                  // Tombol Katalog Menu
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      HapticFeedback.lightImpact();
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (ctx) => const MerchantMenuScreen()),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: GageTheme.primary,
-                      foregroundColor: Colors.white,
-                      shape: const StadiumBorder(),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      visualDensity: VisualDensity.compact,
-                      elevation: 0,
-                    ),
-                    icon: const Icon(Icons.restaurant_menu_rounded, size: 13),
-                    label: const Text('Menu', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                  ),
                 ],
               ),
             ),
@@ -328,7 +319,23 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
             // 2. Metrik Rating Resto Singkat
             Row(
               children: [
-                Expanded(child: _buildStatTile('Rating Toko', avgRating, countLabel, isDark, cardBg, borderColor)),
+                Expanded(
+                  child: _buildStatTile(
+                    'Rating Toko',
+                    avgRating,
+                    countLabel,
+                    isDark,
+                    cardBg,
+                    borderColor,
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const MerchantReviewScreen()),
+                      );
+                    },
+                  ),
+                ),
                 const SizedBox(width: 8),
                 Expanded(child: _buildStatTile('Kepatuhan SOP', '99.5%', 'Standar GAGE', isDark, cardBg, borderColor)),
                 const SizedBox(width: 8),
@@ -457,7 +464,8 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                         style: TextStyle(fontSize: 11.5, color: subColor),
                       ),
                       value: _isOpen,
-                      activeThumbColor: GageTheme.accentGreen,
+                      activeTrackColor: GageTheme.primary.withValues(alpha: 0.45),
+                      activeThumbColor: GageTheme.primary,
                       onChanged: (v) async {
                         HapticFeedback.lightImpact();
                         setState(() => _isOpen = v);
@@ -517,9 +525,9 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                 child: Column(
                   children: [
                     ListTile(
-                      leading: const Icon(Icons.chat_rounded, color: GageTheme.accentGreen, size: 20),
-                      title: const Text('WhatsApp Layanan Mitra GAGE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
-                      subtitle: Text('Bantuan teknis, order, atau settlement dana', style: TextStyle(fontSize: 11.5, color: subColor)),
+                      leading: const Icon(Icons.support_agent_rounded, color: GageTheme.primary, size: 20),
+                      title: const Text('Pusat Bantuan & Hotline Dispatcher', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                      subtitle: Text('Hotline darurat Pracimantoro & FAQ mitra', style: TextStyle(fontSize: 11.5, color: subColor)),
                       trailing: const Icon(Icons.chevron_right_rounded, size: 20, color: Colors.grey),
                       onTap: _openHelpCenter,
                     ),
@@ -529,7 +537,11 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                       title: const Text('Kebijakan Privasi & Kemitraan', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                       trailing: const Icon(Icons.chevron_right_rounded, size: 20, color: Colors.grey),
                       onTap: () {
-                        GageToast.show(context, 'Kemitraan bagi hasil GAGE 10% berlaku untuk seluruh order.');
+                        HapticFeedback.lightImpact();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const MerchantTermsAndPrivacyScreen()),
+                        );
                       },
                     ),
                     Divider(height: 1, indent: 16, endIndent: 16, color: isDark ? Colors.white12 : const Color(0xFFF1F5F9)),
@@ -607,9 +619,10 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     String subtitle,
     bool isDark,
     Color cardBg,
-    Color borderColor,
-  ) {
-    return Container(
+    Color borderColor, {
+    VoidCallback? onTap,
+  }) {
+    final tileContent = Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       decoration: BoxDecoration(
         color: cardBg,
@@ -618,7 +631,16 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
       ),
       child: Column(
         children: [
-          Text(label, style: const TextStyle(fontSize: 10.5, color: GageTheme.textSecondary)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(label, style: const TextStyle(fontSize: 10.5, color: GageTheme.textSecondary)),
+              if (onTap != null) ...[
+                const SizedBox(width: 3),
+                const Icon(Icons.arrow_forward_ios_rounded, size: 8, color: GageTheme.primary),
+              ],
+            ],
+          ),
           const SizedBox(height: 4),
           Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: GageTheme.primary)),
           const SizedBox(height: 2),
@@ -626,12 +648,27 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
         ],
       ),
     );
+
+    if (onTap != null) {
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: tileContent,
+        ),
+      );
+    }
+    return tileContent;
   }
 
   Future<void> _openHelpCenter() async {
     HapticFeedback.lightImpact();
-    final uri = Uri.parse('https://wa.me/628111222333?text=Halo%20Admin%20GAGE,%20saya%20mitra%20$_storeName');
-    if (await canLaunchUrl(uri)) launchUrl(uri, mode: LaunchMode.externalApplication);
+    await MerchantHelpCenterSheet.show(
+      context,
+      storeName: _storeName,
+      storeId: _storeIdFormatted,
+    );
   }
 
   Future<void> _openLocationChangeSheet() async {
@@ -660,115 +697,80 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     String currentBanner = _storeBanner;
     String currentLogo = _storeLogo;
 
-    showModalBottomSheet(
+    GageFloatingSheet.show(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      title: 'Informasi Toko',
       builder: (ctx) => StatefulBuilder(
         builder: (context, setSheetState) {
           final isDark = Theme.of(context).brightness == Brightness.dark;
-          final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
           final inputBg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
           final borderColor = isDark ? Colors.white12 : const Color(0xFFE2E8F0);
           final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
           final subColor = isDark ? Colors.white60 : const Color(0xFF64748B);
 
-          return Container(
-            padding: EdgeInsets.only(
-              top: 16,
-              left: 20,
-              right: 20,
-              bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-            ),
-            decoration: BoxDecoration(
-              color: cardBg,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      const Icon(Icons.storefront_rounded, color: GageTheme.primary, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Informasi Toko',
-                        style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: textColor),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Kelola branding foto profil, banner, dan kontak operasional.',
-                    style: TextStyle(fontSize: 11, color: subColor),
-                  ),
-                  const SizedBox(height: 14),
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Kelola branding foto profil, banner, dan kontak operasional.',
+                style: TextStyle(fontSize: 11, color: subColor),
+              ),
+              const SizedBox(height: 14),
 
-                  // Foto Profil (1:1)
-                  Text('Foto Profil / Logo Toko (Rasio 1:1)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textColor)),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: inputBg,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: borderColor),
+              // Foto Profil (1:1)
+              Text('Foto Profil / Logo Toko (Rasio 1:1)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textColor)),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: inputBg,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: borderColor),
+                ),
+                child: Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: StorefrontImage(
+                          path: currentLogo,
+                          fit: BoxFit.cover,
+                          fallback: const Icon(Icons.storefront_rounded, color: Colors.grey),
+                        ),
+                      ),
                     ),
-                    child: Row(
-                      children: [
-                        ClipOval(
-                          child: SizedBox(
-                            width: 48,
-                            height: 48,
-                            child: StorefrontImage(
-                              path: currentLogo,
-                              fit: BoxFit.cover,
-                              fallback: const Icon(Icons.storefront_rounded, color: Colors.grey),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Logo Kios', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: textColor)),
-                              Text('Tampil di navigasi pembeli & struk', style: TextStyle(fontSize: 10.5, color: subColor)),
-                            ],
-                          ),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: () async {
-                            final path = await MerchantPhotoPickerSheet.show(context);
-                            if (path != null) {
-                              setSheetState(() => currentLogo = path);
-                            }
-                          },
-                          style: OutlinedButton.styleFrom(
-                            shape: const StadiumBorder(),
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            visualDensity: VisualDensity.compact,
-                          ),
-                          icon: const Icon(Icons.photo_camera_rounded, size: 13),
-                          label: const Text('Ganti (1:1)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                        ),
-                      ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Logo Kios', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: textColor)),
+                          Text('Tampil di navigasi pembeli & struk', style: TextStyle(fontSize: 10.5, color: subColor)),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        final path = await MerchantPhotoPickerSheet.show(context);
+                        if (path != null) {
+                          setSheetState(() => currentLogo = path);
+                        }
+                      },
+                      style: OutlinedButton.styleFrom(
+                        shape: const StadiumBorder(),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      icon: const Icon(Icons.photo_camera_rounded, size: 13),
+                      label: const Text('Ganti (1:1)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
 
                   // Banner Sampul (16:9)
                   Text('Banner / Sampul Toko (Rasio 16:9)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textColor)),
@@ -961,13 +963,11 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                     ),
                   ),
                 ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
+              );
+            },
+          ),
+        );
+      }
 
   // ── Sheet 2: Pengaturan Pesanan (Shopee Partner Style) ──
   void _showPengaturanPesananSheet() {
@@ -975,131 +975,109 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     bool tempPickup = _selfPickupEnabled;
     bool tempAuto = _autoConfirmOrders;
 
-    showModalBottomSheet(
+    GageFloatingSheet.show(
       context: context,
-      backgroundColor: Colors.transparent,
+      title: 'Pengaturan Pesanan',
       builder: (ctx) => StatefulBuilder(
         builder: (context, setSheetState) {
           final isDark = Theme.of(context).brightness == Brightness.dark;
-          final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
           final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
           final subColor = isDark ? Colors.white60 : const Color(0xFF64748B);
 
-          return Container(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-            decoration: BoxDecoration(
-              color: cardBg,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    const Icon(Icons.assignment_turned_in_rounded, color: Color(0xFF3B82F6), size: 20),
-                    const SizedBox(width: 8),
-                    Text('Pengaturan Pesanan', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: textColor)),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text('Atur waktu penyiapan makanan dan alur konfirmasi.', style: TextStyle(fontSize: 11, color: subColor)),
-                const SizedBox(height: 16),
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Atur waktu penyiapan makanan dan alur konfirmasi.', style: TextStyle(fontSize: 11, color: subColor)),
+              const SizedBox(height: 16),
 
-                // Waktu Masak Segmented Kapsul
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Estimasi Waktu Penyiapan Default:', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: textColor)),
-                    Text('$tempCooking Menit', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: GageTheme.primary)),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [10, 15, 20, 25].map((mins) {
-                    final isSel = tempCooking == mins;
-                    return Expanded(
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        child: InkWell(
-                          onTap: () {
-                            HapticFeedback.selectionClick();
-                            setSheetState(() => tempCooking = mins);
-                          },
-                          borderRadius: BorderRadius.circular(999),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            decoration: BoxDecoration(
-                              color: isSel ? GageTheme.primary : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9)),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              '$mins mnt',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: isSel ? Colors.white : subColor,
-                              ),
+              // Waktu Masak Segmented Kapsul
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Estimasi Waktu Penyiapan Default:', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: textColor)),
+                  Text('$tempCooking Menit', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: GageTheme.primary)),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [10, 15, 20, 25].map((mins) {
+                  final isSel = tempCooking == mins;
+                  return Expanded(
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      child: InkWell(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          setSheetState(() => tempCooking = mins);
+                        },
+                        borderRadius: BorderRadius.circular(999),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isSel ? GageTheme.primary : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9)),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            '$mins mnt',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: isSel ? Colors.white : subColor,
                             ),
                           ),
                         ),
                       ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 14),
-
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Pesanan Ambil di Toko (Self-Pickup)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                  subtitle: Text('Izinkan pelanggan mengambil pesanan langsung ke kios', style: TextStyle(fontSize: 11, color: subColor)),
-                  value: tempPickup,
-                  activeThumbColor: GageTheme.accentGreen,
-                  onChanged: (v) => setSheetState(() => tempPickup = v),
-                ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Konfirmasi Pesanan Otomatis', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                  subtitle: Text('Langsung terima pesanan baru saat masuk tanpa sentuh layar', style: TextStyle(fontSize: 11, color: subColor)),
-                  value: tempAuto,
-                  activeThumbColor: GageTheme.accentGreen,
-                  onChanged: (v) => setSheetState(() => tempAuto = v),
-                ),
-                const SizedBox(height: 16),
-
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: GageTheme.primary,
-                      foregroundColor: Colors.white,
-                      shape: const StadiumBorder(),
-                      elevation: 0,
                     ),
-                    onPressed: () {
-                      setState(() {
-                        _cookingTime = tempCooking;
-                        _selfPickupEnabled = tempPickup;
-                        _autoConfirmOrders = tempAuto;
-                      });
-                      Navigator.pop(ctx);
-                      GageToast.show(this.context, 'Pengaturan pesanan berhasil disimpan!');
-                    },
-                    child: const Text('Simpan Pengaturan Pesanan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 14),
+
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Pesanan Ambil di Toko (Self-Pickup)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                subtitle: Text('Izinkan pelanggan mengambil pesanan langsung ke kios', style: TextStyle(fontSize: 11, color: subColor)),
+                value: tempPickup,
+                activeTrackColor: GageTheme.primary.withValues(alpha: 0.45),
+                activeThumbColor: GageTheme.primary,
+                onChanged: (v) => setSheetState(() => tempPickup = v),
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Konfirmasi Pesanan Otomatis', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                subtitle: Text('Langsung terima pesanan baru saat masuk tanpa sentuh layar', style: TextStyle(fontSize: 11, color: subColor)),
+                value: tempAuto,
+                activeTrackColor: GageTheme.primary.withValues(alpha: 0.45),
+                activeThumbColor: GageTheme.primary,
+                onChanged: (v) => setSheetState(() => tempAuto = v),
+              ),
+              const SizedBox(height: 16),
+
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: GageTheme.primary,
+                    foregroundColor: Colors.white,
+                    shape: const StadiumBorder(),
+                    elevation: 0,
                   ),
+                  onPressed: () {
+                    setState(() {
+                      _cookingTime = tempCooking;
+                      _selfPickupEnabled = tempPickup;
+                      _autoConfirmOrders = tempAuto;
+                    });
+                    Navigator.pop(ctx);
+                    GageToast.show(this.context, 'Pengaturan pesanan berhasil disimpan!');
+                  },
+                  child: const Text('Simpan Pengaturan Pesanan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
                 ),
-              ],
-            ),
+              ),
+            ],
           );
         },
       ),
@@ -1111,86 +1089,63 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     bool tempAlarm = _alarmRepeating;
     bool tempPopup = _popupNotification;
 
-    showModalBottomSheet(
+    GageFloatingSheet.show(
       context: context,
-      backgroundColor: Colors.transparent,
+      title: 'Pengaturan Notifikasi',
       builder: (ctx) => StatefulBuilder(
         builder: (context, setSheetState) {
           final isDark = Theme.of(context).brightness == Brightness.dark;
-          final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
-          final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
           final subColor = isDark ? Colors.white60 : const Color(0xFF64748B);
 
-          return Container(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-            decoration: BoxDecoration(
-              color: cardBg,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    const Icon(Icons.notifications_active_rounded, color: Color(0xFF8B5CF6), size: 20),
-                    const SizedBox(width: 8),
-                    Text('Pengaturan Notifikasi', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: textColor)),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text('Pastikan notifikasi alarm dapur tidak terlewat saat pesanan masuk.', style: TextStyle(fontSize: 11, color: subColor)),
-                const SizedBox(height: 16),
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Pastikan notifikasi alarm dapur tidak terlewat saat pesanan masuk.', style: TextStyle(fontSize: 11, color: subColor)),
+              const SizedBox(height: 16),
 
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Dering Pesanan Baru Berulang', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                  subtitle: Text('Bunyikan alarm pesanan berulang hingga pesanan ditekan / diterima', style: TextStyle(fontSize: 11, color: subColor)),
-                  value: tempAlarm,
-                  activeThumbColor: GageTheme.accentGreen,
-                  onChanged: (v) => setSheetState(() => tempAlarm = v),
-                ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Notifikasi Pop-up di Layar Kunci', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                  subtitle: Text('Tampilkan banner detail pesanan saat aplikasi di latar belakang', style: TextStyle(fontSize: 11, color: subColor)),
-                  value: tempPopup,
-                  activeThumbColor: GageTheme.accentGreen,
-                  onChanged: (v) => setSheetState(() => tempPopup = v),
-                ),
-                const SizedBox(height: 18),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Dering Pesanan Baru Berulang', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                subtitle: Text('Bunyikan alarm pesanan berulang hingga pesanan ditekan / diterima', style: TextStyle(fontSize: 11, color: subColor)),
+                value: tempAlarm,
+                activeTrackColor: GageTheme.primary.withValues(alpha: 0.45),
+                activeThumbColor: GageTheme.primary,
+                onChanged: (v) => setSheetState(() => tempAlarm = v),
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Notifikasi Pop-up di Layar Kunci', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                subtitle: Text('Tampilkan banner detail pesanan saat aplikasi di latar belakang', style: TextStyle(fontSize: 11, color: subColor)),
+                value: tempPopup,
+                activeTrackColor: GageTheme.primary.withValues(alpha: 0.45),
+                activeThumbColor: GageTheme.primary,
+                onChanged: (v) => setSheetState(() => tempPopup = v),
+              ),
+              const SizedBox(height: 18),
 
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: GageTheme.primary,
-                      foregroundColor: Colors.white,
-                      shape: const StadiumBorder(),
-                      elevation: 0,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _alarmRepeating = tempAlarm;
-                        _popupNotification = tempPopup;
-                      });
-                      Navigator.pop(ctx);
-                      GageToast.show(this.context, 'Pengaturan notifikasi berhasil disimpan!');
-                    },
-                    child: const Text('Simpan Pengaturan Notifikasi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: GageTheme.primary,
+                    foregroundColor: Colors.white,
+                    shape: const StadiumBorder(),
+                    elevation: 0,
                   ),
+                  onPressed: () {
+                    setState(() {
+                      _alarmRepeating = tempAlarm;
+                      _popupNotification = tempPopup;
+                    });
+                    Navigator.pop(ctx);
+                    GageToast.show(this.context, 'Pengaturan notifikasi berhasil disimpan!');
+                  },
+                  child: const Text('Simpan Pengaturan Notifikasi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
                 ),
-              ],
-            ),
+              ),
+            ],
           );
         },
       ),
@@ -1202,62 +1157,39 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     final req = await MerchantStorefrontService.loadLocationChangeRequest(_activeMerchantId);
 
     if (!mounted) return;
-    showModalBottomSheet(
+    GageFloatingSheet.show(
       context: context,
-      backgroundColor: Colors.transparent,
+      title: 'Pengajuan Saya',
       builder: (ctx) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
-        final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
         final inputBg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
         final borderColor = isDark ? Colors.white12 : const Color(0xFFE2E8F0);
         final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
         final subColor = isDark ? Colors.white60 : const Color(0xFF64748B);
 
-        return Container(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-          decoration: BoxDecoration(
-            color: cardBg,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
-                ),
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  const Icon(Icons.assignment_rounded, color: Color(0xFF6366F1), size: 20),
-                  const SizedBox(width: 8),
-                  Text('Pengajuan Saya', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: textColor)),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text('Status peninjauan perubahan informasi toko oleh Admin GAGE.', style: TextStyle(fontSize: 11, color: subColor)),
-              const SizedBox(height: 16),
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Status peninjauan perubahan informasi toko oleh Admin GAGE.', style: TextStyle(fontSize: 11, color: subColor)),
+            const SizedBox(height: 16),
 
-              if (req != null) ...[
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: inputBg,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: borderColor),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Pindah Lokasi Kios Fisik',
+            if (req != null) ...[
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: inputBg,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: borderColor),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Pindah Lokasi Kios Fisik',
                             style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: textColor),
                           ),
                           Container(
@@ -1333,9 +1265,8 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                 ),
               ),
             ],
-          ),
-        );
-      },
-    );
+          );
+        },
+      );
+    }
   }
-}

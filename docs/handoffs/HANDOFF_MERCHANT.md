@@ -959,6 +959,48 @@ Tab 4 Merchant kini mengadopsi widget asli `GagePayScreen` (`isEmbeddedInTab: tr
   - Data pengajuan disimpan ke persistence (`MerchantStorefrontService.saveLocationChangeRequest`) dan berstatus `PENDING` (menunggu persetujuan Admin GAGE).
 - **Kepatuhan UI**: Semua segmented tab, switch, dan action buttons wajib full-rounded kapsul (`StadiumBorder()`). Outline field halus `Color(0xFFE2E8F0)`, background soft `#F8FAFC`. Bebas em dash (`\u2014`).
 
+---
+
+## 22. Wave 14: Conditional Countdown SLA, Live Driver Animation, Kotak Rounded Profile, D1 Store ID, Floating Blur Sheets & Full-Screen Policy
+
+* **Tanggal Rilis**: `2026-11-25`
+* **Target Build & Flavor**: `applicationId = "com.gagepracimantoro.merchant"`, entrypoint `lib/main_merchant.dart`, flavor `merchant` (`v1.0.4+46`).
+
+### A. Conditional Countdown SLA & Animasi Pencarian Armada
+- **Kondisi Countdown Memasak**: Countdown SLA penyiapan pesanan (`formattedCookingTimeRemaining`) HANYA dimunculkan pada tombol aksi ketika armada kurir telah terpasang (`order.hasAssignedDriver || order.isPickup`).
+- **Indikator Sedang Mencari Kurir**: Saat pesanan pengantaran dalam status `COOKING` namun belum mendapat kurir, countdown waktu di tombol aksi disembunyikan dan digantikan dengan indikator animasi pulsing radar `_LivePulsingRadarIcon` bertuliskan *"Sedang mencari kurir terdekat..."* sehingga dapur tidak terbebani timer palsu sebelum kurir ada.
+
+### B. Driver Dock Kapsul Full-Rounded (Radius 999) & Animasi Live "Menuju Kios"
+- **Geometri Kapsul Penuh**: Kontainer informasi driver di kartu pesanan luar (`GageMerchantOrdersTab`) dan detail pesanan (`MerchantOrderDetailScreen`) diubah menjadi full-rounded kapsul `BorderRadius.circular(999)` tanpa outline merah solid (`border: null`, soft background `#FEF2F2` / `#450A0A`).
+- **Live Status Armada**: Ditambahkan badge live dengan pulsing dot merah (`_LivePulsingDot`) bertuliskan *"Menuju Kios"* di sisi kanan dock kurir.
+- **Test Safety Invariant**: Animasi live diproteksi dengan guard `WidgetsBinding.instance.runtimeType.toString().contains('Test')` agar widget test Flutter tidak mengalami infinite loop timeout.
+
+### C. Header Pengaturan Toko & Standardisasi Cloudflare D1 Store ID
+- **Avatar Kotak Rounded**: Foto profil/logo merchant di header Pengaturan (`MerchantProfileScreen`) diubah dari lingkaran (`ClipOval`) menjadi kotak rounded 12px (`ClipRRect(borderRadius: BorderRadius.circular(12))`).
+- **Eliminasi Tombol Menu**: Tombol "Menu" di header Pengaturan ditiadakan untuk menjaga tata letak header tetap bersih dan fokus pada identitas toko.
+- **Standarisasi ID Toko Cloudflare D1**: Format ID toko disesuaikan dari placeholder `#M-22467742` menjadi skema terstruktur multi-portal D1: `GAGE-PRC-FD01` (dengan fitur salin ke clipboard).
+- **Interaktivitas Rating Toko**: Kartu matriks Rating Toko kini dapat diklik (`InkWell`) untuk langsung membuka halaman ulasan pelanggan `MerchantReviewScreen`.
+
+### D. Standardisasi Floating Sheet Blur & Perbaikan Scroll Jadwal Operasional
+- **GageFloatingSheet Blur Standard**: Seluruh modal sheet di Pengaturan (Printer Thermal, Pengaturan Struk, Ajukan Pindah Lokasi, Pusat Bantuan, Jam Operasional) distandarisasi menggunakan `GageFloatingSheet.show` dengan frosted blur 24px, margin melayang 16px, border radius 24px, dan batas tinggi proporsional maksimal 2/3 layar (`maxHeightFactor: 0.67`).
+- **Scroll Kustom Jadwal Operasional**: Memperbaiki bug scroll pada custom schedule di `OperatingScheduleEditorSheet` dengan mengganti `Flexible(ListView)` di dalam `SingleChildScrollView` menjadi `Column(children: days.map(...))` sehingga seluruh hari (Senin s/d Minggu) dan tombol simpan dapat di-scroll dengan mulus tanpa overflow.
+- **Standardisasi Toggle Switch Merah GAGE**: Seluruh sakelar switch toggle ON/OFF di seluruh sheet dan layar pengaturan distandarisasi menggunakan warna merah primer GAGE (`GageTheme.primary` `#E52320`).
+
+### E. Dokumen Kebijakan Kemitraan Full-Screen (`MerchantTermsAndPrivacyScreen`)
+- Menyediakan layar penuh dokumen resmi kemitraan dan privasi data pelanggan, mencakup:
+  1. Skema bagi hasil & komisi MDR 10% (transparansi settlement H+1).
+  2. Kebijakan perlindungan & kerahasiaan data pembeli (larangan kontak di luar pemenuhan pesanan).
+  3. Standar mutu, kebersihan dapur, dan SOP kemasan anti-tumpah.
+  4. Prosedur pembatalan pesanan, stok habis, dan ganti rugi/refund.
+  5. Saluran resmi kontak operasional dispatcher & legal GAGE.
+  6. Tombol salin ringkasan ketentuan ke clipboard.
+
+### F. Pusat Bantuan Non-Gimmick (`MerchantHelpCenterSheet`)
+- Menyediakan lembar bantuan operasional riil dengan aksi langsung:
+  - Tombol telepon cepat ke Hotline Darurat Dispatcher Pracimantoro (`tel:+628111222333`).
+  - Tombol WhatsApp Customer Service Mitra Usaha (`https://wa.me/628111222333`).
+  - Direktori FAQ interaktif (pencairan saldo, armada telat, pairing printer thermal, ubah pesanan, dan prosedur pindah lokasi).
+
 
 
 

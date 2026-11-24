@@ -112,8 +112,15 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
     }
   }
 
-  String _formatShortAddress(String addr) {
+  String _formatShortAddress(String addr, [String? label]) {
+    if (label != null && label.trim().isNotEmpty) {
+      return label.trim();
+    }
     if (addr.isEmpty) return 'Pilih Lokasi';
+    if (addr.contains(' - ')) {
+      final titlePart = addr.split(' - ').first.trim();
+      if (titlePart.isNotEmpty) return titlePart;
+    }
     if (addr.contains('(')) {
       return addr.split('(').last.replaceAll(')', '').trim();
     }
@@ -291,30 +298,41 @@ class _FoodExploreScreenState extends State<FoodExploreScreen> {
           ),
 
           // 2. Sticky Header: Action Buttons & Seamless Docking Search Bar
-          Positioned.fill(
-            child: GageServiceStickyHeader(
-              scrollController: _scrollController,
-              locationText: _formatShortAddress(_selectedLocation),
-              onLocationTap: _showAddressPicker,
-              onBackTap: () => Navigator.pop(context),
-              onFavoriteTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (ctx) => const FavoriteRestoScreen()),
-                );
-              },
-              actionIcon: Icons.shopping_bag_outlined,
-              actionBadgeCount: context.watch<CartProvider>().items.length,
-              onHistoryTap: () {
-                GageCartSheet.show(context);
-              },
-              searchHint: 'Lagi mau mamam apa?',
-              searchController: _searchCtrl,
-              onSearchChanged: (val) {
-                setState(() => _searchQuery = val);
-              },
-              serviceIcon: Icons.restaurant_rounded,
-            ),
+          Builder(
+            builder: (ctx) {
+              final cart = ctx.watch<CartProvider?>();
+              final activeLabel = cart?.deliveryLocationLabel;
+              final activeAddr = cart?.deliveryAddress.isNotEmpty == true
+                  ? cart!.deliveryAddress
+                  : _selectedLocation;
+              final displayLoc = _formatShortAddress(activeAddr, activeLabel);
+
+              return Positioned.fill(
+                child: GageServiceStickyHeader(
+                  scrollController: _scrollController,
+                  locationText: displayLoc,
+                  onLocationTap: _showAddressPicker,
+                  onBackTap: () => Navigator.pop(context),
+                  onFavoriteTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (c) => const FavoriteRestoScreen()),
+                    );
+                  },
+                  actionIcon: Icons.shopping_bag_outlined,
+                  actionBadgeCount: cart?.items.length ?? 0,
+                  onHistoryTap: () {
+                    GageCartSheet.show(context);
+                  },
+                  searchHint: 'Lagi mau mamam apa?',
+                  searchController: _searchCtrl,
+                  onSearchChanged: (val) {
+                    setState(() => _searchQuery = val);
+                  },
+                  serviceIcon: Icons.restaurant_rounded,
+                ),
+              );
+            },
           ),
 
           // 3. Floating Cart Overlay Melayang Murni (Bebas blok bar)

@@ -997,9 +997,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
       );
     }
 
-    final totalQty = order.items.fold<int>(0, (prev, e) => prev + e.quantity);
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: isDark ? GageTheme.darkSurface : Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -1008,79 +1007,115 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            order.items.isNotEmpty
-                ? 'Daftar Menu / Produk ($totalQty Item)'
-                : 'Detail Paket & Barang',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 13.5,
-              color: isDark ? Colors.white : Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 12),
-          ...order.items.map((item) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      width: 50,
-                      height: 50,
-                      color: isDark ? GageTheme.darkElevated : Colors.grey.shade100,
-                      child: _buildItemImage(item.imageUrl, item.name),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.name,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                            color: isDark ? Colors.white : Colors.black87,
-                          ),
-                        ),
-                        if (item.merchantName != null && item.merchantName!.isNotEmpty)
-                          Text(
-                            item.merchantName!,
-                            style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.grey.shade600),
-                          ),
-                        if (item.notes != null && item.notes!.isNotEmpty)
-                          Text(
-                            'Catatan: ${item.notes!}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontStyle: FontStyle.italic,
-                              color: isDark ? Colors.white70 : Colors.black54,
-                            ),
-                          ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${item.quantity}x @ ${formatter.format(item.price)}',
-                          style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white60 : Colors.grey.shade700),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Text(
-                    formatter.format(item.subtotal > 0 ? item.subtotal : item.price * item.quantity),
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      color: isDark ? Colors.white : Colors.black87,
-                    ),
-                  ),
-                ],
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Item Pesanan',
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
               ),
-            );
-          }),
+              Text(
+                '${order.items.length} Macam',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          for (final item in order.items)
+            Builder(
+              builder: (ctx) {
+                final itemTotal = item.subtotal > 0 ? item.subtotal : item.price * item.quantity;
+                final variantText = (item.selectedVariants != null && item.selectedVariants!.isNotEmpty)
+                    ? item.selectedVariants!
+                    : (item.notes != null && item.notes!.isNotEmpty ? item.notes! : null);
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // 1. Mini Image Preview (38x38, radius 8)
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          color: isDark ? Colors.white10 : Colors.grey.shade200,
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: _buildProductImage(item.effectiveImageUrl, isDark, width: 38, height: 38),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+
+                      // 2. Kuantitas Qty x (Murni Teks Tanpa Kontainer Sesuai Request)
+                      Text(
+                        '${item.quantity}x',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+
+                      // 3. Nama Item & Catatan Varian (Tanpa merchantName di baris item)
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.name,
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              ),
+                            ),
+                            if (variantText != null && variantText.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(
+                                  variantText,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+
+                      // 4. Subtotal Harga Item
+                      Text(
+                        formatter.format(itemTotal),
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
           if (pkg != null && pkg.isNotEmpty) ...[
             if (pkg['item_name'] != null && pkg['item_name'].toString().isNotEmpty)
               _buildRowDetail('Nama Barang', pkg['item_name'].toString(), isDark: isDark),
@@ -1117,54 +1152,51 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
     );
   }
 
-  Widget _buildItemImage(String? imageUrl, String itemName) {
-    String? resolvedUrl = imageUrl;
-    if (resolvedUrl == null || resolvedUrl.trim().isEmpty) {
-      final nameLower = itemName.toLowerCase();
-      if (nameLower.contains('dimsum') || nameLower.contains('siomay')) {
-        resolvedUrl = 'assets/images/dish_dimsum_original.png';
-      } else if (nameLower.contains('rocket') || nameLower.contains('ayam') || nameLower.contains('geprek')) {
-        resolvedUrl = 'assets/images/resto_rocket_chicken.png';
-      } else if (nameLower.contains('bakso') || nameLower.contains('urat')) {
-        resolvedUrl = 'assets/images/dish_bakso_urat.png';
-      } else if (nameLower.contains('mie')) {
-        resolvedUrl = 'assets/images/resto_mie_ayam.png';
-      } else if (nameLower.contains('seblak')) {
-        resolvedUrl = 'assets/images/resto_seblak.png';
-      } else if (nameLower.contains('roti')) {
-        resolvedUrl = 'assets/images/resto_roti_gembong.png';
-      } else if (nameLower.contains('beras') || nameLower.contains('minyak') || nameLower.contains('telur') || nameLower.contains('sembako')) {
-        resolvedUrl = 'assets/images/prod_beras.png';
-      } else if (nameLower.contains('pupuk') || nameLower.contains('benih')) {
-        resolvedUrl = 'assets/images/prod_pupuk.png';
-      } else if (nameLower.contains('pakan') || nameLower.contains('konsentrat')) {
-        resolvedUrl = 'assets/images/prod_pakan.png';
-      } else if (nameLower.contains('ride') || nameLower.contains('motor')) {
-        resolvedUrl = 'assets/icons/ic_ride.png';
-      } else if (nameLower.contains('car') || nameLower.contains('mobil')) {
-        resolvedUrl = 'assets/icons/ic_car.png';
-      } else {
-        resolvedUrl = 'assets/images/dish_dimsum_original.png';
-      }
-    }
-
-    final clean = resolvedUrl.trim();
-    if (clean.startsWith('http://') || clean.startsWith('https://')) {
-      return Image.network(
-        clean,
+  Widget _buildProductImage(String imgUrl, bool isDark, {double width = 38, double height = 38}) {
+    if (imgUrl.startsWith('assets/')) {
+      return Image.asset(
+        imgUrl,
+        width: width,
+        height: height,
         fit: BoxFit.cover,
-        errorBuilder: (c, e, s) => Image.asset(
-          'assets/images/dish_dimsum_original.png',
-          fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(
+          width: width,
+          height: height,
+          color: isDark ? Colors.white10 : Colors.grey.shade200,
+          child: Icon(
+            Icons.fastfood_rounded,
+            size: width * 0.45,
+            color: isDark ? Colors.white38 : Colors.grey.shade500,
+          ),
         ),
       );
     }
-    return Image.asset(
-      clean,
-      fit: BoxFit.cover,
-      errorBuilder: (c, e, s) => Image.asset(
-        'assets/images/dish_dimsum_original.png',
+    if (imgUrl.startsWith('http://') || imgUrl.startsWith('https://')) {
+      return Image.network(
+        imgUrl,
+        width: width,
+        height: height,
         fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(
+          width: width,
+          height: height,
+          color: isDark ? Colors.white10 : Colors.grey.shade200,
+          child: Icon(
+            Icons.fastfood_rounded,
+            size: width * 0.45,
+            color: isDark ? Colors.white38 : Colors.grey.shade500,
+          ),
+        ),
+      );
+    }
+    return Container(
+      width: width,
+      height: height,
+      color: isDark ? Colors.white10 : Colors.grey.shade200,
+      child: Icon(
+        Icons.fastfood_rounded,
+        size: width * 0.45,
+        color: isDark ? Colors.white38 : Colors.grey.shade500,
       ),
     );
   }

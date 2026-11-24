@@ -404,8 +404,20 @@ class OrderModel {
   factory OrderModel.fromJson(Map<String, dynamic> json) {
     var rawItems = json['items'];
     List<OrderItemModel> parsedItems = [];
+    if (rawItems is String && rawItems.trim().startsWith('[')) {
+      try {
+        final decoded = jsonDecode(rawItems);
+        if (decoded is List) {
+          rawItems = decoded;
+        }
+      } catch (_) {}
+    }
     if (rawItems is List) {
-      parsedItems = rawItems.map((i) => OrderItemModel.fromJson(i as Map<String, dynamic>)).toList();
+      for (final i in rawItems) {
+        if (i is Map) {
+          parsedItems.add(OrderItemModel.fromJson(Map<String, dynamic>.from(i)));
+        }
+      }
     }
 
     String ordNum = (json['order_number'] as String?) ?? '';
@@ -485,6 +497,41 @@ class OrderModel {
     final int parsedSubtotal = toInt(json['items_subtotal'] ?? json['subtotal']) > 0
         ? toInt(json['items_subtotal'] ?? json['subtotal'])
         : (const {'ride', 'car', 'send'}.contains(rawService) ? fareAmt : 0);
+
+    // Fallback: Jika pesanan toko/resto dari Cloud/D1 tidak memiliki entri order_items (misal karena constraint FK),
+    // rekonstruksi item secara otomatis dari nama merchant & itemsSubtotal agar tidak kosong dan tidak salah menampilkan alamat rute.
+    if (parsedItems.isEmpty && !const {'ride', 'car', 'send'}.contains(rawService) && (parsedSubtotal > 0 || parsedTotal > 0)) {
+      final mName = (json['merchant_name'] ?? json['merchant'] ?? '').toString();
+      final mNameLower = mName.toLowerCase();
+      final effectivePrice = parsedSubtotal > 0 ? parsedSubtotal : parsedTotal;
+      String defaultName;
+      if (mNameLower.contains('telur')) {
+        defaultName = 'Paket Telur Ayam Ras & Sembako';
+      } else if (mNameLower.contains('berkah') || mNameLower.contains('sembako') || mNameLower.contains('fajar')) {
+        defaultName = 'Beras C4 Super 5 Kg & Gula Pasir';
+      } else if (mNameLower.contains('tani') || mNameLower.contains('subur') || mNameLower.contains('makmur')) {
+        defaultName = 'Pupuk NPK Mutiara & Benih Padi';
+      } else if (mNameLower.contains('dimsum')) {
+        defaultName = 'Paket Dimsum Sewu Original';
+      } else if (mNameLower.contains('chicken') || mNameLower.contains('ayam') || mNameLower.contains('rocket')) {
+        defaultName = 'Paket Ayam Goreng Komplit';
+      } else if (mNameLower.contains('bakso')) {
+        defaultName = 'Paket Bakso Urat Komplit';
+      } else {
+        defaultName = mName.isNotEmpty ? 'Paket Belanja $mName' : 'Paket Belanja Mitra';
+      }
+
+      parsedItems = [
+        OrderItemModel(
+          id: 'item-auto-${json['id'] ?? ordNum}',
+          name: defaultName,
+          price: effectivePrice,
+          quantity: 1,
+          subtotal: effectivePrice,
+          merchantName: mName.isNotEmpty ? mName : null,
+        ),
+      ];
+    }
 
     Map<String, dynamic>? parsedPkg;
     final rawPkg = json['package_details'] ?? json['package_details_json'];
@@ -596,29 +643,47 @@ class OrderItemModel {
       return imageUrl!.trim();
     }
     final text = name.toLowerCase();
-    if (text.contains('ayam') || text.contains('chicken') || text.contains('rocket')) {
+    if (text.contains('ayam') || text.contains('chicken') || text.contains('rocket') || text.contains('geprek')) {
       return 'assets/images/dish_rocket_1.png';
     }
     if (text.contains('mentai')) {
       return 'assets/images/dish_dimsum_mentai.png';
     }
-    if (text.contains('dimsum') || text.contains('siomay')) {
+    if (text.contains('dimsum') || text.contains('siomay') || text.contains('lumpia')) {
       return 'assets/images/dish_dimsum_original.png';
     }
     if (text.contains('kentang') || text.contains('fries')) {
-      return 'assets/images/dish_seblak_komplit.png';
+      return 'assets/images/dish_french_fries.png';
     }
     if (text.contains('bakso')) {
       return 'assets/images/dish_bakso_urat.png';
     }
+    if (text.contains('mie')) {
+      return 'assets/images/dish_mie_ayam.png';
+    }
     if (text.contains('roti')) {
       return 'assets/images/dish_roti_cokelat.png';
+    }
+    if (text.contains('telur')) {
+      return 'assets/images/prod_telur.png';
     }
     if (text.contains('beras')) {
       return 'assets/images/prod_beras.png';
     }
     if (text.contains('minyak')) {
       return 'assets/images/prod_minyak.png';
+    }
+    if (text.contains('gula')) {
+      return 'assets/images/prod_gula.png';
+    }
+    if (text.contains('pupuk')) {
+      return 'assets/images/prod_pupuk.png';
+    }
+    if (text.contains('benih')) {
+      return 'assets/images/prod_benih.png';
+    }
+    if (text.contains('pakan')) {
+      return 'assets/images/prod_pakan.png';
     }
     if (text.contains('semen')) {
       return 'assets/images/prod_semen.png';

@@ -1886,13 +1886,26 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
               return Padding(
                 padding: const EdgeInsets.only(bottom: 10.0),
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
+                    // 1. Mini Image Preview (38x38)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        width: 38,
+                        height: 38,
+                        color: isDark ? Colors.white10 : Colors.grey.shade200,
+                        child: _buildItemImage(item.imageUrl, item.name),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+
+                    // 2. Badge Kuantitas Qty x (Capsule R999)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: GageTheme.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
                         '${item.quantity}x',
@@ -1903,7 +1916,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 8),
+
+                    // 3. Nama Item & Catatan Varian
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1911,23 +1926,39 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                           Text(
                             item.name,
                             style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13.5,
                               color: isDark ? Colors.white : const Color(0xFF0F172A),
                             ),
                           ),
-                          if (item.notes != null && item.notes!.isNotEmpty)
-                            Text(
-                              'Catatan: ${item.notes}',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: isDark ? Colors.white60 : Colors.grey.shade600,
-                                fontStyle: FontStyle.italic,
+                          if (item.selectedVariants != null && item.selectedVariants!.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                item.selectedVariants!,
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                                ),
+                              ),
+                            )
+                          else if (item.notes != null && item.notes!.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                item.notes!,
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                                ),
                               ),
                             ),
                         ],
                       ),
                     ),
+                    const SizedBox(width: 8),
+
+                    // 4. Subtotal Harga Item
                     Text(
                       _currencyFormatter.format(item.subtotal),
                       style: TextStyle(
@@ -2195,7 +2226,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
                                 color: Colors.black54,
-                                borderRadius: BorderRadius.circular(6),
+                                borderRadius: BorderRadius.circular(999),
                               ),
                               child: Text(
                                 'Waktu: ${DateFormat('dd MMM yyyy, HH:mm').format(DateTime.now())} WIB',
@@ -2373,6 +2404,52 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildItemImage(String? imageUrl, String itemName) {
+    String? resolvedUrl = imageUrl;
+    if (resolvedUrl == null || resolvedUrl.trim().isEmpty) {
+      final nameLower = itemName.toLowerCase();
+      if (nameLower.contains('dimsum') || nameLower.contains('siomay')) {
+        resolvedUrl = 'assets/images/dish_dimsum_original.png';
+      } else if (nameLower.contains('rocket') || nameLower.contains('ayam') || nameLower.contains('geprek')) {
+        resolvedUrl = 'assets/images/resto_rocket_chicken.png';
+      } else if (nameLower.contains('bakso') || nameLower.contains('urat')) {
+        resolvedUrl = 'assets/images/dish_bakso_urat.png';
+      } else if (nameLower.contains('mie')) {
+        resolvedUrl = 'assets/images/resto_mie_ayam.png';
+      } else if (nameLower.contains('seblak')) {
+        resolvedUrl = 'assets/images/resto_seblak.png';
+      } else if (nameLower.contains('roti')) {
+        resolvedUrl = 'assets/images/resto_roti_gembong.png';
+      } else if (nameLower.contains('beras') || nameLower.contains('minyak') || nameLower.contains('telur') || nameLower.contains('sembako')) {
+        resolvedUrl = 'assets/images/prod_beras.png';
+      } else if (nameLower.contains('pupuk') || nameLower.contains('benih')) {
+        resolvedUrl = 'assets/images/prod_pupuk.png';
+      } else if (nameLower.contains('pakan') || nameLower.contains('konsentrat')) {
+        resolvedUrl = 'assets/images/prod_pakan_ayam.png';
+      } else if (nameLower.contains('semen') || nameLower.contains('bata') || nameLower.contains('pasir')) {
+        resolvedUrl = 'assets/images/prod_semen.png';
+      } else if (nameLower.contains('cat')) {
+        resolvedUrl = 'assets/images/prod_cat_tembok.png';
+      } else {
+        return const Icon(Icons.inventory_2_outlined, size: 18, color: Colors.grey);
+      }
+    }
+
+    if (resolvedUrl.startsWith('http://') || resolvedUrl.startsWith('https://')) {
+      return Image.network(
+        resolvedUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => const Icon(Icons.inventory_2_outlined, size: 18, color: Colors.grey),
+      );
+    }
+
+    return Image.asset(
+      resolvedUrl,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => const Icon(Icons.inventory_2_outlined, size: 18, color: Colors.grey),
     );
   }
 }

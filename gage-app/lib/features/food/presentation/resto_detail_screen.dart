@@ -779,7 +779,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
                               color: Colors.green.shade50,
-                              borderRadius: BorderRadius.circular(6),
+                              borderRadius: BorderRadius.circular(999),
                             ),
                             child: Text('Siap Order', style: TextStyle(color: Colors.green.shade700, fontSize: 10, fontWeight: FontWeight.bold)),
                           ),
@@ -801,7 +801,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
                               color: Colors.amber.shade50,
-                              borderRadius: BorderRadius.circular(6),
+                              borderRadius: BorderRadius.circular(999),
                             ),
                             child: Text('Memilih Menu...', style: TextStyle(color: Colors.amber.shade800, fontSize: 10, fontWeight: FontWeight.bold)),
                           ),
@@ -1761,7 +1761,7 @@ class _RestoDetailScreenState extends State<RestoDetailScreen> {
                                       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                                       decoration: BoxDecoration(
                                         color: GageTheme.primary,
-                                        borderRadius: BorderRadius.circular(6),
+                                        borderRadius: BorderRadius.circular(999),
                                       ),
                                       child: Text(
                                         cart.groupOrderId != null ? 'AKTIF' : 'NEW',

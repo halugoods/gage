@@ -6,6 +6,7 @@ import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/core/utils/bluetooth_utils.dart';
 import 'package:gage_app/features/merchant/services/merchant_receipt_printer_service.dart';
 import 'package:gage_app/providers/merchant_order_provider.dart';
+import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 
 /// Bottom sheet for managing Bluetooth thermal printer settings (Paritas 1:1 Nusa Kasir).
@@ -20,10 +21,9 @@ class MerchantPrinterSettingsSheet extends StatefulWidget {
   const MerchantPrinterSettingsSheet({super.key});
 
   static Future<void> show(BuildContext context) {
-    return showModalBottomSheet(
+    return GageFloatingSheet.show(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
+      title: 'Printer Bluetooth',
       builder: (_) => const MerchantPrinterSettingsSheet(),
     );
   }

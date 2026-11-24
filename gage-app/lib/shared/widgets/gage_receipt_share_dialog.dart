@@ -517,24 +517,64 @@ class _GageReceiptShareDialogState extends State<GageReceiptShareDialog> {
                   ...order.items.map((item) {
                     final itemTotal = item.quantity * item.price;
                     return Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.only(bottom: 8),
                       child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Text(
-                            '${item.quantity}x',
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              item.name,
-                              style: const TextStyle(fontSize: 12, color: Color(0xFF1E293B)),
+                          // 1. Mini Image Preview (38x38)
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              width: 38,
+                              height: 38,
+                              color: Colors.grey.shade200,
+                              child: _buildReceiptItemImage(item.imageUrl, item.name),
                             ),
                           ),
+                          const SizedBox(width: 8),
+
+                          // 2. Badge Kuantitas Qty x (Capsule R999)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(color: const Color(0xFFCBD5E1), width: 0.8),
+                            ),
+                            child: Text(
+                              '${item.quantity}x',
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+
+                          // 3. Nama Item & Catatan
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item.name,
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (item.notes != null && item.notes!.isNotEmpty)
+                                  Text(
+                                    item.notes!,
+                                    style: const TextStyle(fontSize: 10.5, fontStyle: FontStyle.italic, color: Color(0xFF64748B)),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+
+                          // 4. Subtotal Harga Item
                           Text(
                             currencyFormatter.format(itemTotal),
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                           ),
                         ],
                       ),
@@ -542,13 +582,41 @@ class _GageReceiptShareDialogState extends State<GageReceiptShareDialog> {
                   })
                 else ...[
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
+                    padding: const EdgeInsets.only(bottom: 8),
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        const Text(
-                          '1x',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            width: 38,
+                            height: 38,
+                            color: Colors.grey.shade200,
+                            child: Center(
+                              child: Icon(
+                                order.isTransportService
+                                    ? (order.serviceType.toLowerCase() == 'car'
+                                        ? Icons.directions_car_rounded
+                                        : Icons.two_wheeler_rounded)
+                                    : Icons.inventory_2_outlined,
+                                size: 18,
+                                color: GageTheme.primary,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: const Color(0xFFCBD5E1), width: 0.8),
+                          ),
+                          child: const Text(
+                            '1x',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                          ),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -556,12 +624,13 @@ class _GageReceiptShareDialogState extends State<GageReceiptShareDialog> {
                             order.isTransportService
                                 ? 'Perjalanan ${order.serviceType.toUpperCase()} (${order.distanceKm.toStringAsFixed(1)} km)'
                                 : 'Layanan Pengiriman',
-                            style: const TextStyle(fontSize: 12, color: Color(0xFF1E293B)),
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
                           ),
                         ),
+                        const SizedBox(width: 8),
                         Text(
                           currencyFormatter.format(order.itemsSubtotal > 0 ? order.itemsSubtotal : order.totalAmount),
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                         ),
                       ],
                     ),
@@ -706,6 +775,60 @@ class _GageReceiptShareDialogState extends State<GageReceiptShareDialog> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildReceiptItemImage(String? imageUrl, String itemName) {
+    String? resolvedUrl = imageUrl;
+    if (resolvedUrl == null || resolvedUrl.trim().isEmpty) {
+      final nameLower = itemName.toLowerCase();
+      if (nameLower.contains('dimsum') || nameLower.contains('siomay')) {
+        resolvedUrl = 'assets/images/dish_dimsum_original.png';
+      } else if (nameLower.contains('rocket') || nameLower.contains('ayam') || nameLower.contains('geprek')) {
+        resolvedUrl = 'assets/images/resto_rocket_chicken.png';
+      } else if (nameLower.contains('bakso') || nameLower.contains('urat')) {
+        resolvedUrl = 'assets/images/dish_bakso_urat.png';
+      } else if (nameLower.contains('mie')) {
+        resolvedUrl = 'assets/images/resto_mie_ayam.png';
+      } else if (nameLower.contains('seblak')) {
+        resolvedUrl = 'assets/images/resto_seblak.png';
+      } else if (nameLower.contains('roti')) {
+        resolvedUrl = 'assets/images/resto_roti_gembong.png';
+      } else if (nameLower.contains('beras') || nameLower.contains('minyak') || nameLower.contains('telur') || nameLower.contains('sembako')) {
+        resolvedUrl = 'assets/images/prod_beras.png';
+      } else if (nameLower.contains('pupuk') || nameLower.contains('benih')) {
+        resolvedUrl = 'assets/images/prod_pupuk.png';
+      } else if (nameLower.contains('pakan') || nameLower.contains('konsentrat')) {
+        resolvedUrl = 'assets/images/prod_pakan.png';
+      } else if (nameLower.contains('ride') || nameLower.contains('motor')) {
+        resolvedUrl = 'assets/icons/ic_ride.png';
+      } else if (nameLower.contains('car') || nameLower.contains('mobil')) {
+        resolvedUrl = 'assets/icons/ic_car.png';
+      }
+    }
+
+    if (resolvedUrl != null && resolvedUrl.trim().isNotEmpty) {
+      final clean = resolvedUrl.trim();
+      if (clean.startsWith('http://') || clean.startsWith('https://')) {
+        return Image.network(
+          clean,
+          fit: BoxFit.cover,
+          errorBuilder: (c, e, s) => const Center(
+            child: Icon(Icons.inventory_2_outlined, size: 18, color: Colors.grey),
+          ),
+        );
+      }
+      return Image.asset(
+        clean,
+        fit: BoxFit.cover,
+        errorBuilder: (c, e, s) => const Center(
+          child: Icon(Icons.inventory_2_outlined, size: 18, color: Colors.grey),
+        ),
+      );
+    }
+
+    return const Center(
+      child: Icon(Icons.inventory_2_outlined, size: 18, color: Colors.grey),
     );
   }
 

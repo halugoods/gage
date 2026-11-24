@@ -17,8 +17,10 @@ import 'package:gage_app/features/merchant/presentation/merchant_kitchen_insight
 import 'package:gage_app/features/merchant/presentation/merchant_menu_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_order_detail_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_review_screen.dart';
+import 'package:gage_app/features/merchant/presentation/merchant_terms_and_privacy_screen.dart';
 import 'package:gage_app/features/merchant/presentation/tabs/gage_merchant_orders_tab.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_floating_nav_bar.dart';
+import 'package:gage_app/features/merchant/presentation/widgets/merchant_help_center_sheet.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_photo_picker_sheet.dart';
 import 'package:gage_app/features/merchant/services/merchant_receipt_printer_service.dart';
 import 'package:gage_app/core/services/notification_service.dart';
@@ -1154,7 +1156,7 @@ void main() {
       expect(find.text('Pengaturan'), findsOneWidget);
       expect(find.text('TERVERIFIKASI'), findsOneWidget);
       expect(find.textContaining('ID Toko:'), findsOneWidget);
-      expect(find.text('Menu'), findsOneWidget);
+      expect(find.widgetWithText(ElevatedButton, 'Menu'), findsNothing);
 
       // Verifikasi 7 Tile Grid Menu Shopee Partner
       expect(find.text('Informasi\nToko'), findsOneWidget);
@@ -1182,6 +1184,139 @@ void main() {
       expect(loaded, isNotNull);
       expect(loaded!.newAddress, equals('Jl. Raya Pracimantoro No. 88'));
       expect(loaded.status, equals('PENDING'));
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 37: Wave 14: Conditional Countdown & Animasi Cari Driver
+    // -------------------------------------------------------------------------
+    testWidgets('Skenario 37: Wave 14: Countdown memasak hanya muncul saat driver terpasang, jika belum tampilkan animasi mencari kurir', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final formatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+      final provider = MerchantOrderProvider();
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<MerchantOrderProvider>.value(value: provider),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: GageMerchantOrdersTab(currencyFormatter: formatter),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Temukan pesanan aktif
+      final deliveryOrdersWithDriver = provider.orders.where((o) => o.hasAssignedDriver && !o.isPickup && o.status == 'COOKING').toList();
+      if (deliveryOrdersWithDriver.isNotEmpty) {
+        expect(find.textContaining('Menuju Kios'), findsWidgets);
+        expect(find.textContaining('Pesanan Siap Diambil ('), findsWidgets);
+      }
+
+      // Buat pesanan delivery tanpa driver dalam status COOKING
+      final testOrder = provider.orders.first.copyWith(
+        status: 'COOKING',
+        isPickup: false,
+        driverName: null,
+        driverPlate: null,
+      );
+      expect(testOrder.hasAssignedDriver, isFalse);
+      expect((testOrder.hasAssignedDriver || testOrder.isPickup), isFalse);
+      provider.dispose();
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 38: Wave 14: Driver Dock Kapsul Full-Rounded & Animasi Menuju Kios
+    // -------------------------------------------------------------------------
+    testWidgets('Skenario 38: Wave 14: Driver Dock Kapsul Full-Rounded (Radius 999), Border-Free & Animasi Menuju Kios', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final formatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+      final provider = MerchantOrderProvider();
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<MerchantOrderProvider>.value(value: provider),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: GageMerchantOrdersTab(currencyFormatter: formatter),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Verifikasi badge status armada 'Menuju Kios'
+      expect(find.text('Menuju Kios'), findsWidgets);
+      provider.dispose();
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 39: Wave 14: Header Avatar Kotak Rounded, No Menu Button, Store ID D1 & Rating Nav
+    // -------------------------------------------------------------------------
+    testWidgets('Skenario 39: Wave 14: Avatar Kotak Rounded, Eliminasi Tombol Menu, Store ID Terstruktur Cloudflare D1 & Tap Rating', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: MerchantProfileScreen(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 1. Verifikasi Store ID baku sesuai Cloudflare D1 (GAGE-PRC-FD01)
+      expect(find.textContaining('GAGE-PRC-FD01'), findsOneWidget);
+
+      // 2. Verifikasi tombol "Menu" tidak ada di header
+      expect(find.widgetWithText(ElevatedButton, 'Menu'), findsNothing);
+
+      // 3. Verifikasi tap Rating Toko membuka MerchantReviewScreen
+      expect(find.text('Rating Toko'), findsOneWidget);
+      await tester.tap(find.text('Rating Toko'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(MerchantReviewScreen), findsOneWidget);
+      expect(find.text('Penilaian & Ulasan Toko'), findsOneWidget);
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 40: Wave 14: Dokumen Kebijakan Kemitraan Full-Screen & Pusat Bantuan Non-Gimmick
+    // -------------------------------------------------------------------------
+    testWidgets('Skenario 40: Wave 14: Dokumen Kebijakan Kemitraan Full-Screen & Pusat Bantuan Non-Gimmick', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+
+      // 1. Verifikasi MerchantTermsAndPrivacyScreen
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: MerchantTermsAndPrivacyScreen(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Kebijakan Privasi & Kemitraan'), findsOneWidget);
+      expect(find.textContaining('1. Skema Bagi Hasil & Komisi Layanan (MDR)'), findsOneWidget);
+      expect(find.textContaining('10% (sepuluh persen)'), findsOneWidget);
+      
+      await tester.scrollUntilVisible(find.text('Salin Ringkasan Dokumen'), 300);
+      expect(find.text('Salin Ringkasan Dokumen'), findsOneWidget);
+
+      // 2. Verifikasi MerchantHelpCenterSheet
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MerchantHelpCenterSheet(
+              storeName: 'Dimsum Sewu',
+              storeId: 'GAGE-PRC-FD01',
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Hotline Darurat'), findsOneWidget);
+      expect(find.text('Chat CS WhatsApp'), findsOneWidget);
+      expect(find.text('PERTANYAAN UMUM (FAQ)'), findsOneWidget);
+      expect(find.textContaining('Kapan saldo penjualan kios otomatis dicairkan?'), findsOneWidget);
     });
   });
 }

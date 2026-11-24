@@ -8,10 +8,6 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/providers/auth_provider.dart';
-import 'package:gage_app/providers/cart_provider.dart';
-import 'package:gage_app/core/services/location_service.dart';
-import 'package:gage_app/core/services/user_address_service.dart';
-import 'package:gage_app/shared/widgets/full_screen_map_picker.dart';
 import 'package:gage_app/features/profile/presentation/edit_profile_screen.dart';
 import 'package:gage_app/features/profile/presentation/widgets/gage_account_switcher_sheet.dart';
 import 'package:gage_app/data/mock/gage_mock_registry.dart';
@@ -20,7 +16,6 @@ import 'package:gage_app/features/food/presentation/food_explore_screen.dart';
 import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
 import 'package:gage_app/features/food/presentation/shop_screen.dart';
 import 'package:gage_app/features/food/presentation/farm_screen.dart';
-import 'package:gage_app/features/food/presentation/build_screen.dart';
 import 'package:gage_app/features/ride/presentation/ride_booking_screen.dart';
 import 'package:gage_app/features/ride/presentation/send_booking_screen.dart';
 import 'package:gage_app/core/services/banner_manager_service.dart';
@@ -212,9 +207,6 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
       case 'farm':
         destination = const FarmScreen();
         break;
-      case 'build':
-        destination = const BuildScreen();
-        break;
       case 'cuan':
         destination = const AffiliateHubScreen();
         break;
@@ -314,106 +306,6 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Baris Alamat Pengantaran (Harmonisasi FullScreenMapPicker)
-            if (!_isSearchActive) ...[
-              Consumer<CartProvider>(
-                builder: (context, cart, _) {
-                  final displayAddress = (cart.deliveryLocationLabel != null && cart.deliveryLocationLabel!.isNotEmpty)
-                      ? cart.deliveryLocationLabel!
-                      : (cart.deliveryAddress.trim().isNotEmpty
-                          ? cart.deliveryAddress.trim()
-                          : 'Kec. Pracimantoro, Wonogiri');
-
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 6, left: 2, right: 2),
-                    child: InkWell(
-                      onTap: () async {
-                        HapticFeedback.lightImpact();
-                        final result = await FullScreenMapPicker.open(
-                          context,
-                          title: 'Pilih Alamat Pengantaran',
-                          initialLocation: cart.deliveryLocation ?? LocationService.cachedOrFallback,
-                          initialTitle: cart.deliveryLocationLabel,
-                          initialFullAddress: cart.deliveryAddress.isNotEmpty ? cart.deliveryAddress : null,
-                          selectedFavoriteId: cart.deliveryFavoriteId,
-                        );
-                        if (result != null && context.mounted) {
-                          final resolvedAddr = result.fullAddress.isNotEmpty ? result.fullAddress : result.title;
-                          final matched = result.matchedFavorite ??
-                              await UserAddressService.findMatchingFavorite(
-                                location: result.location,
-                                preferredName: result.title,
-                              );
-                          cart.setDeliveryAddress(
-                            resolvedAddr,
-                            cart.distanceKm,
-                            location: result.location,
-                            locationLabel: matched?.name ?? (result.title.isNotEmpty ? result.title : null),
-                            favoriteId: matched?.id,
-                          );
-                          if (matched != null && (matched.notes?.trim().isNotEmpty ?? false)) {
-                            cart.setAddressNotes(matched.notes!.trim());
-                          }
-                        }
-                      },
-                      borderRadius: BorderRadius.circular(999),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.location_on_rounded,
-                            size: 15,
-                            color: GageTheme.primary,
-                          ),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              displayAddress,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: isDark
-                                    ? Colors.white
-                                    : (fade > 0.4 ? GageTheme.textPrimary : Colors.white),
-                                shadows: fade <= 0.4
-                                    ? [
-                                        Shadow(
-                                          color: Colors.black.withValues(alpha: 0.6),
-                                          blurRadius: 4,
-                                          offset: const Offset(0, 1),
-                                        ),
-                                      ]
-                                    : null,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 3),
-                          Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            size: 16,
-                            color: isDark
-                                ? Colors.white70
-                                : (fade > 0.4 ? GageTheme.textSecondary : Colors.white),
-                            shadows: fade <= 0.4
-                                ? [
-                                    Shadow(
-                                      color: Colors.black.withValues(alpha: 0.6),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 1),
-                                    ),
-                                  ]
-                                : null,
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ],
-
             // Baris Atas: Input Search & Avatar Profil
             Row(
               children: [
@@ -440,13 +332,13 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
                 // Search Bar Input Interaktif Langsung di Layar (Tanpa Modal Bottom Sheet)
                 Expanded(
                   child: Container(
-                    height: 38,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    height: 42,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
                     decoration: BoxDecoration(
                       color: isDark
                           ? GageTheme.darkSurface
                           : (_isSearchActive || fade > 0.6 ? Colors.grey.shade100 : Colors.white),
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(999),
                       border: Border.all(
                         color: _isSearchActive
                             ? GageTheme.primary
@@ -480,7 +372,7 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
                                   decoration: const InputDecoration(
                                     hintText: 'Cari layanan, toko, atau menu...',
                                     hintStyle: TextStyle(
-                                      color: Colors.grey,
+                                      color: Color(0xFF94A3B8),
                                       fontSize: 12.5,
                                       fontWeight: FontWeight.normal,
                                     ),
@@ -505,7 +397,7 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
                                   child: Text(
                                     'Cari layanan, toko, atau menu...',
                                     style: TextStyle(
-                                      color: isDark ? Colors.white60 : Colors.grey.shade600,
+                                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                                       fontSize: 12.5,
                                       fontWeight: FontWeight.normal,
                                     ),
@@ -591,8 +483,8 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF16A34A),
-                                      borderRadius: BorderRadius.circular(8),
+                                      color: GageTheme.primary,
+                                      borderRadius: BorderRadius.circular(999),
                                       border: Border.all(color: Colors.white, width: 1.2),
                                     ),
                                     constraints: const BoxConstraints(minWidth: 15, minHeight: 14),
@@ -660,7 +552,7 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
                                     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                                     decoration: BoxDecoration(
                                       color: GageTheme.primary,
-                                      borderRadius: BorderRadius.circular(8),
+                                      borderRadius: BorderRadius.circular(999),
                                       border: Border.all(color: Colors.white, width: 1.2),
                                     ),
                                     constraints: const BoxConstraints(minWidth: 15, minHeight: 14),
@@ -999,7 +891,7 @@ class _GageHomeHeaderState extends State<GageHomeHeader> {
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: typeColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.circular(999),
                         ),
                         child: Text(
                           typeLabel,

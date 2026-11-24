@@ -42,8 +42,15 @@ class _ShopScreenState extends State<ShopScreen> {
 
   final TextEditingController _searchController = TextEditingController();
 
-  String _formatShortAddress(String addr) {
+  String _formatShortAddress(String addr, [String? label]) {
+    if (label != null && label.trim().isNotEmpty) {
+      return label.trim();
+    }
     if (addr.isEmpty) return 'Pilih Lokasi';
+    if (addr.contains(' - ')) {
+      final titlePart = addr.split(' - ').first.trim();
+      if (titlePart.isNotEmpty) return titlePart;
+    }
     if (addr.contains('(')) {
       return addr.split('(').last.replaceAll(')', '').trim();
     }
@@ -147,9 +154,10 @@ class _ShopScreenState extends State<ShopScreen> {
           location: result.location,
           preferredName: result.title,
         );
+    final label = matched?.name ?? (result.title.isNotEmpty ? result.title : null);
     if (!mounted) return;
     setState(() {
-      _deliveryLocation = '${result.title} - ${result.fullAddress}';
+      _deliveryLocation = label ?? resolved;
     });
     cart?.setDeliveryAddress(
       resolved,
@@ -790,7 +798,10 @@ class _ShopScreenState extends State<ShopScreen> {
         Positioned.fill(
           child: GageServiceStickyHeader(
             scrollController: _scrollController,
-            locationText: _formatShortAddress(_deliveryLocation),
+            locationText: _formatShortAddress(
+              cart.deliveryAddress.isNotEmpty ? cart.deliveryAddress : _deliveryLocation,
+              cart.deliveryLocationLabel,
+            ),
             onLocationTap: _showDeliveryLocationPicker,
             onBackTap: () => Navigator.pop(context),
             onFavoriteTap: () async {

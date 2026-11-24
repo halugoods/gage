@@ -5,6 +5,7 @@ import 'package:gage_app/core/services/location_service.dart';
 import 'package:gage_app/core/services/merchant_storefront_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/shared/widgets/full_screen_map_picker.dart';
+import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/mini_location_preview_map.dart';
 
@@ -35,10 +36,9 @@ class MerchantLocationChangeRequestSheet extends StatefulWidget {
     required double currentLongitude,
     required String markerImagePath,
   }) {
-    return showModalBottomSheet<MerchantLocationChangeRequest>(
+    return GageFloatingSheet.show<MerchantLocationChangeRequest>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      title: 'Ajukan Pindah Lokasi Kios',
       builder: (_) => MerchantLocationChangeRequestSheet(
         merchantId: merchantId,
         currentAddress: currentAddress,

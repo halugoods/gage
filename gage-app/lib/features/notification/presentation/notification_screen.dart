@@ -288,7 +288,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                   height: 80,
                                   width: double.infinity,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                                  errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
                                 ),
                               ),
                             ],
@@ -298,7 +298,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                                 decoration: BoxDecoration(
                                   color: GageTheme.primary.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(6),
+                                  borderRadius: BorderRadius.circular(999),
                                 ),
                                 child: const Text(
                                   'BARU',

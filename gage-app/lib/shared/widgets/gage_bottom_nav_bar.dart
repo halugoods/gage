@@ -252,7 +252,8 @@ class _GageBottomNavBarState extends State<GageBottomNavBar> {
               label: lang?.tr('nav_home') ?? 'Beranda',
               activeAsset: 'assets/images/nav_home_active.png',
               inactiveAsset: 'assets/images/nav_home_inactive.png',
-              fallbackIcon: Icons.home_rounded,
+              activeIcon: Icons.home_rounded,
+              inactiveIcon: Icons.home_outlined,
               isDark: isDark,
               isVideo: isVideo,
             ),
@@ -264,7 +265,8 @@ class _GageBottomNavBarState extends State<GageBottomNavBar> {
               label: lang?.tr('nav_orders') ?? 'Pesanan',
               activeAsset: 'assets/images/nav_orders_active.png',
               inactiveAsset: 'assets/images/nav_orders_inactive.png',
-              fallbackIcon: Icons.receipt,
+              activeIcon: Icons.receipt_rounded,
+              inactiveIcon: Icons.receipt_outlined,
               badgeText: activeOrdersCount > 0 ? '$activeOrdersCount' : null,
               isDark: isDark,
               isVideo: isVideo,
@@ -277,7 +279,8 @@ class _GageBottomNavBarState extends State<GageBottomNavBar> {
               label: lang?.tr('nav_promo') ?? 'Promo',
               activeAsset: 'assets/images/nav_promo_active.png',
               inactiveAsset: 'assets/images/nav_promo_inactive.png',
-              fallbackIcon: Icons.local_offer_rounded,
+              activeIcon: Icons.local_offer_rounded,
+              inactiveIcon: Icons.local_offer_outlined,
               badgeText: promoUnread > 0 ? '$promoUnread' : null,
               isDark: isDark,
               isVideo: isVideo,
@@ -290,7 +293,8 @@ class _GageBottomNavBarState extends State<GageBottomNavBar> {
               label: lang?.tr('nav_video') ?? 'Video',
               activeAsset: 'assets/images/nav_video_active.png',
               inactiveAsset: 'assets/images/nav_video_inactive.png',
-              fallbackIcon: Icons.play_circle_filled_rounded,
+              activeIcon: Icons.play_circle_fill_rounded,
+              inactiveIcon: Icons.play_circle_outline_rounded,
               isDark: isDark,
               isVideo: isVideo,
             ),
@@ -302,7 +306,8 @@ class _GageBottomNavBarState extends State<GageBottomNavBar> {
               label: lang?.tr('nav_profile') ?? 'Profil',
               activeAsset: 'assets/images/nav_profile_active.png',
               inactiveAsset: 'assets/images/nav_profile_inactive.png',
-              fallbackIcon: Icons.person_rounded,
+              activeIcon: Icons.person_rounded,
+              inactiveIcon: Icons.person_outline_rounded,
               isDark: isDark,
               isVideo: isVideo,
             ),
@@ -321,7 +326,9 @@ class _GageBottomNavBarState extends State<GageBottomNavBar> {
     required String label,
     required String activeAsset,
     required String inactiveAsset,
-    required IconData fallbackIcon,
+    IconData? fallbackIcon,
+    IconData? activeIcon,
+    IconData? inactiveIcon,
     String? badgeText,
     bool hasDotBadge = false,
     required bool isDark,
@@ -351,25 +358,19 @@ class _GageBottomNavBarState extends State<GageBottomNavBar> {
             ? Colors.white.withValues(alpha: 0.22)
             : Colors.white.withValues(alpha: 0.55));
 
+    final resolvedIcon = isSelected
+        ? (activeIcon ?? fallbackIcon ?? Icons.circle)
+        : (inactiveIcon ?? fallbackIcon ?? Icons.circle_outlined);
+
     final iconWidget = Stack(
       clipBehavior: Clip.none,
       alignment: Alignment.center,
       children: [
-        fallbackIcon == Icons.receipt
-            ? Transform.scale(
-                scaleX: 0.85,
-                scaleY: 0.95,
-                child: Icon(
-                  fallbackIcon,
-                  size: 20,
-                  color: isSelected ? activeTextColor : inactiveColor,
-                ),
-              )
-            : Icon(
-                fallbackIcon,
-                size: 20,
-                color: isSelected ? activeTextColor : inactiveColor,
-              ),
+        Icon(
+          resolvedIcon,
+          size: 20,
+          color: isSelected ? activeTextColor : inactiveColor,
+        ),
         if (badgeText != null && badgeText.isNotEmpty)
           Positioned(
             top: -4,

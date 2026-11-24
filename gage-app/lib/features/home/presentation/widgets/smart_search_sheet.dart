@@ -5,7 +5,6 @@ import 'package:gage_app/features/food/presentation/food_explore_screen.dart';
 import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
 import 'package:gage_app/features/food/presentation/shop_screen.dart';
 import 'package:gage_app/features/food/presentation/farm_screen.dart';
-import 'package:gage_app/features/food/presentation/build_screen.dart';
 import 'package:gage_app/features/ride/presentation/ride_booking_screen.dart';
 import 'package:gage_app/features/ride/presentation/send_booking_screen.dart';
 import 'package:gage_app/features/affiliate/presentation/affiliate_hub_screen.dart';
@@ -169,20 +168,7 @@ class _SmartSearchSheetState extends State<SmartSearchSheet> {
           Navigator.push(context, MaterialPageRoute(builder: (_) => const FarmScreen()));
         },
       ),
-      SearchSuggestionItem(
-        id: 'svc-build',
-        title: 'GAGE Build',
-        subtitle: 'Toko bahan bangunan, semen, cat, besi beton, pipa & alat pertukangan',
-        category: SearchDomainCategory.service,
-        categoryLabel: 'Layanan',
-        icon: Icons.construction_rounded,
-        themeColor: const Color(0xFF0284C7),
-        keywords: ['build', 'bangunan', 'semen', 'pasir', 'cat', 'besi', 'pipa', 'material', 'alat tukang', 'baja ringan'],
-        onSelect: () {
-          Navigator.pop(context);
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const BuildScreen()));
-        },
-      ),
+
       SearchSuggestionItem(
         id: 'svc-cuan',
         title: 'GAGE Cuan',
@@ -701,17 +687,7 @@ class _SmartSearchSheetState extends State<SmartSearchSheet> {
           },
           isDark: isDark,
         ),
-        _buildQuickShortcutTile(
-          icon: Icons.construction_rounded,
-          color: const Color(0xFF0284C7),
-          title: 'Material & Bangunan (GAGE Build)',
-          subtitle: 'Semen, cat, besi beton, pipa & perlengkapan proyek',
-          onTap: () {
-            Navigator.pop(context);
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const BuildScreen()));
-          },
-          isDark: isDark,
-        ),
+
       ],
     );
   }

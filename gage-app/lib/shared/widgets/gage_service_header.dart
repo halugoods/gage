@@ -347,7 +347,7 @@ class GageServiceStickyHeader extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                             decoration: BoxDecoration(
                               color: isDark ? GageTheme.darkCard : Colors.white,
-                              borderRadius: BorderRadius.circular(20),
+                              borderRadius: BorderRadius.circular(999),
                               border: Border.all(
                                 color: isDark ? GageTheme.darkBorder : Colors.black12,
                                 width: 0.8,
@@ -478,7 +478,7 @@ class GageServiceStickyHeader extends StatelessWidget {
                         height: searchBarHeight,
                         decoration: BoxDecoration(
                           color: isDark ? GageTheme.darkCard : Colors.white,
-                          borderRadius: BorderRadius.circular(24),
+                          borderRadius: BorderRadius.circular(999),
                           border: Border.all(
                             color: isDark ? GageTheme.darkBorder : Colors.black12,
                             width: 0.8,
@@ -507,9 +507,9 @@ class GageServiceStickyHeader extends StatelessWidget {
                           decoration: InputDecoration(
                             isDense: true,
                             hintText: searchHint,
-                            hintStyle: TextStyle(
+                            hintStyle: const TextStyle(
                               fontSize: 12.5,
-                              color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
+                              color: Color(0xFF94A3B8),
                             ),
                             prefixIcon: Padding(
                               padding: const EdgeInsets.only(left: 12, right: 8),

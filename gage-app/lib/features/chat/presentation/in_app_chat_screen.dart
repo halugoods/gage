@@ -380,26 +380,38 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                        decoration: BoxDecoration(
-                          color: GageTheme.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(4),
+                        width: 6,
+                        height: 6,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF16A34A),
+                          shape: BoxShape.circle,
                         ),
-                        child: Text(
-                          widget.recipientRole.toUpperCase(),
-                          style: const TextStyle(
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w800,
-                            color: GageTheme.primary,
-                            letterSpacing: 0.5,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        widget.recipientRole.toLowerCase() == 'ai'
+                            ? 'Bantuan AI 24/7'
+                            : (widget.recipientRole.toLowerCase() == 'driver'
+                                ? 'Mitra Driver GAGE'
+                                : (widget.recipientRole.toLowerCase() == 'merchant'
+                                    ? 'Mitra Toko GAGE'
+                                    : 'Online')),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                        ),
+                      ),
+                      if (widget.orderId.isNotEmpty && widget.orderId != 'AI-SUPPORT') ...[
+                        Text(
+                          ' • #${widget.orderId}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white60 : const Color(0xFF94A3B8),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '#${widget.orderId}',
-                        style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.black54),
-                      ),
+                      ],
                     ],
                   ),
                 ],
@@ -420,6 +432,65 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            // Sticky Context Banner Pesanan Mini (Elegance & Utilitas Tinggi)
+            if (widget.orderId.isNotEmpty && widget.orderId != 'AI-SUPPORT')
+              Container(
+                margin: const EdgeInsets.fromLTRB(14, 8, 14, 4),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                decoration: BoxDecoration(
+                  color: isDark ? GageTheme.darkSurface : Colors.white,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    width: 0.8,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.03),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.receipt_long_rounded, size: 14, color: GageTheme.primary),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Pesanan #${widget.orderId}',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w800,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      width: 3.5,
+                      height: 3.5,
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white38 : Colors.black26,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      widget.recipientRole.toLowerCase() == 'driver'
+                          ? 'Pengantaran Aktif'
+                          : (widget.recipientRole.toLowerCase() == 'merchant'
+                              ? 'Pesanan Toko'
+                              : 'Chat Transaksi'),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
             // List Chat
             Expanded(
               child: messages.isEmpty
@@ -439,14 +510,24 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
                     )
                   : ListView.builder(
                       controller: _scrollCtrl,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                       itemCount: messages.length,
                       itemBuilder: (ctx, idx) {
                         final msg = messages[idx];
                         final isMe = msg.senderRole == widget.currentRole;
 
-                        return Align(
-                          alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                        final showDateSeparator = idx == 0 ||
+                            msg.timestamp.day != messages[idx - 1].timestamp.day ||
+                            msg.timestamp.month != messages[idx - 1].timestamp.month ||
+                            msg.timestamp.year != messages[idx - 1].timestamp.year;
+
+                        return Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (showDateSeparator)
+                              _buildDateSeparator(msg.timestamp, isDark),
+                            Align(
+                              alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
                           child: Container(
                             margin: const EdgeInsets.symmetric(vertical: 4),
                             constraints: BoxConstraints(
@@ -458,16 +539,24 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
                                   ? GageTheme.primary
                                   : (isDark ? const Color(0xFF1E293B) : Colors.white),
                               borderRadius: BorderRadius.only(
-                                topLeft: const Radius.circular(16),
-                                topRight: const Radius.circular(16),
-                                bottomLeft: Radius.circular(isMe ? 16 : 4),
-                                bottomRight: Radius.circular(isMe ? 4 : 16),
+                                topLeft: const Radius.circular(18),
+                                topRight: const Radius.circular(18),
+                                bottomLeft: Radius.circular(isMe ? 18 : 4),
+                                bottomRight: Radius.circular(isMe ? 4 : 18),
                               ),
+                              border: isMe
+                                  ? null
+                                  : Border.all(
+                                      color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                                      width: 0.8,
+                                    ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.04),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 1),
+                                  color: isMe
+                                      ? GageTheme.primary.withValues(alpha: 0.16)
+                                      : Colors.black.withValues(alpha: isDark ? 0.25 : 0.03),
+                                  blurRadius: 5,
+                                  offset: const Offset(0, 1.5),
                                 ),
                               ],
                             ),
@@ -595,10 +684,11 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
                                     msg.text,
                                     style: TextStyle(
                                       fontSize: 13.5,
+                                      fontWeight: FontWeight.w500,
                                       color: isMe
                                           ? Colors.white
                                           : (isDark ? Colors.white : const Color(0xFF0F172A)),
-                                      height: 1.35,
+                                      height: 1.38,
                                     ),
                                   ),
 
@@ -610,21 +700,28 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
                                       timeFormat.format(msg.timestamp),
                                       style: TextStyle(
                                         fontSize: 10,
-                                        color: isMe ? Colors.white70 : Colors.grey.shade500,
+                                        fontWeight: FontWeight.w500,
+                                        color: isMe ? Colors.white.withValues(alpha: 0.75) : Colors.grey.shade500,
                                       ),
                                     ),
                                     if (isMe) ...[
                                       const SizedBox(width: 4),
-                                      const Icon(Icons.done_all_rounded, size: 14, color: Colors.white70),
+                                      Icon(
+                                        Icons.done_all_rounded,
+                                        size: 14,
+                                        color: Colors.white.withValues(alpha: 0.85),
+                                      ),
                                     ],
                                   ],
                                 ),
                               ],
                             ),
                           ),
-                        );
-                      },
-                    ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
             ),
 
             // Bar Quick Reply Pills
@@ -639,16 +736,27 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
                   final reply = _quickReplies[i];
                   return Center(
                     child: InkWell(
-                      onTap: () => _sendMessage(reply),
-                      borderRadius: BorderRadius.circular(20),
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        _sendMessage(reply);
+                      },
+                      borderRadius: BorderRadius.circular(999),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                         decoration: BoxDecoration(
                           color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(999),
                           border: Border.all(
-                            color: isDark ? const Color(0xFF334155) : Colors.grey.shade300,
+                            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                            width: 0.9,
                           ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                              blurRadius: 4,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
                         ),
                         child: Text(
                           reply,
@@ -730,6 +838,33 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
     );
   }
 
+  Widget _buildDateSeparator(DateTime timestamp, bool isDark) {
+    final now = DateTime.now();
+    final isToday = timestamp.year == now.year && timestamp.month == now.month && timestamp.day == now.day;
+    final isYesterday = timestamp.year == now.year && timestamp.month == now.month && timestamp.day == now.day - 1;
+    final dateText = isToday ? 'Hari Ini' : (isYesterday ? 'Kemarin' : DateFormat('d MMM yyyy').format(timestamp));
+
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          dateText,
+          style: TextStyle(
+            fontSize: 10.5,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.2,
+            color: isDark ? Colors.white70 : const Color(0xFF475569),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildVoicePlayer(ChatMessage msg, bool isMe, bool isDark) {
     final isPlaying = _playingVoiceMsgId == msg.id;
     final totalDuration = msg.voiceDurationSeconds ?? 4;
@@ -741,7 +876,7 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
         color: isMe
             ? Colors.white.withValues(alpha: 0.18)
             : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9)),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

@@ -8,7 +8,6 @@ import 'package:gage_app/core/services/banner_manager_service.dart';
 import 'package:gage_app/features/food/presentation/food_explore_screen.dart';
 import 'package:gage_app/features/food/presentation/shop_screen.dart';
 import 'package:gage_app/features/food/presentation/farm_screen.dart';
-import 'package:gage_app/features/food/presentation/build_screen.dart';
 import 'package:gage_app/features/ride/presentation/ride_booking_screen.dart';
 import 'package:gage_app/features/ride/presentation/send_booking_screen.dart';
 import 'package:gage_app/features/affiliate/presentation/affiliate_hub_screen.dart';
@@ -158,8 +157,6 @@ class _PromoCarouselState extends State<PromoCarousel> {
         Navigator.push(context, MaterialPageRoute(builder: (ctx) => const ShopScreen()));
       } else if (serviceType == 'farm') {
         Navigator.push(context, MaterialPageRoute(builder: (ctx) => const FarmScreen()));
-      } else if (serviceType == 'build') {
-        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const BuildScreen()));
       } else if (serviceType == 'cuan') {
         Navigator.push(context, MaterialPageRoute(builder: (ctx) => const AffiliateHubScreen()));
       } else {
@@ -247,7 +244,7 @@ class _PromoCarouselState extends State<PromoCarousel> {
                               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                               decoration: BoxDecoration(
                                 color: Colors.black.withValues(alpha: 0.8),
-                                borderRadius: BorderRadius.circular(6),
+                                borderRadius: BorderRadius.circular(999),
                                 border: Border.all(color: GageTheme.primary, width: 1.2),
                               ),
                               child: Row(

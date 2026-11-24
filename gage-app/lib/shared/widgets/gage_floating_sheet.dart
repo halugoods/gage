@@ -18,6 +18,7 @@ class GageFloatingSheet {
     EdgeInsets? padding,
     bool isScrollControlled = true,
     Color? backgroundColor,
+    double maxHeightFactor = 0.67,
   }) {
     assert(builder != null || child != null, 'Either builder or child must be provided');
     HapticFeedback.lightImpact();
@@ -41,13 +42,17 @@ class GageFloatingSheet {
             ),
             child: SafeArea(
               top: false,
-              child: Container(
-                margin: EdgeInsets.fromLTRB(
-                  16,
-                  0,
-                  16,
-                  MediaQuery.of(sheetContext).padding.bottom > 0 ? 12 : 16,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(sheetContext).size.height * maxHeightFactor,
                 ),
+                child: Container(
+                  margin: EdgeInsets.fromLTRB(
+                    16,
+                    0,
+                    16,
+                    MediaQuery.of(sheetContext).padding.bottom > 0 ? 12 : 16,
+                  ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
@@ -133,7 +138,8 @@ class GageFloatingSheet {
         ),
       ),
     ),
-  );
+  ),
+);
       },
     );
   }

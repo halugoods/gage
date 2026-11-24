@@ -162,25 +162,31 @@ class _GageChatInputBarState extends State<GageChatInputBar> with SingleTickerPr
               crossFadeState: isInputActive
                   ? CrossFadeState.showSecond
                   : CrossFadeState.showFirst,
-              firstChild: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildUploadIcon(
-                    icon: Icons.camera_alt_outlined,
-                    onTap: widget.onCameraTap,
-                    isDark: isDark,
+              firstChild: ClipRect(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const NeverScrollableScrollPhysics(),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildUploadIcon(
+                        icon: Icons.camera_alt_outlined,
+                        onTap: widget.onCameraTap,
+                        isDark: isDark,
+                      ),
+                      _buildUploadIcon(
+                        icon: Icons.image_outlined,
+                        onTap: widget.onGalleryTap,
+                        isDark: isDark,
+                      ),
+                      _buildUploadIcon(
+                        icon: Icons.folder_outlined,
+                        onTap: widget.onFileTap,
+                        isDark: isDark,
+                      ),
+                    ],
                   ),
-                  _buildUploadIcon(
-                    icon: Icons.image_outlined,
-                    onTap: widget.onGalleryTap,
-                    isDark: isDark,
-                  ),
-                  _buildUploadIcon(
-                    icon: Icons.folder_outlined,
-                    onTap: widget.onFileTap,
-                    isDark: isDark,
-                  ),
-                ],
+                ),
               ),
               secondChild: InkWell(
                 onTap: () {
@@ -216,11 +222,14 @@ class _GageChatInputBarState extends State<GageChatInputBar> with SingleTickerPr
                 decoration: BoxDecoration(
                   color: _isRecording
                       ? (isDark ? const Color(0xFF2C1E1E) : const Color(0xFFFFF1F0))
-                      : (isDark ? const Color(0xFF1E293B) : const Color(0xFFE9E9E9)),
+                      : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
                   borderRadius: BorderRadius.circular(25),
                   border: _isRecording
                       ? Border.all(color: GageTheme.primary.withValues(alpha: 0.6), width: 1.2)
-                      : null,
+                      : Border.all(
+                          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                          width: 0.8,
+                        ),
                 ),
                 padding: const EdgeInsets.only(left: 16, right: 4),
                 child: Row(
@@ -255,15 +264,14 @@ class _GageChatInputBarState extends State<GageChatInputBar> with SingleTickerPr
                               maxLines: null,
                               style: TextStyle(
                                 fontSize: 13.5,
-                                fontFamily: 'Segoe UI',
                                 fontWeight: FontWeight.w500,
-                                color: isDark ? Colors.white : const Color(0xFF4C4C4C),
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
                               ),
                               decoration: InputDecoration(
                                 hintText: widget.hintText,
                                 hintStyle: TextStyle(
                                   fontSize: 13.5,
-                                  color: isDark ? Colors.grey.shade500 : const Color(0xFF959595),
+                                  color: isDark ? Colors.grey.shade500 : const Color(0xFF94A3B8),
                                 ),
                                 border: InputBorder.none,
                                 isDense: true,
@@ -274,7 +282,7 @@ class _GageChatInputBarState extends State<GageChatInputBar> with SingleTickerPr
 
                     const SizedBox(width: 4),
 
-                    // Kanan Dinamis: Mic Gelombang Suara vs Tombol Kirim Gradien
+                    // Kanan Dinamis: Mic Gelombang Suara vs Tombol Kirim Solid GAGE Red
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 220),
                       transitionBuilder: (child, anim) =>
@@ -287,18 +295,14 @@ class _GageChatInputBarState extends State<GageChatInputBar> with SingleTickerPr
                               child: Container(
                                 width: 34,
                                 height: 34,
-                                decoration: const BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [Color(0xFF9147FF), Color(0xFFFF4141)],
-                                    begin: Alignment.bottomLeft,
-                                    end: Alignment.topRight,
-                                  ),
+                                decoration: BoxDecoration(
+                                  color: GageTheme.primary,
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Color(0x409147FF),
+                                      color: GageTheme.primary.withValues(alpha: 0.35),
                                       blurRadius: 6,
-                                      offset: Offset(0, 2),
+                                      offset: const Offset(0, 2),
                                     ),
                                   ],
                                 ),
@@ -368,7 +372,7 @@ class _GageChatInputBarState extends State<GageChatInputBar> with SingleTickerPr
           child: Icon(
             icon,
             size: 21,
-            color: isDark ? Colors.white60 : const Color(0xFFAAAAAA),
+            color: isDark ? Colors.white70 : const Color(0xFF64748B),
           ),
         ),
       ),

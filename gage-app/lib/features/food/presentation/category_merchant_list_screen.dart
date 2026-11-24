@@ -467,7 +467,7 @@ class _CategoryMerchantListScreenState extends State<CategoryMerchantListScreen>
                                             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                                             decoration: BoxDecoration(
                                               color: Colors.red.shade50,
-                                              borderRadius: BorderRadius.circular(6),
+                                              borderRadius: BorderRadius.circular(999),
                                             ),
                                             child: Text(
                                               m['diskonBadge'],

@@ -287,23 +287,58 @@ class _ChatHubScreenState extends State<ChatHubScreen> with SingleTickerProvider
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     Expanded(
-                                      child: Text(
-                                        chat['name'],
-                                        style: TextStyle(
-                                          fontWeight: unread > 0 ? FontWeight.w900 : FontWeight.bold,
-                                          fontSize: 14,
-                                          color: isDark ? Colors.white : Colors.black87,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                                      child: Row(
+                                        children: [
+                                          Flexible(
+                                            child: Text(
+                                              chat['name'],
+                                              style: TextStyle(
+                                                fontWeight: unread > 0 ? FontWeight.w800 : FontWeight.bold,
+                                                fontSize: 14,
+                                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                            decoration: BoxDecoration(
+                                              color: (chat['category'] == 'ai')
+                                                  ? (isDark ? Colors.purple.withValues(alpha: 0.15) : const Color(0xFFF3E8FF))
+                                                  : (chat['category'] == 'driver')
+                                                      ? (isDark ? GageTheme.primary.withValues(alpha: 0.15) : const Color(0xFFFEE2E2))
+                                                      : (isDark ? Colors.blue.withValues(alpha: 0.15) : const Color(0xFFE0F2FE)),
+                                              borderRadius: BorderRadius.circular(999),
+                                            ),
+                                            child: Text(
+                                              (chat['category'] == 'ai')
+                                                  ? 'AI 24/7'
+                                                  : (chat['category'] == 'driver')
+                                                      ? 'Driver'
+                                                      : 'Toko',
+                                              style: TextStyle(
+                                                fontSize: 9.5,
+                                                fontWeight: FontWeight.w800,
+                                                letterSpacing: 0.2,
+                                                color: (chat['category'] == 'ai')
+                                                    ? (isDark ? Colors.purple.shade200 : const Color(0xFF7E22CE))
+                                                    : (chat['category'] == 'driver')
+                                                        ? GageTheme.primary
+                                                        : (isDark ? Colors.blue.shade200 : const Color(0xFF0369A1)),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                     Text(
                                       chat['time'],
                                       style: TextStyle(
                                         fontSize: 11,
-                                        color: unread > 0 ? const Color(0xFF16A34A) : Colors.grey.shade500,
-                                        fontWeight: unread > 0 ? FontWeight.bold : FontWeight.normal,
+                                        color: unread > 0 ? GageTheme.primary : (isDark ? Colors.white60 : Colors.grey.shade500),
+                                        fontWeight: unread > 0 ? FontWeight.w800 : FontWeight.normal,
                                       ),
                                     ),
                                   ],
@@ -317,8 +352,8 @@ class _ChatHubScreenState extends State<ChatHubScreen> with SingleTickerProvider
                                         style: TextStyle(
                                           fontSize: 12.5,
                                           color: unread > 0
-                                              ? (isDark ? Colors.grey.shade200 : Colors.black87)
-                                              : (isDark ? Colors.grey.shade400 : Colors.black54),
+                                              ? (isDark ? Colors.grey.shade100 : const Color(0xFF0F172A))
+                                              : (isDark ? Colors.grey.shade400 : const Color(0xFF64748B)),
                                           fontWeight: unread > 0 ? FontWeight.w600 : FontWeight.normal,
                                         ),
                                         maxLines: 1,
@@ -328,17 +363,26 @@ class _ChatHubScreenState extends State<ChatHubScreen> with SingleTickerProvider
                                     if (unread > 0)
                                       Container(
                                         margin: const EdgeInsets.only(left: 8),
-                                        padding: const EdgeInsets.all(5),
-                                        decoration: const BoxDecoration(
-                                          color: Color(0xFF16A34A),
-                                          shape: BoxShape.circle,
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: GageTheme.primary,
+                                          borderRadius: BorderRadius.circular(999),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: GageTheme.primary.withValues(alpha: 0.25),
+                                              blurRadius: 4,
+                                              offset: const Offset(0, 1),
+                                            ),
+                                          ],
                                         ),
+                                        constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
                                         child: Text(
                                           '$unread',
+                                          textAlign: TextAlign.center,
                                           style: const TextStyle(
                                             color: Colors.white,
                                             fontSize: 9.5,
-                                            fontWeight: FontWeight.bold,
+                                            fontWeight: FontWeight.w900,
                                             height: 1.0,
                                           ),
                                         ),

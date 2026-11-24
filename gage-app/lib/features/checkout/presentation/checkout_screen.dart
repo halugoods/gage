@@ -21,7 +21,6 @@ import 'package:gage_app/shared/widgets/full_screen_map_picker.dart';
 import 'package:gage_app/features/food/presentation/food_explore_screen.dart';
 import 'package:gage_app/features/food/presentation/shop_screen.dart';
 import 'package:gage_app/features/food/presentation/farm_screen.dart';
-import 'package:gage_app/features/food/presentation/build_screen.dart';
 import 'package:gage_app/features/food/presentation/resto_detail_screen.dart';
 import 'package:gage_app/features/voucher/presentation/voucher_selection_screen.dart';
 import 'package:gage_app/data/models/cart_item_model.dart';
@@ -2887,9 +2886,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         break;
       case 'farm':
         destination = const FarmScreen();
-        break;
-      case 'build':
-        destination = const BuildScreen();
         break;
       default:
         destination = const FoodExploreScreen();

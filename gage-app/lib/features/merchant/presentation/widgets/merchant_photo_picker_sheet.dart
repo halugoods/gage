@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/gage_image_crop_rotate_dialog.dart';
+import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 
 /// Production-Grade Photo Picker Sheet for GAGE Merchant Portal (Food, Shop, Farm).
 /// Mengikuti standar arsitektur NUSA Kasir tanpa mockup sandbox:
@@ -19,10 +20,9 @@ class MerchantPhotoPickerSheet extends StatelessWidget {
     String? initialCategory,
     double aspectRatio = 1.0,
   }) async {
-    final source = await showModalBottomSheet<ImageSource>(
+    final source = await GageFloatingSheet.show<ImageSource>(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
+      title: 'Pilih Sumber Foto',
       builder: (_) => const MerchantPhotoPickerSheet(),
     );
     if (source == null || !context.mounted) return null;

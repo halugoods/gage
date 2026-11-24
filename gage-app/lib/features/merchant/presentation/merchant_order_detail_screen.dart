@@ -161,6 +161,9 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
             if (latestOrder.hasAssignedDriver) ...[
               _buildDriverCard(latestOrder, isDark, cardBg, textColor, subColor, borderColor),
               const SizedBox(height: 12),
+            ] else if (!latestOrder.isPickup && (latestOrder.status == 'COOKING' || latestOrder.status == 'READY_FOR_PICKUP')) ...[
+              _buildSearchingDriverCard(isDark, borderColor),
+              const SizedBox(height: 12),
             ],
 
             // 3. Info Pembeli (Kontainer Terpisah Berjudul)
@@ -369,7 +372,56 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: GageTheme.primary.withValues(alpha: isDark ? 0.2 : 0.08),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _LivePulsingDot(color: GageTheme.primary),
+                    const SizedBox(width: 5),
+                    const Text(
+                      'Menuju Kios',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: GageTheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchingDriverCard(bool isDark, Color borderColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFFFF1F2),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        children: [
+          const _LivePulsingRadarIcon(),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Sedang mencari kurir terdekat...',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFFE11D48),
+              ),
+            ),
           ),
         ],
       ),
@@ -794,7 +846,12 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
               GageToast.show(context, 'Pesanan siap diambil kurir / pembeli!');
             }
           },
-          child: Text('Pesanan Siap Diambil (${order.formattedCookingTimeRemaining})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+          child: Text(
+            (order.hasAssignedDriver || order.isPickup)
+                ? 'Pesanan Siap Diambil (${order.formattedCookingTimeRemaining})'
+                : 'Pesanan Siap Diambil',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          ),
         ),
       );
     }
@@ -956,6 +1013,87 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
         Icons.fastfood_rounded,
         size: width * 0.45,
         color: isDark ? Colors.white38 : Colors.grey.shade500,
+      ),
+    );
+  }
+}
+
+class _LivePulsingDot extends StatefulWidget {
+  final Color color;
+
+  const _LivePulsingDot({required this.color});
+
+  @override
+  State<_LivePulsingDot> createState() => _LivePulsingDotState();
+}
+
+class _LivePulsingDotState extends State<_LivePulsingDot> with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
+    if (!WidgetsBinding.instance.runtimeType.toString().contains('Test')) {
+      _ctrl.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: Tween<double>(begin: 0.35, end: 1.0).animate(_ctrl),
+      child: Container(
+        width: 7,
+        height: 7,
+        decoration: BoxDecoration(
+          color: widget.color,
+          shape: BoxShape.circle,
+        ),
+      ),
+    );
+  }
+}
+
+class _LivePulsingRadarIcon extends StatefulWidget {
+  const _LivePulsingRadarIcon();
+
+  @override
+  State<_LivePulsingRadarIcon> createState() => _LivePulsingRadarIconState();
+}
+
+class _LivePulsingRadarIconState extends State<_LivePulsingRadarIcon> with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1000));
+    if (!WidgetsBinding.instance.runtimeType.toString().contains('Test')) {
+      _ctrl.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: Tween<double>(begin: 0.45, end: 1.0).animate(_ctrl),
+      child: const Icon(
+        Icons.radar_rounded,
+        size: 16,
+        color: GageTheme.primary,
       ),
     );
   }

@@ -8,7 +8,6 @@ import 'package:gage_app/providers/cart_provider.dart';
 import 'package:gage_app/features/food/presentation/food_explore_screen.dart';
 import 'package:gage_app/features/food/presentation/shop_screen.dart';
 import 'package:gage_app/features/food/presentation/farm_screen.dart';
-import 'package:gage_app/features/food/presentation/build_screen.dart';
 import 'package:gage_app/features/ride/presentation/ride_booking_screen.dart';
 import 'package:gage_app/features/ride/presentation/send_booking_screen.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
@@ -130,9 +129,6 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
         break;
       case 'GAGE Farm':
         Navigator.push(context, MaterialPageRoute(builder: (_) => const FarmScreen()));
-        break;
-      case 'GAGE Build':
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const BuildScreen()));
         break;
       case 'GAGE Send':
         Navigator.push(context, MaterialPageRoute(builder: (_) => const SendBookingScreen()));

@@ -359,7 +359,7 @@ class _RestoReviewsScreenState extends State<RestoReviewsScreen> {
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
                                 color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
-                                borderRadius: BorderRadius.circular(6),
+                                borderRadius: BorderRadius.circular(999),
                               ),
                               child: Text(
                                 '$_itemBadgePrefix $item',

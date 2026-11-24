@@ -461,6 +461,29 @@ CREATE TABLE IF NOT EXISTS merchant_location_requests (
    - Jika `APPROVE`: Otomatis memperbarui kolom `address`, `landmark`, `latitude`, `longitude` pada tabel `merchants`, dan status permohonan menjadi `APPROVED`.
    - Jika `REJECT`: Status menjadi `REJECTED` beserta alasan penolakan agar tampil di lembar *Pengajuan Saya* merchant.
 
+---
+
+## 17. Handoff Wave 14: Standardisasi Store ID Cloudflare D1, Dokumen Kemitraan Resmi & Hotline Dispatcher
+
+### 17.1. Format Store ID Terstruktur Cloudflare D1
+- Format ID Toko di seluruh ekosistem GAGE kini distandarisasi menggunakan kode terstruktur:
+  `GAGE-[DISTRICT]-[CATEGORY][SEQ]`
+  Contoh: `GAGE-PRC-FD01` (GAGE Pracimantoro Food #01), `GAGE-PRC-SH02` (Shop #02), `GAGE-PRC-FM01` (Farm #01).
+- Admin backend D1 generator wajib menghasilkan ID toko dengan skema ini pada tabel `merchants.id`.
+
+### 17.2. Perjanjian Kemitraan Resmi & Skema MDR 10%
+- Dokumen kebijakan di Portal Merchant (`MerchantTermsAndPrivacyScreen`) telah mengikat aturan:
+  1. Biaya layanan platform (MDR) adalah **10% (sepuluh persen)** dari subtotal produk.
+  2. Pencairan saldo penjualan (settlement) otomatis ditransfer ke rekening bank / e-wallet mitra terdaftar **H+1 hari kerja** tanpa potongan tersembunyi.
+  3. Kerahasiaan data pembeli dilindungi hukum; merchant dilarang memanfaatkan data pembeli di luar pemenuhan pesanan aktif.
+  4. Penanganan pesanan dibatalkan akibat kelalaian outlet / menu habis menjadi kewajiban ganti rugi merchant.
+
+### 17.3. Hotline Telepon Dispatcher & Kanal CS Mitra
+- Admin Dispatcher Hub Pracimantoro terhubung dengan tombol direct-call di lembar bantuan merchant:
+  - Nomor Hotline Darurat Dispatcher: `+62 811-1222-333`
+  - WhatsApp CS Mitra Usaha: `+62 811-1222-333`
+  - Kantor Operasional: *Jl. Raya Pracimantoro No. 12, Wonogiri, Jawa Tengah*.
+
 
 
 
