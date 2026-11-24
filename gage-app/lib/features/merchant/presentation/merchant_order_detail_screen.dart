@@ -176,14 +176,9 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: Container(
-        color: Colors.transparent,
-        padding: EdgeInsets.fromLTRB(
-          16,
-          0,
-          16,
-          16 + MediaQuery.of(context).padding.bottom,
-        ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         child: _buildStageButton(context, latestOrder, provider, isDark, textColor, borderColor),
       ),
     );
@@ -238,21 +233,6 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
                     ),
                   ),
                 ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: GageTheme.primary.withValues(alpha: isDark ? 0.2 : 0.08),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: const Text(
-                  'Wajib Validasi',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: GageTheme.primary,
-                  ),
-                ),
               ),
             ],
           ),
@@ -328,33 +308,13 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Driver / Kurir GAGE',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: isDark ? Colors.white70 : const Color(0xFF64748B),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFECFDF5),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  order.status == 'AT_MERCHANT' ? 'Tiba di Toko' : 'Kurir Terpasang',
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF047857),
-                  ),
-                ),
-              ),
-            ],
+          Text(
+            'Driver',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: isDark ? Colors.white70 : const Color(0xFF64748B),
+            ),
           ),
           const SizedBox(height: 10),
           Row(
@@ -467,33 +427,13 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Pembeli',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: isDark ? Colors.white70 : const Color(0xFF64748B),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                  color: order.isPickup ? const Color(0xFFEFF6FF) : const Color(0xFFECFDF5),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  order.isPickup ? 'Ambil di Toko' : 'Pesan Antar',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: order.isPickup ? const Color(0xFF1D4ED8) : const Color(0xFF047857),
-                  ),
-                ),
-              ),
-            ],
+          Text(
+            'Pembeli',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: isDark ? Colors.white70 : const Color(0xFF64748B),
+            ),
           ),
           const SizedBox(height: 10),
           Row(
@@ -519,11 +459,6 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
                         fontWeight: FontWeight.bold,
                         color: textColor,
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      order.isPickup ? 'Ambil langsung di kasir toko' : 'Pengantaran kurir ke alamat pembeli',
-                      style: TextStyle(fontSize: 11, color: subColor),
                     ),
                   ],
                 ),
@@ -991,6 +926,25 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
     if (imgUrl.startsWith('http://') || imgUrl.startsWith('https://')) {
       return Image.network(
         imgUrl,
+        width: width,
+        height: height,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(
+          width: width,
+          height: height,
+          color: isDark ? Colors.white10 : Colors.grey.shade200,
+          child: Icon(
+            Icons.fastfood_rounded,
+            size: width * 0.45,
+            color: isDark ? Colors.white38 : Colors.grey.shade500,
+          ),
+        ),
+      );
+    }
+    if (imgUrl.isNotEmpty) {
+      final assetPath = imgUrl.startsWith('assets/') ? imgUrl : 'assets/images/$imgUrl';
+      return Image.asset(
+        assetPath,
         width: width,
         height: height,
         fit: BoxFit.cover,

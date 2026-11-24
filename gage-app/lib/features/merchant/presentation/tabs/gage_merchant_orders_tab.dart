@@ -513,6 +513,7 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
       },
       borderRadius: BorderRadius.circular(20),
       child: Container(
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1E293B) : Colors.white,
           borderRadius: BorderRadius.circular(20),
@@ -528,10 +529,14 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
             ),
           ],
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
             // Baris 1: Header Invoice & Jenis Layanan
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -765,121 +770,6 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
               ),
             ],
           ),
-
-          // Baris 4b: Driver Section (Ditempatkan di Bawah Total Pesanan dalam Kontainer Warna Tipis)
-          if (order.hasAssignedDriver) ...[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-                  width: 0.8,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 26,
-                    height: 26,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: GageTheme.primary.withValues(alpha: 0.6),
-                        width: 1.2,
-                      ),
-                    ),
-                    child: ClipOval(
-                      child: order.driverAvatar != null && order.driverAvatar!.isNotEmpty
-                          ? Image.network(
-                              order.driverAvatar!,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) => const Icon(
-                                Icons.two_wheeler_rounded,
-                                size: 14,
-                                color: GageTheme.primary,
-                              ),
-                            )
-                          : const Icon(
-                              Icons.two_wheeler_rounded,
-                              size: 14,
-                              color: GageTheme.primary,
-                            ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          order.driverName ?? 'Driver GAGE',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          '${order.driverVehicle ?? "Kurir G-Ride"} • ${order.driverPlate ?? "Plat Terverifikasi"}',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: isDark ? Colors.white60 : Colors.grey.shade600,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  InkWell(
-                    onTap: () {
-                      HapticFeedback.lightImpact();
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => InAppChatScreen(
-                            recipientName: order.driverName ?? 'Driver GAGE',
-                            recipientRole: 'driver',
-                            orderId: order.orderNumber,
-                            recipientPhone: order.driverPhone ?? '',
-                            currentRole: 'merchant',
-                          ),
-                        ),
-                      );
-                    },
-                    borderRadius: BorderRadius.circular(999),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: GageTheme.primary.withValues(alpha: isDark ? 0.2 : 0.08),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.chat_bubble_outline_rounded, size: 12, color: GageTheme.primary),
-                          SizedBox(width: 4),
-                          Text(
-                            'Chat Driver',
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w700,
-                              color: GageTheme.primary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
 
           // Baris 5: PIN Serah Terima ke Driver (To The Point)
           if (isReadyForPickup && !order.isPickup) ...[
@@ -1137,8 +1027,126 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
         ],
       ),
     ),
-  );
-  }
+    // Driver Footer Ribbon (Layer Merah di Bawah Kartu)
+    if (order.hasAssignedDriver) ...[
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: GageTheme.primary.withValues(alpha: isDark ? 0.22 : 0.08),
+          border: Border(
+            top: BorderSide(
+              color: GageTheme.primary.withValues(alpha: isDark ? 0.3 : 0.15),
+              width: 0.8,
+            ),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: GageTheme.primary,
+                  width: 1.5,
+                ),
+              ),
+              child: ClipOval(
+                child: order.driverAvatar != null && order.driverAvatar!.isNotEmpty
+                    ? Image.network(
+                        order.driverAvatar!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => const Icon(
+                          Icons.two_wheeler_rounded,
+                          size: 16,
+                          color: GageTheme.primary,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.two_wheeler_rounded,
+                        size: 16,
+                        color: GageTheme.primary,
+                      ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    order.driverName ?? 'Driver GAGE',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    '${order.driverVehicle ?? "Kurir G-Ride"} • ${order.driverPlate ?? "Plat Terverifikasi"}',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: isDark ? Colors.white60 : Colors.grey.shade600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            InkWell(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => InAppChatScreen(
+                      recipientName: order.driverName ?? 'Driver GAGE',
+                      recipientRole: 'driver',
+                      orderId: order.orderNumber,
+                      recipientPhone: order.driverPhone ?? '',
+                      currentRole: 'merchant',
+                    ),
+                  ),
+                );
+              },
+              borderRadius: BorderRadius.circular(999),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: GageTheme.primary,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.chat_bubble_outline_rounded, size: 12, color: Colors.white),
+                    SizedBox(width: 4),
+                    Text(
+                      'Chat Driver',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ],
+  ],
+),
+),
+);
+}
 
   Widget _buildProductImage(String imgUrl, bool isDark, {double width = 34, double height = 34}) {
     if (imgUrl.startsWith('assets/')) {
@@ -1162,6 +1170,25 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
     if (imgUrl.startsWith('http://') || imgUrl.startsWith('https://')) {
       return Image.network(
         imgUrl,
+        width: width,
+        height: height,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(
+          width: width,
+          height: height,
+          color: isDark ? Colors.white10 : Colors.grey.shade200,
+          child: Icon(
+            Icons.fastfood_rounded,
+            size: width * 0.45,
+            color: isDark ? Colors.white38 : Colors.grey.shade500,
+          ),
+        ),
+      );
+    }
+    if (imgUrl.isNotEmpty) {
+      final assetPath = imgUrl.startsWith('assets/') ? imgUrl : 'assets/images/$imgUrl';
+      return Image.asset(
+        assetPath,
         width: width,
         height: height,
         fit: BoxFit.cover,

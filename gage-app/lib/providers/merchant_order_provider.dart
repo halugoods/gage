@@ -28,6 +28,7 @@ class MerchantOrderProvider extends ChangeNotifier {
   // Pengaturan Audio Alarm Dapur Bising & Thermal Multi-Rangkap
   bool _soundAlarmEnabled = true;
   bool _autoPrintOnAccept = true;
+  bool _openCashDrawerOnPrint = false;
   int _receiptCopies = 2; // Default 2 rangkap: 1x Dapur, 1x Kurir/Pelanggan
   String _preferredPaperSize = '58mm';
   String _printerDeviceName = 'RPP02N-Thermal-58mm';
@@ -42,10 +43,13 @@ class MerchantOrderProvider extends ChangeNotifier {
   String? get busyReason => _busyReason;
   bool get autoAccept => _autoAccept;
   bool get printerConnected => _printerConnected;
+  bool get isPrinterConnected => _printerConnected;
   String get printerDeviceName => _printerDeviceName;
   String get printerPaperSize => _preferredPaperSize;
   String get preferredPaperSize => _preferredPaperSize;
   bool get autoPrintOnAccept => _autoPrintOnAccept;
+  bool get autoPrintOrders => _autoPrintOnAccept;
+  bool get openCashDrawerOnPrint => _openCashDrawerOnPrint;
   int get receiptCopies => _receiptCopies;
   bool get soundAlarmEnabled => _soundAlarmEnabled;
   bool get isLoading => _isLoading;
@@ -561,6 +565,14 @@ class MerchantOrderProvider extends ChangeNotifier {
   }
   void setPrinterPaperSize(String size) => setPreferredPaperSize(size);
   void toggleAutoPrint(bool val) => toggleAutoPrintOnAccept(val);
+  void setAutoPrintOrders(bool val) {
+    _autoPrintOnAccept = val;
+    notifyListeners();
+  }
+  void setOpenCashDrawerOnPrint(bool val) {
+    _openCashDrawerOnPrint = val;
+    notifyListeners();
+  }
 
   void _checkAndManageOrderAlert() {
     if (!_isOpen || !_soundAlarmEnabled) {

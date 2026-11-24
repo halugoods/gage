@@ -12,18 +12,20 @@ import 'package:gage_app/core/theme/gage_theme.dart';
 /// anti-crash/OOM, mendukung pan, zoom, dan rotasi 90 derajat berkelanjutan.
 class GageImageCropRotateDialog extends StatefulWidget {
   final String imagePath;
+  final double aspectRatio;
 
   const GageImageCropRotateDialog({
     super.key,
     required this.imagePath,
+    this.aspectRatio = 1.0,
   });
 
-  /// Membuka dialog pemotong foto 1:1 dan mengembalikan path file JPG hasil crop
-  static Future<String?> show(BuildContext context, String imagePath) {
+  /// Membuka dialog pemotong foto (default 1:1, atau 16:9 untuk banner)
+  static Future<String?> show(BuildContext context, String imagePath, {double aspectRatio = 1.0}) {
     return showDialog<String>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => GageImageCropRotateDialog(imagePath: imagePath),
+      builder: (_) => GageImageCropRotateDialog(imagePath: imagePath, aspectRatio: aspectRatio),
     );
   }
 
@@ -104,7 +106,8 @@ class _GageImageCropRotateDialogState extends State<GageImageCropRotateDialog> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final screenSize = MediaQuery.of(context).size;
-    final boxSize = math.min(screenSize.width - 48, 320.0);
+    final boxWidth = math.min(screenSize.width - 48, 320.0);
+    final boxHeight = boxWidth / widget.aspectRatio;
 
     return PopScope(
       canPop: !_isProcessing,
@@ -134,9 +137,9 @@ class _GageImageCropRotateDialogState extends State<GageImageCropRotateDialog> {
                       ),
                       const SizedBox(width: 10),
                       Text(
-                        'Sesuaikan Foto (1:1)',
+                        widget.aspectRatio == 1.0 ? 'Sesuaikan Foto (1:1)' : 'Sesuaikan Banner (16:9)',
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 15.5,
                           fontWeight: FontWeight.w800,
                           color: isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
@@ -154,7 +157,9 @@ class _GageImageCropRotateDialogState extends State<GageImageCropRotateDialog> {
               ),
               const SizedBox(height: 6),
               Text(
-                'Geser dan cubit layar untuk menyesuaikan posisi. Foto dipotong rasio 1:1 persegi resmi produk.',
+                widget.aspectRatio == 1.0
+                    ? 'Geser dan cubit layar untuk menyesuaikan posisi. Foto dipotong persegi 1:1.'
+                    : 'Geser dan cubit layar untuk menyesuaikan posisi banner toko (rasio 16:9).',
                 style: TextStyle(
                   fontSize: 11.5,
                   color: isDark ? Colors.white60 : Colors.grey.shade600,
@@ -163,11 +168,11 @@ class _GageImageCropRotateDialogState extends State<GageImageCropRotateDialog> {
               ),
               const SizedBox(height: 16),
 
-              // Area Crop Interaktif (Square Box 1:1)
+              // Area Crop Interaktif
               Center(
                 child: Container(
-                  width: boxSize,
-                  height: boxSize,
+                  width: boxWidth,
+                  height: boxHeight,
                   decoration: BoxDecoration(
                     color: Colors.black,
                     borderRadius: BorderRadius.circular(16),
@@ -201,14 +206,14 @@ class _GageImageCropRotateDialogState extends State<GageImageCropRotateDialog> {
                                 ? Image.asset(
                                     widget.imagePath,
                                     fit: BoxFit.cover,
-                                    width: boxSize,
-                                    height: boxSize,
+                                    width: boxWidth,
+                                    height: boxHeight,
                                   )
                                 : Image.file(
                                     File(widget.imagePath),
                                     fit: BoxFit.cover,
-                                    width: boxSize,
-                                    height: boxSize,
+                                    width: boxWidth,
+                                    height: boxHeight,
                                   ),
                           ),
                         ),

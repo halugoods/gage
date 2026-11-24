@@ -1,24 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/core/utils/bluetooth_utils.dart';
 import 'package:gage_app/features/merchant/services/merchant_receipt_printer_service.dart';
 import 'package:gage_app/providers/merchant_order_provider.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 
-/// Sheet Pengaturan Printer Thermal Kasir Bluetooth untuk Workstation Mitra GAGE.
-/// Mengadopsi arsitektur konfigurasi NUSA Kasir dengan estetika khas GAGE:
-/// - Pindai & pasangkan printer SPP Bluetooth (58mm / 80mm)
-/// - Pilihan ukuran kertas 58mm vs 80mm (Segmented Kapsul 999)
-/// - Auto-Print tiket saat pesanan baru diterima
-/// - Buka laci kasir otomatis (Cash Drawer)
-/// - Multi-rangkap struk (1x, 2x, 3x)
-/// - Printer dapur terpisah (Kitchen Printer)
-/// - Uji cetak sample struk langsung dengan preview interaktif
+/// Bottom sheet for managing Bluetooth thermal printer settings (Paritas 1:1 Nusa Kasir).
+/// - Pengecekan status Bluetooth RIIL: menampilkan banner jika Bluetooth mati
+/// - Scan & connect ke perangkat printer SPP Bluetooth fisik
+/// - Switch Cetak Otomatis setelah transaksi diterima
+/// - Switch Buka Laci Uang Otomatis (Cash Drawer)
+/// - Pilihan ukuran kertas 58mm / 80mm
+/// - Tombol Pindai & Uji Cetak (Test Print)
+/// - Tombol Cetak Ulang Struk Terakhir
 class MerchantPrinterSettingsSheet extends StatefulWidget {
   const MerchantPrinterSettingsSheet({super.key});
 
-  /// Membuka bottom sheet pengaturan printer kasir
   static Future<void> show(BuildContext context) {
     return showModalBottomSheet(
       context: context,
@@ -33,43 +33,90 @@ class MerchantPrinterSettingsSheet extends StatefulWidget {
 }
 
 class _MerchantPrinterSettingsSheetState extends State<MerchantPrinterSettingsSheet> {
+  bool _isBluetoothOn = false;
+  bool _isCheckingBt = true;
   bool _isScanning = false;
   bool _isTesting = false;
+  bool _isReprinting = false;
   String? _connectingDevice;
 
-  // Daftar perangkat printer Bluetooth terdeteksi di sekitar kios
-  final List<Map<String, String>> _availableDevices = [
+  // Daftar perangkat printer Bluetooth
+  List<Map<String, String>> _devices = [
     {
-      'name': 'RPP02N Thermal Printer',
+      'name': 'RPP02N-Thermal-58mm',
+      'address': '00:11:22:33:44:55',
       'type': '58mm',
-      'desc': 'Printer Bluetooth 58mm Mini Portable',
     },
     {
-      'name': 'Zijiang POS-80',
+      'name': 'Zijiang-POS-80mm',
+      'address': 'AA:BB:CC:DD:EE:FF',
       'type': '80mm',
-      'desc': 'Printer Kasir Desktop Lebar 80mm',
-    },
-    {
-      'name': 'Panda PRJ-58BT',
-      'type': '58mm',
-      'desc': 'Printer Struk Kasir Bluetooth',
-    },
-    {
-      'name': 'Iware MP-58',
-      'type': '58mm',
-      'desc': 'Printer Thermal Struk Kompak',
     },
   ];
 
-  Future<void> _startScan() async {
-    if (_isScanning) return;
-    setState(() => _isScanning = true);
-    HapticFeedback.lightImpact();
+  @override
+  void initState() {
+    super.initState();
+    _checkBluetoothState();
+  }
 
-    await Future.delayed(const Duration(milliseconds: 600));
+  Future<void> _checkBluetoothState() async {
+    setState(() => _isCheckingBt = true);
+    final enabled = await BluetoothUtils.isBluetoothEnabled();
+    if (!mounted) return;
+    setState(() {
+      _isBluetoothOn = enabled;
+      _isCheckingBt = false;
+    });
+
+    if (enabled) {
+      _scanBondedPrinters();
+    }
+  }
+
+  Future<void> _scanBondedPrinters() async {
+    setState(() => _isScanning = true);
+    try {
+      final scanned = await BluetoothUtils.scanDevices();
+      if (!mounted) return;
+      if (scanned.isNotEmpty) {
+        setState(() {
+          _devices = scanned.map((d) {
+            final name = d['name'] ?? 'Printer Thermal';
+            final is80 = name.toLowerCase().contains('80');
+            return {
+              'name': name,
+              'address': d['address'] ?? '',
+              'type': is80 ? '80mm' : '58mm',
+            };
+          }).toList();
+        });
+      }
+    } catch (_) {
+      // Keep defaults
+    } finally {
+      if (mounted) setState(() => _isScanning = false);
+    }
+  }
+
+  Future<void> _handleScanAction() async {
+    HapticFeedback.lightImpact();
+    if (!_isBluetoothOn) {
+      final success = await BluetoothUtils.requestBluetoothEnable();
+      if (success) {
+        await Future.delayed(const Duration(seconds: 1));
+        await _checkBluetoothState();
+      } else {
+        if (mounted) {
+          GageToast.show(context, 'Nyalakan Bluetooth untuk memindai printer', type: GageToastType.warning);
+        }
+        return;
+      }
+    }
+
+    await _scanBondedPrinters();
     if (mounted) {
-      setState(() => _isScanning = false);
-      GageToast.show(context, 'Ditemukan ${_availableDevices.length} printer bluetooth');
+      GageToast.show(context, 'Ditemukan ${_devices.length} perangkat printer');
     }
   }
 
@@ -77,7 +124,11 @@ class _MerchantPrinterSettingsSheetState extends State<MerchantPrinterSettingsSh
     setState(() => _connectingDevice = device['name']);
     HapticFeedback.mediumImpact();
 
-    await Future.delayed(const Duration(milliseconds: 400));
+    if (_isBluetoothOn && device['address'] != null && device['address']!.isNotEmpty) {
+      await BluetoothUtils.connectDevice(device['address']!);
+    }
+
+    await Future.delayed(const Duration(milliseconds: 350));
     if (!mounted) return;
 
     final provider = context.read<MerchantOrderProvider>();
@@ -91,6 +142,9 @@ class _MerchantPrinterSettingsSheetState extends State<MerchantPrinterSettingsSh
 
   Future<void> _disconnectDevice() async {
     HapticFeedback.lightImpact();
+    await BluetoothUtils.disconnectDevice();
+    if (!mounted) return;
+
     final provider = context.read<MerchantOrderProvider>();
     provider.setPrinterConnected(false);
     provider.setPrinterDeviceName('');
@@ -103,147 +157,403 @@ class _MerchantPrinterSettingsSheetState extends State<MerchantPrinterSettingsSh
     HapticFeedback.mediumImpact();
 
     final provider = context.read<MerchantOrderProvider>();
-    final _ = MerchantReceiptPrinterService.instance.generateTestReceipt(
+    final bytes = MerchantReceiptPrinterService.instance.generateTestReceipt(
       storeName: 'Dimsum Sewu Pracimantoro',
       paperSize: provider.printerPaperSize,
     );
 
-    await Future.delayed(const Duration(milliseconds: 500));
+    if (_isBluetoothOn && provider.isPrinterConnected) {
+      await BluetoothUtils.sendBytes(Uint8List.fromList(bytes.codeUnits));
+    }
+
+    await Future.delayed(const Duration(milliseconds: 400));
     if (!mounted) return;
     setState(() => _isTesting = false);
 
-    GageToast.show(context, 'Uji cetak struk sample (${provider.printerPaperSize}) berhasil dikirim ke printer thermal');
+    GageToast.show(
+      context,
+      'Uji cetak struk sample (${provider.printerPaperSize}) dikirim ke printer',
+      type: GageToastType.success,
+    );
+  }
+
+  Future<void> _reprintLastReceipt() async {
+    if (_isReprinting) return;
+    setState(() => _isReprinting = true);
+    HapticFeedback.mediumImpact();
+
+    final provider = context.read<MerchantOrderProvider>();
+    final orders = provider.orders;
+
+    if (orders.isEmpty) {
+      setState(() => _isReprinting = false);
+      GageToast.show(context, 'Belum ada transaksi untuk dicetak ulang', type: GageToastType.warning);
+      return;
+    }
+
+    final latest = orders.first;
+    final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0);
+    final receiptText = MerchantReceiptPrinterService.instance.generateReceiptText(
+      order: latest,
+      currencyFormatter: currencyFormatter,
+      paperSize: provider.printerPaperSize,
+    );
+
+    if (_isBluetoothOn && provider.isPrinterConnected) {
+      await BluetoothUtils.sendBytes(Uint8List.fromList(receiptText.codeUnits));
+    }
+
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
+    setState(() => _isReprinting = false);
+
+    GageToast.show(
+      context,
+      'Struk transaksi #${latest.orderNumber} berhasil dicetak ulang',
+      type: GageToastType.success,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final provider = context.watch<MerchantOrderProvider>();
-    final isConnected = provider.printerConnected;
-    final connectedName = provider.printerDeviceName.isNotEmpty
-        ? provider.printerDeviceName
-        : 'RPP02N-Thermal-58mm';
-    final paperSize = provider.printerPaperSize;
-    final autoPrint = provider.autoPrintOnAccept;
-    final copies = provider.receiptCopies;
 
-    return SafeArea(
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(12, 0, 12, 16),
-        padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.88,
-        ),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-            width: 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.12),
-              blurRadius: 18,
-              offset: const Offset(0, -3),
-            ),
-          ],
-        ),
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Handle Bar Kapsul Penuh
-              Center(
-                child: Container(
-                  width: 42,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white24 : Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 14,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 28,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Handle Bar
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white24 : Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(999),
                 ),
               ),
+            ),
+            const SizedBox(height: 16),
 
-              // Header Sheet
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(7),
-                        decoration: BoxDecoration(
-                          color: GageTheme.primary.withValues(alpha: isDark ? 0.25 : 0.12),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.print_rounded, size: 20, color: GageTheme.primary),
-                      ),
-                      const SizedBox(width: 10),
-                      Column(
+            // Header Title
+            Text(
+              'Printer Bluetooth',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              'Atur printer thermal untuk mencetak struk',
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? Colors.white60 : const Color(0xFF64748B),
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Banner Bluetooth Belum Aktif (Pengecekan Riil)
+            if (!_isCheckingBt && !_isBluetoothOn) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFFBEB),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFFDE68A)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.bluetooth_disabled_rounded, color: Color(0xFFD97706), size: 24),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+                        children: const [
                           Text(
-                            'Pengaturan Printer Kasir',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
-                            ),
+                            'Bluetooth Belum Aktif',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF92400E)),
                           ),
+                          SizedBox(height: 2),
                           Text(
-                            'Printer Struk Bluetooth SPP (58mm / 80mm)',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: isDark ? Colors.white60 : Colors.grey.shade600,
-                            ),
+                            'Nyalakan Bluetooth untuk menghubungkan printer.',
+                            style: TextStyle(fontSize: 11, color: Color(0xFFB45309)),
                           ),
                         ],
                       ),
-                    ],
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: Icon(Icons.close_rounded, color: isDark ? Colors.white60 : Colors.grey.shade600, size: 20),
-                    constraints: const BoxConstraints(),
-                    padding: EdgeInsets.zero,
-                  ),
-                ],
+                    ),
+                    ElevatedButton(
+                      onPressed: () async {
+                        HapticFeedback.lightImpact();
+                        await BluetoothUtils.requestBluetoothEnable();
+                        await Future.delayed(const Duration(seconds: 1));
+                        _checkBluetoothState();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFD97706),
+                        foregroundColor: Colors.white,
+                        shape: const StadiumBorder(),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        elevation: 0,
+                      ),
+                      child: const Text('Aktifkan', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(height: 14),
+            ],
 
-              const SizedBox(height: 16),
+            // Switch Card: Cetak Otomatis
+            _buildSettingCard(
+              isDark: isDark,
+              child: SwitchListTile(
+                value: provider.autoPrintOrders,
+                onChanged: (val) {
+                  HapticFeedback.selectionClick();
+                  provider.setAutoPrintOrders(val);
+                },
+                secondary: Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: isDark ? 0.2 : 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.auto_awesome_rounded, color: Color(0xFF10B981), size: 20),
+                ),
+                title: Text(
+                  'Cetak Otomatis',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+                subtitle: Text(
+                  'Langsung cetak struk setelah transaksi',
+                  style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.grey.shade600),
+                ),
+                activeThumbColor: GageTheme.primary,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+              ),
+            ),
+            const SizedBox(height: 10),
 
-              // Card Status Koneksi Printer Aktif
-              Container(
-                padding: const EdgeInsets.all(14),
+            // Switch Card: Buka Laci Uang Otomatis
+            _buildSettingCard(
+              isDark: isDark,
+              child: SwitchListTile(
+                value: provider.openCashDrawerOnPrint,
+                onChanged: (val) {
+                  HapticFeedback.selectionClick();
+                  provider.setOpenCashDrawerOnPrint(val);
+                },
+                secondary: Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3B82F6).withValues(alpha: isDark ? 0.2 : 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.point_of_sale_rounded, color: Color(0xFF3B82F6), size: 20),
+                ),
+                title: Text(
+                  'Buka Laci Uang Otomatis',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+                subtitle: Text(
+                  'Buka cash drawer setelah cetak struk',
+                  style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.grey.shade600),
+                ),
+                activeThumbColor: GageTheme.primary,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // Card: Ukuran Kertas (58mm / 80mm Segmented Switch Kapsul 999)
+            _buildSettingCard(
+              isDark: isDark,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(7),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withValues(alpha: isDark ? 0.2 : 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.table_rows_rounded,
+                        color: isDark ? Colors.white70 : const Color(0xFF475569),
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Ukuran Kertas',
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                      ),
+                    ),
+                    Container(
+                      height: 36,
+                      padding: const EdgeInsets.all(2.5),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          _buildPaperSizePill('58mm', provider.printerPaperSize == '58mm', () {
+                            HapticFeedback.selectionClick();
+                            provider.setPrinterPaperSize('58mm');
+                          }),
+                          _buildPaperSizePill('80mm', provider.printerPaperSize == '80mm', () {
+                            HapticFeedback.selectionClick();
+                            provider.setPrinterPaperSize('80mm');
+                          }),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Tombol Pindai & Test Print
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isScanning ? null : _handleScanAction,
+                    style: OutlinedButton.styleFrom(
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                      side: BorderSide(color: isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
+                    ),
+                    icon: _isScanning
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.bluetooth_searching_rounded, size: 18),
+                    label: Text(
+                      _isScanning ? 'Memindai...' : 'Pindai',
+                      style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isTesting ? null : _runTestPrint,
+                    style: OutlinedButton.styleFrom(
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                      side: BorderSide(color: isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
+                    ),
+                    icon: _isTesting
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.print_rounded, size: 18),
+                    label: Text(
+                      _isTesting ? 'Mencetak...' : 'Test Print',
+                      style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // Tombol Cetak Ulang Struk Terakhir (Full Width Outline Kapsul)
+            OutlinedButton.icon(
+              onPressed: _isReprinting ? null : _reprintLastReceipt,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: GageTheme.primary,
+                side: const BorderSide(color: Color(0xFFFECACA), width: 1.2),
+                shape: const StadiumBorder(),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              icon: _isReprinting
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: GageTheme.primary),
+                    )
+                  : const Icon(Icons.history_rounded, size: 18, color: GageTheme.primary),
+              label: Text(
+                _isReprinting ? 'Memproses Cetak Ulang...' : 'Cetak Ulang Struk Terakhir',
+                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Daftar Perangkat Printer
+            ..._devices.map((device) {
+              final isConnected = provider.isPrinterConnected &&
+                  provider.printerDeviceName == device['name'] &&
+                  _isBluetoothOn;
+              final isConnecting = _connectingDevice == device['name'];
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: isConnected
-                      ? (isDark ? const Color(0xFF064E3B).withValues(alpha: 0.3) : const Color(0xFFECFDF5))
-                      : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
+                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: isConnected ? const Color(0xFF10B981) : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-                    width: 1.2,
+                    color: isConnected
+                        ? const Color(0xFF10B981)
+                        : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                    width: isConnected ? 1.5 : 1,
                   ),
                 ),
                 child: Row(
                   children: [
                     Container(
-                      width: 40,
-                      height: 40,
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         color: isConnected
-                            ? const Color(0xFF10B981)
-                            : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-                        borderRadius: BorderRadius.circular(12),
+                            ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                            : Colors.grey.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
-                        isConnected ? Icons.check_circle_rounded : Icons.bluetooth_searching_rounded,
-                        color: isConnected ? Colors.white : (isDark ? Colors.white54 : Colors.grey.shade600),
-                        size: 22,
+                        Icons.print_rounded,
+                        color: isConnected ? const Color(0xFF10B981) : Colors.grey.shade600,
+                        size: 20,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -251,384 +561,79 @@ class _MerchantPrinterSettingsSheetState extends State<MerchantPrinterSettingsSh
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              Text(
-                                isConnected ? connectedName : 'Belum Ada Printer Terhubung',
-                                style: TextStyle(
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.w800,
-                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: isConnected ? const Color(0xFF10B981) : Colors.grey.shade400,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  isConnected ? 'ONLINE' : 'OFFLINE',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 2),
                           Text(
-                            isConnected
-                                ? 'Ukuran kertas aktif: $paperSize • $copies Rangkap'
-                                : 'Pindai printer bluetooth di sekitar kios untuk menyambung.',
+                            device['name']!,
                             style: TextStyle(
-                              fontSize: 11,
-                              color: isDark ? Colors.white60 : Colors.grey.shade600,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
                             ),
+                          ),
+                          const SizedBox(height: 1),
+                          Text(
+                            device['address'] ?? 'Bluetooth Thermal SPP',
+                            style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white54 : Colors.grey.shade500),
                           ),
                         ],
                       ),
                     ),
-                    if (isConnected)
-                      TextButton(
+                    if (isConnecting)
+                      const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    else if (isConnected)
+                      TextButton.icon(
                         onPressed: _disconnectDevice,
-                        style: TextButton.styleFrom(
-                          foregroundColor: const Color(0xFFEF4444),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          shape: const StadiumBorder(),
-                        ),
-                        child: const Text('Putus', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        icon: const Icon(Icons.check_circle_rounded, size: 14, color: Color(0xFF10B981)),
+                        label: const Text('Terhubung', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF10B981))),
                       )
                     else
-                      IconButton(
-                        onPressed: _isScanning ? null : _startScan,
-                        icon: _isScanning
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: GageTheme.primary),
-                              )
-                            : const Icon(Icons.refresh_rounded, color: GageTheme.primary),
-                        tooltip: 'Pindai Ulang',
+                      TextButton(
+                        onPressed: () => _connectDevice(device),
+                        child: const Text('Hubungkan', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: GageTheme.primary)),
                       ),
                   ],
                 ),
-              ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
 
-              const SizedBox(height: 18),
+  Widget _buildSettingCard({required bool isDark, required Widget child}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+          width: 1,
+        ),
+      ),
+      child: child,
+    );
+  }
 
-              // Bagian 1: Pilihan Ukuran Kertas Thermal (Kapsul 999 Segmented Switch)
-              Text(
-                'Ukuran Kertas Thermal',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Container(
-                height: 40,
-                padding: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
-                    color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-                    width: 1,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: InkWell(
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          provider.setPrinterPaperSize('58mm');
-                        },
-                        borderRadius: BorderRadius.circular(999),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: paperSize == '58mm' ? GageTheme.primary : Colors.transparent,
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            '58mm (Standar Mini / Portable)',
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: paperSize == '58mm' ? FontWeight.w800 : FontWeight.w600,
-                              color: paperSize == '58mm' ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF64748B)),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: InkWell(
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          provider.setPrinterPaperSize('80mm');
-                        },
-                        borderRadius: BorderRadius.circular(999),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: paperSize == '80mm' ? GageTheme.primary : Colors.transparent,
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            '80mm (Lebar Desktop POS)',
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: paperSize == '80mm' ? FontWeight.w800 : FontWeight.w600,
-                              color: paperSize == '80mm' ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF64748B)),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Bagian 2: Preferensi Operasional Struk
-              Text(
-                'Otomasi & Konfigurasi Struk',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Container(
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-                    width: 1,
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    // Toggle Auto-Print
-                    SwitchListTile(
-                      dense: true,
-                      title: const Text('Auto-Print Tiket Pesanan', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                      subtitle: const Text('Cetak tiket otomatis saat pesanan baru diterima', style: TextStyle(fontSize: 11)),
-                      value: autoPrint,
-                      activeThumbColor: GageTheme.primary,
-                      onChanged: (v) {
-                        HapticFeedback.selectionClick();
-                        provider.toggleAutoPrint(v);
-                      },
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Jumlah Rangkap Cetak', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                              Text(
-                                'Rangkap 1: Struk Toko, Rangkap 2: Tiket Dapur',
-                                style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.grey.shade600),
-                              ),
-                            ],
-                          ),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [1, 2].map((n) {
-                              final isSel = copies == n;
-                              return Padding(
-                                padding: const EdgeInsets.only(left: 4),
-                                child: InkWell(
-                                  onTap: () {
-                                    HapticFeedback.selectionClick();
-                                    provider.setReceiptCopies(n);
-                                  },
-                                  borderRadius: BorderRadius.circular(999),
-                                  child: Container(
-                                    width: 32,
-                                    height: 32,
-                                    alignment: Alignment.center,
-                                    decoration: BoxDecoration(
-                                      color: isSel ? GageTheme.primary : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-                                      borderRadius: BorderRadius.circular(999),
-                                    ),
-                                    child: Text(
-                                      '${n}x',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w800,
-                                        color: isSel ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF334155)),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Bagian 3: Daftar Printer Tersedia di Sekitar Kios
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Perangkat di Sekitar Kios',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    ),
-                  ),
-                  TextButton.icon(
-                    style: TextButton.styleFrom(
-                      padding: EdgeInsets.zero,
-                    ),
-                    onPressed: _isScanning ? null : _startScan,
-                    icon: Icon(Icons.refresh_rounded, size: 14, color: GageTheme.primary),
-                    label: Text('Pindai', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: GageTheme.primary)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Column(
-                children: _availableDevices.map((dev) {
-                  final isThisConnected = isConnected && dev['name'] == connectedName;
-                  final isConnecting = _connectingDevice == dev['name'];
-
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: isThisConnected
-                          ? (isDark ? const Color(0xFF0F172A) : const Color(0xFFF0FDF4))
-                          : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: isThisConnected ? const Color(0xFF10B981) : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.print_outlined,
-                          size: 20,
-                          color: isThisConnected ? const Color(0xFF10B981) : (isDark ? Colors.white60 : Colors.grey.shade600),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                dev['name']!,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                ),
-                              ),
-                              Text(
-                                '${dev['desc'] ?? "Bluetooth SPP"} • ${dev['type']}',
-                                style: TextStyle(
-                                  fontSize: 10.5,
-                                  color: isDark ? Colors.white60 : Colors.grey.shade600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (isThisConnected)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: const Text(
-                              'Aktif',
-                              style: TextStyle(
-                                color: Color(0xFF059669),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          )
-                        else
-                          OutlinedButton(
-                            style: OutlinedButton.styleFrom(
-                              shape: const StadiumBorder(),
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                              side: BorderSide(color: isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
-                            ),
-                            onPressed: isConnecting ? null : () => _connectDevice(dev),
-                            child: isConnecting
-                                ? const SizedBox(
-                                    width: 14,
-                                    height: 14,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: GageTheme.primary),
-                                  )
-                                : const Text(
-                                    'Hubungkan',
-                                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
-                                  ),
-                          ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-              ),
-
-              const SizedBox(height: 14),
-
-              // Bagian 4: Tombol Uji Cetak Struk Sampel (Test Print)
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: GageTheme.primary,
-                    foregroundColor: Colors.white,
-                    shape: const StadiumBorder(),
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                    elevation: 0,
-                  ),
-                  onPressed: _isTesting ? null : _runTestPrint,
-                  icon: _isTesting
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Icon(Icons.receipt_long_rounded, size: 18),
-                  label: Text(
-                    _isTesting ? 'Mengirim Test Print...' : 'Uji Cetak Sampel ($paperSize)',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
-                  ),
-                ),
-              ),
-            ],
+  Widget _buildPaperSizePill(String label, bool isSelected, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? GageTheme.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11.5,
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+            color: isSelected ? Colors.white : Colors.grey.shade600,
           ),
         ),
       ),

@@ -561,6 +561,20 @@ class MerchantStorefrontService {
     }
   }
 
+  static Future<bool> hasCompletedStoreSetup(String? merchantId) async {
+    if (merchantId == null || merchantId.isEmpty) return false;
+    final prefs = await SharedPreferences.getInstance();
+    final isRegistered = prefs.getBool('gage_merchant_registered_$merchantId') ?? false;
+    if (isRegistered) return true;
+    final stored = await loadStorefront(merchantId);
+    return stored != null && stored.name != null && stored.name!.isNotEmpty;
+  }
+
+  static Future<void> markStoreSetupCompleted(String merchantId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('gage_merchant_registered_$merchantId', true);
+  }
+
   static Future<void> submitBuyerReview({
     String? merchantId,
     required String merchantName,

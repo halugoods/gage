@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/merchant/services/merchant_receipt_printer_service.dart';
-import 'package:gage_app/features/merchant/presentation/widgets/merchant_printer_settings_sheet.dart';
 import 'package:gage_app/providers/merchant_order_provider.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';

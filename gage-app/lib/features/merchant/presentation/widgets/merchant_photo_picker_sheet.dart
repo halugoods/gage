@@ -13,8 +13,12 @@ import 'package:gage_app/features/merchant/presentation/widgets/gage_image_crop_
 class MerchantPhotoPickerSheet extends StatelessWidget {
   const MerchantPhotoPickerSheet({super.key});
 
-  /// Membuka bottom sheet sumber foto dan mengembalikan path file JPG 1:1 hasil crop
-  static Future<String?> show(BuildContext context, {String? initialCategory}) async {
+  /// Membuka bottom sheet sumber foto dan mengembalikan path file JPG hasil crop (1:1 atau 16:9)
+  static Future<String?> show(
+    BuildContext context, {
+    String? initialCategory,
+    double aspectRatio = 1.0,
+  }) async {
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -33,7 +37,11 @@ class MerchantPhotoPickerSheet extends StatelessWidget {
       );
       if (picked == null || !context.mounted) return null;
 
-      final croppedPath = await GageImageCropRotateDialog.show(context, picked.path);
+      final croppedPath = await GageImageCropRotateDialog.show(
+        context,
+        picked.path,
+        aspectRatio: aspectRatio,
+      );
       return croppedPath ?? picked.path;
     } catch (_) {
       return null;
@@ -41,8 +49,16 @@ class MerchantPhotoPickerSheet extends StatelessWidget {
   }
 
   /// Helper untuk memotong ulang (re-crop / rotate) foto yang sudah ada
-  static Future<String?> recrop(BuildContext context, String currentPath) {
-    return GageImageCropRotateDialog.show(context, currentPath);
+  static Future<String?> recrop(
+    BuildContext context,
+    String currentPath, {
+    double aspectRatio = 1.0,
+  }) {
+    return GageImageCropRotateDialog.show(
+      context,
+      currentPath,
+      aspectRatio: aspectRatio,
+    );
   }
 
   @override

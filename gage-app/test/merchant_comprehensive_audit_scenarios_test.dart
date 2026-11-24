@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/services/affiliate_commission_service.dart';
 import 'package:gage_app/core/services/gage_audio_service.dart';
@@ -967,6 +968,83 @@ void main() {
       expect(reconstructed.actionUrl, equals('gage://promo/test'));
 
       provider.dispose();
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 30: Wave 12 Driver Dock Merah & Detail Order Clean Up
+    // -------------------------------------------------------------------------
+    testWidgets('Skenario 30: Wave 12 Driver Dock Merah & Detail Order Clean Up', (tester) async {
+      final provider = MerchantOrderProvider();
+      final orderWithDriver = provider.orders.firstWhere((o) => o.hasAssignedDriver);
+      final formatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0);
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider<MerchantOrderProvider>.value(
+          value: provider,
+          child: MaterialApp(
+            home: Scaffold(
+              body: MerchantOrderDetailScreen(
+                order: orderWithDriver,
+                currencyFormatter: formatter,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Verifikasi badge kurir terpasang & pengantaran kurir telah dihapus
+      expect(find.text('Kurir Terpasang'), findsNothing);
+      expect(find.text('Driver / Kurir GAGE'), findsNothing);
+      expect(find.text('Pengantaran kurir ke alamat pembeli'), findsNothing);
+      expect(find.text('Wajib Validasi'), findsNothing);
+
+      // Verifikasi judul blok bersih: "Driver" dan "Pembeli"
+      expect(find.text('Driver'), findsOneWidget);
+      expect(find.text('Pembeli'), findsOneWidget);
+
+      provider.dispose();
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 31: Wave 12 Nusa Kasir Parity Printer & Provider Toggles
+    // -------------------------------------------------------------------------
+    test('Skenario 31: Wave 12 Nusa Kasir Parity Printer & Provider Toggles', () async {
+      final provider = MerchantOrderProvider();
+
+      // Verifikasi toggle Cetak Otomatis & Buka Laci Uang
+      expect(provider.autoPrintOrders, isTrue);
+      provider.setAutoPrintOrders(false);
+      expect(provider.autoPrintOrders, isFalse);
+
+      expect(provider.openCashDrawerOnPrint, isFalse);
+      provider.setOpenCashDrawerOnPrint(true);
+      expect(provider.openCashDrawerOnPrint, isTrue);
+
+      // Verifikasi uji cetak sample Nusa Kasir
+      final testReceipt = MerchantReceiptPrinterService.instance.generateTestReceipt(
+        storeName: 'Dimsum Sewu Pracimantoro',
+        paperSize: '58mm',
+      );
+      expect(testReceipt.contains('UJI COBA CETAK THERMAL'), isTrue);
+      expect(testReceipt.contains('Printer Siap Operasional!'), isTrue);
+
+      provider.dispose();
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 32: Wave 12 Google-First Onboarding & Setup Store Completion Flag
+    // -------------------------------------------------------------------------
+    test('Skenario 32: Wave 12 Google-First Onboarding & Setup Store Completion Flag', () async {
+      SharedPreferences.setMockInitialValues({});
+      // Pastikan store setup flag terintegrasi dengan shared preferences
+      const testMerchantId = 'm-test-store-setup-01';
+      final isCompletedBefore = await MerchantStorefrontService.hasCompletedStoreSetup(testMerchantId);
+      expect(isCompletedBefore, isFalse);
+
+      await MerchantStorefrontService.markStoreSetupCompleted(testMerchantId);
+      final isCompletedAfter = await MerchantStorefrontService.hasCompletedStoreSetup(testMerchantId);
+      expect(isCompletedAfter, isTrue);
     });
   });
 }

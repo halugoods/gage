@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/core/services/location_service.dart';
 import 'package:gage_app/core/services/merchant_storefront_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_menu_screen.dart';
+import 'package:gage_app/features/merchant/presentation/widgets/merchant_photo_picker_sheet.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_printer_settings_sheet.dart';
+import 'package:gage_app/features/merchant/presentation/widgets/merchant_receipt_settings_sheet.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/operating_schedule_editor_sheet.dart';
 import 'package:gage_app/shared/widgets/full_screen_map_picker.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
@@ -33,7 +34,6 @@ class MerchantProfileScreen extends StatefulWidget {
 
 class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
   bool _isOpen = true;
-  bool _autoPrint = true;
   int _cookingTime = 15;
   double _deliveryRadius = 7.0;
 
@@ -179,7 +179,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
         elevation: 0.5,
         backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         title: const Text(
-          'Kios & Pengaturan Mitra',
+          'Pengaturan',
           style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
         ),
       ),
@@ -520,12 +520,17 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
 
             const SizedBox(height: 18),
 
-            // 4. Pengaturan Printer Kasir Bluetooth SPP
-            const Text(
-              'Printer Struk & Tiket Thermal',
-              style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800),
+            // 4. PERANGKAT (Paritas 1:1 Nusa Kasir)
+            Text(
+              'PERANGKAT',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+                color: isDark ? Colors.white60 : const Color(0xFF64748B),
+              ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
 
             Container(
               decoration: BoxDecoration(
@@ -541,124 +546,36 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                     leading: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: GageTheme.primary.withValues(alpha: isDark ? 0.25 : 0.12),
+                        color: Colors.orange.withValues(alpha: isDark ? 0.25 : 0.12),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(Icons.print_rounded, color: GageTheme.primary, size: 20),
+                      child: const Icon(Icons.print_rounded, color: Colors.orange, size: 20),
                     ),
-                    title: const Text('Printer SPP Bluetooth', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
-                    subtitle: const Text('Thermal 58mm / 80mm • Auto-Print & Rangkap', style: TextStyle(fontSize: 11.5, color: GageTheme.textSecondary)),
-                    trailing: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        shape: const StadiumBorder(),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        side: BorderSide(color: isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
+                    title: const Text('Printer', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                    subtitle: const Text('Atur printer thermal', style: TextStyle(fontSize: 11.5, color: GageTheme.textSecondary)),
+                    trailing: const Icon(Icons.chevron_right_rounded, size: 20, color: Colors.grey),
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      MerchantPrinterSettingsSheet.show(context);
+                    },
+                  ),
+                  Divider(height: 1, indent: 56, color: isDark ? Colors.white12 : const Color(0xFFF1F5F9)),
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: isDark ? 0.25 : 0.12),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      onPressed: () {
-                        HapticFeedback.lightImpact();
-                        MerchantPrinterSettingsSheet.show(context);
-                      },
-                      child: const Text('Atur', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      child: const Icon(Icons.receipt_long_rounded, color: Colors.orange, size: 20),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  SwitchListTile(
-                    title: const Text('Auto-Print Tiket Pesanan', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                    subtitle: const Text('Cetak tiket otomatis saat pesanan baru masuk', style: TextStyle(fontSize: 11.5, color: GageTheme.textSecondary)),
-                    value: _autoPrint,
-                    activeThumbColor: GageTheme.primary,
-                    onChanged: (v) => setState(() => _autoPrint = v),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: GageTheme.primary,
-                          foregroundColor: Colors.white,
-                          shape: const StadiumBorder(),
-                          padding: const EdgeInsets.symmetric(vertical: 11),
-                          elevation: 0,
-                        ),
-                        icon: const Icon(Icons.tune_rounded, size: 16),
-                        label: const Text('Buka Konfigurasi Printer Lengkap', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
-                        onPressed: () {
-                          HapticFeedback.lightImpact();
-                          MerchantPrinterSettingsSheet.show(context);
-                        },
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 18),
-
-            // 5. Radius Pengantaran Slider
-            const Text(
-              'Jangkauan Pesan Antar',
-              style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 10),
-
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isDark ? const Color(0xFF334155) : Colors.grey.shade200,
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: GageTheme.primary.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.location_on_rounded, color: GageTheme.primary, size: 20),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Cakupan Wilayah Layanan',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: isDark ? Colors.white : const Color(0xFF0F172A),
-                              ),
-                            ),
-                            const Text(
-                              'Kecamatan Pracimantoro (Penuh)',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: GageTheme.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Pesanan diantar langsung oleh Kurir Resmi GAGE ke seluruh desa di wilayah Pracimantoro tanpa batasan radius per-kios.',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      color: isDark ? Colors.grey.shade400 : GageTheme.textSecondary,
-                      height: 1.4,
-                    ),
+                    title: const Text('Pengaturan Struk', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                    subtitle: const Text('Atur footer struk & upload logo toko', style: TextStyle(fontSize: 11.5, color: GageTheme.textSecondary)),
+                    trailing: const Icon(Icons.chevron_right_rounded, size: 20, color: Colors.grey),
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      MerchantReceiptSettingsSheet.show(context, storeName: _storeName);
+                    },
                   ),
                 ],
               ),
@@ -742,19 +659,12 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     final addrCtrl = TextEditingController(text: _storeAddress);
     final landmarkCtrl = TextEditingController(text: _landmark);
     final bioCtrl = TextEditingController(text: _storeBio);
-    final locationPhotoUrlCtrl = TextEditingController(text: _locationPhoto);
     final latCtrl = TextEditingController(text: _latitude.toStringAsFixed(6));
     final lngCtrl = TextEditingController(text: _longitude.toStringAsFixed(6));
 
     String currentBanner = _storeBanner;
     String currentLogo = _storeLogo;
     String currentLocationPhoto = _locationPhoto;
-
-    final presetPhotos = [
-      {'label': 'Lapak Utama', 'path': 'assets/images/resto_dimsum_sewu.png'},
-      {'label': 'Toko Sembako', 'path': 'assets/images/shop_hero_banner.png'},
-      {'label': 'Etalase Resto', 'path': 'assets/images/resto_rocket_chicken.png'},
-    ];
 
     showModalBottomSheet(
       context: context,
@@ -793,7 +703,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  const Text('Kelola Profil, Foto Lapak & Pin', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                  const Text('Pengaturan Profil & Kios', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
                   const SizedBox(height: 4),
                   const Text(
                     'Perubahan otomatis tampil di Info Toko pelanggan dan navigasi kurir driver.',
@@ -905,245 +815,338 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                   ),
                   const SizedBox(height: 14),
 
-                  // Foto Lapak / Lokasi Merchant
-                  const Text('Foto Lapak / Tampak Lokasi Merchant:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: SizedBox(
-                          width: 68,
-                          height: 68,
-                          child: StorefrontImage(
-                            path: currentLocationPhoto,
-                            fit: BoxFit.cover,
-                            fallback: Container(
-                              color: Colors.grey.shade200,
-                              child: const Icon(Icons.storefront_rounded, color: Colors.grey),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            OutlinedButton.icon(
-                              onPressed: () async {
-                                try {
-                                  final picker = ImagePicker();
-                                  final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
-                                  if (file != null) {
-                                    setSheetState(() {
-                                      currentLocationPhoto = file.path;
-                                      locationPhotoUrlCtrl.text = file.path;
-                                    });
-                                  }
-                                } catch (_) {}
-                              },
-                              icon: const Icon(Icons.photo_library_rounded, size: 16),
-                              label: const Text('Pilih Foto Galeri', style: TextStyle(fontSize: 12)),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                  // Foto Profil & Banner Toko (Image Picker Riil)
+                  Text(
+                    'Foto & Visual Toko',
+                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                   ),
                   const SizedBox(height: 8),
-                  TextField(
-                    controller: locationPhotoUrlCtrl,
-                    onChanged: (v) => setSheetState(() => currentLocationPhoto = v.trim()),
-                    decoration: InputDecoration(
-                      labelText: 'Atau URL / Asset Foto Lapak',
-                      filled: true,
-                      fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(color: GageTheme.primary, width: 1.8),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+
+                  // 1. Logo / Profil Toko (1:1)
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
                     ),
-                    style: const TextStyle(fontSize: 12),
+                    child: Row(
+                      children: [
+                        ClipOval(
+                          child: SizedBox(
+                            width: 50,
+                            height: 50,
+                            child: StorefrontImage(
+                              path: currentLogo,
+                              fit: BoxFit.cover,
+                              fallback: Container(
+                                color: Colors.grey.shade200,
+                                child: const Icon(Icons.storefront_rounded, color: Colors.grey),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Foto Profil / Logo Toko',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Format persegi rasio 1:1',
+                                style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.grey.shade600),
+                              ),
+                            ],
+                          ),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            final path = await MerchantPhotoPickerSheet.show(context);
+                            if (path != null) {
+                              setSheetState(() => currentLogo = path);
+                            }
+                          },
+                          style: OutlinedButton.styleFrom(
+                            shape: const StadiumBorder(),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          icon: const Icon(Icons.photo_camera_rounded, size: 14),
+                          label: const Text('Ganti (1:1)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 8),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
+
+                  // 2. Banner Sampul Toko (16:9)
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                    ),
                     child: Row(
-                      children: presetPhotos.map((b) {
-                        final isSel = currentLocationPhoto == b['path'];
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: ChoiceChip(
-                            label: Text(b['label']!),
-                            selected: isSel,
-                            onSelected: (_) => setSheetState(() {
-                              currentLocationPhoto = b['path']!;
-                              locationPhotoUrlCtrl.text = b['path']!;
-                            }),
-                            selectedColor: GageTheme.primary.withValues(alpha: 0.15),
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: SizedBox(
+                            width: 60,
+                            height: 38,
+                            child: StorefrontImage(
+                              path: currentBanner,
+                              fit: BoxFit.cover,
+                              fallback: Container(
+                                color: Colors.grey.shade200,
+                                child: const Icon(Icons.image_rounded, color: Colors.grey),
+                              ),
+                            ),
                           ),
-                        );
-                      }).toList(),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Banner / Sampul Toko',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Format lanskap rasio 16:9',
+                                style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.grey.shade600),
+                              ),
+                            ],
+                          ),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            final path = await MerchantPhotoPickerSheet.show(context, aspectRatio: 16 / 9);
+                            if (path != null) {
+                              setSheetState(() => currentBanner = path);
+                            }
+                          },
+                          style: OutlinedButton.styleFrom(
+                            shape: const StadiumBorder(),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          icon: const Icon(Icons.image_rounded, size: 14),
+                          label: const Text('Ganti (16:9)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // 3. Foto Lapak Depan
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                    ),
+                    child: Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: SizedBox(
+                            width: 50,
+                            height: 50,
+                            child: StorefrontImage(
+                              path: currentLocationPhoto,
+                              fit: BoxFit.cover,
+                              fallback: Container(
+                                color: Colors.grey.shade200,
+                                child: const Icon(Icons.storefront_rounded, color: Colors.grey),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Foto Tampak Depan Kios',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Foto patokan untuk kurir',
+                                style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.grey.shade600),
+                              ),
+                            ],
+                          ),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            final path = await MerchantPhotoPickerSheet.show(context);
+                            if (path != null) {
+                              setSheetState(() => currentLocationPhoto = path);
+                            }
+                          },
+                          style: OutlinedButton.styleFrom(
+                            shape: const StadiumBorder(),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          icon: const Icon(Icons.storefront_rounded, size: 14),
+                          label: const Text('Pilih Foto', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 14),
 
-                  // Koordinat Titik Pin Peta Merchant
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Titik Pin Lokasi Kios / Toko:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                      Row(
-                        children: [
-                          InkWell(
-                            onTap: () async {
-                              HapticFeedback.lightImpact();
-                              final pos = await LocationService.getCurrentLocation(forceFresh: true);
-                              setSheetState(() {
-                                latCtrl.text = pos.latitude.toStringAsFixed(6);
-                                lngCtrl.text = pos.longitude.toStringAsFixed(6);
-                              });
-                            },
-                            borderRadius: BorderRadius.circular(999),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.my_location_rounded, size: 13, color: GageTheme.primary),
-                                  const SizedBox(width: 3),
-                                  Text('GPS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: GageTheme.primary)),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          InkWell(
-                            onTap: () async {
-                              HapticFeedback.lightImpact();
-                              final res = await FullScreenMapPicker.open(
-                                context,
-                                title: 'Tentukan Titik Kios Toko',
-                                initialLocation: LatLng(parsedLat, parsedLng),
-                                initialFullAddress: addrCtrl.text,
-                              );
-                              if (res != null) {
-                                setSheetState(() {
-                                  latCtrl.text = res.location.latitude.toStringAsFixed(6);
-                                  lngCtrl.text = res.location.longitude.toStringAsFixed(6);
-                                  if (addrCtrl.text.trim().isEmpty) {
-                                    addrCtrl.text = res.fullAddress;
-                                  }
-                                });
-                              }
-                            },
-                            borderRadius: BorderRadius.circular(999),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: GageTheme.primary.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.map_rounded, size: 13, color: GageTheme.primary),
-                                  const SizedBox(width: 4),
-                                  Text('Buka Peta', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: GageTheme.primary)),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                  // Titik Pin Lokasi Kios / Toko (Bebas Angka Koordinat Mentah)
+                  Text(
+                    'Titik Lokasi Peta Kios / Toko',
+                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                   ),
                   const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: latCtrl,
-                          keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true),
-                          onChanged: (_) => setSheetState(() {}),
-                          decoration: InputDecoration(
-                            labelText: 'Latitude',
-                            filled: true,
-                            fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: const BorderSide(color: GageTheme.primary, width: 1.8),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                          ),
-                          style: const TextStyle(fontSize: 12),
+
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                    ),
+                    child: Row(
+                      children: [
+                        MiniLocationPreviewMap(
+                          location: LatLng(parsedLat, parsedLng),
+                          size: 60,
+                          borderRadius: 12,
+                          markerImagePath: currentLogo,
+                          useMerchantPin: true,
+                          onTap: () async {
+                            final res = await FullScreenMapPicker.open(
+                              context,
+                              title: 'Tentukan Titik Kios Toko',
+                              initialLocation: LatLng(parsedLat, parsedLng),
+                              initialFullAddress: addrCtrl.text,
+                            );
+                            if (res != null) {
+                              setSheetState(() {
+                                latCtrl.text = res.location.latitude.toStringAsFixed(6);
+                                lngCtrl.text = res.location.longitude.toStringAsFixed(6);
+                                if (addrCtrl.text.trim().isEmpty) {
+                                  addrCtrl.text = res.fullAddress;
+                                }
+                              });
+                            }
+                          },
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextField(
-                          controller: lngCtrl,
-                          keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true),
-                          onChanged: (_) => setSheetState(() {}),
-                          decoration: InputDecoration(
-                            labelText: 'Longitude',
-                            filled: true,
-                            fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: const BorderSide(color: GageTheme.primary, width: 1.8),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Kecamatan Pracimantoro',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Titik GPS terverifikasi untuk panduan kurir GAGE',
+                                style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.grey.shade600),
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  ElevatedButton.icon(
+                                    onPressed: () async {
+                                      HapticFeedback.lightImpact();
+                                      final res = await FullScreenMapPicker.open(
+                                        context,
+                                        title: 'Tentukan Titik Kios Toko',
+                                        initialLocation: LatLng(parsedLat, parsedLng),
+                                        initialFullAddress: addrCtrl.text,
+                                      );
+                                      if (res != null) {
+                                        setSheetState(() {
+                                          latCtrl.text = res.location.latitude.toStringAsFixed(6);
+                                          lngCtrl.text = res.location.longitude.toStringAsFixed(6);
+                                          if (addrCtrl.text.trim().isEmpty) {
+                                            addrCtrl.text = res.fullAddress;
+                                          }
+                                        });
+                                      }
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: GageTheme.primary,
+                                      foregroundColor: Colors.white,
+                                      shape: const StadiumBorder(),
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      visualDensity: VisualDensity.compact,
+                                      elevation: 0,
+                                    ),
+                                    icon: const Icon(Icons.map_rounded, size: 13),
+                                    label: const Text('Buka Peta', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  OutlinedButton.icon(
+                                    onPressed: () async {
+                                      HapticFeedback.lightImpact();
+                                      final pos = await LocationService.getCurrentLocation(forceFresh: true);
+                                      setSheetState(() {
+                                        latCtrl.text = pos.latitude.toStringAsFixed(6);
+                                        lngCtrl.text = pos.longitude.toStringAsFixed(6);
+                                      });
+                                    },
+                                    style: OutlinedButton.styleFrom(
+                                      shape: const StadiumBorder(),
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                    icon: const Icon(Icons.my_location_rounded, size: 13),
+                                    label: const Text('GPS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
-                          style: const TextStyle(fontSize: 12),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      MiniLocationPreviewMap(
-                        location: LatLng(parsedLat, parsedLng),
-                        size: 52,
-                        borderRadius: 10,
-                        markerImagePath: currentLogo,
-                        useMerchantPin: true,
-                        onTap: () async {
-                          final res = await FullScreenMapPicker.open(
-                            context,
-                            title: 'Tentukan Titik Kios Toko',
-                            initialLocation: LatLng(parsedLat, parsedLng),
-                            initialFullAddress: addrCtrl.text,
-                          );
-                          if (res != null) {
-                            setSheetState(() {
-                              latCtrl.text = res.location.latitude.toStringAsFixed(6);
-                              lngCtrl.text = res.location.longitude.toStringAsFixed(6);
-                            });
-                          }
-                        },
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 18),
                   SizedBox(
                     width: double.infinity,
-                    height: 48,
+                    height: 46,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: GageTheme.primary,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                        shape: const StadiumBorder(),
+                        elevation: 0,
                       ),
                       onPressed: () async {
                         final nextLat = double.tryParse(latCtrl.text.trim()) ?? _latitude;
@@ -1165,7 +1168,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                           GageToast.show(this.context, 'Profil, foto lapak & titik lokasi berhasil disimpan!', type: GageToastType.success);
                         }
                       },
-                      child: const Text('Simpan Profil & Lokasi Toko', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      child: const Text('Simpan Profil & Lokasi Toko', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
                     ),
                   ),
                 ],
