@@ -209,7 +209,7 @@ class _GageDeliveryTrackProgressState extends State<GageDeliveryTrackProgress>
                           final nodeX = trackStart + (trackEnd - trackStart) * (idx / 4.0);
 
                           return Positioned(
-                            top: 3,
+                            top: 1,
                             left: (nodeX - 24).clamp(0.0, totalWidth - 48),
                             width: 48,
                             child: Column(
@@ -267,36 +267,24 @@ class _GageDeliveryTrackProgressState extends State<GageDeliveryTrackProgress>
                           right: 0,
                           child: Icon(
                             widget.isSearchingDriver
-                                ? Icons.two_wheeler_rounded
-                                : _outletIcon,
+                                ? Icons.search_rounded
+                                : Icons.location_on_rounded,
                             size: 20,
                             color: GageTheme.primary,
                           ),
                         ),
                       ],
-                      // Moving Icon: Magnifying Glass (Searching) OR Red G-Rider (Assigned)
+                      // Moving Icon: Red G-Rider
                       Positioned(
                         top: 2,
                         left: riderCenterX - (riderWidth / 2),
-                        child: widget.isSearchingDriver
-                            ? SizedBox(
-                                width: riderWidth,
-                                height: riderHeight,
-                                child: const Center(
-                                  child: Icon(
-                                    Icons.search_rounded,
-                                    size: 22,
-                                    color: GageTheme.primary,
-                                  ),
-                                ),
-                              )
-                            : CustomPaint(
-                                size: const Size(riderWidth, riderHeight),
-                                painter: _TopDownCourierRiderPainter(
-                                  accentColor: GageTheme.primary,
-                                  isSearching: false,
-                                ),
-                              ),
+                        child: CustomPaint(
+                          size: const Size(riderWidth, riderHeight),
+                          painter: _TopDownCourierRiderPainter(
+                            accentColor: GageTheme.primary,
+                            isSearching: false,
+                          ),
+                        ),
                       ),
                     ],
                   );

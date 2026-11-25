@@ -1355,8 +1355,7 @@ void main() {
 
       expect(find.byType(GageDeliveryTrackProgress), findsNWidgets(2));
       expect(find.byIcon(Icons.search_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.two_wheeler_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.restaurant_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.location_on_rounded), findsOneWidget);
     });
 
     // -------------------------------------------------------------------------
@@ -1501,9 +1500,9 @@ void main() {
           home: Scaffold(
             body: Column(
               children: [
-                GageDeliveryTrackProgress(isSearchingDriver: false, domain: 'food'),
-                GageDeliveryTrackProgress(isSearchingDriver: false, domain: 'shop'),
-                GageDeliveryTrackProgress(isSearchingDriver: false, domain: 'farm'),
+                GageDeliveryTrackProgress(isSearchingDriver: false, domain: 'food', orderStatus: 'COOKING'),
+                GageDeliveryTrackProgress(isSearchingDriver: false, domain: 'shop', orderStatus: 'COOKING'),
+                GageDeliveryTrackProgress(isSearchingDriver: false, domain: 'farm', orderStatus: 'COOKING'),
               ],
             ),
           ),
