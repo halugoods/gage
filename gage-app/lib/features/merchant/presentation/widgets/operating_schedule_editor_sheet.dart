@@ -83,14 +83,7 @@ class _OperatingScheduleEditorSheetState extends State<_OperatingScheduleEditorS
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
 
-    return ConstrainedBox(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.75,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: SingleChildScrollView(
-          child: Column(
+    return Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -300,10 +293,7 @@ class _OperatingScheduleEditorSheetState extends State<_OperatingScheduleEditorS
           ),
           const SizedBox(height: 12),
         ],
-      ),
-    ),
-  ),
-);
+      );
   }
 }
 

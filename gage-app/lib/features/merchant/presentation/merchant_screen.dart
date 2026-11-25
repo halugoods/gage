@@ -119,9 +119,9 @@ class _MerchantScreenState extends State<MerchantScreen> with SingleTickerProvid
                   children: [
                     Flexible(
                       child: Text(
-                        'Dimsum Sewu',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontWeight: FontWeight.w800,
+                        'Dimsum Sewu Pracimantoro',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
                           fontSize: 15,
                         ),
                         maxLines: 1,
@@ -377,7 +377,7 @@ class _MerchantScreenState extends State<MerchantScreen> with SingleTickerProvid
                           item['label'] as String,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.plusJakartaSans(
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 12,
                             color: isSelected ? Colors.white : (isDark ? Colors.white60 : GageTheme.textSecondary),
@@ -704,7 +704,7 @@ class _MerchantScreenState extends State<MerchantScreen> with SingleTickerProvid
                       children: [
                         Text(
                           order.customerName ?? 'Pelanggan GAGE',
-                          style: GoogleFonts.plusJakartaSans(
+                          style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
                             color: isDark ? Colors.white : GageTheme.textPrimary,
@@ -869,7 +869,7 @@ class _MerchantScreenState extends State<MerchantScreen> with SingleTickerProvid
             children: [
               Text(
                 it.name,
-                style: GoogleFonts.plusJakartaSans(
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   decoration: (isShop && it.isPicked) ? TextDecoration.lineThrough : null,
@@ -912,7 +912,7 @@ class _MerchantScreenState extends State<MerchantScreen> with SingleTickerProvid
               const Text('Total Pendapatan:', style: TextStyle(fontSize: 12, color: GageTheme.textSecondary)),
               Text(
                 currencyFormatter.format(order.totalAmount),
-                style: GoogleFonts.plusJakartaSans(
+                style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w900,
                   color: GageTheme.primary,
@@ -1155,7 +1155,7 @@ class _MerchantScreenState extends State<MerchantScreen> with SingleTickerProvid
             const SizedBox(height: 16),
             Text(
               title,
-              style: GoogleFonts.plusJakartaSans(
+              style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.bold,
                 color: isDark ? Colors.white : GageTheme.textPrimary,
@@ -1200,7 +1200,7 @@ class _MerchantScreenState extends State<MerchantScreen> with SingleTickerProvid
               const SizedBox(height: 16),
               Text(
                 'Status Kios Dimsum Sewu',
-                style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 14),
               // Switch status
@@ -1335,7 +1335,7 @@ class _MerchantScreenState extends State<MerchantScreen> with SingleTickerProvid
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Cari Pesanan Dapur', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text('Cari Pesanan Dapur', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             TextField(
               controller: searchCtrl,

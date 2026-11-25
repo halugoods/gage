@@ -255,8 +255,9 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                               child: Text(
                                 displayStoreName,
                                 style: TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 15.5,
+                                  letterSpacing: -0.2,
                                   color: textColor,
                                 ),
                                 maxLines: 1,

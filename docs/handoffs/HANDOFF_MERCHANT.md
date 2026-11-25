@@ -1090,3 +1090,16 @@ Dokumen ini merinci seluruh file Dart modul chat yang aktif di ekosistem Custome
    - Guard daftar `_chatRooms` agar tidak bocor di produksi (`GageApiClient.useDevSeedData`) dan hubungkan ke `MerchantOrderProvider` + `InAppChatProvider` (sekaligus ganti `CircleAvatar(Icon)` dengan `GageAvatar` + bersihkan nama `(Kurir GAGE)`/`(Driver Motor)` + teruskan `recipientAvatar` ke `InAppChatScreen`).
 3. **Verifikasi Kepatuhan Aturan Pelanggan vs Merchant**:
    - Customer tidak diperbolehkan memulai chat langsung ke toko dari halaman etalase toko sebelum order/merchant memulai percakapan, sedangkan Merchant dapat merespons/memulai chat ke pelanggan atau driver pada pesanan aktif (`currentRole: 'merchant'`).
+
+---
+
+## 24. Wave 16: Sheet Width Audit, Red G-Rider Track, Detail Order Polish, TikTok Sans & Chat Hub Parity (Selesai)
+
+* **Tanggal Rilis**: `2026-11-25`
+* **Target Build & Flavor**: `v1.0.4+48` (`com.gagepracimantoro.merchant`).
+* **Poin Eksekusi**:
+  1. **Floating Sheet Width**: Margin luar `GageFloatingSheet` dipersempit (`16px -> 10px`) dan padding ganda di anak sheet dihapus sehingga konten bertambah lebar +60px.
+  2. **Red G-Rider Track & Domain Icons**: `GageDeliveryTrackProgress` memakai motor merah `#E52320` dengan huruf **"G"** putih pada boks delivery dan ikon tengah adaptif (`Food`, `Shop`, `Farm`). Handoff diteruskan ke `HANDOFF_CUSTOMER.md`.
+  3. **Detail Order Polish**: Ikon Chat & Telepon dibuat polos bold tanpa kontainer lingkaran, dan `order.notes` dibungkus kontainer merah lembut tipis.
+  4. **TikTok Sans Typography**: Sisa `GoogleFonts.plusJakartaSans` di `merchant_screen.dart` dihapus dan ketebalan font distandarisasi proporsional.
+  5. **Chat Hub Parity**: `gage_merchant_chat_tab.dart` & `merchant_chat_list_screen.dart` selesai direfaktor mengikuti Seksi 23 (menggunakan `GageAvatar`, sinkron `MerchantOrderProvider` + `InAppChatProvider`, bebas label `24/7`/`AI`/`(Driver GAGE)`).

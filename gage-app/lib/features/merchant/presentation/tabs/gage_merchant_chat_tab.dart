@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/features/chat/domain/chat_message.dart';
 import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
+import 'package:gage_app/features/chat/providers/in_app_chat_provider.dart';
+import 'package:gage_app/providers/merchant_order_provider.dart';
+import 'package:gage_app/shared/widgets/gage_avatar.dart';
 
 /// Tab 1: Chat Mitra Usaha GAGE (In-App Chat Hub 1:1 Paritas Customer Portal)
-/// Menghubungkan komunikasi real-time toko dengan Driver, Pelanggan, dan Layanan Bantuan CS GAGE.
+/// Menghubungkan komunikasi real-time toko dengan Pusat Bantuan, Driver, dan Pelanggan.
 class GageMerchantChatTab extends StatefulWidget {
   const GageMerchantChatTab({super.key});
 
@@ -15,39 +21,26 @@ class GageMerchantChatTab extends StatefulWidget {
 
 class _GageMerchantChatTabState extends State<GageMerchantChatTab> {
   int _activeFilterIndex = 0;
-  final List<String> _filters = ['Semua', 'Driver', 'Pelanggan', 'Bantuan CS GAGE'];
+  final List<String> _filters = ['Semua', 'Bantuan', 'Driver', 'Pelanggan'];
 
-  final List<Map<String, dynamic>> _mockChats = [
-    {
-      'id': 'chat-cs-01',
-      'name': 'Pusat Bantuan Mitra GAGE (24/7)',
-      'role': 'admin',
-      'lastMessage': 'Halo Mitra Dimsum Sewu! Tim operasional GAGE siap membantu kelancaran pesanan Anda.',
-      'time': 'Aktif',
-      'unread': 0,
-      'isOnline': true,
-      'phone': '081234567890',
-      'orderId': 'GAGE-CARE',
-      'category': 'admin',
-      'avatar': 'assets/icons/ic_launcher.png',
-    },
+  final List<Map<String, dynamic>> _seedChats = [
     if (GageApiClient.useDevSeedData) ...[
       {
-        'id': 'chat-driver-01',
-        'name': 'Budi Santoso (Driver GAGE)',
+        'id': 'seed-driver-01',
+        'name': 'Budi Santoso',
         'role': 'driver',
-        'lastMessage': 'Siap Mas, saya sudah dekat kios Alfamidi, pesanan dimsum sedang dibungkus?',
+        'lastMessage': 'Siap Mas, saya sudah dekat kios, pesanan dimsum sedang dibungkus?',
         'time': '10:35',
         'unread': 1,
         'isOnline': true,
         'phone': '081398765432',
         'orderId': '101',
         'category': 'driver',
-        'avatar': 'assets/images/gage_chat_icon.png',
+        'avatar': null,
       },
       {
-        'id': 'chat-cust-01',
-        'name': 'Siti Rahmawati (Pelanggan)',
+        'id': 'seed-cust-01',
+        'name': 'Siti Rahmawati',
         'role': 'customer',
         'lastMessage': 'Kak minta saus sambalnya dipisah ya, jangan dicampur. Terima kasih!',
         'time': '09:20',
@@ -56,11 +49,11 @@ class _GageMerchantChatTabState extends State<GageMerchantChatTab> {
         'phone': '081298761234',
         'orderId': '101',
         'category': 'customer',
-        'avatar': 'assets/images/gage_chat_icon.png',
+        'avatar': null,
       },
       {
-        'id': 'chat-driver-02',
-        'name': 'Agus Prabowo (Driver GAGE)',
+        'id': 'seed-driver-02',
+        'name': 'Agus Prabowo',
         'role': 'driver',
         'lastMessage': 'Pesanan sudah saya serahkan ke pembeli dengan aman Mas.',
         'time': 'Kemarin',
@@ -69,29 +62,155 @@ class _GageMerchantChatTabState extends State<GageMerchantChatTab> {
         'phone': '081567890123',
         'orderId': '098',
         'category': 'driver',
-        'avatar': 'assets/images/gage_chat_icon.png',
+        'avatar': null,
       },
     ],
   ];
 
-  List<Map<String, dynamic>> _getFilteredChats() {
+  String _formatChatPreview(ChatMessage msg) {
+    final text = msg.text.trim();
+    if (text.isNotEmpty) return text;
+    if (msg.isImage) return 'Mengirim foto';
+    if (msg.isVoice) return 'Pesan suara';
+    return 'Pesan baru';
+  }
+
+  List<Map<String, dynamic>> _buildAllChats(
+    MerchantOrderProvider? orderProv,
+    InAppChatProvider? chatProv,
+  ) {
+    final chats = <Map<String, dynamic>>[];
+
+    final supportMsgs = chatProv?.getMessages('cs-gage-support') ?? const [];
+    final supportLast = supportMsgs.isNotEmpty
+        ? _formatChatPreview(supportMsgs.last)
+        : 'Halo Mitra! Tim operasional GAGE siap membantu kelancaran pesanan Anda.';
+    final supportTime = supportMsgs.isNotEmpty
+        ? DateFormat('HH:mm').format(supportMsgs.last.timestamp)
+        : 'Aktif';
+
+    chats.add({
+      'id': 'chat-cs-01',
+      'name': 'Pusat Bantuan',
+      'role': 'support',
+      'lastMessage': supportLast,
+      'time': supportTime,
+      'unread': 0,
+      'isOnline': true,
+      'phone': '08111222333',
+      'orderId': 'cs-gage-support',
+      'category': 'support',
+      'avatar': 'assets/images/gage_icon.png',
+    });
+
+    final seenKeys = <String>{};
+    if (orderProv != null) {
+      for (final order in orderProv.orders) {
+        final shortOrd = order.orderNumber.trim().isNotEmpty
+            ? order.orderNumber.trim().split('/').last
+            : order.id;
+
+        // Thread Pelanggan
+        final cleanCustomer = InAppChatScreen.cleanDisplayName(
+          order.customerName ?? 'Pelanggan',
+          role: 'customer',
+        );
+        final custKey = 'customer:${order.id}';
+        if (seenKeys.add(custKey)) {
+          final msgs = chatProv?.getMessages(order.id) ?? const [];
+          final lastMsg = msgs.isNotEmpty
+              ? _formatChatPreview(msgs.last)
+              : 'Pesanan #$shortOrd • Chat dengan $cleanCustomer';
+          final timeStr = msgs.isNotEmpty
+              ? DateFormat('HH:mm').format(msgs.last.timestamp)
+              : DateFormat('HH:mm').format(
+                  DateTime.fromMillisecondsSinceEpoch(order.createdAt),
+                );
+          chats.add({
+            'id': 'order-customer-${order.id}',
+            'name': cleanCustomer,
+            'role': 'customer',
+            'lastMessage': lastMsg,
+            'time': timeStr,
+            'unread': 0,
+            'isOnline': order.isActive,
+            'phone': order.customerPhone ?? '',
+            'orderId': order.id,
+            'category': 'customer',
+            'avatar': order.customerAvatar,
+          });
+        }
+
+        // Thread Driver (jika terpasang)
+        if (order.hasAssignedDriver) {
+          final cleanDriver = InAppChatScreen.cleanDisplayName(
+            order.driverName ?? 'Driver',
+            role: 'driver',
+          );
+          final drvKey = 'driver:${order.id}';
+          if (seenKeys.add(drvKey)) {
+            final msgs = chatProv?.getMessages(order.id) ?? const [];
+            final lastMsg = msgs.isNotEmpty
+                ? _formatChatPreview(msgs.last)
+                : 'Pesanan #$shortOrd • $cleanDriver menuju kios';
+            final timeStr = msgs.isNotEmpty
+                ? DateFormat('HH:mm').format(msgs.last.timestamp)
+                : DateFormat('HH:mm').format(
+                    DateTime.fromMillisecondsSinceEpoch(order.createdAt),
+                  );
+            chats.add({
+              'id': 'order-driver-${order.id}',
+              'name': cleanDriver,
+              'role': 'driver',
+              'lastMessage': lastMsg,
+              'time': timeStr,
+              'unread': 0,
+              'isOnline': order.isActive,
+              'phone': '',
+              'orderId': order.id,
+              'category': 'driver',
+              'avatar': order.driverAvatar,
+            });
+          }
+        }
+      }
+    }
+
+    if (GageApiClient.useDevSeedData && chats.length <= 1) {
+      chats.addAll(_seedChats);
+    }
+
+    return chats;
+  }
+
+  List<Map<String, dynamic>> _getFilteredChats(List<Map<String, dynamic>> allChats) {
     switch (_activeFilterIndex) {
       case 1:
-        return _mockChats.where((c) => c['category'] == 'driver').toList();
+        return allChats.where((c) => c['category'] == 'support').toList();
       case 2:
-        return _mockChats.where((c) => c['category'] == 'customer').toList();
+        return allChats.where((c) => c['category'] == 'driver').toList();
       case 3:
-        return _mockChats.where((c) => c['category'] == 'admin').toList();
+        return allChats.where((c) => c['category'] == 'customer').toList();
       case 0:
       default:
-        return _mockChats;
+        return allChats;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final filtered = _getFilteredChats();
+    MerchantOrderProvider? orderProv;
+    InAppChatProvider? chatProv;
+    try {
+      orderProv = context.watch<MerchantOrderProvider>();
+    } catch (_) {}
+    try {
+      chatProv = context.watch<InAppChatProvider>();
+    } catch (_) {}
+
+    final allChats = _buildAllChats(orderProv, chatProv);
+    final filtered = _getFilteredChats(allChats);
 
     return Column(
       children: [
@@ -132,7 +251,7 @@ class _GageMerchantChatTabState extends State<GageMerchantChatTab> {
                       _filters[idx],
                       style: TextStyle(
                         fontSize: 12,
-                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                         color: isSelected
                             ? Colors.white
                             : (isDark ? Colors.white70 : const Color(0xFF475569)),
@@ -167,14 +286,16 @@ class _GageMerchantChatTabState extends State<GageMerchantChatTab> {
     final unread = (chat['unread'] as int?) ?? 0;
     final isOnline = chat['isOnline'] == true;
     final role = (chat['role'] as String?) ?? 'customer';
+    final displayName = (chat['name'] ?? 'Pengguna GAGE').toString();
+    final avatarUrl = chat['avatar']?.toString();
 
     String roleBadge = 'Pelanggan';
     Color roleBadgeColor = const Color(0xFF0284C7);
     if (role == 'driver') {
-      roleBadge = 'Driver GAGE';
+      roleBadge = 'Driver';
       roleBadgeColor = GageTheme.primary;
-    } else if (role == 'admin') {
-      roleBadge = 'Bantuan CS';
+    } else if (role == 'support' || role == 'admin') {
+      roleBadge = 'Bantuan';
       roleBadgeColor = const Color(0xFF16A34A);
     }
 
@@ -196,10 +317,11 @@ class _GageMerchantChatTabState extends State<GageMerchantChatTab> {
               context,
               MaterialPageRoute(
                 builder: (_) => InAppChatScreen(
-                  recipientName: chat['name'],
+                  recipientName: displayName,
                   recipientRole: role,
-                  orderId: chat['orderId'],
-                  recipientPhone: chat['phone'],
+                  orderId: (chat['orderId'] ?? '').toString(),
+                  recipientPhone: (chat['phone'] ?? '').toString(),
+                  recipientAvatar: avatarUrl,
                   currentRole: 'merchant',
                 ),
               ),
@@ -210,24 +332,13 @@ class _GageMerchantChatTabState extends State<GageMerchantChatTab> {
             padding: const EdgeInsets.all(14),
             child: Row(
               children: [
-                // Avatar dengan indikator online
+                // Avatar dengan GageAvatar & indikator online
                 Stack(
                   children: [
-                    CircleAvatar(
+                    GageAvatar(
+                      imageUrl: avatarUrl,
+                      fallbackName: displayName,
                       radius: 24,
-                      backgroundColor: isDark ? Colors.white10 : const Color(0xFFF1F5F9),
-                      child: ClipOval(
-                        child: Image.asset(
-                          chat['avatar'] ?? 'assets/images/gage_chat_icon.png',
-                          width: 48,
-                          height: 48,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => const Icon(
-                            Icons.person_rounded,
-                            color: GageTheme.primary,
-                          ),
-                        ),
-                      ),
                     ),
                     if (isOnline)
                       Positioned(
@@ -259,10 +370,10 @@ class _GageMerchantChatTabState extends State<GageMerchantChatTab> {
                         children: [
                           Flexible(
                             child: Text(
-                              chat['name'],
+                              displayName,
                               style: TextStyle(
                                 fontSize: 13.5,
-                                fontWeight: unread > 0 ? FontWeight.w800 : FontWeight.w700,
+                                fontWeight: unread > 0 ? FontWeight.w700 : FontWeight.w600,
                                 color: isDark ? Colors.white : const Color(0xFF0F172A),
                               ),
                               maxLines: 1,
@@ -280,7 +391,7 @@ class _GageMerchantChatTabState extends State<GageMerchantChatTab> {
                               roleBadge,
                               style: TextStyle(
                                 fontSize: 9.5,
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w700,
                                 color: roleBadgeColor,
                               ),
                             ),
@@ -289,13 +400,13 @@ class _GageMerchantChatTabState extends State<GageMerchantChatTab> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        chat['lastMessage'],
+                        (chat['lastMessage'] ?? '').toString(),
                         style: TextStyle(
                           fontSize: 12,
-                          color: unread > 0
-                              ? (isDark ? Colors.white : const Color(0xFF0F172A))
-                              : (isDark ? Colors.white60 : Colors.grey.shade600),
-                          fontWeight: unread > 0 ? FontWeight.w600 : FontWeight.normal,
+                          fontWeight: unread > 0 ? FontWeight.w600 : FontWeight.w400,
+                          color: isDark
+                              ? (unread > 0 ? Colors.white : Colors.white60)
+                              : (unread > 0 ? const Color(0xFF0F172A) : Colors.grey.shade600),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -303,37 +414,40 @@ class _GageMerchantChatTabState extends State<GageMerchantChatTab> {
                     ],
                   ),
                 ),
+
                 const SizedBox(width: 8),
 
-                // Waktu & Unread Badge
+                // Waktu & Unread Counter
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      chat['time'],
+                      (chat['time'] ?? '').toString(),
                       style: TextStyle(
                         fontSize: 11,
-                        color: unread > 0 ? GageTheme.primary : (isDark ? Colors.white54 : Colors.grey.shade500),
-                        fontWeight: unread > 0 ? FontWeight.w700 : FontWeight.normal,
+                        fontWeight: unread > 0 ? FontWeight.w700 : FontWeight.w500,
+                        color: unread > 0 ? GageTheme.primary : Colors.grey.shade500,
                       ),
                     ),
                     const SizedBox(height: 6),
                     if (unread > 0)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                         decoration: BoxDecoration(
                           color: GageTheme.primary,
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(999),
                         ),
                         child: Text(
                           '$unread',
                           style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
                             color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                      ),
+                      )
+                    else
+                      const SizedBox(height: 16),
                   ],
                 ),
               ],
@@ -346,44 +460,24 @@ class _GageMerchantChatTabState extends State<GageMerchantChatTab> {
 
   Widget _buildEmptyState(bool isDark) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.chat_bubble_outline_rounded,
-                size: 32,
-                color: isDark ? Colors.white38 : Colors.grey.shade400,
-              ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.chat_bubble_outline_rounded,
+            size: 56,
+            color: isDark ? Colors.white24 : Colors.grey.shade300,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Belum ada percakapan di kategori ini',
+            style: TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white60 : Colors.grey.shade600,
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Belum Ada Pesan',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-                color: isDark ? Colors.white : const Color(0xFF0F172A),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Percakapan dengan Driver dan Pelanggan per pesanan akan otomatis terhubung di sini.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12.5,
-                color: isDark ? Colors.white54 : Colors.grey.shade600,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

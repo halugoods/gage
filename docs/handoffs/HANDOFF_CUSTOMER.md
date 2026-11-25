@@ -134,4 +134,30 @@
    - Tidak ada duplikasi aksi redundan di dekat peta mini interaktif.
    - Seluruh static analysis (`flutter analyze`) dan unit/widget tests (`flutter test`) lulus 100%.
 
+---
+
+## Handoff Wave 16 (Dari Portal Merchant): Adopsi Animasi Delivery Track Real-Time (`GageDeliveryTrackProgress`)
+
+* **Tanggal Handoff**: `2026-11-25`
+* **Komponen Bersama**: [`gage_delivery_track_progress.dart`](../../gage-app/lib/shared/widgets/gage_delivery_track_progress.dart)
+
+### Spesifikasi Widget `GageDeliveryTrackProgress`
+Portal Merchant telah membangun widget animasi pelacakan pengiriman horizontal yang disetujui user untuk dipakai bersama di halaman pelacakan pesanan Portal Customer (`orders_screen.dart` & `order_tracking_screen.dart`):
+1. **Visual Rider Merah GAGE**: Motor scooter rider tampak atas (`_TopDownCourierRiderPainter`) berwarna merah primer GAGE (`GageTheme.primary` `#E52320`) dilengkapi boks delivery berhuruf **"G"** putih.
+2. **Ikon Tengah Adaptif Sesuai Domain**:
+   - `domain: 'food'` -> `Icons.restaurant_rounded` (sendok & garpu)
+   - `domain: 'shop'` -> `Icons.shopping_bag_rounded` (tas belanja)
+   - `domain: 'farm'` -> `Icons.eco_rounded` (daun/eco)
+3. **Parameter Penggunaan di Portal Customer**:
+   ```dart
+   GageDeliveryTrackProgress(
+     isSearchingDriver: !order.hasAssignedDriver && !order.isPickup,
+     isDriverArrived: order.status == 'READY_FOR_PICKUP' || order.status == 'AT_MERCHANT',
+     domain: order.serviceType, // 'food' | 'shop' | 'farm'
+     labelPrefix: order.hasAssignedDriver ? 'Kurir menuju lokasi' : 'Sedang mencari kurir terdekat',
+     labelHighlight: order.hasAssignedDriver ? ' • Est. 5 mnt' : '...',
+   )
+   ```
+4. **Test Safety**: Widget ini sudah memproteksi `AnimationController.repeat()` agar aman saat widget test Flutter berjalan (`pumpAndSettle` tidak timeout).
+
 

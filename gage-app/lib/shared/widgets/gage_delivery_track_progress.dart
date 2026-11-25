@@ -7,6 +7,7 @@ import 'package:gage_app/core/theme/gage_theme.dart';
 class GageDeliveryTrackProgress extends StatefulWidget {
   final bool isSearchingDriver;
   final bool isDriverArrived;
+  final String domain; // 'food' | 'shop' | 'farm'
   final String? labelPrefix;
   final String? labelHighlight;
 
@@ -14,6 +15,7 @@ class GageDeliveryTrackProgress extends StatefulWidget {
     super.key,
     required this.isSearchingDriver,
     this.isDriverArrived = false,
+    this.domain = 'food',
     this.labelPrefix,
     this.labelHighlight,
   });
@@ -55,6 +57,18 @@ class _GageDeliveryTrackProgressState extends State<GageDeliveryTrackProgress>
   void dispose() {
     _ctrl.dispose();
     super.dispose();
+  }
+
+  IconData get _outletIcon {
+    switch (widget.domain.toLowerCase()) {
+      case 'shop':
+        return Icons.shopping_bag_rounded;
+      case 'farm':
+        return Icons.eco_rounded;
+      case 'food':
+      default:
+        return Icons.restaurant_rounded;
+    }
   }
 
   @override
@@ -159,14 +173,14 @@ class _GageDeliveryTrackProgressState extends State<GageDeliveryTrackProgress>
                           ),
                         ),
                       ),
-                      // Cutlery node (Outlet / Resto)
+                      // Outlet node (Food: cutlery, Shop: shopping bag, Farm: eco leaf)
                       Positioned(
                         left: cutleryX - (cutlerySize / 2),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 3),
                           color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                          child: const Icon(
-                            Icons.restaurant_rounded,
+                          child: Icon(
+                            _outletIcon,
                             size: 16,
                             color: GageTheme.primary,
                           ),
@@ -240,8 +254,8 @@ class _TopDownCourierRiderPainter extends CustomPainter {
       wheelPaint,
     );
 
-    // Scooter chassis / fairing (blue/slate)
-    final bodyPaint = Paint()..color = const Color(0xFF2563EB);
+    // Scooter chassis / fairing (GAGE Red)
+    final bodyPaint = Paint()..color = accentColor;
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         Rect.fromCenter(center: Offset(w * 0.58, cy), width: 17, height: 10),
@@ -265,28 +279,37 @@ class _TopDownCourierRiderPainter extends CustomPainter {
     canvas.drawLine(Offset(w * 0.50, cy - 6), Offset(w * 0.70, cy - 6.5), armPaint);
     canvas.drawLine(Offset(w * 0.50, cy + 6), Offset(w * 0.70, cy + 6.5), armPaint);
 
-    // Rear delivery box (GAGE primary red/orange)
+    // Rear delivery box (GAGE primary red with darker border)
+    final boxRect = Rect.fromCenter(center: Offset(w * 0.24, cy), width: 11, height: 12);
     final boxPaint = Paint()..color = accentColor;
     canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(center: Offset(w * 0.24, cy), width: 10, height: 11),
-        const Radius.circular(2.5),
-      ),
+      RRect.fromRectAndRadius(boxRect, const Radius.circular(2.5)),
       boxPaint,
     );
 
-    // White stripe on delivery box
-    final boxLogoPaint = Paint()..color = Colors.white;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(center: Offset(w * 0.23, cy), width: 4.5, height: 5.5),
-        const Radius.circular(1),
+    // Crisp white letter 'G' inside delivery box
+    final textPainter = TextPainter(
+      text: const TextSpan(
+        text: 'G',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 8.5,
+          fontWeight: FontWeight.w900,
+          height: 1.0,
+        ),
       ),
-      boxLogoPaint,
+      textDirection: TextDirection.ltr,
+    )..layout();
+    textPainter.paint(
+      canvas,
+      Offset(
+        boxRect.center.dx - (textPainter.width / 2),
+        boxRect.center.dy - (textPainter.height / 2),
+      ),
     );
 
-    // Rider helmet
-    final helmetPaint = Paint()..color = accentColor;
+    // Rider helmet (dark red accent)
+    final helmetPaint = Paint()..color = const Color(0xFFB91C1C);
     canvas.drawCircle(Offset(w * 0.50, cy), 5.2, helmetPaint);
     // Helmet visor
     final visorPaint = Paint()..color = const Color(0xFF0F172A);

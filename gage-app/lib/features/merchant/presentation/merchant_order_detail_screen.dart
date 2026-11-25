@@ -375,29 +375,21 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              // Tombol Telepon In-App ke Kurir (Paritas Gambar 3)
-              InkWell(
-                onTap: () => _showInAppCallSheet(
+              // Tombol Telepon In-App ke Kurir (Just Bold Icon - Tanpa Kontainer Bulat)
+              IconButton(
+                onPressed: () => _showInAppCallSheet(
                   order.driverName ?? 'Driver GAGE',
                   'Kurir GAGE',
                   '08111222333',
                 ),
-                borderRadius: BorderRadius.circular(999),
-                child: Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: isDark ? Colors.white24 : const Color(0xFFE2E8F0),
-                    ),
-                  ),
-                  child: Icon(
-                    Icons.phone_outlined,
-                    size: 18,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                  ),
+                icon: Icon(
+                  Icons.phone_outlined,
+                  size: 22,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
                 ),
+                tooltip: 'Telepon Kurir',
+                padding: const EdgeInsets.all(6),
+                constraints: const BoxConstraints(),
               ),
             ],
           ),
@@ -405,6 +397,7 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
           GageDeliveryTrackProgress(
             isSearchingDriver: false,
             isDriverArrived: order.status == 'READY_FOR_PICKUP',
+            domain: order.serviceType,
             labelPrefix: order.status == 'READY_FOR_PICKUP' ? 'Pengemudi telah tiba di kios' : 'Menuju Kios',
             labelHighlight: order.status == 'READY_FOR_PICKUP' ? '' : ' • Est. 5 mnt',
           ),
@@ -565,9 +558,9 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
                   ],
                 ),
               ),
-              // Dual Action Icons: Chat Pembeli & Telepon In-App (Paritas Gambar 3)
-              InkWell(
-                onTap: () {
+              // Dual Action Icons: Just Bold Icons tanpa kontainer bulat
+              IconButton(
+                onPressed: () {
                   HapticFeedback.lightImpact();
                   Navigator.push(
                     context,
@@ -582,66 +575,84 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
                     ),
                   );
                 },
-                borderRadius: BorderRadius.circular(999),
-                child: Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: isDark ? Colors.white24 : const Color(0xFFE2E8F0),
-                    ),
-                  ),
-                  child: Icon(
-                    Icons.chat_bubble_outline_rounded,
-                    size: 18,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                  ),
+                icon: Icon(
+                  Icons.chat_bubble_outline_rounded,
+                  size: 22,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
                 ),
+                tooltip: 'Chat Pembeli',
+                padding: const EdgeInsets.all(6),
+                constraints: const BoxConstraints(),
               ),
-              const SizedBox(width: 8),
-              InkWell(
-                onTap: () => _showInAppCallSheet(
+              const SizedBox(width: 6),
+              IconButton(
+                onPressed: () => _showInAppCallSheet(
                   order.customerName ?? 'Pelanggan GAGE',
                   'Pelanggan',
                   order.customerPhone ?? '085156955735',
                 ),
-                borderRadius: BorderRadius.circular(999),
-                child: Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: isDark ? Colors.white24 : const Color(0xFFE2E8F0),
-                    ),
-                  ),
-                  child: Icon(
-                    Icons.phone_outlined,
-                    size: 18,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                  ),
+                icon: Icon(
+                  Icons.phone_outlined,
+                  size: 22,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
                 ),
+                tooltip: 'Telepon Pembeli',
+                padding: const EdgeInsets.all(6),
+                constraints: const BoxConstraints(),
               ),
             ],
           ),
           if (order.notes != null && order.notes!.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.notes_rounded, size: 14, color: GageTheme.primary),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    'Catatan: ${order.notes}',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontStyle: FontStyle.italic,
-                      color: subColor,
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: GageTheme.primary.withValues(alpha: isDark ? 0.14 : 0.06),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: GageTheme.primary.withValues(alpha: isDark ? 0.35 : 0.25),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(top: 1),
+                    child: Icon(Icons.notes_rounded, size: 15, color: GageTheme.primary),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: RichText(
+                      text: TextSpan(
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.35,
+                          fontFamily: 'TikTok Sans',
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                        children: [
+                          const TextSpan(
+                            text: 'Catatan Pembeli: ',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: GageTheme.primary,
+                            ),
+                          ),
+                          TextSpan(
+                            text: order.notes!,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w500,
+                              color: isDark ? Colors.white70 : const Color(0xFF1E293B),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ],

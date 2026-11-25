@@ -86,9 +86,7 @@ class _MerchantReceiptSettingsSheetState extends State<MerchantReceiptSettingsSh
 
     return Padding(
       padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 12,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 8,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

@@ -48,9 +48,9 @@ class GageFloatingSheet {
                 ),
                 child: Container(
                   margin: EdgeInsets.fromLTRB(
-                    16,
+                    10,
                     0,
-                    16,
+                    10,
                     MediaQuery.of(sheetContext).padding.bottom > 0 ? 12 : 16,
                   ),
                 decoration: BoxDecoration(
@@ -91,7 +91,7 @@ class GageFloatingSheet {
                     ),
                     if (title != null) ...[
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -126,7 +126,7 @@ class GageFloatingSheet {
                     ],
                     Flexible(
                       child: SingleChildScrollView(
-                        padding: padding ?? const EdgeInsets.fromLTRB(20, 14, 20, 20),
+                        padding: padding ?? const EdgeInsets.fromLTRB(16, 10, 16, 16),
                         child: content,
                       ),
                     ),

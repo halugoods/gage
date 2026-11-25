@@ -170,8 +170,8 @@ class _MerchantRootScreenState extends State<MerchantRootScreen> {
                         child: Text(
                           merchant.activeBranchName,
                           style: const TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14.5,
                             letterSpacing: -0.2,
                           ),
                           maxLines: 1,

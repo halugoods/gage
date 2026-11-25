@@ -19,6 +19,7 @@ import 'package:gage_app/features/merchant/presentation/merchant_menu_screen.dar
 import 'package:gage_app/features/merchant/presentation/merchant_order_detail_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_review_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_terms_and_privacy_screen.dart';
+import 'package:gage_app/features/merchant/presentation/tabs/gage_merchant_chat_tab.dart';
 import 'package:gage_app/features/merchant/presentation/tabs/gage_merchant_orders_tab.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_branch_switcher_sheet.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_floating_nav_bar.dart';
@@ -1486,6 +1487,91 @@ void main() {
       expect(find.text('Dimsum Sewu Pracimantoro (Pusat)'), findsOneWidget);
       expect(find.text('Dimsum Sewu Baturetno (Cabang 2)'), findsOneWidget);
       expect(find.text('Tambah Cabang Outlet Baru'), findsOneWidget);
+      provider.dispose();
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 46: Wave 16: GageDeliveryTrackProgress Domain-Aware Icons (Food, Shop, Farm)
+    // -------------------------------------------------------------------------
+    testWidgets('Skenario 46: Wave 16: GageDeliveryTrackProgress merender ikon tengah adaptif untuk Food, Shop, dan Farm', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                GageDeliveryTrackProgress(isSearchingDriver: false, domain: 'food'),
+                GageDeliveryTrackProgress(isSearchingDriver: false, domain: 'shop'),
+                GageDeliveryTrackProgress(isSearchingDriver: false, domain: 'farm'),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.restaurant_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.shopping_bag_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.eco_rounded), findsOneWidget);
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 47: Wave 16: Detail Order Catatan Pembeli Highlight Merah & Ikon Polos
+    // -------------------------------------------------------------------------
+    testWidgets('Skenario 47: Wave 16: Detail order menyorot Catatan Pembeli dengan kontainer merah tipis', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final formatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+      final provider = MerchantOrderProvider();
+      final orderWithNotes = provider.orders.firstWhere(
+        (o) => o.notes != null && o.notes!.isNotEmpty,
+        orElse: () => provider.orders.first.copyWith(notes: 'Sambal dipisah ya'),
+      );
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<MerchantOrderProvider>.value(value: provider),
+          ],
+          child: MaterialApp(
+            home: MerchantOrderDetailScreen(
+              order: orderWithNotes,
+              currencyFormatter: formatter,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Catatan Pembeli:', findRichText: true), findsOneWidget);
+      provider.dispose();
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 48: Wave 16: Chat Tab Merchant Paritas Handoff Customer
+    // -------------------------------------------------------------------------
+    testWidgets('Skenario 48: Wave 16: GageMerchantChatTab bebas label 24/7/AI dan memakai filter Bantuan/Driver/Pelanggan', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final provider = MerchantOrderProvider();
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<MerchantOrderProvider>.value(value: provider),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: GageMerchantChatTab(),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Pusat Bantuan'), findsOneWidget);
+      expect(find.textContaining('24/7'), findsNothing);
+      expect(find.textContaining('AI'), findsNothing);
+      expect(find.text('Bantuan'), findsWidgets);
+      expect(find.text('Driver'), findsWidgets);
+      expect(find.text('Pelanggan'), findsWidgets);
       provider.dispose();
     });
   });

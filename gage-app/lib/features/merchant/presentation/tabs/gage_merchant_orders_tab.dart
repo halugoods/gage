@@ -1058,6 +1058,7 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                   GageDeliveryTrackProgress(
                     isSearchingDriver: false,
                     isDriverArrived: isReadyForPickup,
+                    domain: order.serviceType,
                     labelPrefix: isReadyForPickup ? 'Pengemudi telah tiba di kios' : 'Menuju Kios',
                     labelHighlight: isReadyForPickup ? '' : ' • Est. 5 mnt',
                   ),
@@ -1073,8 +1074,9 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                 color: isDark ? const Color(0xFF0F172A) : const Color(0xFFFFF1F2),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: const GageDeliveryTrackProgress(
+              child: GageDeliveryTrackProgress(
                 isSearchingDriver: true,
+                domain: order.serviceType,
                 labelPrefix: 'Sedang mencari kurir terdekat',
                 labelHighlight: '...',
               ),
