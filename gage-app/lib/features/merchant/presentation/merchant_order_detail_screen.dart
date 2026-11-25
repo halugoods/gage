@@ -359,6 +359,33 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
                 ),
               ),
               const SizedBox(width: 8),
+              // Tombol Chat In-App ke Kurir
+              IconButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => InAppChatScreen(
+                        orderId: order.id,
+                        recipientName: order.driverName ?? 'Driver GAGE',
+                        recipientRole: 'driver',
+                        recipientPhone: '08111222333',
+                        recipientAvatar: order.driverAvatar,
+                        currentRole: 'merchant',
+                      ),
+                    ),
+                  );
+                },
+                icon: Icon(
+                  Icons.chat_bubble_outline_rounded,
+                  size: 22,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+                tooltip: 'Chat Kurir',
+                padding: const EdgeInsets.all(6),
+                constraints: const BoxConstraints(),
+              ),
+              const SizedBox(width: 4),
               // Tombol Telepon In-App ke Kurir (Just Bold Icon - Tanpa Kontainer Bulat)
               IconButton(
                 onPressed: () => _showInAppCallSheet(
@@ -701,19 +728,12 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      '${item.quantity}x',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: textColor,
-                      ),
+                  Text(
+                    '${item.quantity}x',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: textColor,
                     ),
                   ),
                   const SizedBox(width: 10),

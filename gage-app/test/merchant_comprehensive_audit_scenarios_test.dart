@@ -1084,8 +1084,8 @@ void main() {
       // Verifikasi Tombol Chat Driver dilarang dan dihapus total
       expect(find.text('Chat Driver'), findsNothing);
 
-      // Wave 15: Verifikasi ikon Chat Pembeli & Telepon In-App tersedia pada kartu pelanggan
-      expect(find.byIcon(Icons.chat_bubble_outline_rounded), findsOneWidget);
+      // Verifikasi ikon Chat (Driver & Pembeli) & Telepon In-App tersedia
+      expect(find.byIcon(Icons.chat_bubble_outline_rounded), findsNWidgets(2));
       expect(find.byIcon(Icons.phone_outlined), findsWidgets);
 
       // Verifikasi stage action button memiliki layout full-width dock
@@ -1354,8 +1354,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(GageDeliveryTrackProgress), findsNWidgets(2));
-      expect(find.byIcon(Icons.restaurant_rounded), findsNWidgets(2));
-      expect(find.byIcon(Icons.location_on_rounded), findsNWidgets(2));
+      expect(find.byIcon(Icons.search_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.two_wheeler_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.restaurant_rounded), findsOneWidget);
     });
 
     // -------------------------------------------------------------------------
@@ -1407,9 +1408,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Driver has phone icon, Customer has chat + phone icons -> 2 phone icons, 1 chat icon
+      // Driver has chat + phone icons, Customer has chat + phone icons -> 2 phone icons, 2 chat icons
       expect(find.byIcon(Icons.phone_outlined), findsNWidgets(2));
-      expect(find.byIcon(Icons.chat_bubble_outline_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.chat_bubble_outline_rounded), findsNWidgets(2));
       provider.dispose();
     });
 

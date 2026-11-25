@@ -222,16 +222,12 @@ class _GageDeliveryTrackProgressState extends State<GageDeliveryTrackProgress>
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Container(
-                                  color: nodeBg,
-                                  padding: const EdgeInsets.symmetric(horizontal: 3),
-                                  child: Icon(
-                                    nodeIcons[idx],
-                                    size: 16,
-                                    color: isDoneOrActive
-                                        ? GageTheme.primary
-                                        : (isDark ? Colors.white30 : Colors.grey.shade400),
-                                  ),
+                                Icon(
+                                  nodeIcons[idx],
+                                  size: 16,
+                                  color: isDoneOrActive
+                                      ? GageTheme.primary
+                                      : (isDark ? Colors.white30 : Colors.grey.shade400),
                                 ),
                                 const SizedBox(height: 5),
                                 Text(
@@ -258,23 +254,12 @@ class _GageDeliveryTrackProgressState extends State<GageDeliveryTrackProgress>
                       ] else ...[
                         // 1-Stage Compact Mode (Outer Order Card)
                         Positioned(
-                          top: 4,
-                          left: cutleryX - 10,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 3),
-                            color: nodeBg,
-                            child: Icon(
-                              _outletIcon,
-                              size: 16,
-                              color: GageTheme.primary,
-                            ),
-                          ),
-                        ),
-                        const Positioned(
                           top: 2,
                           right: 0,
                           child: Icon(
-                            Icons.location_on_rounded,
+                            widget.isSearchingDriver
+                                ? Icons.two_wheeler_rounded
+                                : _outletIcon,
                             size: 20,
                             color: GageTheme.primary,
                           ),
@@ -288,15 +273,11 @@ class _GageDeliveryTrackProgressState extends State<GageDeliveryTrackProgress>
                             ? SizedBox(
                                 width: riderWidth,
                                 height: riderHeight,
-                                child: Center(
-                                  child: Container(
-                                    padding: const EdgeInsets.all(2),
-                                    color: nodeBg,
-                                    child: const Icon(
-                                      Icons.search_rounded,
-                                      size: 18,
-                                      color: GageTheme.primary,
-                                    ),
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.search_rounded,
+                                    size: 22,
+                                    color: GageTheme.primary,
                                   ),
                                 ),
                               )
