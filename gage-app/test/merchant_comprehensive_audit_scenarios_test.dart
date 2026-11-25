@@ -1780,6 +1780,65 @@ void main() {
 
       provider.dispose();
     });
+
+    // -------------------------------------------------------------------------
+    // Skenario 53: Wave 21: Order Card & Tab Adjustments (Search Bar Bawah, Selesai No Badge, Track Selesai Bersih, Tiba di Toko Arrived Beacon)
+    // -------------------------------------------------------------------------
+    testWidgets('Skenario 53: Wave 21: Search bar di bawah tab, Selesai tanpa badge, driver arrived beacon & track selesai bersih', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final provider = MerchantOrderProvider();
+      final formatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider<MerchantOrderProvider>.value(
+          value: provider,
+          child: MaterialApp(
+            home: Scaffold(
+              body: GageMerchantOrdersTab(currencyFormatter: formatter),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 1. Verifikasi 4 tab kapsul & search bar
+      expect(find.text('Disiapkan'), findsOneWidget);
+      expect(find.text('Siap'), findsOneWidget);
+      expect(find.text('Diantar'), findsOneWidget);
+      expect(find.text('Selesai'), findsOneWidget);
+      expect(find.text('Cari invoice atau nama pelanggan...'), findsOneWidget);
+
+      // Verifikasi posisi vertikal: Segmented Tabs di atas, Search Bar di bawah
+      final tabsTop = tester.getTopLeft(find.text('Disiapkan')).dy;
+      final searchTop = tester.getTopLeft(find.text('Cari invoice atau nama pelanggan...')).dy;
+      expect(tabsTop, lessThan(searchTop));
+
+      // 2. Verifikasi tab Selesai: Switch ke tab Selesai
+      await tester.tap(find.text('Selesai'));
+      await tester.pumpAndSettle();
+
+      // Pada tab Selesai, order completed dengan driver tidak menampilkan track bergerak 'Menuju Toko'
+      expect(find.text('Menuju Toko'), findsNothing);
+
+      // 3. Verifikasi widget GageDeliveryTrackProgress saat isDriverArrived == true
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: GageDeliveryTrackProgress(
+              isSearchingDriver: false,
+              isDriverArrived: true,
+              labelPrefix: 'Pengemudi telah tiba di toko',
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Pengemudi telah tiba di toko'), findsOneWidget);
+      expect(find.byIcon(Icons.check_rounded), findsOneWidget);
+
+      provider.dispose();
+    });
   });
 }
 

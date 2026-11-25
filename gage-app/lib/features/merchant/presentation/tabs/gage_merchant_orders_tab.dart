@@ -260,16 +260,67 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
         o.status == 'AT_MERCHANT').length;
     final countDiantar = allOrders.where((o) =>
         o.status == 'PICKED_UP' || o.status == 'ON_DELIVERY').length;
-    final countSelesai = allOrders.where((o) =>
-        o.status == 'COMPLETED' || o.status == 'CANCELLED').length;
 
     final displayedOrders = _filterOrders(allOrders);
 
     return Column(
       children: [
-        // 1. Quick Search Bar Melayang Paritas Segmented Switch (Height 42, Radius 999 Kapsul Penuh)
+        // 1. Sticky Header Segmented Tabs (Radius 999 Kapsul Penuh Paritas GAGE)
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+          child: Container(
+            height: 42,
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildSegmentItem(
+                    index: 0,
+                    label: 'Disiapkan',
+                    count: countDisiapkan,
+                    isDark: isDark,
+                  ),
+                ),
+                Expanded(
+                  child: _buildSegmentItem(
+                    index: 1,
+                    label: 'Siap',
+                    count: countSiap,
+                    isDark: isDark,
+                  ),
+                ),
+                Expanded(
+                  child: _buildSegmentItem(
+                    index: 2,
+                    label: 'Diantar',
+                    count: countDiantar,
+                    isDark: isDark,
+                  ),
+                ),
+                Expanded(
+                  child: _buildSegmentItem(
+                    index: 3,
+                    label: 'Selesai',
+                    count: null, // Selesai tidak memakai badge notif angka agar tidak memenuhi kapsul pill
+                    isDark: isDark,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // 2. Quick Search Bar Melayang di Bawah Segmented Tabs (Height 42, Radius 999 Kapsul Penuh)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: Container(
             height: 42,
             decoration: BoxDecoration(
@@ -334,59 +385,6 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
           ),
         ),
 
-        // 2. Sticky Header Segmented Tabs (Melayang Bersih Tanpa Box Kontainer Belakang)
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-          child: Container(
-            height: 42,
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-                width: 1,
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildSegmentItem(
-                    index: 0,
-                    label: 'Disiapkan',
-                    count: countDisiapkan,
-                    isDark: isDark,
-                  ),
-                ),
-                Expanded(
-                  child: _buildSegmentItem(
-                    index: 1,
-                    label: 'Siap',
-                    count: countSiap,
-                    isDark: isDark,
-                  ),
-                ),
-                Expanded(
-                  child: _buildSegmentItem(
-                    index: 2,
-                    label: 'Diantar',
-                    count: countDiantar,
-                    isDark: isDark,
-                  ),
-                ),
-                Expanded(
-                  child: _buildSegmentItem(
-                    index: 3,
-                    label: 'Selesai',
-                    count: countSelesai,
-                    isDark: isDark,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-
         // 2. Daftar Pesanan Interaktif (Breathing Room Lapang)
         Expanded(
           child: displayedOrders.isEmpty
@@ -412,7 +410,7 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
   Widget _buildSegmentItem({
     required int index,
     required String label,
-    required int count,
+    int? count,
     required bool isDark,
   }) {
     final isSelected = _activeSegment == index;
@@ -460,7 +458,7 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                         : (isDark ? Colors.white70 : const Color(0xFF64748B)),
                   ),
                 ),
-                if (count > 0) ...[
+                if (count != null && count > 0) ...[
                   const SizedBox(width: 4),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
@@ -1030,16 +1028,63 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      if (order.status == 'COMPLETED') ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? const Color(0xFF064E3B).withValues(alpha: 0.5)
+                                : const Color(0xFFECFDF5),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.check_circle_rounded, size: 11, color: Color(0xFF059669)),
+                              SizedBox(width: 4),
+                              Text(
+                                'Selesai Diantar',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF059669),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
-                  const SizedBox(height: 10),
-                  GageDeliveryTrackProgress(
-                    isSearchingDriver: false,
-                    isDriverArrived: isReadyForPickup,
-                    domain: order.serviceType,
-                    labelPrefix: isReadyForPickup ? 'Pengemudi telah tiba di toko' : 'Menuju Toko',
-                    labelHighlight: isReadyForPickup ? '' : ' • Est. 5 mnt',
-                  ),
+                  if (order.status != 'COMPLETED' && order.status != 'CANCELLED') ...[
+                    const SizedBox(height: 9),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Container(
+                        height: 1,
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white12 : const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(1),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 9),
+                    GageDeliveryTrackProgress(
+                      isSearchingDriver: false,
+                      isDriverArrived: isReadyForPickup,
+                      domain: order.serviceType,
+                      labelPrefix: order.status == 'PICKED_UP' || order.status == 'ON_DELIVERY'
+                          ? 'Sedang diantar ke pembeli'
+                          : (isReadyForPickup ? 'Pengemudi telah tiba di toko' : 'Menuju Toko'),
+                      labelHighlight: order.status == 'PICKED_UP' || order.status == 'ON_DELIVERY'
+                          ? ' • Dalam Perjalanan'
+                          : (isReadyForPickup ? '' : ' • Est. 5 mnt'),
+                    ),
+                  ],
                 ],
               ),
             ),

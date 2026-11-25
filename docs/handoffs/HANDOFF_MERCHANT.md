@@ -1102,4 +1102,21 @@ Dokumen ini merinci seluruh file Dart modul chat yang aktif di ekosistem Custome
   2. **Red G-Rider Track & Domain Icons**: `GageDeliveryTrackProgress` memakai motor merah `#E52320` dengan huruf **"G"** putih pada boks delivery dan ikon tengah adaptif (`Food`, `Shop`, `Farm`). Handoff diteruskan ke `HANDOFF_CUSTOMER.md`.
   3. **Detail Order Polish**: Ikon Chat & Telepon dibuat polos bold tanpa kontainer lingkaran, dan `order.notes` dibungkus kontainer merah lembut tipis.
   4. **TikTok Sans Typography**: Sisa `GoogleFonts.plusJakartaSans` di `merchant_screen.dart` dihapus dan ketebalan font distandarisasi proporsional.
-  5. **Chat Hub Parity**: `gage_merchant_chat_tab.dart` & `merchant_chat_list_screen.dart` selesai direfaktor mengikuti Seksi 23 (menggunakan `GageAvatar`, sinkron `MerchantOrderProvider` + `InAppChatProvider`, bebas label `24/7`/`AI`/`(Driver GAGE)`).
+---
+
+## 25. Wave 21: Order Card, Tab Switch & Delivery Track Adjustments (Selesai)
+
+* **Tanggal Rilis**: `2026-11-26`
+* **Target Build & Flavor**: `v1.0.4+50` (`com.gagepracimantoro.merchant`).
+* **Poin Eksekusi**:
+  1. **Posisi Quick Search Bar**: Dipindahkan ke **bawah** Segmented Tab Switch (`Disiapkan`, `Siap`, `Diantar`, `Selesai`) agar filter navigasi utama selalu berada di posisi paling atas secara hierarkis.
+  2. **Tab Selesai Bebas Badge Count**: Segmented Tab Switch pada tab `'Selesai'` (`index: 3`) tidak lagi merender badge notif angka (`count: null`). Kapsul pill `'Selesai'` tetap bersih, proporsional, dan tidak crowded meski pesanan selesai mencapai puluhan/ratusan.
+  3. **Kartu Pesanan Selesai Bersih**: Pesanan berstatus `COMPLETED` atau `CANCELLED` tidak lagi menampilkan track animasi motor bergerak `"Menuju Toko"`. Jika pesanan diantar kurir, kartu menampilkan baris profil driver dengan badge status kapsul hijau `Selesai Diantar`.
+  4. **Spesialisasi Status "Pengemudi telah tiba di toko"**:
+     - Label menampilkan dot badge hijau dengan ikon check `✓` dan teks hijau zamrud (`#059669`).
+     - Jalur track delivery terisi penuh (`fillWidth = 100%`, warna hijau `#10B981`).
+     - Ikon tujuan outlet di sebelah kanan memiliki efek beacon halo berkedip lembut dengan checkmark mini.
+     - Posisi motor kurir diparkir tepat di sebelah outlet dengan getaran mesin idle statis halus (`0.94 - 0.96`).
+  5. **Pembatas Halus Baris Driver pada Kartu Pesanan**: Di antara baris avatar/nama/plat driver dan widget tracking di bawahnya ditambahkan garis pembatas horizontal tipis (1px, warna `#F1F5F9` / `Colors.white12`, `horizontal margin: 4px`) agar tidak kaku dan terstruktur rapi.
+  6. **Detail Order Parity**: `MerchantOrderDetailScreen` disinkronkan dengan pembatas horizontal tipis pada kartu driver dan label tracking dinamis (`Pesanan telah selesai diantar`, `Pesanan sedang diantar • Menuju Pelanggan`, `Pengemudi telah tiba di toko`, `Driver menuju toko • Est. 5 mnt`).
+

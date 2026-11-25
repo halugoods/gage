@@ -404,14 +404,45 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          GageDeliveryTrackProgress(
-            isSearchingDriver: false,
-            isDriverArrived: order.status == 'READY_FOR_PICKUP',
-            domain: order.serviceType,
-            orderStatus: order.status,
-            labelPrefix: order.status == 'READY_FOR_PICKUP' ? 'Pengemudi telah tiba di toko' : 'Menuju Toko',
-            labelHighlight: order.status == 'READY_FOR_PICKUP' ? '' : ' • Est. 5 mnt',
+          const SizedBox(height: 10),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Container(
+              height: 1,
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white12 : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(1),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Builder(
+            builder: (context) {
+              final isArrived = order.status == 'READY_FOR_PICKUP' || order.status == 'AT_MERCHANT';
+              final String trackPrefix;
+              final String trackHighlight;
+              if (order.status == 'COMPLETED') {
+                trackPrefix = 'Pesanan telah selesai diantar';
+                trackHighlight = '';
+              } else if (order.status == 'PICKED_UP' || order.status == 'ON_DELIVERY') {
+                trackPrefix = 'Pesanan sedang diantar';
+                trackHighlight = ' • Menuju Pelanggan';
+              } else if (isArrived) {
+                trackPrefix = 'Pengemudi telah tiba di toko';
+                trackHighlight = '';
+              } else {
+                trackPrefix = 'Driver menuju toko';
+                trackHighlight = ' • Est. 5 mnt';
+              }
+              return GageDeliveryTrackProgress(
+                isSearchingDriver: false,
+                isDriverArrived: isArrived,
+                domain: order.serviceType,
+                orderStatus: order.status,
+                labelPrefix: trackPrefix,
+                labelHighlight: trackHighlight,
+              );
+            },
           ),
         ],
       ),

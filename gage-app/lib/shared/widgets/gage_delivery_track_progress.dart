@@ -88,8 +88,7 @@ class _GageDeliveryTrackProgressState extends State<GageDeliveryTrackProgress>
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final trackBg = isDark ? Colors.white12 : const Color(0xFFFEE2E2);
-    const trackFill = GageTheme.primary;
-    final nodeBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final trackFill = widget.isDriverArrived ? const Color(0xFF10B981) : GageTheme.primary;
 
     final prefixText = widget.labelPrefix ??
         (widget.isSearchingDriver
@@ -101,30 +100,64 @@ class _GageDeliveryTrackProgressState extends State<GageDeliveryTrackProgress>
     final isFiveStage = widget.orderStatus != null;
     final activeIdx = isFiveStage ? _resolveActiveStageIndex() : 1;
 
-    final labelWidget = RichText(
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      text: TextSpan(
-        style: const TextStyle(fontSize: 12.5, height: 1.3),
+    final Widget labelWidget;
+    if (widget.isDriverArrived) {
+      labelWidget = Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          TextSpan(
-            text: prefixText,
-            style: const TextStyle(
-              color: GageTheme.primary,
-              fontWeight: FontWeight.w700,
+          Container(
+            padding: const EdgeInsets.all(2.5),
+            decoration: const BoxDecoration(
+              color: Color(0xFF10B981),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.check_rounded,
+              size: 9,
+              color: Colors.white,
             ),
           ),
-          if (highlightText.isNotEmpty)
-            TextSpan(
-              text: highlightText,
-              style: TextStyle(
-                color: isDark ? Colors.white : const Color(0xFF0F172A),
+          const SizedBox(width: 5),
+          Flexible(
+            child: Text(
+              prefixText,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12,
                 fontWeight: FontWeight.w800,
+                color: Color(0xFF059669),
               ),
             ),
+          ),
         ],
-      ),
-    );
+      );
+    } else {
+      labelWidget = RichText(
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        text: TextSpan(
+          style: const TextStyle(fontSize: 12.5, height: 1.3),
+          children: [
+            TextSpan(
+              text: prefixText,
+              style: const TextStyle(
+                color: GageTheme.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (highlightText.isNotEmpty)
+              TextSpan(
+                text: highlightText,
+                style: TextStyle(
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+          ],
+        ),
+      );
+    }
 
     final trackWidget = LayoutBuilder(
       builder: (context, constraints) {
@@ -137,161 +170,247 @@ class _GageDeliveryTrackProgressState extends State<GageDeliveryTrackProgress>
             ? (totalWidth - 22.0).clamp(60.0, totalWidth)
             : (totalWidth - 24.0).clamp(40.0, totalWidth);
 
-              return AnimatedBuilder(
-                animation: _ctrl,
-                builder: (context, child) {
-                  final double t = Curves.easeInOut.transform(_ctrl.value);
-                  double minRatio;
-                  double maxRatio;
+        return AnimatedBuilder(
+          animation: _ctrl,
+          builder: (context, child) {
+            final double t = Curves.easeInOut.transform(_ctrl.value);
+            double minRatio;
+            double maxRatio;
 
-                  if (widget.isSearchingDriver) {
-                    minRatio = 0.08;
-                    maxRatio = isFiveStage ? 0.35 : 0.38;
-                  } else if (isFiveStage) {
-                    minRatio = activeIdx / 4.0;
-                    maxRatio = ((activeIdx + 1).clamp(0, 4)) / 4.0;
-                  } else {
-                    minRatio = 0.52;
-                    maxRatio = widget.isDriverArrived ? 0.56 : 0.86;
-                  }
+            if (widget.isSearchingDriver) {
+              minRatio = 0.08;
+              maxRatio = isFiveStage ? 0.35 : 0.38;
+            } else if (isFiveStage) {
+              if (activeIdx >= 4) {
+                minRatio = 1.0;
+                maxRatio = 1.0;
+              } else if (activeIdx == 2 && widget.isDriverArrived) {
+                minRatio = 0.50;
+                maxRatio = 0.50;
+              } else {
+                minRatio = activeIdx / 4.0;
+                maxRatio = ((activeIdx + 1).clamp(0, 4)) / 4.0;
+              }
+            } else {
+              if (widget.isDriverArrived) {
+                // Rider has arrived at destination store: stationed right at outlet node with soft idle vibration
+                minRatio = 0.94;
+                maxRatio = 0.96;
+              } else {
+                minRatio = 0.35;
+                maxRatio = 0.85;
+              }
+            }
 
-                  final double riderRatio = minRatio + (maxRatio - minRatio) * t;
-                  final double riderCenterX =
-                      (trackStart + (trackEnd - trackStart) * riderRatio)
-                          .clamp(riderWidth / 2, totalWidth - riderWidth / 2);
-                  final double fillWidth =
-                      (riderCenterX - trackStart).clamp(0.0, trackEnd - trackStart);
+            final double riderRatio = minRatio + (maxRatio - minRatio) * t;
+            final double riderCenterX =
+                (trackStart + (trackEnd - trackStart) * riderRatio)
+                    .clamp(riderWidth / 2, totalWidth - riderWidth / 2);
+            final double fillWidth = widget.isDriverArrived
+                ? (trackEnd - trackStart)
+                : (riderCenterX - trackStart).clamp(0.0, trackEnd - trackStart);
 
-                  const stages = ['Masuk', 'Disiapkan', 'Siap', 'Diantar', 'Selesai'];
-                  final nodeIcons = [
-                    Icons.receipt_long_rounded,
-                    _outletIcon,
-                    Icons.inventory_2_rounded,
-                    Icons.two_wheeler_rounded,
-                    Icons.location_on_rounded,
-                  ];
+            const stages = ['Masuk', 'Disiapkan', 'Siap', 'Diantar', 'Selesai'];
+            final nodeIcons = [
+              Icons.receipt_long_rounded,
+              _outletIcon,
+              Icons.inventory_2_rounded,
+              Icons.two_wheeler_rounded,
+              Icons.location_on_rounded,
+            ];
 
-                  return Stack(
-                    alignment: Alignment.topLeft,
-                    clipBehavior: Clip.none,
-                    children: [
-                      // Track background
-                      Positioned(
-                        top: 11,
-                        left: trackStart,
-                        width: (trackEnd - trackStart).clamp(0.0, totalWidth),
-                        child: Container(
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: trackBg,
-                            borderRadius: BorderRadius.circular(999),
+            return Stack(
+              alignment: Alignment.topLeft,
+              clipBehavior: Clip.none,
+              children: [
+                // Track background
+                Positioned(
+                  top: 11,
+                  left: trackStart,
+                  width: (trackEnd - trackStart).clamp(0.0, totalWidth),
+                  child: Container(
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: trackBg,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                // Filled progress line
+                Positioned(
+                  top: 11,
+                  left: trackStart,
+                  width: fillWidth,
+                  child: Container(
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: trackFill,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                if (isFiveStage) ...[
+                  // 5-Stage Icons & Symmetrical Labels (No circular container)
+                  ...List.generate(5, (idx) {
+                    final isDoneOrActive = idx <= activeIdx;
+                    final isCurrent = idx == activeIdx;
+                    final isArrivedNode = widget.isDriverArrived && idx == 2;
+                    final nodeX = trackStart + (trackEnd - trackStart) * (idx / 4.0);
+
+                    return Positioned(
+                      top: 1,
+                      left: (nodeX - 24).clamp(0.0, totalWidth - 48),
+                      width: 48,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 24,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              color: isArrivedNode
+                                  ? (isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5))
+                                  : (isDoneOrActive
+                                      ? (isDark ? const Color(0xFF2B1214) : const Color(0xFFFFF1F2))
+                                      : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9))),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: isArrivedNode
+                                    ? const Color(0xFF10B981)
+                                    : (isDoneOrActive
+                                        ? GageTheme.primary.withValues(alpha: 0.35)
+                                        : (isDark ? Colors.white12 : const Color(0xFFE2E8F0))),
+                                width: isArrivedNode ? 1.5 : 1,
+                              ),
+                            ),
+                            child: Icon(
+                              nodeIcons[idx],
+                              size: 14,
+                              color: isArrivedNode
+                                  ? const Color(0xFF059669)
+                                  : (isDoneOrActive
+                                      ? GageTheme.primary
+                                      : (isDark ? Colors.white30 : Colors.grey.shade400)),
+                            ),
                           ),
-                        ),
-                      ),
-                      // Filled progress line
-                      Positioned(
-                        top: 11,
-                        left: trackStart,
-                        width: fillWidth,
-                        child: Container(
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: trackFill,
-                            borderRadius: BorderRadius.circular(999),
+                          const SizedBox(height: 4),
+                          Text(
+                            stages[idx],
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: isCurrent
+                                  ? FontWeight.w700
+                                  : (isDoneOrActive ? FontWeight.w600 : FontWeight.w400),
+                              color: isArrivedNode
+                                  ? const Color(0xFF059669)
+                                  : (isCurrent
+                                      ? GageTheme.primary
+                                      : (isDoneOrActive
+                                          ? (isDark ? Colors.white70 : const Color(0xFF334155))
+                                          : (isDark ? Colors.white30 : Colors.grey.shade400))),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
-                      if (isFiveStage) ...[
-                        // 5-Stage Icons & Symmetrical Labels (No circular container)
-                        ...List.generate(5, (idx) {
-                          final isDoneOrActive = idx <= activeIdx;
-                          final isCurrent = idx == activeIdx;
-                          final nodeX = trackStart + (trackEnd - trackStart) * (idx / 4.0);
-
-                          return Positioned(
-                            top: 1,
-                            left: (nodeX - 24).clamp(0.0, totalWidth - 48),
-                            width: 48,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 24,
-                                  height: 24,
-                                  decoration: BoxDecoration(
-                                    color: isDoneOrActive
-                                        ? (isDark ? const Color(0xFF2B1214) : const Color(0xFFFFF1F2))
-                                        : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(
-                                      color: isDoneOrActive
-                                          ? GageTheme.primary.withValues(alpha: 0.35)
-                                          : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: Icon(
-                                    nodeIcons[idx],
-                                    size: 14,
-                                    color: isDoneOrActive
-                                        ? GageTheme.primary
-                                        : (isDark ? Colors.white30 : Colors.grey.shade400),
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  stages[idx],
-                                  textAlign: TextAlign.center,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: isCurrent
-                                        ? FontWeight.w700
-                                        : (isDoneOrActive ? FontWeight.w600 : FontWeight.w400),
-                                    color: isCurrent
-                                        ? GageTheme.primary
-                                        : (isDoneOrActive
-                                            ? (isDark ? Colors.white70 : const Color(0xFF334155))
-                                            : (isDark ? Colors.white30 : Colors.grey.shade400)),
-                                  ),
+                    );
+                  }),
+                ] else ...[
+                  // 1-Stage Compact Mode (Outer Order Card)
+                  if (widget.isDriverArrived) ...[
+                    Positioned(
+                      top: 1,
+                      right: 0,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          // Soft pulsing beacon ring
+                          Container(
+                            width: 24,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: const Color(0xFF10B981).withValues(alpha: 0.15 + (1 - t) * 0.35),
+                            ),
+                          ),
+                          // Arrived outlet icon container
+                          Container(
+                            width: 19,
+                            height: 19,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981),
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF10B981).withValues(alpha: 0.4),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 1),
                                 ),
                               ],
                             ),
-                          );
-                        }),
-                      ] else ...[
-                        // 1-Stage Compact Mode (Outer Order Card)
-                        Positioned(
-                          top: 2,
-                          right: 0,
-                          child: Icon(
-                            widget.isSearchingDriver
-                                ? Icons.search_rounded
-                                : Icons.location_on_rounded,
-                            size: 20,
-                            color: GageTheme.primary,
+                            child: Icon(
+                              _outletIcon,
+                              size: 11,
+                              color: Colors.white,
+                            ),
                           ),
-                        ),
-                      ],
-                      // Moving Icon: Red G-Rider
-                      Positioned(
-                        top: 2,
-                        left: riderCenterX - (riderWidth / 2),
-                        child: CustomPaint(
-                          size: const Size(riderWidth, riderHeight),
-                          painter: _TopDownCourierRiderPainter(
-                            accentColor: GageTheme.primary,
-                            isSearching: false,
+                          // Mini arrived check dot badge
+                          Positioned(
+                            top: 0,
+                            right: 0,
+                            child: Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Center(
+                                child: Icon(
+                                  Icons.check_circle_rounded,
+                                  size: 7,
+                                  color: Color(0xFF10B981),
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
-                    ],
-                  );
-                },
-              );
-            },
-          );
+                    ),
+                  ] else ...[
+                    Positioned(
+                      top: 2,
+                      right: 0,
+                      child: Icon(
+                        widget.isSearchingDriver
+                            ? Icons.search_rounded
+                            : Icons.location_on_rounded,
+                        size: 20,
+                        color: GageTheme.primary,
+                      ),
+                    ),
+                  ],
+                ],
+                // Moving Icon: Red G-Rider
+                Positioned(
+                  top: 2,
+                  left: riderCenterX - (riderWidth / 2),
+                  child: CustomPaint(
+                    size: const Size(riderWidth, riderHeight),
+                    painter: _TopDownCourierRiderPainter(
+                      accentColor: GageTheme.primary,
+                      isSearching: false,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
 
     if (!isFiveStage) {
       return Row(
