@@ -638,8 +638,8 @@ class _GageMerchantOutletTabState extends State<GageMerchantOutletTab> {
                               isBusy
                                   ? 'Mode Sibuk ($busyRemaining mnt tersisa)'
                                   : (isOpen
-                                      ? 'Toko Buka Menerima Pesanan'
-                                      : 'Toko Sedang Ditutup'),
+                                      ? 'Toko Buka & Aktif'
+                                      : 'Toko Sedang Tutup'),
                               style: TextStyle(
                                 fontSize: 13.5,
                                 fontWeight: FontWeight.w800,
@@ -652,7 +652,7 @@ class _GageMerchantOutletTabState extends State<GageMerchantOutletTab> {
                             Text(
                               scheduleSummary,
                               style: TextStyle(fontSize: 11.5, color: subColor),
-                              maxLines: 1,
+                              maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ],

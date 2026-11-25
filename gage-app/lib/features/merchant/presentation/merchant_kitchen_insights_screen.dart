@@ -302,7 +302,7 @@ class _MerchantKitchenInsightsScreenState
                   const SizedBox(height: 10),
                   _buildTimeSlotRow('Sore (15:00 - 18:00)', afternoon, totalSlotOrders, maxSlotCount, textColor, subColor, isDark),
                   const SizedBox(height: 10),
-                  _buildTimeSlotRow('Malam (18:00 - 22:00)', evening, totalSlotOrders, maxSlotCount, textColor, subColor, isDark),
+                  _buildTimeSlotRow('Malam (18:00 - 06:00)', evening, totalSlotOrders, maxSlotCount, textColor, subColor, isDark),
                 ],
               ),
             ),
