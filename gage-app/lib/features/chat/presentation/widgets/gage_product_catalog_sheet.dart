@@ -109,20 +109,11 @@ class GageProductCatalogSheet extends StatelessWidget {
             ),
             const SizedBox(height: 14),
 
-            // Header
+            // Header (Teks bersih tanpa kontainer bulat merah)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: GageTheme.primary.withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.storefront_rounded, color: GageTheme.primary, size: 22),
-                  ),
-                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -265,10 +256,13 @@ class GageProductCatalogSheet extends StatelessWidget {
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                             elevation: 0,
                           ),
-                          icon: const Icon(Icons.chat_bubble_outline_rounded, size: 14),
-                          label: const Text(
-                            'Tanya',
-                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                          icon: Icon(
+                            isMerchantMode ? Icons.send_rounded : Icons.chat_bubble_outline_rounded,
+                            size: 14,
+                          ),
+                          label: Text(
+                            isMerchantMode ? 'Kirim' : 'Tanya',
+                            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
                           ),
                         ),
                       ],

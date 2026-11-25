@@ -1055,6 +1055,7 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                     isSearchingDriver: false,
                     isDriverArrived: isReadyForPickup,
                     domain: order.serviceType,
+                    orderStatus: order.status,
                     labelPrefix: isReadyForPickup ? 'Pengemudi telah tiba di kios' : 'Menuju Kios',
                     labelHighlight: isReadyForPickup ? '' : ' • Est. 5 mnt',
                   ),
@@ -1073,6 +1074,7 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
               child: GageDeliveryTrackProgress(
                 isSearchingDriver: true,
                 domain: order.serviceType,
+                orderStatus: order.status,
                 labelPrefix: 'Sedang mencari kurir terdekat',
                 labelHighlight: '...',
               ),

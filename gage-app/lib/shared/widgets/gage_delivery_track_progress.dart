@@ -175,28 +175,73 @@ class _GageDeliveryTrackProgressState extends State<GageDeliveryTrackProgress>
                           ),
                         ),
                       ),
-                      // Outlet node (Food: cutlery, Shop: shopping bag, Farm: eco leaf)
-                      Positioned(
-                        left: cutleryX - (cutlerySize / 2),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 3),
-                          color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                          child: Icon(
+                      // 5-Stage Node Pin-Points (jika orderStatus diset) atau 2-Node (Cutlery + Pin)
+                      if (widget.orderStatus != null)
+                        ...List.generate(5, (idx) {
+                          final nodeIcons = [
+                            Icons.receipt_long_rounded,
                             _outletIcon,
-                            size: 16,
+                            Icons.inventory_2_rounded,
+                            Icons.two_wheeler_rounded,
+                            Icons.location_on_rounded,
+                          ];
+                          final s = (widget.orderStatus ?? '').toUpperCase();
+                          int activeIdx = 0;
+                          if (s == 'COMPLETED') {
+                            activeIdx = 4;
+                          } else if (s == 'PICKED_UP' || s == 'ON_DELIVERY') {
+                            activeIdx = 3;
+                          } else if (s == 'READY_FOR_PICKUP' || s == 'DRIVER_ASSIGNED' || s == 'AT_MERCHANT') {
+                            activeIdx = 2;
+                          } else if (s == 'COOKING' || s == 'SEARCHING_DRIVER') {
+                            activeIdx = 1;
+                          }
+                          final isActive = idx <= activeIdx;
+                          final ratio = idx / 4.0;
+                          final nodeX = trackStart + (trackEnd - trackStart) * ratio;
+
+                          return Positioned(
+                            left: (nodeX - 9).clamp(0.0, totalWidth - 18),
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                nodeIcons[idx],
+                                size: 15,
+                                color: isActive
+                                    ? GageTheme.primary
+                                    : (isDark ? Colors.white30 : Colors.grey.shade400),
+                              ),
+                            ),
+                          );
+                        })
+                      else ...[
+                        // Outlet node (Food: cutlery, Shop: shopping bag, Farm: eco leaf)
+                        Positioned(
+                          left: cutleryX - (cutlerySize / 2),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 3),
+                            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                            child: Icon(
+                              _outletIcon,
+                              size: 16,
+                              color: GageTheme.primary,
+                            ),
+                          ),
+                        ),
+                        // Destination Pin node
+                        const Positioned(
+                          right: 0,
+                          child: Icon(
+                            Icons.location_on_rounded,
+                            size: 20,
                             color: GageTheme.primary,
                           ),
                         ),
-                      ),
-                      // Destination Pin node
-                      Positioned(
-                        right: 0,
-                        child: const Icon(
-                          Icons.location_on_rounded,
-                          size: 20,
-                          color: GageTheme.primary,
-                        ),
-                      ),
+                      ],
                       // Top-down animated courier rider
                       Positioned(
                         left: riderCenterX - (riderWidth / 2),

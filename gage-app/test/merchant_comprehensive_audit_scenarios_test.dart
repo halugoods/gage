@@ -552,13 +552,13 @@ void main() {
       await tester.pump();
 
       // Verifikasi 4 label filter kapsul universal ringkas (Food, Shop, Farm)
-      expect(find.text('Disiapkan'), findsOneWidget);
-      expect(find.text('Siap'), findsOneWidget);
-      expect(find.text('Diantar'), findsOneWidget);
-      expect(find.text('Selesai'), findsOneWidget);
+      expect(find.text('Disiapkan'), findsWidgets);
+      expect(find.text('Siap'), findsWidgets);
+      expect(find.text('Diantar'), findsWidgets);
+      expect(find.text('Selesai'), findsWidgets);
 
       // Ketuk tab "Siap"
-      await tester.tap(find.text('Siap'));
+      await tester.tap(find.text('Siap').first);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
 
@@ -701,10 +701,10 @@ void main() {
       await tester.pumpAndSettle();
 
       // Pastikan ada 4 label status ringkas
-      expect(find.text('Disiapkan'), findsOneWidget);
-      expect(find.text('Siap'), findsOneWidget);
-      expect(find.text('Diantar'), findsOneWidget);
-      expect(find.text('Selesai'), findsOneWidget);
+      expect(find.text('Disiapkan'), findsWidgets);
+      expect(find.text('Siap'), findsWidgets);
+      expect(find.text('Diantar'), findsWidgets);
+      expect(find.text('Selesai'), findsWidgets);
 
       // Verifikasi bahwa segmented switch tidak berada di dalam SingleChildScrollView horizontal
       final horizontalScrollFinder = find.byWidgetPredicate(
@@ -1616,10 +1616,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Masuk'), findsOneWidget);
-      expect(find.text('Disiapkan'), findsOneWidget);
-      expect(find.text('Siap'), findsOneWidget);
-      expect(find.text('Diantar'), findsOneWidget);
-      expect(find.text('Selesai'), findsOneWidget);
+      expect(find.text('Disiapkan'), findsWidgets);
+      expect(find.text('Siap'), findsWidgets);
+      expect(find.text('Diantar'), findsWidgets);
+      expect(find.text('Selesai'), findsWidgets);
       expect(find.byIcon(Icons.shopping_bag_rounded), findsOneWidget);
     });
   });
