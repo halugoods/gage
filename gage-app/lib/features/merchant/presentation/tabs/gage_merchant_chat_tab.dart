@@ -10,8 +10,9 @@ import 'package:gage_app/features/chat/providers/in_app_chat_provider.dart';
 import 'package:gage_app/providers/merchant_order_provider.dart';
 import 'package:gage_app/shared/widgets/gage_avatar.dart';
 
-/// Tab 1: Chat Mitra Usaha GAGE (In-App Chat Hub 1:1 Paritas Customer Portal)
-/// Menghubungkan komunikasi real-time toko dengan Pusat Bantuan, Driver, dan Pelanggan.
+/// Tab 1: Chat Mitra Usaha GAGE (Paritas 1:1 dengan ChatHubScreen Customer Portal)
+/// - Segmented Capsule TabBar (Semua, Bantuan, Driver, Pelanggan) + TabBarView
+/// - WhatsApp-style clean list with hairline divider (tanpa kotak kartu per item)
 class GageMerchantChatTab extends StatefulWidget {
   const GageMerchantChatTab({super.key});
 
@@ -19,9 +20,10 @@ class GageMerchantChatTab extends StatefulWidget {
   State<GageMerchantChatTab> createState() => _GageMerchantChatTabState();
 }
 
-class _GageMerchantChatTabState extends State<GageMerchantChatTab> {
-  int _activeFilterIndex = 0;
-  final List<String> _filters = ['Semua', 'Bantuan', 'Driver', 'Pelanggan'];
+class _GageMerchantChatTabState extends State<GageMerchantChatTab>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  final List<String> _tabs = ['Semua', 'Bantuan', 'Driver', 'Pelanggan'];
 
   final List<Map<String, dynamic>> _seedChats = [
     if (GageApiClient.useDevSeedData) ...[
@@ -66,6 +68,18 @@ class _GageMerchantChatTabState extends State<GageMerchantChatTab> {
       },
     ],
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: _tabs.length, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   String _formatChatPreview(ChatMessage msg) {
     final text = msg.text.trim();
@@ -183,8 +197,11 @@ class _GageMerchantChatTabState extends State<GageMerchantChatTab> {
     return chats;
   }
 
-  List<Map<String, dynamic>> _getFilteredChats(List<Map<String, dynamic>> allChats) {
-    switch (_activeFilterIndex) {
+  List<Map<String, dynamic>> _filterChats(
+    List<Map<String, dynamic>> allChats,
+    int tabIdx,
+  ) {
+    switch (tabIdx) {
       case 1:
         return allChats.where((c) => c['category'] == 'support').toList();
       case 2:
@@ -210,75 +227,70 @@ class _GageMerchantChatTabState extends State<GageMerchantChatTab> {
     } catch (_) {}
 
     final allChats = _buildAllChats(orderProv, chatProv);
-    final filtered = _getFilteredChats(allChats);
 
-    return Column(
-      children: [
-        // Filter Pills Kapsul Penuh (BorderRadius.circular(999))
-        Container(
-          color: isDark ? GageTheme.darkSurface : Colors.white,
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-          child: SizedBox(
-            height: 38,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: _filters.length,
-              separatorBuilder: (context, index) => const SizedBox(width: 8),
-              itemBuilder: (context, idx) {
-                final isSelected = _activeFilterIndex == idx;
-                return GestureDetector(
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    setState(() => _activeFilterIndex = idx);
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? GageTheme.primary
-                          : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9)),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
-                        color: isSelected
-                            ? GageTheme.primary
-                            : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-                        width: 1,
-                      ),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      _filters[idx],
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                        color: isSelected
-                            ? Colors.white
-                            : (isDark ? Colors.white70 : const Color(0xFF475569)),
-                      ),
-                    ),
-                  ),
-                );
-              },
+    return Container(
+      color: isDark ? GageTheme.darkBackground : Colors.white,
+      child: Column(
+        children: [
+          // Segmented Capsule TabBar (Paritas 1:1 ChatHubScreen Customer)
+          Container(
+            color: isDark ? GageTheme.darkSurface : Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            child: Container(
+              height: 38,
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: TabBar(
+                controller: _tabController,
+                onTap: (_) => HapticFeedback.selectionClick(),
+                indicator: BoxDecoration(
+                  color: GageTheme.primary,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                indicatorSize: TabBarIndicatorSize.tab,
+                dividerColor: Colors.transparent,
+                labelColor: Colors.white,
+                unselectedLabelColor: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5),
+                tabs: _tabs.map((t) => Tab(text: t)).toList(),
+              ),
             ),
           ),
-        ),
 
-        // List Percakapan Chat
-        Expanded(
-          child: filtered.isEmpty
-              ? _buildEmptyState(isDark)
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 96),
-                  itemCount: filtered.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 8),
+          // WhatsApp-Style Pure Clean Chat List with Hairline Divider
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: List.generate(_tabs.length, (idx) {
+                final chats = _filterChats(allChats, idx);
+                if (chats.isEmpty) {
+                  return _buildEmptyState(isDark);
+                }
+
+                return ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(0, 4, 0, 96),
+                  itemCount: chats.length,
+                  separatorBuilder: (context, index) => Padding(
+                    padding: const EdgeInsets.only(left: 74, right: 16),
+                    child: Divider(
+                      height: 1,
+                      thickness: 0.6,
+                      color: isDark ? Colors.white10 : Colors.grey.shade200,
+                    ),
+                  ),
                   itemBuilder: (context, index) {
-                    final chat = filtered[index];
-                    return _buildChatRow(context, chat, isDark);
+                    return _buildChatRow(context, chats[index], isDark);
                   },
-                ),
-        ),
-      ],
+                );
+              }),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -286,173 +298,170 @@ class _GageMerchantChatTabState extends State<GageMerchantChatTab> {
     final unread = (chat['unread'] as int?) ?? 0;
     final isOnline = chat['isOnline'] == true;
     final role = (chat['role'] as String?) ?? 'customer';
+    final category = (chat['category'] as String?) ?? '';
     final displayName = (chat['name'] ?? 'Pengguna GAGE').toString();
     final avatarUrl = chat['avatar']?.toString();
 
-    String roleBadge = 'Pelanggan';
-    Color roleBadgeColor = const Color(0xFF0284C7);
-    if (role == 'driver') {
-      roleBadge = 'Driver';
-      roleBadgeColor = GageTheme.primary;
-    } else if (role == 'support' || role == 'admin') {
-      roleBadge = 'Bantuan';
-      roleBadgeColor = const Color(0xFF16A34A);
-    }
-
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-          width: 1,
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            HapticFeedback.lightImpact();
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => InAppChatScreen(
-                  recipientName: displayName,
-                  recipientRole: role,
-                  orderId: (chat['orderId'] ?? '').toString(),
-                  recipientPhone: (chat['phone'] ?? '').toString(),
-                  recipientAvatar: avatarUrl,
-                  currentRole: 'merchant',
-                ),
-              ),
-            );
-          },
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
+    return InkWell(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => InAppChatScreen(
+              recipientName: displayName,
+              recipientRole: role,
+              orderId: (chat['orderId'] ?? '').toString(),
+              recipientPhone: (chat['phone'] ?? '').toString(),
+              recipientAvatar: avatarUrl,
+              currentRole: 'merchant',
+            ),
+          ),
+        );
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            // Round Avatar + Online Dot
+            Stack(
+              clipBehavior: Clip.none,
               children: [
-                // Avatar dengan GageAvatar & indikator online
-                Stack(
-                  children: [
-                    GageAvatar(
-                      imageUrl: avatarUrl,
-                      fallbackName: displayName,
-                      radius: 24,
-                    ),
-                    if (isOnline)
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF22C55E),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                              width: 2,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
+                GageAvatar(
+                  imageUrl: avatarUrl,
+                  fallbackName: displayName,
+                  radius: 24,
                 ),
-                const SizedBox(width: 12),
-
-                // Nama & Cuplikan Pesan
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              displayName,
-                              style: TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: unread > 0 ? FontWeight.w700 : FontWeight.w600,
-                                color: isDark ? Colors.white : const Color(0xFF0F172A),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                            decoration: BoxDecoration(
-                              color: roleBadgeColor.withValues(alpha: isDark ? 0.25 : 0.12),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              roleBadge,
-                              style: TextStyle(
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w700,
-                                color: roleBadgeColor,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        (chat['lastMessage'] ?? '').toString(),
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: unread > 0 ? FontWeight.w600 : FontWeight.w400,
-                          color: isDark
-                              ? (unread > 0 ? Colors.white : Colors.white60)
-                              : (unread > 0 ? const Color(0xFF0F172A) : Colors.grey.shade600),
+                if (isOnline)
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF16A34A),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isDark ? GageTheme.darkSurface : Colors.white,
+                          width: 2,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(width: 14),
+
+            // Name & Last Message
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                displayName,
+                                style: TextStyle(
+                                  fontWeight: unread > 0 ? FontWeight.w800 : FontWeight.bold,
+                                  fontSize: 14,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (category == 'driver' || category == 'customer') ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                decoration: BoxDecoration(
+                                  color: category == 'driver'
+                                      ? (isDark ? GageTheme.primary.withValues(alpha: 0.15) : const Color(0xFFFEE2E2))
+                                      : (isDark ? Colors.blue.withValues(alpha: 0.15) : const Color(0xFFE0F2FE)),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  category == 'driver' ? 'Driver' : 'Pelanggan',
+                                  style: TextStyle(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.2,
+                                    color: category == 'driver'
+                                        ? GageTheme.primary
+                                        : (isDark ? Colors.blue.shade200 : const Color(0xFF0369A1)),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      Text(
+                        (chat['time'] ?? '').toString(),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: unread > 0 ? GageTheme.primary : (isDark ? Colors.white60 : Colors.grey.shade500),
+                          fontWeight: unread > 0 ? FontWeight.w800 : FontWeight.normal,
+                        ),
                       ),
                     ],
                   ),
-                ),
-
-                const SizedBox(width: 8),
-
-                // Waktu & Unread Counter
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      (chat['time'] ?? '').toString(),
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: unread > 0 ? FontWeight.w700 : FontWeight.w500,
-                        color: unread > 0 ? GageTheme.primary : Colors.grey.shade500,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    if (unread > 0)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: GageTheme.primary,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Expanded(
                         child: Text(
-                          '$unread',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
+                          (chat['lastMessage'] ?? '').toString(),
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: unread > 0
+                                ? (isDark ? Colors.grey.shade100 : const Color(0xFF0F172A))
+                                : (isDark ? Colors.grey.shade400 : const Color(0xFF64748B)),
+                            fontWeight: unread > 0 ? FontWeight.w600 : FontWeight.normal,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (unread > 0)
+                        Container(
+                          margin: const EdgeInsets.only(left: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: GageTheme.primary,
+                            borderRadius: BorderRadius.circular(999),
+                            boxShadow: [
+                              BoxShadow(
+                                color: GageTheme.primary.withValues(alpha: 0.25),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                          child: Text(
+                            '$unread',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w900,
+                              height: 1.0,
+                            ),
                           ),
                         ),
-                      )
-                    else
-                      const SizedBox(height: 16),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -463,19 +472,20 @@ class _GageMerchantChatTabState extends State<GageMerchantChatTab> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.chat_bubble_outline_rounded,
-            size: 56,
-            color: isDark ? Colors.white24 : Colors.grey.shade300,
-          ),
+          Icon(Icons.chat_bubble_outline_rounded, size: 48, color: Colors.grey.shade400),
           const SizedBox(height: 12),
           Text(
-            'Belum ada percakapan di kategori ini',
+            'Belum Ada Percakapan',
             style: TextStyle(
-              fontSize: 13.5,
-              fontWeight: FontWeight.w600,
-              color: isDark ? Colors.white60 : Colors.grey.shade600,
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black87,
             ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Pesan pada kategori ini akan tersimpan di sini.',
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
           ),
         ],
       ),
