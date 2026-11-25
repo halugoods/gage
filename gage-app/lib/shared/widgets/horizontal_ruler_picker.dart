@@ -10,6 +10,8 @@ class HorizontalRulerPicker extends StatefulWidget {
   final int minValue;
   final int maxValue;
   final int step; // Default kelipatan: Rp 5.000
+  final int majorInterval;
+  final int mediumInterval;
   final ValueChanged<int> onChanged;
   final Color activeColor;
 
@@ -19,6 +21,8 @@ class HorizontalRulerPicker extends StatefulWidget {
     this.minValue = 5000,
     this.maxValue = 10000000, // Fleksibel hingga Rp 10.000.000+
     this.step = 5000,
+    this.majorInterval = 50000,
+    this.mediumInterval = 25000,
     required this.onChanged,
     this.activeColor = const Color(0xFFE52320),
   });
@@ -120,10 +124,8 @@ class _HorizontalRulerPickerState extends State<HorizontalRulerPicker> {
                   itemCount: _totalSteps,
                   itemBuilder: (context, index) {
                     final value = widget.minValue + (index * widget.step);
-                    // Setiap kelipatan 50.000 adalah garis panjang (major tick)
-                    final isMajor = (value % 50000) == 0;
-                    // Setiap kelipatan 25.000 adalah garis sedang
-                    final isMedium = (value % 25000) == 0;
+                    final isMajor = widget.majorInterval > 0 && (value % widget.majorInterval) == 0;
+                    final isMedium = widget.mediumInterval > 0 && (value % widget.mediumInterval) == 0;
 
                     final tickHeight = isMajor ? 32.0 : (isMedium ? 22.0 : 14.0);
                     final tickWidth = isMajor ? 2.0 : 1.2;

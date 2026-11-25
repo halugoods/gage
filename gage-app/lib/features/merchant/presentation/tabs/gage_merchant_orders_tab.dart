@@ -3,10 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
-import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_order_detail_screen.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_thermal_receipt_sheet.dart';
 import 'package:gage_app/providers/merchant_order_provider.dart';
+import 'package:gage_app/shared/widgets/gage_delivery_track_progress.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 
@@ -823,39 +823,9 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
 
           const SizedBox(height: 14),
 
-          // Baris 6: Tombol Aksi Ergonomis
+          // Baris 6: Tombol Aksi Ergonomis (Tanpa Chat Pembeli di Kartu Luar - Paritas Gambar 2)
           Row(
             children: [
-              // Tombol Chat Pelanggan
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  shape: const StadiumBorder(),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  side: BorderSide(
-                    color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
-                  ),
-                ),
-                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
-                label: const Text('Chat Pembeli', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => InAppChatScreen(
-                        recipientName: order.customerName ?? 'Pelanggan GAGE',
-                        recipientRole: 'customer',
-                        orderId: order.orderNumber,
-                        recipientPhone: order.customerPhone ?? '',
-                        currentRole: 'merchant',
-                      ),
-                    ),
-                  );
-                },
-              ),
-
-              const SizedBox(width: 8),
-
               // Tombol Tolak jika masih baru
               if (order.status == 'NEW' || order.status == 'PAID') ...[
                 OutlinedButton(
@@ -863,7 +833,7 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                     foregroundColor: const Color(0xFFDC2626),
                     side: const BorderSide(color: Color(0xFFFCA5A5)),
                     shape: const StadiumBorder(),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   ),
                   onPressed: () => _showRejectOrderDialog(context, order),
                   child: const Text('Tolak', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
@@ -1026,133 +996,87 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
               ),
             ],
           ),
-          // Baris 7: Driver Dock (Kapsul Full-Rounded Tanpa Border Solid + Animasi Menuju Kios)
+          // Baris 7: Delivery Track Progress & Info Armada (Paritas Gambar 1)
           if (order.hasAssignedDriver) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: GageTheme.primary.withValues(alpha: isDark ? 0.16 : 0.08),
-                borderRadius: BorderRadius.circular(999),
+                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFFFF8F6),
+                borderRadius: BorderRadius.circular(16),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: GageTheme.primary,
-                        width: 1.5,
+                  Row(
+                    children: [
+                      Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: GageTheme.primary,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: ClipOval(
+                          child: order.driverAvatar != null && order.driverAvatar!.isNotEmpty
+                              ? Image.network(
+                                  order.driverAvatar!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) => const Icon(
+                                    Icons.two_wheeler_rounded,
+                                    size: 16,
+                                    color: GageTheme.primary,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.two_wheeler_rounded,
+                                  size: 16,
+                                  color: GageTheme.primary,
+                                ),
+                        ),
                       ),
-                    ),
-                    child: ClipOval(
-                      child: order.driverAvatar != null && order.driverAvatar!.isNotEmpty
-                          ? Image.network(
-                              order.driverAvatar!,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) => const Icon(
-                                Icons.two_wheeler_rounded,
-                                size: 16,
-                                color: GageTheme.primary,
-                              ),
-                            )
-                          : const Icon(
-                              Icons.two_wheeler_rounded,
-                              size: 16,
-                              color: GageTheme.primary,
-                            ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          order.driverName ?? 'Driver GAGE',
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${order.driverName ?? "Driver GAGE"} • ${order.driverPlate ?? "Plat Terverifikasi"}',
                           style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
                             color: isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        Text(
-                          '${order.driverVehicle ?? "Kurir G-Ride"} • ${order.driverPlate ?? "Plat Terverifikasi"}',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: isDark ? Colors.white60 : Colors.grey.shade600,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 6),
-                  // Animasi Live "Menuju Kios"
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF0F172A) : Colors.white,
-                      borderRadius: BorderRadius.circular(999),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
-                          blurRadius: 4,
-                          offset: const Offset(0, 1),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _LivePulsingDot(color: GageTheme.primary),
-                        const SizedBox(width: 5),
-                        const Text(
-                          'Menuju Kios',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            color: GageTheme.primary,
-                          ),
-                        ),
-                      ],
-                    ),
+                  const SizedBox(height: 10),
+                  GageDeliveryTrackProgress(
+                    isSearchingDriver: false,
+                    isDriverArrived: isReadyForPickup,
+                    labelPrefix: isReadyForPickup ? 'Pengemudi telah tiba di kios' : 'Menuju Kios',
+                    labelHighlight: isReadyForPickup ? '' : ' • Est. 5 mnt',
                   ),
                 ],
               ),
             ),
           ] else if (!order.isPickup && (isCooking || isReadyForPickup)) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFFFF1F2),
-                borderRadius: BorderRadius.circular(999),
+                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFFFF1F2),
+                borderRadius: BorderRadius.circular(16),
               ),
-              child: Row(
-                children: [
-                  const _LivePulsingRadarIcon(),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Sedang mencari kurir terdekat...',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFFE11D48),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
+              child: const GageDeliveryTrackProgress(
+                isSearchingDriver: true,
+                labelPrefix: 'Sedang mencari kurir terdekat',
+                labelHighlight: '...',
               ),
             ),
           ],

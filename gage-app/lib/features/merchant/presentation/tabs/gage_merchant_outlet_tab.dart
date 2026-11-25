@@ -8,6 +8,7 @@ import 'package:gage_app/features/merchant/presentation/merchant_menu_screen.dar
 import 'package:gage_app/features/merchant/presentation/merchant_profile_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_review_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_kitchen_insights_screen.dart';
+import 'package:gage_app/features/merchant/presentation/widgets/merchant_branch_switcher_sheet.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_printer_settings_sheet.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_support_sheet.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/operating_schedule_editor_sheet.dart';
@@ -112,33 +113,7 @@ class GageMerchantOutletTab extends StatelessWidget {
 
   void _showBranchSwitcherDialog(BuildContext context, bool isDark) {
     HapticFeedback.lightImpact();
-    GageFloatingSheet.show(
-      context: context,
-      title: 'Pilih Cabang Outlet',
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const CircleAvatar(
-                backgroundColor: Color(0xFFFEE2E2),
-                child: Icon(Icons.storefront_rounded, color: GageTheme.primary),
-              ),
-              title: const Text('Dimsum Sewu, Alfamidi', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
-              subtitle: const Text('Jl. Raya Pracimantoro No. 12', style: TextStyle(fontSize: 11.5)),
-              trailing: const Icon(Icons.check_circle_rounded, color: GageTheme.primary),
-              onTap: () {
-                Navigator.pop(ctx);
-                GageToast.show(context, 'Outlet aktif: Dimsum Sewu, Alfamidi');
-              },
-            ),
-            const SizedBox(height: 10),
-          ],
-        ),
-      ),
-    );
+    MerchantBranchSwitcherSheet.show(context);
   }
 
   void _showMdrInfoSheet(BuildContext context, bool isDark) {
@@ -281,7 +256,7 @@ class GageMerchantOutletTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Header Outlet Switcher (Cabang Aktif)
+          // 1. Header Outlet Switcher (Cabang Aktif Tersinkronisasi)
           InkWell(
             onTap: () => _showBranchSwitcherDialog(context, isDark),
             borderRadius: BorderRadius.circular(12),
@@ -290,12 +265,16 @@ class GageMerchantOutletTab extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    'Dimsum Sewu, Alfamidi',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w900,
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  Flexible(
+                    child: Text(
+                      provider.activeBranchName,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   const SizedBox(width: 6),

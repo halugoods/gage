@@ -9,6 +9,7 @@ import 'package:gage_app/features/merchant/presentation/tabs/gage_merchant_chat_
 import 'package:gage_app/features/merchant/presentation/tabs/gage_merchant_marketing_tab.dart';
 import 'package:gage_app/features/merchant/presentation/tabs/gage_merchant_orders_tab.dart';
 import 'package:gage_app/features/merchant/presentation/tabs/gage_merchant_outlet_tab.dart';
+import 'package:gage_app/features/merchant/presentation/widgets/merchant_branch_switcher_sheet.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_floating_nav_bar.dart';
 import 'package:gage_app/features/wallet/presentation/gagepay_screen.dart';
 import 'package:gage_app/features/notification/presentation/notification_screen.dart';
@@ -49,7 +50,9 @@ class _MerchantRootScreenState extends State<MerchantRootScreen> {
     super.initState();
     _currentIndex = widget.initialTabIndex;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<MerchantOrderProvider>().fetchOrders();
+      final provider = context.read<MerchantOrderProvider>();
+      provider.fetchOrders();
+      provider.loadBranches();
     });
   }
 
@@ -154,23 +157,33 @@ class _MerchantRootScreenState extends State<MerchantRootScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        'Dimsum Sewu Pracimantoro',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 14.5,
-                          letterSpacing: -0.2,
+                InkWell(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    MerchantBranchSwitcherSheet.show(context);
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          merchant.activeBranchName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                            letterSpacing: -0.2,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    SizedBox(width: 6),
-                    GageMerchantTierBadge(tier: 'star', height: 16),
-                  ],
+                      const SizedBox(width: 4),
+                      const Icon(Icons.keyboard_arrow_down_rounded, size: 16),
+                      const SizedBox(width: 4),
+                      const GageMerchantTierBadge(tier: 'star', height: 15),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 2),
 

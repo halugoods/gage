@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/data/mock/gage_voucher_data.dart';
+import 'package:gage_app/features/running/services/gfit_service.dart';
 import 'package:gage_app/providers/cart_provider.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
@@ -55,6 +56,7 @@ class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with Si
         setState(() => _selectedTabIndex = _tabController.index);
       }
     });
+    GFitService.loadUnlockedVoucherCodes();
   }
 
   @override
@@ -435,51 +437,54 @@ class _VoucherSelectionScreenState extends State<VoucherSelectionScreen> with Si
 
           // 3. TabBarView dengan List Tiket Voucher Sesuai Layanan
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: List.generate(_tabs.length, (tabIdx) {
-                final list = _getVouchersForTab(tabIdx);
+            child: ValueListenableBuilder<Set<String>>(
+              valueListenable: GFitService.unlockedVouchersNotifier,
+              builder: (context, _, _) => TabBarView(
+                controller: _tabController,
+                children: List.generate(_tabs.length, (tabIdx) {
+                  final list = _getVouchersForTab(tabIdx);
 
-                if (list.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.confirmation_number_outlined, size: 48, color: Colors.grey.withValues(alpha: 0.35)),
-                        const SizedBox(height: 10),
-                        Text(
-                          'Tidak ada voucher ${_resolveServiceType()} untuk kategori ini.',
-                          style: TextStyle(color: isDark ? Colors.white60 : Colors.grey.shade600, fontSize: 13),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                return ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 30),
-                  itemCount: list.length,
-                  itemBuilder: (ctx, idx) {
-                    final v = list[idx];
-                    final isTransport = _isTransportService(_resolveServiceType());
-                    final isApplied = isTransport
-                        ? _transportAppliedCode == v['code']
-                        : (cart.deliveryPromoCode == v['code'] || cart.foodPromoCode == v['code']);
-                    final activeAmount = _resolveOrderAmount(cart);
-                    final isEligible = isApplied || GageVoucherData.isVoucherEligible(v, activeAmount);
-                    final reason = isApplied ? null : GageVoucherData.ineligibilityReason(v, activeAmount);
-
-                    return GageTicketVoucherCard(
-                      voucher: v,
-                      isApplied: isApplied,
-                      isEligible: isEligible,
-                      ineligibilityReason: reason,
-                      onApply: () => _onApplyVoucher(v, cart),
-                      onTermsTap: () => _showVoucherTerms(context, v),
+                  if (list.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.confirmation_number_outlined, size: 48, color: Colors.grey.withValues(alpha: 0.35)),
+                          const SizedBox(height: 10),
+                          Text(
+                            'Tidak ada voucher ${_resolveServiceType()} untuk kategori ini.',
+                            style: TextStyle(color: isDark ? Colors.white60 : Colors.grey.shade600, fontSize: 13),
+                          ),
+                        ],
+                      ),
                     );
-                  },
-                );
-              }),
+                  }
+
+                  return ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 30),
+                    itemCount: list.length,
+                    itemBuilder: (ctx, idx) {
+                      final v = list[idx];
+                      final isTransport = _isTransportService(_resolveServiceType());
+                      final isApplied = isTransport
+                          ? _transportAppliedCode == v['code']
+                          : (cart.deliveryPromoCode == v['code'] || cart.foodPromoCode == v['code']);
+                      final activeAmount = _resolveOrderAmount(cart);
+                      final isEligible = isApplied || GageVoucherData.isVoucherEligible(v, activeAmount);
+                      final reason = isApplied ? null : GageVoucherData.ineligibilityReason(v, activeAmount);
+
+                      return GageTicketVoucherCard(
+                        voucher: v,
+                        isApplied: isApplied,
+                        isEligible: isEligible,
+                        ineligibilityReason: reason,
+                        onApply: () => _onApplyVoucher(v, cart),
+                        onTermsTap: () => _showVoucherTerms(context, v),
+                      );
+                    },
+                  );
+                }),
+              ),
             ),
           ),
         ],

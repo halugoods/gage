@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/services/notification_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/features/chat/domain/chat_message.dart';
+import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
+import 'package:gage_app/features/chat/providers/in_app_chat_provider.dart';
+import 'package:gage_app/providers/order_provider.dart';
 import 'package:gage_app/shared/widgets/gage_avatar.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
-import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
 
 class ChatHubScreen extends StatefulWidget {
   const ChatHubScreen({super.key});
@@ -16,26 +21,13 @@ class ChatHubScreen extends StatefulWidget {
 
 class _ChatHubScreenState extends State<ChatHubScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final List<String> _tabs = ['Semua', 'Bantuan AI', 'Driver', 'Toko'];
+  final List<String> _tabs = ['Semua', 'Bantuan', 'Driver', 'Toko'];
 
-  final List<Map<String, dynamic>> _allChats = [
-    {
-      'id': 'chat-ai-01',
-      'name': 'Gage AI Assistant (24/7)',
-      'role': 'ai',
-      'lastMessage': 'Halo! Ada yang bisa saya bantu terkait pesanan atau layanan GAGE hari ini?',
-      'time': 'Aktif',
-      'unread': 0,
-      'isOnline': true,
-      'phone': '',
-      'orderId': 'AI-SUPPORT',
-      'category': 'ai',
-      'avatar': 'assets/images/gage_chat_icon.png',
-    },
+  final List<Map<String, dynamic>> _seedChats = [
     if (GageApiClient.useDevSeedData) ...[
       {
         'id': 'chat-driver-01',
-        'name': 'Budi Santoso (Driver GAGE)',
+        'name': 'Budi Santoso',
         'role': 'driver',
         'lastMessage': 'Siap kak, makanan sudah saya ambil dari resto ya.',
         'time': '10:35',
@@ -44,7 +36,7 @@ class _ChatHubScreenState extends State<ChatHubScreen> with SingleTickerProvider
         'phone': '081398765432',
         'orderId': '8821',
         'category': 'driver',
-        'avatar': 'assets/images/gage_chat_icon.png',
+        'avatar': null,
       },
       {
         'id': 'chat-store-01',
@@ -87,23 +79,167 @@ class _ChatHubScreenState extends State<ChatHubScreen> with SingleTickerProvider
     super.dispose();
   }
 
-  List<Map<String, dynamic>> _filterChats(int tabIdx) {
+  String _formatChatPreview(ChatMessage msg) {
+    final text = msg.text.trim();
+    if (text.isNotEmpty) return text;
+    if (msg.isImage) return 'Mengirim foto';
+    if (msg.isVoice) return 'Pesan suara';
+    return 'Pesan baru';
+  }
+
+  List<Map<String, dynamic>> _buildChats(
+    OrderProvider? orderProv,
+    InAppChatProvider? chatProv,
+  ) {
+    final chats = <Map<String, dynamic>>[];
+
+    final supportMsgs = chatProv?.getMessages('cs-gage-support') ?? const [];
+    final supportLast = supportMsgs.isNotEmpty
+        ? _formatChatPreview(supportMsgs.last)
+        : 'Halo! Ada yang bisa kami bantu terkait pesanan atau layanan GAGE hari ini?';
+    final supportTime = supportMsgs.isNotEmpty
+        ? DateFormat('HH:mm').format(supportMsgs.last.timestamp)
+        : 'Aktif';
+
+    chats.add({
+      'id': 'chat-cs-01',
+      'name': 'Pusat Bantuan',
+      'role': 'support',
+      'lastMessage': supportLast,
+      'time': supportTime,
+      'unread': 0,
+      'isOnline': true,
+      'phone': '',
+      'orderId': 'cs-gage-support',
+      'category': 'support',
+      'avatar': 'assets/images/gage_icon.png',
+    });
+
+    final seenKeys = <String>{};
+    if (orderProv != null) {
+      final allOrders = [...orderProv.activeOrders, ...orderProv.orderHistory];
+      for (final order in allOrders) {
+        final shortOrd = order.orderNumber.trim().isNotEmpty
+            ? order.orderNumber.trim().split('/').last
+            : order.id;
+        if (order.hasAssignedDriver) {
+          final cleanDriver = InAppChatScreen.cleanDisplayName(
+            order.driverName ?? 'Driver',
+            role: 'driver',
+          );
+          final key = 'driver:${order.id}';
+          if (seenKeys.add(key)) {
+            final msgs = chatProv?.getMessages(order.id) ?? const [];
+            final lastMsg = msgs.isNotEmpty
+                ? _formatChatPreview(msgs.last)
+                : 'Pesanan #$shortOrd • Chat dengan $cleanDriver';
+            final timeStr = msgs.isNotEmpty
+                ? DateFormat('HH:mm').format(msgs.last.timestamp)
+                : DateFormat('HH:mm').format(
+                    DateTime.fromMillisecondsSinceEpoch(order.createdAt),
+                  );
+            chats.add({
+              'id': 'order-driver-${order.id}',
+              'name': cleanDriver,
+              'role': 'driver',
+              'lastMessage': lastMsg,
+              'time': timeStr,
+              'unread': 0,
+              'isOnline': order.isActive,
+              'phone': order.driverPhone ?? '',
+              'orderId': order.id,
+              'category': 'driver',
+              'avatar': order.driverAvatar,
+            });
+          }
+        }
+        if (!order.isTransportService && order.merchantName.trim().isNotEmpty) {
+          final storeKey = 'store:${order.merchantName.trim().toLowerCase()}';
+          if (seenKeys.add(storeKey)) {
+            final msgs = chatProv?.getMessages(order.id) ?? const [];
+            final lastMsg = msgs.isNotEmpty
+                ? _formatChatPreview(msgs.last)
+                : 'Pesanan #$shortOrd • ${order.statusLabel}';
+            final timeStr = msgs.isNotEmpty
+                ? DateFormat('HH:mm').format(msgs.last.timestamp)
+                : DateFormat('HH:mm').format(
+                    DateTime.fromMillisecondsSinceEpoch(order.createdAt),
+                  );
+            chats.add({
+              'id': 'order-store-${order.id}',
+              'name': order.merchantName.trim(),
+              'role': 'merchant',
+              'lastMessage': lastMsg,
+              'time': timeStr,
+              'unread': 0,
+              'isOnline': order.isActive,
+              'phone': order.merchantPhone ?? '',
+              'orderId': order.id,
+              'category': 'store',
+              'avatar': order.resolveMerchantAvatarAsset(),
+            });
+          }
+        }
+      }
+    }
+
+    if (GageApiClient.useDevSeedData) {
+      for (final seed in _seedChats) {
+        final cat = seed['category'] as String? ?? '';
+        final orderId = seed['orderId'] as String? ?? '';
+        final name = (seed['name'] as String? ?? '').trim().toLowerCase();
+        final dupDriver = cat == 'driver' && seenKeys.contains('driver:$orderId');
+        final dupStore = cat == 'store' && seenKeys.contains('store:$name');
+        if (!dupDriver && !dupStore) {
+          final msgs = chatProv?.getMessages(orderId) ?? const [];
+          if (msgs.isNotEmpty) {
+            chats.add({
+              ...seed,
+              'lastMessage': _formatChatPreview(msgs.last),
+              'time': DateFormat('HH:mm').format(msgs.last.timestamp),
+            });
+          } else {
+            chats.add(seed);
+          }
+        }
+      }
+    }
+    return chats;
+  }
+
+  List<Map<String, dynamic>> _filterChats(
+    List<Map<String, dynamic>> allChats,
+    int tabIdx,
+  ) {
     switch (tabIdx) {
       case 1:
-        return _allChats.where((c) => c['category'] == 'ai').toList();
+        return allChats.where((c) => c['category'] == 'support').toList();
       case 2:
-        return _allChats.where((c) => c['category'] == 'driver').toList();
+        return allChats.where((c) => c['category'] == 'driver').toList();
       case 3:
-        return _allChats.where((c) => c['category'] == 'store').toList();
+        return allChats.where((c) => c['category'] == 'store').toList();
       case 0:
       default:
-        return _allChats;
+        return allChats;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    OrderProvider? orderProv;
+    try {
+      orderProv = context.watch<OrderProvider>();
+    } catch (_) {
+      orderProv = null;
+    }
+    InAppChatProvider? chatProv;
+    try {
+      chatProv = context.watch<InAppChatProvider>();
+    } catch (_) {
+      chatProv = null;
+    }
+    final allChats = _buildChats(orderProv, chatProv);
 
     return Scaffold(
       backgroundColor: isDark ? GageTheme.darkBackground : Colors.white,
@@ -180,7 +316,7 @@ class _ChatHubScreenState extends State<ChatHubScreen> with SingleTickerProvider
       body: TabBarView(
             controller: _tabController,
             children: List.generate(_tabs.length, (idx) {
-              final chats = _filterChats(idx);
+              final chats = _filterChats(allChats, idx);
 
               if (chats.isEmpty) {
                 return Center(
@@ -222,7 +358,12 @@ class _ChatHubScreenState extends State<ChatHubScreen> with SingleTickerProvider
                 itemBuilder: (ctx, itemIdx) {
                   final chat = chats[itemIdx];
                   final chatId = (chat['id'] as String?) ?? '';
-                  final avatarPath = chat['avatar'] as String? ?? 'assets/images/gage_chat_icon.png';
+                  final rawAvatar = chat['avatar'] as String?;
+                  final avatarPath =
+                      (rawAvatar != null && rawAvatar.trim().isNotEmpty)
+                          ? rawAvatar.trim()
+                          : null;
+                  final category = (chat['category'] as String?) ?? '';
 
                   return AnimatedBuilder(
                     animation: NotificationService.instance,
@@ -239,6 +380,7 @@ class _ChatHubScreenState extends State<ChatHubScreen> with SingleTickerProvider
                             recipientName: chat['name'] ?? 'Driver',
                             recipientRole: chat['role'] ?? 'driver',
                             recipientPhone: chat['phone'] ?? '',
+                            recipientAvatar: avatarPath,
                             currentRole: 'customer',
                           ),
                         ),
@@ -301,35 +443,29 @@ class _ChatHubScreenState extends State<ChatHubScreen> with SingleTickerProvider
                                               overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
-                                          const SizedBox(width: 6),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                                            decoration: BoxDecoration(
-                                              color: (chat['category'] == 'ai')
-                                                  ? (isDark ? Colors.purple.withValues(alpha: 0.15) : const Color(0xFFF3E8FF))
-                                                  : (chat['category'] == 'driver')
-                                                      ? (isDark ? GageTheme.primary.withValues(alpha: 0.15) : const Color(0xFFFEE2E2))
-                                                      : (isDark ? Colors.blue.withValues(alpha: 0.15) : const Color(0xFFE0F2FE)),
-                                              borderRadius: BorderRadius.circular(999),
-                                            ),
-                                            child: Text(
-                                              (chat['category'] == 'ai')
-                                                  ? 'AI 24/7'
-                                                  : (chat['category'] == 'driver')
-                                                      ? 'Driver'
-                                                      : 'Toko',
-                                              style: TextStyle(
-                                                fontSize: 9.5,
-                                                fontWeight: FontWeight.w800,
-                                                letterSpacing: 0.2,
-                                                color: (chat['category'] == 'ai')
-                                                    ? (isDark ? Colors.purple.shade200 : const Color(0xFF7E22CE))
-                                                    : (chat['category'] == 'driver')
-                                                        ? GageTheme.primary
-                                                        : (isDark ? Colors.blue.shade200 : const Color(0xFF0369A1)),
+                                          if (category == 'driver' || category == 'store') ...[
+                                            const SizedBox(width: 6),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                              decoration: BoxDecoration(
+                                                color: category == 'driver'
+                                                    ? (isDark ? GageTheme.primary.withValues(alpha: 0.15) : const Color(0xFFFEE2E2))
+                                                    : (isDark ? Colors.blue.withValues(alpha: 0.15) : const Color(0xFFE0F2FE)),
+                                                borderRadius: BorderRadius.circular(999),
+                                              ),
+                                              child: Text(
+                                                category == 'driver' ? 'Driver' : 'Toko',
+                                                style: TextStyle(
+                                                  fontSize: 9.5,
+                                                  fontWeight: FontWeight.w800,
+                                                  letterSpacing: 0.2,
+                                                  color: category == 'driver'
+                                                      ? GageTheme.primary
+                                                      : (isDark ? Colors.blue.shade200 : const Color(0xFF0369A1)),
+                                                ),
                                               ),
                                             ),
-                                          ),
+                                          ],
                                         ],
                                       ),
                                     ),

@@ -19,8 +19,9 @@ import 'package:gage_app/shared/widgets/gage_toast.dart';
 class InAppChatScreen extends StatefulWidget {
   final String orderId;
   final String recipientName;
-  final String recipientRole; // 'customer' | 'merchant' | 'driver' | 'ai'
+  final String recipientRole; // 'customer' | 'merchant' | 'driver' | 'support' | 'admin'
   final String recipientPhone;
+  final String? recipientAvatar;
   final String currentRole; // 'driver' | 'merchant' | 'customer'
 
   const InAppChatScreen({
@@ -29,8 +30,47 @@ class InAppChatScreen extends StatefulWidget {
     required this.recipientName,
     required this.recipientRole,
     required this.recipientPhone,
+    this.recipientAvatar,
     this.currentRole = 'customer',
   });
+
+  static bool isSupportRole(String role) {
+    final lower = role.trim().toLowerCase();
+    return lower == 'ai' || lower == 'support' || lower == 'admin';
+  }
+
+  static bool isSupportOrderId(String orderId) {
+    final clean = orderId.trim();
+    return clean.isEmpty ||
+        clean == 'AI-SUPPORT' ||
+        clean == 'cs-gage-support' ||
+        clean == 'GAGE-CARE';
+  }
+
+  /// Membersihkan akhiran label redundant seperti "(Driver GAGE)", "(Driver)", plat kendaraan, dan "(24/7)".
+  static String cleanDisplayName(String rawName, {String? role}) {
+    var name = rawName.trim();
+    if (name.isEmpty) return name;
+
+    final lowerRole = role?.trim().toLowerCase() ?? '';
+    if (isSupportRole(lowerRole)) {
+      if (name.toLowerCase().contains('ai assistant') ||
+          name.toLowerCase().contains('bantuan ai') ||
+          RegExp(r'\bai\b', caseSensitive: false).hasMatch(name)) {
+        return 'Pusat Bantuan';
+      }
+      name = name.replaceAll(RegExp(r'\s*\(24/7\)', caseSensitive: false), '').trim();
+    }
+
+    name = name
+        .replaceAll(RegExp(r'\s*\((?:mitra\s+)?driver(?:\s+gage)?\)', caseSensitive: false), '')
+        .trim();
+
+    if (lowerRole == 'driver') {
+      name = name.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
+    }
+    return name;
+  }
 
   @override
   State<InAppChatScreen> createState() => _InAppChatScreenState();
@@ -87,8 +127,10 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
           'Bisa minta sendok & sambal lebih?',
         ];
       case 'ai':
+      case 'support':
+      case 'admin':
         return [
-          'Tanya promo hari ini',
+          'Lacak status pesanan saya',
           'Cara pesan makanan',
           'Kendala pesanan',
         ];
@@ -342,6 +384,15 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
     final chatProv = context.watch<InAppChatProvider>();
     final messages = chatProv.getMessages(widget.orderId);
     final timeFormat = DateFormat('HH:mm');
+    final displayName = InAppChatScreen.cleanDisplayName(
+      widget.recipientName,
+      role: widget.recipientRole,
+    );
+    final isSupport = InAppChatScreen.isSupportRole(widget.recipientRole);
+    final hasOrderContext = !InAppChatScreen.isSupportOrderId(widget.orderId);
+    final resolvedAvatar = (widget.recipientAvatar != null && widget.recipientAvatar!.trim().isNotEmpty)
+        ? widget.recipientAvatar!.trim()
+        : (isSupport ? 'assets/images/gage_icon.png' : null);
 
     return Scaffold(
       backgroundColor: isDark ? GageTheme.darkBackground : const Color(0xFFF1F5F9),
@@ -356,8 +407,8 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
         title: Row(
           children: [
             GageAvatar(
-              imageUrl: null,
-              fallbackName: widget.recipientName,
+              imageUrl: resolvedAvatar,
+              fallbackName: displayName,
               radius: 18,
             ),
             const SizedBox(width: 10),
@@ -367,7 +418,7 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    widget.recipientName,
+                    displayName,
                     style: TextStyle(
                       fontSize: 14.5,
                       fontWeight: FontWeight.w700,
@@ -389,8 +440,8 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
                       ),
                       const SizedBox(width: 5),
                       Text(
-                        widget.recipientRole.toLowerCase() == 'ai'
-                            ? 'Bantuan AI 24/7'
+                        isSupport
+                            ? 'Layanan Pelanggan GAGE'
                             : (widget.recipientRole.toLowerCase() == 'driver'
                                 ? 'Mitra Driver GAGE'
                                 : (widget.recipientRole.toLowerCase() == 'merchant'
@@ -402,7 +453,7 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
                           color: isDark ? Colors.white70 : const Color(0xFF64748B),
                         ),
                       ),
-                      if (widget.orderId.isNotEmpty && widget.orderId != 'AI-SUPPORT') ...[
+                      if (hasOrderContext) ...[
                         Text(
                           ' • #${widget.orderId}',
                           style: TextStyle(
@@ -433,7 +484,7 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
         child: Column(
           children: [
             // Sticky Context Banner Pesanan Mini (Elegance & Utilitas Tinggi)
-            if (widget.orderId.isNotEmpty && widget.orderId != 'AI-SUPPORT')
+            if (hasOrderContext)
               Container(
                 margin: const EdgeInsets.fromLTRB(14, 8, 14, 4),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
@@ -501,7 +552,7 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
                           Icon(Icons.chat_outlined, size: 48, color: Colors.grey.withValues(alpha: 0.4)),
                           const SizedBox(height: 10),
                           Text(
-                            'Belum ada pesan.\nMulai percakapan dengan ${widget.recipientName}',
+                            'Belum ada pesan.\nMulai percakapan dengan $displayName',
                             textAlign: TextAlign.center,
                             style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
                           ),
@@ -567,7 +618,10 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
                                   Padding(
                                     padding: const EdgeInsets.only(bottom: 3),
                                     child: Text(
-                                      msg.senderName,
+                                      InAppChatScreen.cleanDisplayName(
+                                        msg.senderName,
+                                        role: msg.senderRole,
+                                      ),
                                       style: const TextStyle(
                                         fontSize: 10.5,
                                         fontWeight: FontWeight.w700,
@@ -808,7 +862,10 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
                 onPressed: () => Navigator.pop(ctx),
               ),
               title: Text(
-                widget.recipientName,
+                InAppChatScreen.cleanDisplayName(
+                  widget.recipientName,
+                  role: widget.recipientRole,
+                ),
                 style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
               ),
             ),

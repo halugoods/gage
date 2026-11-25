@@ -1,4 +1,5 @@
 import 'package:gage_app/data/mock/gage_voucher_data.dart';
+import 'package:gage_app/features/running/services/gfit_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -29,6 +30,7 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
   final TextEditingController _codeCtrl = TextEditingController();
   int _selectedTabIndex = 0;
   final Map<String, bool> _expandedSections = {
+    'gfit': true,
     'ongkir': true,
     'food': true,
     'shop': true,
@@ -55,6 +57,7 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       NotificationService.instance.markPromosAsRead();
+      GFitService.loadUnlockedVoucherCodes();
     });
   }
 
@@ -363,31 +366,57 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
   }
 
   Widget _buildAllTabAccordion(BuildContext context, bool isDark) {
+    final gfitVouchers =
+        _allVouchers.where((v) => v['tag'] == 'G-Fit').toList();
     final ongkirVouchers = _allVouchers
-        .where((v) => v['type'] == 'delivery' && v['service'] != 'GAGE Send')
+        .where((v) =>
+            v['tag'] != 'G-Fit' &&
+            v['type'] == 'delivery' &&
+            v['service'] != 'GAGE Send')
         .toList();
     final foodVouchers = _allVouchers
-        .where((v) => v['service'] == 'GAGE Food' && v['type'] == 'order')
+        .where((v) =>
+            v['tag'] != 'G-Fit' &&
+            v['service'] == 'GAGE Food' &&
+            v['type'] == 'order')
         .toList();
     final shopVouchers = _allVouchers
-        .where((v) => v['service'] == 'GAGE Shop' && v['type'] == 'order')
+        .where((v) =>
+            v['tag'] != 'G-Fit' &&
+            v['service'] == 'GAGE Shop' &&
+            v['type'] == 'order')
         .toList();
     final farmVouchers = _allVouchers
-        .where((v) => v['service'] == 'GAGE Farm' && v['type'] == 'order')
+        .where((v) =>
+            v['tag'] != 'G-Fit' &&
+            v['service'] == 'GAGE Farm' &&
+            v['type'] == 'order')
         .toList();
     final buildVouchers = _allVouchers
-        .where((v) => v['service'] == 'GAGE Build' && v['type'] == 'order')
+        .where((v) =>
+            v['tag'] != 'G-Fit' &&
+            v['service'] == 'GAGE Build' &&
+            v['type'] == 'order')
         .toList();
     final transportVouchers = _allVouchers
-        .where((v) => v['service'] == 'GAGE Ride' || v['service'] == 'GAGE Car')
+        .where((v) =>
+            v['tag'] != 'G-Fit' &&
+            (v['service'] == 'GAGE Ride' || v['service'] == 'GAGE Car'))
         .toList();
     final sendVouchers = _allVouchers
-        .where((v) => v['service'] == 'GAGE Send')
+        .where((v) => v['tag'] != 'G-Fit' && v['service'] == 'GAGE Send')
         .toList();
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 85),
       children: [
+        _buildAccordionSection(
+          context: context,
+          sectionKey: 'gfit',
+          title: 'Voucher Reward G-Fit',
+          vouchers: gfitVouchers,
+          isDark: isDark,
+        ),
         _buildAccordionSection(
           context: context,
           sectionKey: 'ongkir',
@@ -588,43 +617,46 @@ class _PromoScreenState extends State<PromoScreen> with SingleTickerProviderStat
 
             // 3. TabBarView dengan List Tiket Voucher Khas GAGE
             Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: List.generate(_tabs.length, (tabIdx) {
-                  if (tabIdx == 0) {
-                    return _buildAllTabAccordion(context, isDark);
-                  }
-                  final list = _getVouchersForTab(tabIdx);
+              child: ValueListenableBuilder<Set<String>>(
+                valueListenable: GFitService.unlockedVouchersNotifier,
+                builder: (context, _, _) => TabBarView(
+                  controller: _tabController,
+                  children: List.generate(_tabs.length, (tabIdx) {
+                    if (tabIdx == 0) {
+                      return _buildAllTabAccordion(context, isDark);
+                    }
+                    final list = _getVouchersForTab(tabIdx);
 
-                  if (list.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.confirmation_number_outlined, size: 48, color: Colors.grey.withValues(alpha: 0.35)),
-                          const SizedBox(height: 10),
-                          Text(
-                            'Belum ada voucher untuk kategori ini.',
-                            style: TextStyle(color: isDark ? Colors.white60 : Colors.grey.shade600, fontSize: 13),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  return ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 85),
-                    itemCount: list.length,
-                    itemBuilder: (ctx, idx) {
-                      final v = list[idx];
-                      return GageTicketVoucherCard(
-                        voucher: v,
-                        onApply: () => _applyAndRedirect(context, v),
-                        onTermsTap: () => _showVoucherTerms(context, v),
+                    if (list.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.confirmation_number_outlined, size: 48, color: Colors.grey.withValues(alpha: 0.35)),
+                            const SizedBox(height: 10),
+                            Text(
+                              'Belum ada voucher untuk kategori ini.',
+                              style: TextStyle(color: isDark ? Colors.white60 : Colors.grey.shade600, fontSize: 13),
+                            ),
+                          ],
+                        ),
                       );
-                    },
-                  );
-                }),
+                    }
+
+                    return ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 85),
+                      itemCount: list.length,
+                      itemBuilder: (ctx, idx) {
+                        final v = list[idx];
+                        return GageTicketVoucherCard(
+                          voucher: v,
+                          onApply: () => _applyAndRedirect(context, v),
+                          onTermsTap: () => _showVoucherTerms(context, v),
+                        );
+                      },
+                    );
+                  }),
+                ),
               ),
             ),
           ],

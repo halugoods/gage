@@ -492,3 +492,87 @@ CREATE TABLE IF NOT EXISTS merchant_location_requests (
 
 
 
+
+---
+
+## 18. Handoff Wave 15: Integrasi Backend & D1 Opsional untuk G-Fit & Profil Avatar Chat
+
+1. **Verifikasi Avatar Lintas Portal (`driver_avatar`, `merchant_avatar`, `customer_avatar`)**:
+   - `gage-cloud/src/index.ts` sudah mengembalikan `du.avatar_url as driver_avatar`, `m.image_url as merchant_avatar`, dan `u.avatar_url as customer_avatar` pada endpoint order utama. Pastikan endpoint `POST /api/user/profile` tetap mengizinkan driver, merchant, maupun customer menyimpan `avatar_url` berbasis HTTPS maupun path R2 relatif (`/api/chat/media/...`), yang kini dinormalisasi oleh `GageAvatar.resolveSourceUrl` di aplikasi.
+2. **Skema D1 & Endpoint Opsional untuk Sinkronisasi Cloud G-Fit**:
+   - Fitur G-Fit di aplikasi Customer kini menyimpan sesi olahraga (koordinat rute, kalori MET, split pace per km), target mingguan, serta klaim misi & voucher reward (`GFITSEHAT`, `GFITONGKIR`, `GFITJUARA`) secara lokal per `userId` di `SharedPreferences` dan langsung mengkreditkan `WalletProvider.points`.
+   - Untuk sinkronisasi lintas-perangkat dan validasi kupon server-side penuh, Admin & Backend D1 perlu menyediakan migrasi tabel opsional berikut:
+```sql
+CREATE TABLE IF NOT EXISTS gfit_workouts (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  activity_type TEXT NOT NULL, -- 'run' | 'walk' | 'bike'
+  started_at INTEGER NOT NULL,
+  duration_seconds INTEGER NOT NULL,
+  distance_km REAL NOT NULL,
+  calories INTEGER NOT NULL,
+  elevation_gain_m REAL DEFAULT 0,
+  points_earned INTEGER DEFAULT 0,
+  is_simulation INTEGER DEFAULT 0,
+  route_name TEXT,
+  route_points_json TEXT,
+  split_laps_json TEXT,
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+);
+
+CREATE TABLE IF NOT EXISTS gfit_mission_claims (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  week_key TEXT NOT NULL, -- YYYY-MM-DD (Senin minggu berjalan)
+  mission_id TEXT NOT NULL,
+  bonus_points INTEGER NOT NULL,
+  voucher_code TEXT NOT NULL,
+  claimed_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+  UNIQUE(user_id, week_key, mission_id)
+);
+```
+   - Disarankan menambahkan baris voucher aktif `GFITSEHAT`, `GFITONGKIR`, dan `GFITJUARA` pada katalog tabel `vouchers` D1 bila validasi promo checkout sisi server sudah diaktifkan penuh, serta endpoint `GET/POST /api/gfit/workouts` & `POST /api/gfit/missions/claim` dengan batas kredit harian `300 poin/hari`.
+
+---
+
+## 19. Handoff Wave 16: Kontrak Backend Cloudflare D1 & R2 untuk Seluruh Modul Chat (`lib/features/chat/`)
+
+Dokumen ini merangkum temuan audit pada `gage-cloud/src/index.ts` agar seluruh portal (Customer, Merchant, Driver) memiliki foto profil dan sinkronisasi pesan chat yang berjalan penuh di produksi.
+
+### A. Celah Field Avatar pada Query Order (`gage-cloud/src/index.ts`)
+1. **`GET /api/merchant/orders` (`index.ts#L2057`)**:
+   - Saat ini query `SELECT` sudah mengambil `du.avatar_url as driver_avatar`, namun **belum mengambil `u.avatar_url as customer_avatar`**.
+   - **Tindakan Admin/Backend**: Tambahkan `u.avatar_url as customer_avatar` pada query `SELECT` agar Portal Merchant (`GageMerchantChatTab` & `MerchantChatListScreen`) dapat menampilkan foto profil pelanggan asli.
+2. **`GET /api/driver/orders` (`index.ts#L2096`)**:
+   - Saat ini query `SELECT` baru mengambil `m.name as merchant_name`, `u.name as customer_name`, namun **belum mengambil `m.image_url as merchant_avatar`, `u.phone as customer_phone`, dan `u.avatar_url as customer_avatar`**.
+   - **Tindakan Admin/Backend**: Tambahkan ketiga kolom tersebut agar Portal Driver (`DriverChatListScreen`) dan `InAppChatScreen` Driver mendapat avatar toko, avatar pelanggan, dan nomor telepon yang akurat.
+
+### B. Sinkronisasi Persistent Pesan Chat D1 (Transisi dari Lokal `InAppChatProvider`)
+Saat ini `gage-cloud/src/index.ts` baru menyediakan endpoint upload & CDN media R2 (`POST /api/chat/media/upload-url`, `POST /api/chat/media/upload`, `GET /api/chat/media/*` pada `L2533-L2611`), sedangkan pesan teks/gambar/produk/suara masih disimpan di memori lokal `InAppChatProvider` (`lib/features/chat/providers/in_app_chat_provider.dart`).
+
+Untuk sinkronisasi real-time antar-perangkat Customer <-> Driver <-> Merchant <-> Pusat Bantuan, sediakan tabel dan endpoint D1 sesuai struktur `ChatMessage` (`lib/features/chat/domain/chat_message.dart`):
+
+```sql
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id TEXT PRIMARY KEY,
+  order_id TEXT NOT NULL,
+  sender_id TEXT NOT NULL,
+  sender_role TEXT NOT NULL, -- 'customer' | 'driver' | 'merchant' | 'admin' | 'support'
+  sender_name TEXT NOT NULL,
+  text TEXT NOT NULL DEFAULT '',
+  media_url TEXT,
+  message_type TEXT NOT NULL DEFAULT 'text', -- 'text' | 'image' | 'product' | 'voice'
+  product_name TEXT,
+  product_price INTEGER,
+  product_image TEXT,
+  voice_duration_seconds INTEGER,
+  status TEXT NOT NULL DEFAULT 'sent', -- 'sending' | 'sent' | 'delivered' | 'read'
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_order_time ON chat_messages(order_id, created_at ASC);
+```
+
+- **Endpoint yang Disarankan**:
+  1. `GET /api/chat/messages?order_id=...` -> mengembalikan array JSON dengan field sesuai `ChatMessage.fromJson` (`id`, `orderId`, `senderId`, `senderRole`, `senderName`, `text`, `mediaUrl`, `messageType`, `productName`, `productPrice`, `productImage`, `voiceDurationSeconds`, `timestamp` dalam epoch ms, `status`).
+  2. `POST /api/chat/messages` -> menyimpan pesan baru dan memicu push notification / polling ke pihak penerima terkait.
+  3. `PATCH /api/chat/messages/read` -> menandai pesan terbaca per `order_id` & `reader_role`.

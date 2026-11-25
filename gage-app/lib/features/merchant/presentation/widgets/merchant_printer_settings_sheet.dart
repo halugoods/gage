@@ -219,45 +219,16 @@ class _MerchantPrinterSettingsSheetState extends State<MerchantPrinterSettingsSh
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final provider = context.watch<MerchantOrderProvider>();
 
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+    return Padding(
       padding: EdgeInsets.only(
         left: 20,
         right: 20,
-        top: 14,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 28,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 12,
       ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Handle Bar
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.white24 : Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Header Title
-            Text(
-              'Printer Bluetooth',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: isDark ? Colors.white : const Color(0xFF0F172A),
-              ),
-            ),
-            const SizedBox(height: 3),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
             Text(
               'Atur printer thermal untuk mencetak struk',
               style: TextStyle(
@@ -600,8 +571,7 @@ class _MerchantPrinterSettingsSheetState extends State<MerchantPrinterSettingsSh
             }),
           ],
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildSettingCard({required bool isDark, required Widget child}) {
@@ -614,7 +584,10 @@ class _MerchantPrinterSettingsSheetState extends State<MerchantPrinterSettingsSh
           width: 1,
         ),
       ),
-      child: child,
+      child: Material(
+        type: MaterialType.transparency,
+        child: child,
+      ),
     );
   }
 

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:provider/provider.dart';
 import 'package:gage_app/core/services/merchant_storefront_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_review_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_terms_and_privacy_screen.dart';
+import 'package:gage_app/features/merchant/presentation/widgets/merchant_branch_switcher_sheet.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_help_center_sheet.dart';
+import 'package:gage_app/providers/merchant_order_provider.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_location_change_request_sheet.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_photo_picker_sheet.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_printer_settings_sheet.dart';
@@ -42,7 +45,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
   bool _popupNotification = true;
 
   String _activeMerchantId = MerchantStorefrontService.defaultPortalMerchantId;
-  String _storeName = 'Dimsum Sewu';
+  String _storeName = 'Dimsum Sewu Pracimantoro (Pusat)';
   String _storeAddress = 'Jl. Raya Pracimantoro No. 14, Depan Pasar';
   String _landmark = 'Depan Pasar Pracimantoro, samping Alfamidi';
   String _storeBanner = 'assets/images/resto_dimsum_sewu.png';
@@ -185,6 +188,10 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
         ? '${_ratingSummary!.averageRating.toStringAsFixed(1)} ★'
         : 'Baru';
     final countLabel = _ratingSummary != null ? '${_ratingSummary!.totalReviews} Ulasan' : 'Belum ada';
+    String displayStoreName = _storeName;
+    try {
+      displayStoreName = context.watch<MerchantOrderProvider>().activeBranchName;
+    } catch (_) {}
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
@@ -246,7 +253,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                           children: [
                             Flexible(
                               child: Text(
-                                _storeName,
+                                displayStoreName,
                                 style: TextStyle(
                                   fontWeight: FontWeight.w900,
                                   fontSize: 15,
@@ -479,6 +486,17 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                       title: const Text('Jam Operasional Mingguan', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                       subtitle: Text(
                         _schedule.portalSubtitle(),
+                        style: TextStyle(fontSize: 11.5, color: subColor),
+                      ),
+                      trailing: const Icon(Icons.chevron_right_rounded, size: 20, color: Colors.grey),
+                    ),
+                    Divider(height: 1, indent: 16, endIndent: 16, color: isDark ? Colors.white12 : const Color(0xFFF1F5F9)),
+                    ListTile(
+                      onTap: () => MerchantBranchSwitcherSheet.show(context),
+                      leading: const Icon(Icons.storefront_rounded, color: GageTheme.primary, size: 20),
+                      title: const Text('Kelola Cabang Outlet', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                      subtitle: Text(
+                        'Ganti outlet aktif atau tambah cabang baru',
                         style: TextStyle(fontSize: 11.5, color: subColor),
                       ),
                       trailing: const Icon(Icons.chevron_right_rounded, size: 20, color: Colors.grey),

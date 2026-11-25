@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_thermal_receipt_sheet.dart';
 import 'package:gage_app/providers/merchant_order_provider.dart';
+import 'package:gage_app/shared/widgets/gage_delivery_track_progress.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 
 /// Halaman Layar Penuh (Full-Screen Menu) untuk Rincian Lengkap Pesanan Mitra Usaha GAGE.
@@ -373,29 +375,38 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: GageTheme.primary.withValues(alpha: isDark ? 0.2 : 0.08),
-                  borderRadius: BorderRadius.circular(999),
+              // Tombol Telepon In-App ke Kurir (Paritas Gambar 3)
+              InkWell(
+                onTap: () => _showInAppCallSheet(
+                  order.driverName ?? 'Driver GAGE',
+                  'Kurir GAGE',
+                  '08111222333',
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _LivePulsingDot(color: GageTheme.primary),
-                    const SizedBox(width: 5),
-                    const Text(
-                      'Menuju Kios',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: GageTheme.primary,
-                      ),
+                borderRadius: BorderRadius.circular(999),
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isDark ? Colors.white24 : const Color(0xFFE2E8F0),
                     ),
-                  ],
+                  ),
+                  child: Icon(
+                    Icons.phone_outlined,
+                    size: 18,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          GageDeliveryTrackProgress(
+            isSearchingDriver: false,
+            isDriverArrived: order.status == 'READY_FOR_PICKUP',
+            labelPrefix: order.status == 'READY_FOR_PICKUP' ? 'Pengemudi telah tiba di kios' : 'Menuju Kios',
+            labelHighlight: order.status == 'READY_FOR_PICKUP' ? '' : ' • Est. 5 mnt',
           ),
         ],
       ),
@@ -404,24 +415,89 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
 
   Widget _buildSearchingDriverCard(bool isDark, Color borderColor) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : const Color(0xFFFFF1F2),
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(16),
       ),
-      child: Row(
-        children: [
-          const _LivePulsingRadarIcon(),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Sedang mencari kurir terdekat...',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFFE11D48),
+      child: const GageDeliveryTrackProgress(
+        isSearchingDriver: true,
+        labelPrefix: 'Sedang mencari kurir terdekat',
+        labelHighlight: '...',
+      ),
+    );
+  }
+
+  Future<void> _showInAppCallSheet(String targetName, String roleLabel, String phone) async {
+    HapticFeedback.lightImpact();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: GageTheme.primary.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.phone_in_talk_rounded, color: GageTheme.primary, size: 20),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Telepon In-App',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                  Text(
+                    '$roleLabel • $targetName',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: isDark ? Colors.white60 : Colors.grey.shade600,
+                    ),
+                  ),
+                ],
               ),
             ),
+          ],
+        ),
+        content: Text(
+          'Panggilan suara berlangsung melalui jalur aman sistem GAGE tanpa menampilkan nomor pribadi Anda.',
+          style: TextStyle(fontSize: 12.5, color: isDark ? Colors.white70 : Colors.grey.shade700),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: GageTheme.primary,
+              foregroundColor: Colors.white,
+              shape: const StadiumBorder(),
+              elevation: 0,
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final uri = Uri(scheme: 'tel', path: phone.isNotEmpty ? phone : '08111222333');
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri);
+              } else if (mounted) {
+                GageToast.show(context, 'Menghubungkan panggilan suara ke $targetName...');
+              }
+            },
+            icon: const Icon(Icons.call_rounded, size: 16),
+            label: const Text('Hubungi Sekarang', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
           ),
         ],
       ),
@@ -489,8 +565,9 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
                   ],
                 ),
               ),
-              ElevatedButton.icon(
-                onPressed: () {
+              // Dual Action Icons: Chat Pembeli & Telepon In-App (Paritas Gambar 3)
+              InkWell(
+                onTap: () {
                   HapticFeedback.lightImpact();
                   Navigator.push(
                     context,
@@ -505,16 +582,46 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
                     ),
                   );
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: GageTheme.primary.withValues(alpha: isDark ? 0.2 : 0.08),
-                  foregroundColor: GageTheme.primary,
-                  elevation: 0,
-                  shape: const StadiumBorder(),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  visualDensity: VisualDensity.compact,
+                borderRadius: BorderRadius.circular(999),
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isDark ? Colors.white24 : const Color(0xFFE2E8F0),
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.chat_bubble_outline_rounded,
+                    size: 18,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
                 ),
-                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 14),
-                label: const Text('Chat Pembeli', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(width: 8),
+              InkWell(
+                onTap: () => _showInAppCallSheet(
+                  order.customerName ?? 'Pelanggan GAGE',
+                  'Pelanggan',
+                  order.customerPhone ?? '085156955735',
+                ),
+                borderRadius: BorderRadius.circular(999),
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isDark ? Colors.white24 : const Color(0xFFE2E8F0),
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.phone_outlined,
+                    size: 18,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
               ),
             ],
           ),

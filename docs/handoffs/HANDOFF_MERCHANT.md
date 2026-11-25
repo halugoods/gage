@@ -1001,6 +1001,29 @@ Tab 4 Merchant kini mengadopsi widget asli `GagePayScreen` (`isEmbeddedInTab: tr
   - Tombol WhatsApp Customer Service Mitra Usaha (`https://wa.me/628111222333`).
   - Direktori FAQ interaktif (pencairan saldo, armada telat, pairing printer thermal, ubah pesanan, dan prosedur pindah lokasi).
 
+---
+
+## 23. Wave 15: Animasi Delivery Track Top-Down Rider, Paritas Card Order Tanpa Chat, Dual Action Detail Order, Pembersihan Double Header Sheets & Multi-Outlet Branch Switcher
+
+* **Tanggal Rilis**: `2026-11-25`
+* **Target Build & Flavor**: `applicationId = "com.gagepracimantoro.merchant"`, entrypoint `lib/main_merchant.dart`, flavor `merchant` (`v1.0.4+47`).
+
+### A. Animasi Delivery Track Top-Down Rider (`GageDeliveryTrackProgress`)
+- Menggantikan badge dot sederhana dengan progress track horizontal bergaya ShopeeFood/Shopee Partner (`lib/shared/widgets/gage_delivery_track_progress.dart`).
+- Dilengkapi node cutlery restoran, pin lokasi tujuan, garis progres warna primer, dan ikon kurir motor matic tampak atas (`_TopDownCourierRiderPainter`) yang meluncur mulus saat *Mencari Kurir* maupun *Menuju Kios*.
+
+### B. Paritas Kartu Pesanan Luar & Detail Order (Gambar 2 & 3)
+- **Kartu Pesanan Luar (`GageMerchantOrdersTab`)**: Menghapus tombol *"Chat Pembeli"* dari kartu pesanan luar agar fokus murni pada ringkasan item, total pesanan, delivery track, dan tombol aksi utama.
+- **Detail Pesanan (`MerchantOrderDetailScreen`)**:
+  - Kartu Driver dilengkapi tombol ikon **Telepon In-App** bulat (`_showInAppCallSheet`).
+  - Kartu Pembeli dilengkapi **dua tombol aksi berdampingan**: Ikon Chat (`InAppChatScreen`) dan Ikon Telepon In-App.
+
+### C. Eliminasi Anomali Double Header pada Floating Sheets
+- Membersihkan duplikasi handle bar internal, border radius kontainer luar, dan duplikasi judul di dalam `MerchantPrinterSettingsSheet`, `MerchantReceiptSettingsSheet`, `MerchantLocationChangeRequestSheet`, dan `MerchantPhotoPickerSheet`.
+
+### D. Sinkronisasi Nama Toko & Sistem Kelola Cabang (`MerchantBranch`)
+- Menyeragamkan nama default outlet menjadi `"Dimsum Sewu Pracimantoro (Pusat)"` secara reaktif melalui `MerchantOrderProvider.activeBranchName`.
+- Menambahkan model `MerchantBranch`, persistence di `MerchantStorefrontService`, dan `MerchantBranchSwitcherSheet` yang dapat diakses dari Header Dashboard, Tab Outlet, dan Menu Pengaturan untuk beralih cabang atau menambah cabang baru.
 
 
 
@@ -1012,3 +1035,58 @@ Tab 4 Merchant kini mengadopsi widget asli `GagePayScreen` (`isEmbeddedInTab: tr
 
 
 
+
+
+---
+
+## 23. Wave 15: Sinkronisasi Avatar Chat Asli, Penghapusan Label AI & Integrasi Voucher G-Fit
+
+1. **Standar Foto Profil & Penamaan Chat Lintas Portal**:
+   - Customer Portal telah menghapus seluruh label `AI Assistant`, `Bantuan AI`, badge `24/7`, serta akhiran `(Driver GAGE)` pada tampilan nama chat. Layanan bantuan kini bernama `Pusat Bantuan` (tab `Bantuan`, icon resmi `assets/images/gage_icon.png`), sedangkan chip peran `Driver` dan `Toko` dipertahankan.
+   - `GageAvatar.resolveSourceUrl(...)` kini menormalkan URL relatif `/api/...` dan `/media/...` dengan `GageApiClient.baseUrl`.
+2. **Aksi yang Diperlukan di Portal Merchant (`lib/features/merchant/`)**:
+   - **`merchant_chat_list_screen.dart` & `gage_merchant_chat_tab.dart`**: Ganti fallback hardcoded `assets/images/gage_chat_icon.png` pada driver/CS dan teruskan `recipientAvatar` ke `InAppChatScreen` (`order.driverAvatar` atau `order.customerAvatar` untuk pelanggan, `assets/images/gage_icon.png` untuk Pusat Bantuan). Pastikan nama mitra driver tidak lagi menyertakan `(Driver GAGE)` dan entri CS tidak memakai embel-embel `AI` / `(24/7)`.
+3. **Voucher Reward G-Fit (`GFITSEHAT`, `GFITONGKIR`, `GFITJUARA`)**:
+   - Setelah pelanggan menyelesaikan misi mingguan G-Fit (5 KM / 10 KM / 21 KM), voucher `GFITSEHAT` (diskon Rp5.000), `GFITONGKIR` (subsidi ongkir s/d Rp10.000), dan `GFITJUARA` (diskon 25% s/d Rp15.000) kini dapat digunakan langsung pada checkout GAGE Food & GAGE Shop. Potongan voucher platform ini bersumber dari kupon promo platform (tidak memotong hak bersih omset item merchant).
+
+---
+
+## 24. Wave 16: Handoff Lengkap Seluruh File Chat (`lib/features/chat/`) untuk Eksekusi Portal Merchant
+
+Dokumen ini merinci seluruh file Dart modul chat yang aktif di ekosistem Customer serta langkah eksekusi yang **wajib disinkronkan di Portal Merchant** (`lib/features/merchant/`). Sesuai isolasi portal pada [`PORTAL_BOUNDARIES.md`](../../PORTAL_BOUNDARIES.md), file Portal Merchant belum diubah langsung oleh sesi Customer.
+
+### A. Inventaris Lengkap File Chat (`gage-app/lib/features/chat/` & Shared Avatar)
+1. **Model Pesan (`domain/chat_message.dart`)**: [`chat_message.dart`](../../gage-app/lib/features/chat/domain/chat_message.dart)
+   - Class `ChatMessage`: `id`, `orderId`, `senderId`, `senderRole` (`'customer' | 'driver' | 'merchant' | 'admin'`), `senderName`, `text`, `mediaUrl`, `messageType` (`'text' | 'image' | 'product' | 'voice'`), `productName`, `productPrice`, `productImage`, `voiceDurationSeconds`, `timestamp`, `status` (`'sending' | 'sent' | 'delivered' | 'read'`).
+   - Helper getter: `isFromDriver`, `isFromCustomer`, `isFromMerchant`, `isFromAdmin`, `isImage`, `isProduct`, `isVoice`, `audioUrl`.
+2. **State Provider Chat (`providers/in_app_chat_provider.dart`)**: [`in_app_chat_provider.dart`](../../gage-app/lib/features/chat/providers/in_app_chat_provider.dart)
+   - Class `InAppChatProvider`: menyuplai `getMessages(orderId)`, `sendMessage(...)`, `sendVoiceMessage(...)`, `sendMediaMessage(...)`, `sendProductMessage(...)`.
+   - Seed percakapan hanya aktif bila `GageApiClient.useDevSeedData == true` dan nama driver sudah bersih tanpa akhiran `(Driver GAGE)` (`'Syamsul Maarif'`).
+   - Catatan penting: saat ini masih menyimpan thread per `orderId` di memori lokal (`_messagesByOrder`); tunggu endpoint D1 admin bila ingin sinkronisasi lintas device real-time.
+3. **Layar Ruang Chat Lintas Peran (`presentation/in_app_chat_screen.dart`)**: [`in_app_chat_screen.dart`](../../gage-app/lib/features/chat/presentation/in_app_chat_screen.dart)
+   - Parameter widget: `orderId`, `recipientName`, `recipientRole` (`'customer' | 'merchant' | 'driver' | 'support' | 'admin'`), `recipientPhone`, `recipientAvatar` (`String?`), `currentRole` (`'driver' | 'merchant' | 'customer'`).
+   - Static helper wajib dipakai ulang di Merchant:
+     - `InAppChatScreen.isSupportRole(role)` (`'ai'`, `'support'`, `'admin'`)
+     - `InAppChatScreen.isSupportOrderId(orderId)` (`'AI-SUPPORT'`, `'cs-gage-support'`, `'GAGE-CARE'`)
+     - `InAppChatScreen.cleanDisplayName(rawName, role: role)` untuk membuang `(Driver GAGE)`, `(Driver)`, plat dalam kurung, label `AI Assistant`/`Bantuan AI`, serta `(24/7)`.
+   - Sudah memiliki quick replies khusus `currentRole == 'merchant'` (baik saat membalas ke `'driver'` maupun ke `'customer'`) dan tombol lampiran katalog produk (`_handleFileCatalog`).
+4. **Input Bar Chat (`presentation/widgets/gage_chat_input_bar.dart`)**: [`gage_chat_input_bar.dart`](../../gage-app/lib/features/chat/presentation/widgets/gage_chat_input_bar.dart)
+   - Komponen `GageChatInputBar`: mengelola input teks, tombol kamera (`onCameraTap`), galeri (`onGalleryTap`), berkas/katalog (`onFileTap`), serta rekaman voice note inline via `GageAudioService` (`onVoiceRecordedWithFile`). Sudah terpasang otomatis di `InAppChatScreen`.
+5. **Sheet Katalog Produk di Chat (`presentation/widgets/gage_product_catalog_sheet.dart`)**: [`gage_product_catalog_sheet.dart`](../../gage-app/lib/features/chat/presentation/widgets/gage_product_catalog_sheet.dart)
+   - Dipanggil oleh `InAppChatScreen._handleFileCatalog()` untuk mengirim kartu produk (`ChatMessage` bertipe `'product'`).
+   - **Temuan Gap**: pada `in_app_chat_screen.dart#L301` masih mempassing `merchantId: 'm-dimsum-sewu'` secara statis dan membaca `GageMockRegistry.foodMerchants`. Saat dipakai di mode produksi multi-toko Merchant, sesuaikan agar membaca katalog aktif milik `MerchantStorefrontService` / merchant yang sedang login.
+6. **Hub Daftar Chat Customer (`presentation/chat_hub_screen.dart`)**: [`chat_hub_screen.dart`](../../gage-app/lib/features/chat/presentation/chat_hub_screen.dart)
+   - Referensi 1:1 UX terbaru untuk diadopsi Merchant: tab kapsul `BorderRadius.circular(999)`, avatar via `GageAvatar`, membaca order riil (`OrderProvider` -> `MerchantOrderProvider` di sisi Merchant) serta preview pesan terakhir dari `InAppChatProvider`, membersihkan nama driver, dan membuang label `AI` / `(24/7)`.
+7. **Widget Avatar Lintas Portal (`shared/widgets/gage_avatar.dart`)**: [`gage_avatar.dart`](../../gage-app/lib/shared/widgets/gage_avatar.dart)
+   - Gunakan `GageAvatar(imageUrl: ..., fallbackName: ..., radius: ...)` pada seluruh daftar chat agar path relatif R2 (`/api/chat/media/...` atau `/media/...`) otomatis dinormalkan lewat `GageAvatar.resolveSourceUrl(...)` ke `GageApiClient.baseUrl`, dan fallback ke inisial nama (bukan gambar `gage_chat_icon.png`).
+
+### B. Checklist Eksekusi Wajib untuk Portal Merchant
+1. **Refactor [`gage_merchant_chat_tab.dart`](../../gage-app/lib/features/merchant/presentation/tabs/gage_merchant_chat_tab.dart)**:
+   - Hapus penggunaan `CircleAvatar` + `Image.asset(chat['avatar'] ?? 'assets/images/gage_chat_icon.png')` pada baris `L216-L231`; ganti dengan `GageAvatar(imageUrl: avatarUrl, fallbackName: displayName, radius: 24)`.
+   - Ganti `_mockChats` statis agar menggabungkan thread dinamis dari `MerchantOrderProvider` (active & history orders) + `InAppChatProvider.getMessages(order.id)`, dan hanya menyertakan mock thread saat `GageApiClient.useDevSeedData == true`.
+   - Teruskan `recipientAvatar` (`order.driverAvatar`, `order.customerAvatar` setelah D1 menyuplai field tersebut, atau `'assets/images/gage_icon.png'` untuk bantuan) saat memanggil `InAppChatScreen(...)` pada `L198-L204`.
+   - Hapus teks `Pusat Bantuan Mitra GAGE (24/7)` -> ganti `Pusat Bantuan` (avatar `'assets/images/gage_icon.png'`, tanpa `(24/7)` dan tanpa badge `Bantuan CS` bernuansa AI); bersihkan nama `'Budi Santoso (Driver GAGE)'` / `'Agus Prabowo (Driver GAGE)'` menjadi nama murni + chip peran `'Driver'` (bukan `'Driver GAGE'`), dan `'Siti Rahmawati (Pelanggan)'` menjadi `'Siti Rahmawati'` + chip `'Pelanggan'`.
+2. **Refactor [`merchant_chat_list_screen.dart`](../../gage-app/lib/features/merchant/presentation/merchant_chat_list_screen.dart)**:
+   - Guard daftar `_chatRooms` agar tidak bocor di produksi (`GageApiClient.useDevSeedData`) dan hubungkan ke `MerchantOrderProvider` + `InAppChatProvider` (sekaligus ganti `CircleAvatar(Icon)` dengan `GageAvatar` + bersihkan nama `(Kurir GAGE)`/`(Driver Motor)` + teruskan `recipientAvatar` ke `InAppChatScreen`).
+3. **Verifikasi Kepatuhan Aturan Pelanggan vs Merchant**:
+   - Customer tidak diperbolehkan memulai chat langsung ke toko dari halaman etalase toko sebelum order/merchant memulai percakapan, sedangkan Merchant dapat merespons/memulai chat ke pelanggan atau driver pada pesanan aktif (`currentRole: 'merchant'`).

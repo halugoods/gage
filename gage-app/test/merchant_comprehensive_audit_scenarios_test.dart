@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:gage_app/core/models/merchant_branch_model.dart';
 import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/services/affiliate_commission_service.dart';
 import 'package:gage_app/core/services/gage_audio_service.dart';
@@ -19,9 +20,12 @@ import 'package:gage_app/features/merchant/presentation/merchant_order_detail_sc
 import 'package:gage_app/features/merchant/presentation/merchant_review_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_terms_and_privacy_screen.dart';
 import 'package:gage_app/features/merchant/presentation/tabs/gage_merchant_orders_tab.dart';
+import 'package:gage_app/features/merchant/presentation/widgets/merchant_branch_switcher_sheet.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_floating_nav_bar.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_help_center_sheet.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_photo_picker_sheet.dart';
+import 'package:gage_app/features/merchant/presentation/widgets/merchant_printer_settings_sheet.dart';
+import 'package:gage_app/shared/widgets/gage_delivery_track_progress.dart';
 import 'package:gage_app/features/merchant/services/merchant_receipt_printer_service.dart';
 import 'package:gage_app/core/services/notification_service.dart';
 import 'package:gage_app/providers/merchant_order_provider.dart';
@@ -769,8 +773,9 @@ void main() {
       await tester.tap(find.text('Buka Picker'));
       await tester.pumpAndSettle();
 
-      // Verifikasi elemen Production-Grade Photo Picker (Bukan Sandbox Mock Presets)
-      expect(find.text('Pilih Sumber Foto Produk'), findsOneWidget);
+      // Verifikasi elemen Production-Grade Photo Picker (GageFloatingSheet title bersih tanpa duplikasi)
+      expect(find.text('Pilih Sumber Foto'), findsOneWidget);
+      expect(find.text('Pilih Sumber Foto Produk'), findsNothing);
       expect(find.text('Ambil Foto Kamera'), findsOneWidget);
       expect(find.text('Pilih dari Galeri HP'), findsOneWidget);
     });
@@ -818,8 +823,8 @@ void main() {
       // Verifikasi label nominal luar adalah Total Pesanan (bukan Pendapatan Bersih)
       expect(find.text('Total Pesanan:'), findsWidgets);
 
-      // Verifikasi tombol Chat Pembeli eksplisit
-      expect(find.text('Chat Pembeli'), findsWidgets);
+      // Wave 15: Kartu pesanan luar bebas tombol Chat Pembeli
+      expect(find.text('Chat Pembeli'), findsNothing);
 
       // Verifikasi avatar lingkaran driver
       expect(find.byType(ClipOval), findsWidgets);
@@ -1077,8 +1082,9 @@ void main() {
       // Verifikasi Tombol Chat Driver dilarang dan dihapus total
       expect(find.text('Chat Driver'), findsNothing);
 
-      // Verifikasi Tombol Chat Pembeli tetap tersedia
-      expect(find.text('Chat Pembeli'), findsOneWidget);
+      // Wave 15: Verifikasi ikon Chat Pembeli & Telepon In-App tersedia pada kartu pelanggan
+      expect(find.byIcon(Icons.chat_bubble_outline_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.phone_outlined), findsWidgets);
 
       // Verifikasi stage action button memiliki layout full-width dock
       expect(find.byType(ElevatedButton), findsWidgets);
@@ -1210,7 +1216,7 @@ void main() {
       // Temukan pesanan aktif
       final deliveryOrdersWithDriver = provider.orders.where((o) => o.hasAssignedDriver && !o.isPickup && o.status == 'COOKING').toList();
       if (deliveryOrdersWithDriver.isNotEmpty) {
-        expect(find.textContaining('Menuju Kios'), findsWidgets);
+        expect(find.byType(GageDeliveryTrackProgress), findsWidgets);
         expect(find.textContaining('Pesanan Siap Diambil ('), findsWidgets);
       }
 
@@ -1247,8 +1253,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Verifikasi badge status armada 'Menuju Kios'
-      expect(find.text('Menuju Kios'), findsWidgets);
+      // Verifikasi delivery track progress tampil
+      expect(find.byType(GageDeliveryTrackProgress), findsWidgets);
       provider.dispose();
     });
 
@@ -1317,6 +1323,170 @@ void main() {
       expect(find.text('Chat CS WhatsApp'), findsOneWidget);
       expect(find.text('PERTANYAAN UMUM (FAQ)'), findsOneWidget);
       expect(find.textContaining('Kapan saldo penjualan kios otomatis dicairkan?'), findsOneWidget);
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 41: Wave 15: GageDeliveryTrackProgress Animasi Top-Down Rider
+    // -------------------------------------------------------------------------
+    testWidgets('Skenario 41: Wave 15: Delivery Track Progress bar dengan motor rider top-down & status dinamis', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                GageDeliveryTrackProgress(
+                  isSearchingDriver: true,
+                  labelPrefix: 'Sedang mencari kurir terdekat',
+                  labelHighlight: '...',
+                ),
+                GageDeliveryTrackProgress(
+                  isSearchingDriver: false,
+                  labelPrefix: 'Menuju Kios',
+                  labelHighlight: ' • Est. 5 mnt',
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(GageDeliveryTrackProgress), findsNWidgets(2));
+      expect(find.byIcon(Icons.restaurant_rounded), findsNWidgets(2));
+      expect(find.byIcon(Icons.location_on_rounded), findsNWidgets(2));
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 42: Wave 15: Outer Card Tanpa Chat Pembeli (Gambar 2 Parity)
+    // -------------------------------------------------------------------------
+    testWidgets('Skenario 42: Wave 15: Kartu pesanan luar menghilangkan tombol Chat Pembeli', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final formatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+      final provider = MerchantOrderProvider();
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<MerchantOrderProvider>.value(value: provider),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: GageMerchantOrdersTab(currencyFormatter: formatter),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Chat Pembeli'), findsNothing);
+      provider.dispose();
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 43: Wave 15: Detail Order Dual Action Icons (Chat & Phone In-App)
+    // -------------------------------------------------------------------------
+    testWidgets('Skenario 43: Wave 15: Detail order menampilkan ikon Telepon pada Driver dan Chat + Telepon pada Pembeli', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final formatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+      final provider = MerchantOrderProvider();
+      final orderWithDriver = provider.orders.firstWhere((o) => o.hasAssignedDriver);
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<MerchantOrderProvider>.value(value: provider),
+          ],
+          child: MaterialApp(
+            home: MerchantOrderDetailScreen(
+              order: orderWithDriver,
+              currencyFormatter: formatter,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Driver has phone icon, Customer has chat + phone icons -> 2 phone icons, 1 chat icon
+      expect(find.byIcon(Icons.phone_outlined), findsNWidgets(2));
+      expect(find.byIcon(Icons.chat_bubble_outline_rounded), findsOneWidget);
+      provider.dispose();
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 44: Wave 15: Floating Sheet Tanpa Duplikasi Handle Bar & Header
+    // -------------------------------------------------------------------------
+    testWidgets('Skenario 44: Wave 15: MerchantPrinterSettingsSheet bebas duplikasi judul & handle bar internal', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final provider = MerchantOrderProvider();
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<MerchantOrderProvider>.value(value: provider),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: MerchantPrinterSettingsSheet(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Internal duplicate title 'Printer Bluetooth' must NOT exist inside child widget
+      expect(find.text('Printer Bluetooth'), findsNothing);
+      expect(find.text('Cetak Otomatis'), findsOneWidget);
+      provider.dispose();
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 45: Wave 15: Kelola Cabang Multi-Outlet & Sinkronisasi Nama Toko
+    // -------------------------------------------------------------------------
+    testWidgets('Skenario 45: Wave 15: Kelola Cabang Multi-Outlet berganti & menambah cabang secara reaktif', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final provider = MerchantOrderProvider();
+      await provider.loadBranches();
+      expect(provider.activeBranchName, contains('Dimsum Sewu Pracimantoro'));
+      expect(provider.branches.length, greaterThanOrEqualTo(2));
+
+      // Switch to Branch 2
+      final secondBranch = provider.branches[1];
+      await provider.switchBranch(secondBranch);
+      expect(provider.activeBranchName, equals(secondBranch.name));
+
+      // Add a new Branch
+      const newBranch = MerchantBranch(
+        id: 'GAGE-PRC-FD01-03',
+        name: 'Dimsum Sewu Baturetno (Cabang 2)',
+        address: 'Jl. Raya Baturetno No. 5',
+        landmark: 'Depan Terminal',
+        phone: '085156955799',
+      );
+      await provider.addBranch(newBranch);
+      expect(provider.activeBranchName, equals('Dimsum Sewu Baturetno (Cabang 2)'));
+      expect(provider.branches.length, equals(3));
+
+      // Render Branch Switcher Sheet
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<MerchantOrderProvider>.value(value: provider),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: MerchantBranchSwitcherSheet(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Dimsum Sewu Pracimantoro (Pusat)'), findsOneWidget);
+      expect(find.text('Dimsum Sewu Baturetno (Cabang 2)'), findsOneWidget);
+      expect(find.text('Tambah Cabang Outlet Baru'), findsOneWidget);
+      provider.dispose();
     });
   });
 }

@@ -19,6 +19,7 @@ import 'package:gage_app/shared/widgets/full_screen_map_picker.dart';
 import 'package:gage_app/features/ride/presentation/ride_checkout_screen.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/core/services/dynamic_asset_service.dart';
+import 'package:gage_app/shared/widgets/gage_avatar.dart';
 import 'package:gage_app/shared/widgets/gage_shimmer.dart';
 
 class RideBookingScreen extends StatefulWidget {
@@ -1177,10 +1178,10 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
             ),
             child: Row(
               children: [
-                const CircleAvatar(
+                GageAvatar(
+                  imageUrl: null,
+                  fallbackName: driverName,
                   radius: 24,
-                  backgroundColor: GageTheme.primary,
-                  child: Icon(Icons.person_rounded, color: Colors.white, size: 28),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -1234,6 +1235,7 @@ class _RideBookingScreenState extends State<RideBookingScreen> with TickerProvid
                               recipientName: driverName,
                               recipientRole: 'driver',
                               recipientPhone: driverPhone,
+                              recipientAvatar: null,
                               currentRole: 'customer',
                             ),
                           ),

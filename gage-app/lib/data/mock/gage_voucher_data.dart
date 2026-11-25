@@ -1,7 +1,86 @@
+import 'package:gage_app/features/running/services/gfit_service.dart';
+
 /// Master Data Voucher & Promo Aplikasi GAGE Pracimantoro
 /// Single source of truth untuk Menu Promo, Riwayat, dan Pemilihan Voucher Checkout
 class GageVoucherData {
-  static const List<Map<String, dynamic>> allVouchers = [
+  static const List<Map<String, dynamic>> gfitRewardVouchers = [
+    {
+      'id': 'v-gfit-01',
+      'code': 'GFITSEHAT',
+      'service': 'GAGE Food',
+      'eligibleServices': ['GAGE Food', 'GAGE Shop'],
+      'type': 'order',
+      'title': 'Reward G-Fit: Diskon Rp 5.000',
+      'discountText': 'Diskon Rp 5.000',
+      'minOrder': 20000,
+      'discountAmount': 5000,
+      'quantity': 1,
+      'tag': 'G-Fit',
+      'expiry': '31 Des 2026',
+      'terms': [
+        'Hadiah resmi pencapaian Misi Langkah Awal 5 KM di G-Fit.',
+        'Potongan langsung Rp 5.000 dengan minimal belanja Rp 20.000.',
+        'Berlaku untuk pesanan GAGE Food & GAGE Shop.',
+      ],
+      'howToUse': 'Otomatis terbuka setelah mengklaim misi 5 KM di menu G-Fit.',
+    },
+    {
+      'id': 'v-gfit-02',
+      'code': 'GFITONGKIR',
+      'service': 'GAGE Food',
+      'eligibleServices': ['GAGE Food', 'GAGE Shop', 'GAGE Send'],
+      'type': 'delivery',
+      'title': 'Reward G-Fit: Gratis Ongkir s.d 10RB',
+      'discountText': 'Gratis Ongkir s.d 10RB',
+      'minOrder': 25000,
+      'discountAmount': 10000,
+      'quantity': 1,
+      'tag': 'G-Fit',
+      'expiry': '31 Des 2026',
+      'terms': [
+        'Hadiah resmi pencapaian Misi Penjelajah Praci 10 KM di G-Fit.',
+        'Subsidi ongkos kirim hingga Rp 10.000 minimal transaksi Rp 25.000.',
+        'Berlaku untuk layanan GAGE Food, GAGE Shop, dan GAGE Send.',
+      ],
+      'howToUse': 'Otomatis terbuka setelah mengklaim misi 10 KM di menu G-Fit.',
+    },
+    {
+      'id': 'v-gfit-03',
+      'code': 'GFITJUARA',
+      'service': 'GAGE Food',
+      'eligibleServices': ['GAGE Food', 'GAGE Shop', 'GAGE Farm'],
+      'type': 'order',
+      'title': 'Reward G-Fit: Cashback 25% s.d 15RB',
+      'discountText': 'Cashback 25% s.d 15RB',
+      'minOrder': 35000,
+      'discountAmount': 15000,
+      'discountPercentage': 0.25,
+      'quantity': 1,
+      'tag': 'G-Fit',
+      'expiry': '31 Des 2026',
+      'terms': [
+        'Hadiah resmi pencapaian Misi Juara G-Fit 21 KM.',
+        'Potongan 25% hingga maksimal Rp 15.000 minimal transaksi Rp 35.000.',
+        'Berlaku untuk GAGE Food, GAGE Shop, dan GAGE Farm.',
+      ],
+      'howToUse': 'Otomatis terbuka setelah mengklaim misi 21 KM di menu G-Fit.',
+    },
+  ];
+
+  static List<Map<String, dynamic>> get unlockedGfitVouchers {
+    final unlocked = GFitService.unlockedVouchersNotifier.value;
+    if (unlocked.isEmpty) return const [];
+    return gfitRewardVouchers
+        .where((v) => unlocked.contains((v['code'] as String).toUpperCase()))
+        .toList();
+  }
+
+  static List<Map<String, dynamic>> get allVouchers => [
+        ...unlockedGfitVouchers,
+        ...baseVouchers,
+      ];
+
+  static const List<Map<String, dynamic>> baseVouchers = [
     // 0. VOUCHER RESMI AFILIASI / AJAK TEMAN (GAGE by Halu Goods Indonesia)
     {
       'id': 'v-affiliate-cuan',
@@ -429,7 +508,11 @@ class GageVoucherData {
 
   static List<Map<String, dynamic>> vouchersForService(String serviceType) {
     final serviceName = serviceNameForType(serviceType);
-    return allVouchers.where((v) => v['service'] == serviceName).toList();
+    return allVouchers.where((v) {
+      if (v['service'] == serviceName) return true;
+      final extra = v['eligibleServices'];
+      return extra is List && extra.contains(serviceName);
+    }).toList();
   }
 
   static Map<String, dynamic>? findByCode(String code) {

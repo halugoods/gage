@@ -127,62 +127,37 @@ class _MerchantLocationChangeRequestSheetState extends State<MerchantLocationCha
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
     final inputBg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
     final borderColor = isDark ? Colors.white12 : const Color(0xFFE2E8F0);
     final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
     final subColor = isDark ? Colors.white60 : const Color(0xFF64748B);
 
-    return Container(
+    return Padding(
       padding: EdgeInsets.only(
-        top: 16,
         left: 20,
         right: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 12,
       ),
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Handle Bar
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header info
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
+                  color: GageTheme.primary.withValues(alpha: isDark ? 0.2 : 0.08),
+                  shape: BoxShape.circle,
                 ),
+                child: const Icon(Icons.share_location_rounded, color: GageTheme.primary, size: 20),
               ),
-            ),
-            const SizedBox(height: 14),
-
-            // Header
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: GageTheme.primary.withValues(alpha: isDark ? 0.2 : 0.08),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.share_location_rounded, color: GageTheme.primary, size: 20),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Ajukan Pindah Lokasi Kios',
-                        style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: textColor),
-                      ),
-                      const SizedBox(height: 2),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                       Text(
                         'Ditinjau & disetujui Admin GAGE sebelum update peta kurir',
                         style: TextStyle(fontSize: 11, color: subColor),
@@ -425,8 +400,7 @@ class _MerchantLocationChangeRequestSheetState extends State<MerchantLocationCha
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 
   Future<void> _pickLocationOnMap() async {

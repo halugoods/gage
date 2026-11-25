@@ -1,23 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/chat/presentation/chat_hub_screen.dart';
 import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
 import 'package:gage_app/features/chat/presentation/widgets/gage_chat_input_bar.dart';
 import 'package:gage_app/features/chat/providers/in_app_chat_provider.dart';
 import 'package:gage_app/providers/auth_provider.dart';
+import 'package:gage_app/providers/order_provider.dart';
+import 'package:gage_app/shared/widgets/gage_avatar.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Customer Chat UI & Badge Tests', () {
-    testWidgets('ChatHubScreen renders tabs with full-rounded capsule and red unread badges', (tester) async {
+    testWidgets('ChatHubScreen renders Bantuan tab, Pusat Bantuan, clean driver name, keeps Driver/Toko chips, and excludes transport orders from Toko', (tester) async {
       await tester.pumpWidget(
         MultiProvider(
           providers: [
             ChangeNotifierProvider(create: (_) => AuthProvider()),
             ChangeNotifierProvider(create: (_) => InAppChatProvider()),
+            ChangeNotifierProvider(create: (_) => OrderProvider()),
           ],
           child: const MaterialApp(
             home: ChatHubScreen(),
@@ -32,22 +36,30 @@ void main() {
 
       // Verifikasi TabBar Capsule
       expect(find.text('Semua'), findsOneWidget);
-      expect(find.text('Bantuan AI'), findsOneWidget);
+      expect(find.widgetWithText(Tab, 'Bantuan'), findsOneWidget);
       expect(find.widgetWithText(Tab, 'Driver'), findsOneWidget);
       expect(find.widgetWithText(Tab, 'Toko'), findsOneWidget);
 
-      // Verifikasi Role Chips
-      expect(find.text('AI 24/7'), findsWidgets);
+      // Verifikasi tidak ada label AI atau 24/7 dan order G-Ride tidak masuk sebagai Toko
+      expect(find.text('Bantuan AI'), findsNothing);
+      expect(find.text('AI 24/7'), findsNothing);
+      expect(find.textContaining('(Driver GAGE)'), findsNothing);
+      expect(find.text('GAGE Ride Pracimantoro'), findsNothing);
+
+      // Verifikasi entri Pusat Bantuan & Driver bersih + chip Driver & Toko tetap ada
+      expect(find.text('Pusat Bantuan'), findsOneWidget);
+      expect(find.text('Budi Santoso'), findsOneWidget);
       expect(find.text('Driver'), findsWidgets);
+      expect(find.text('Toko'), findsWidgets);
     });
 
-    testWidgets('InAppChatScreen renders clean message bubbles, order context pill, and capsule quick replies', (tester) async {
+    testWidgets('InAppChatScreen strips (Driver GAGE), shows clean bubbles, order context pill, and capsule quick replies', (tester) async {
       final chatProv = InAppChatProvider();
       chatProv.sendMessage(
         orderId: '8821',
         senderId: 'driver-01',
         senderRole: 'driver',
-        senderName: 'Budi Santoso',
+        senderName: 'Budi Santoso (Driver GAGE)',
         text: 'Halo kak, pesanan sudah saya ambil dari resto ya.',
       );
 
@@ -71,8 +83,9 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Verifikasi AppBar & Subtitle
-      expect(find.text('Budi Santoso (Driver GAGE)'), findsOneWidget);
+      // Verifikasi AppBar menampilkan nama driver bersih tanpa (Driver GAGE)
+      expect(find.text('Budi Santoso (Driver GAGE)'), findsNothing);
+      expect(find.text('Budi Santoso'), findsWidgets);
       expect(find.textContaining('Mitra Driver GAGE'), findsOneWidget);
 
       // Verifikasi Sticky Context Banner
@@ -131,6 +144,21 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(sentText, 'Halo driver');
+    });
+
+    test('GageAvatar.resolveSourceUrl normalizes Cloudflare relative media paths', () {
+      expect(
+        GageAvatar.resolveSourceUrl('/api/chat/media/driver-avatar.jpg'),
+        '${GageApiClient.baseUrl}/api/chat/media/driver-avatar.jpg',
+      );
+      expect(
+        GageAvatar.resolveSourceUrl('https://cdn.example.com/p.jpg'),
+        'https://cdn.example.com/p.jpg',
+      );
+      expect(
+        GageAvatar.resolveSourceUrl('assets/images/gage_icon.png'),
+        'assets/images/gage_icon.png',
+      );
     });
   });
 }

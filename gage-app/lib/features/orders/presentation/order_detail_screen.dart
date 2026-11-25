@@ -1360,7 +1360,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  order.driverName ?? 'Driver GAGE',
+                  InAppChatScreen.cleanDisplayName(
+                    order.driverName ?? 'Mitra Driver',
+                    role: 'driver',
+                  ),
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 13.5,
@@ -1398,9 +1401,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
                 MaterialPageRoute(
                   builder: (_) => InAppChatScreen(
                     orderId: order.id,
-                    recipientName: order.driverName ?? 'Driver GAGE',
+                    recipientName: InAppChatScreen.cleanDisplayName(
+                      order.driverName ?? 'Driver',
+                      role: 'driver',
+                    ),
                     recipientRole: 'driver',
                     recipientPhone: phone,
+                    recipientAvatar: order.driverAvatar,
                   ),
                 ),
               );
@@ -1779,9 +1786,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
       MaterialPageRoute(
         builder: (_) => InAppChatScreen(
           orderId: order.id,
-          recipientName: 'Pusat Bantuan GAGE',
-          recipientRole: 'ai',
+          recipientName: 'Pusat Bantuan',
+          recipientRole: 'support',
           recipientPhone: '',
+          recipientAvatar: 'assets/images/gage_icon.png',
         ),
       ),
     );

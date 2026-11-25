@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 
 /// Widget avatar aman lintas sumber (HTTP URL, Flutter asset, file lokal, atau fallback inisial).
@@ -26,11 +27,30 @@ class GageAvatar extends StatelessWidget {
     return cleaned.substring(0, 1).toUpperCase();
   }
 
+  /// Menormalisasi path relatif media Cloudflare R2 (`/api/chat/media/...`) menjadi URL absolut.
+  static String resolveSourceUrl(String? rawUrl) {
+    final trimmed = rawUrl?.trim() ?? '';
+    if (trimmed.isEmpty) return '';
+    if (trimmed.startsWith('/api/') || trimmed.startsWith('/media/')) {
+      final base = GageApiClient.baseUrl.endsWith('/')
+          ? GageApiClient.baseUrl.substring(0, GageApiClient.baseUrl.length - 1)
+          : GageApiClient.baseUrl;
+      return '$base$trimmed';
+    }
+    if (trimmed.startsWith('api/') || trimmed.startsWith('media/')) {
+      final base = GageApiClient.baseUrl.endsWith('/')
+          ? GageApiClient.baseUrl.substring(0, GageApiClient.baseUrl.length - 1)
+          : GageApiClient.baseUrl;
+      return '$base/$trimmed';
+    }
+    return trimmed;
+  }
+
   @override
   Widget build(BuildContext context) {
     final bg = backgroundColor ?? GageTheme.primary.withValues(alpha: 0.14);
     final fg = foregroundColor ?? GageTheme.primary;
-    final src = imageUrl?.trim() ?? '';
+    final src = resolveSourceUrl(imageUrl);
 
     Widget fallbackWidget() => Center(
           child: Text(

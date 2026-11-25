@@ -301,9 +301,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       MaterialPageRoute(
         builder: (ctx) => InAppChatScreen(
           orderId: order.id,
-          recipientName: 'Pusat Bantuan GAGE',
-          recipientRole: 'ai',
+          recipientName: 'Pusat Bantuan',
+          recipientRole: 'support',
           recipientPhone: '',
+          recipientAvatar: 'assets/images/gage_icon.png',
           currentRole: 'customer',
         ),
       ),
@@ -521,14 +522,19 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                         builder: (ctx) => InAppChatScreen(
                           orderId: order.id,
                           recipientName: order.hasAssignedDriver
-                              ? (order.driverName ?? 'Driver GAGE')
-                              : (order.isTransportService ? 'Pusat Bantuan GAGE' : order.merchantName),
+                              ? (order.driverName ?? 'Driver')
+                              : (order.isTransportService ? 'Pusat Bantuan' : order.merchantName),
                           recipientRole: order.hasAssignedDriver
                               ? 'driver'
-                              : (order.isTransportService ? 'ai' : 'merchant'),
+                              : (order.isTransportService ? 'support' : 'merchant'),
                           recipientPhone: order.hasAssignedDriver
                               ? (order.driverPhone ?? '').trim()
                               : (order.merchantPhone ?? '').trim(),
+                          recipientAvatar: order.hasAssignedDriver
+                              ? order.driverAvatar
+                              : (order.isTransportService
+                                  ? 'assets/images/gage_icon.png'
+                                  : order.resolveMerchantAvatarAsset()),
                           currentRole: 'customer',
                         ),
                       ),
@@ -1736,6 +1742,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                           recipientName: driverName,
                           recipientRole: 'driver',
                           recipientPhone: driverPhone,
+                          recipientAvatar: order.driverAvatar,
                           currentRole: 'customer',
                         ),
                       ),
@@ -1849,6 +1856,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                               recipientName: order.merchantName,
                               recipientRole: 'merchant',
                               recipientPhone: merchantPhone,
+                              recipientAvatar: order.resolveMerchantAvatarAsset(),
                               currentRole: 'customer',
                             ),
                           ),

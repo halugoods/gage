@@ -63,7 +63,7 @@ class NotificationService extends ChangeNotifier {
   static const String _merchantChatsKey = 'gage_unread_merchant_chats_v1';
 
   static const Map<String, int> _defaultCustomerChatUnreads = {
-    'chat-ai-01': 1,
+    'chat-cs-01': 1,
     'chat-driver-01': 1,
   };
   static const Map<String, int> _defaultDriverChatUnreads = {
@@ -152,6 +152,11 @@ class NotificationService extends ChangeNotifier {
       prefs.getString(_customerChatsKey),
       _defaultCustomerChatUnreads,
     );
+    if (_customerChatUnreads.containsKey('chat-ai-01')) {
+      final migrated = _customerChatUnreads.remove('chat-ai-01') ?? 0;
+      _customerChatUnreads.putIfAbsent('chat-cs-01', () => migrated);
+      _saveChatMap(_customerChatsKey, _customerChatUnreads);
+    }
     _driverChatUnreads = _decodeChatMap(
       prefs.getString(_driverChatsKey),
       _defaultDriverChatUnreads,

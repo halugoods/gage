@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:gage_app/core/models/merchant_branch_model.dart';
 import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/services/gage_audio_service.dart';
 import 'package:gage_app/core/services/merchant_storefront_service.dart';
@@ -33,9 +34,51 @@ class MerchantOrderProvider extends ChangeNotifier {
   String _preferredPaperSize = '58mm';
   String _printerDeviceName = 'RPP02N-Thermal-58mm';
 
+  // Multi-Outlet Branch State
+  String _activeBranchId = 'GAGE-PRC-FD01-01';
+  String _activeBranchName = 'Dimsum Sewu Pracimantoro (Pusat)';
+  String _activeBranchAddress = 'Jl. Raya Pracimantoro No. 14, Depan Pasar';
+  List<MerchantBranch> _branches = MerchantStorefrontService.defaultBranches();
+
   List<OrderModel> _orders = [];
   Timer? _countdownTimer;
   Timer? _pollingTimer;
+
+  String get activeBranchId => _activeBranchId;
+  String get activeBranchName => _activeBranchName;
+  String get activeBranchAddress => _activeBranchAddress;
+  List<MerchantBranch> get branches => List.unmodifiable(_branches);
+
+  Future<void> loadBranches() async {
+    final loaded = await MerchantStorefrontService.loadBranches(MerchantStorefrontService.defaultPortalMerchantId);
+    final activeId = await MerchantStorefrontService.getActiveBranchId(MerchantStorefrontService.defaultPortalMerchantId);
+    _branches = loaded;
+    final found = loaded.where((b) => b.id == activeId).firstOrNull ?? loaded.first;
+    _activeBranchId = found.id;
+    _activeBranchName = found.name;
+    _activeBranchAddress = found.address;
+    notifyListeners();
+  }
+
+  Future<void> switchBranch(MerchantBranch branch) async {
+    _activeBranchId = branch.id;
+    _activeBranchName = branch.name;
+    _activeBranchAddress = branch.address;
+    await MerchantStorefrontService.setActiveBranchId(
+      MerchantStorefrontService.defaultPortalMerchantId,
+      branch.id,
+    );
+    notifyListeners();
+  }
+
+  Future<void> addBranch(MerchantBranch newBranch) async {
+    _branches = [..._branches, newBranch];
+    await MerchantStorefrontService.saveBranches(
+      MerchantStorefrontService.defaultPortalMerchantId,
+      _branches,
+    );
+    await switchBranch(newBranch);
+  }
 
   bool get isOpen => _isOpen;
   bool get isBusy => _isBusy;

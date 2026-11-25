@@ -165,8 +165,22 @@ class OrderModel {
 
   bool get hasAssignedDriver => driverName != null && driverName!.trim().isNotEmpty;
 
-  bool get isTransportService =>
-      const {'ride', 'car', 'send'}.contains(serviceType.toLowerCase());
+  bool get isTransportService {
+    final svc = serviceType.trim().toLowerCase();
+    final mName = merchantName.trim().toLowerCase();
+    return svc == 'ride' ||
+        svc == 'car' ||
+        svc == 'send' ||
+        svc == 'g-ride' ||
+        svc == 'g-car' ||
+        svc == 'g-send' ||
+        mName.startsWith('gage ride') ||
+        mName.startsWith('gage car') ||
+        mName.startsWith('gage send') ||
+        id.startsWith('ord-ride-') ||
+        id.startsWith('ord-car-') ||
+        id.startsWith('ord-send-');
+  }
 
   String get stage => status;
   String? get kitchenNote => notes;

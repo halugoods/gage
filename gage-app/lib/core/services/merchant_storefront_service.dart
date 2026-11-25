@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:gage_app/core/models/merchant_branch_model.dart';
 import 'package:gage_app/core/network/gage_api_client.dart';
 
 /// Single day open/close operating hours entry.
@@ -855,6 +856,72 @@ class MerchantStorefrontService {
     } catch (_) {
       return null;
     }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // MULTI-OUTLET BRANCH MANAGEMENT (KELOLA CABANG)
+  // ───────────────────────────────────────────────────────────────────────────
+
+  static const String _branchesKeyPrefix = 'gage_merchant_branches_';
+  static const String _activeBranchKeyPrefix = 'gage_merchant_active_branch_';
+
+  static List<MerchantBranch> defaultBranches() {
+    return const [
+      MerchantBranch(
+        id: 'GAGE-PRC-FD01-01',
+        name: 'Dimsum Sewu Pracimantoro (Pusat)',
+        address: 'Jl. Raya Pracimantoro No. 14, Depan Pasar',
+        landmark: 'Depan Pasar Pracimantoro, samping Alfamidi',
+        phone: '085156955735',
+        isPrimary: true,
+        isOpen: true,
+        latitude: -8.0892,
+        longitude: 110.8374,
+      ),
+      MerchantBranch(
+        id: 'GAGE-PRC-FD01-02',
+        name: 'Dimsum Sewu Giritontro (Cabang 1)',
+        address: 'Jl. Raya Giritontro KM 2, Kec. Giritontro',
+        landmark: 'Sebelah Balai Desa Giritontro',
+        phone: '085156955736',
+        isPrimary: false,
+        isOpen: true,
+        latitude: -8.1205,
+        longitude: 110.8712,
+      ),
+    ];
+  }
+
+  static Future<List<MerchantBranch>> loadBranches(String merchantId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = '$_branchesKeyPrefix$merchantId';
+    final raw = prefs.getString(key);
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw) as List;
+        final list = decoded
+            .map((e) => MerchantBranch.fromJson(Map<String, dynamic>.from(e as Map)))
+            .toList();
+        if (list.isNotEmpty) return list;
+      } catch (_) {}
+    }
+    return defaultBranches();
+  }
+
+  static Future<void> saveBranches(String merchantId, List<MerchantBranch> branches) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = '$_branchesKeyPrefix$merchantId';
+    await prefs.setString(key, jsonEncode(branches.map((b) => b.toJson()).toList()));
+  }
+
+  static Future<String> getActiveBranchId(String merchantId) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('$_activeBranchKeyPrefix$merchantId') ?? 'GAGE-PRC-FD01-01';
+  }
+
+  static Future<void> setActiveBranchId(String merchantId, String branchId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('$_activeBranchKeyPrefix$merchantId', branchId);
   }
 }
 

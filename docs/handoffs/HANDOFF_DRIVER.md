@@ -127,3 +127,41 @@ Hasil audit menunjukkan beberapa field penting dari Customer belum tersedia di `
 
 
 
+
+---
+
+## 9. Handoff Wave 15: Sinkronisasi Foto Profil Driver di Chat & Pembersihan Nama
+
+1. **Tampilan Foto Profil & Nama Driver di Customer Portal (`ChatHubScreen`, `InAppChatScreen`, `OrderDetailScreen`)**:
+   - Customer Portal kini membersihkan akhiran `(Driver GAGE)`, `(Driver)`, maupun plat kendaraan di dalam judul nama via `InAppChatScreen.cleanDisplayName(..., role: 'driver')` (hanya menampilkan nama asli driver seperti `Budi Santoso`), sambil mempertahankan chip/pill peran `Driver`.
+   - `ChatHubScreen` tidak lagi menampilkan icon statis `assets/images/gage_chat_icon.png` untuk driver; saat `order.driverAvatar` terisi dari Cloudflare D1, avatar otomatis me-render foto asli tersebut (`GageAvatar.resolveSourceUrl` mendukung URL penuh maupun path relatif `/api/chat/media/...` & `/media/...`), dan saat kosong menampilkan inisial nama.
+   - Entri dukungan aplikasi kini bernama `Pusat Bantuan` (tab `Bantuan`) menggunakan icon `assets/images/gage_icon.png` tanpa label `AI` ataupun badge `24/7`.
+2. **Aksi yang Diperlukan di Portal Driver (`lib/features/driver/`)**:
+   - **Upload Foto Profil Driver**: Sediakan kontrol upload/ganti foto profil pada layar akun driver (`DriverAccountScreen`) menggunakan upload media R2 (`POST /api/chat/media/upload` atau endpoint upload R2 serupa) dan simpan URL hasilnya melalui `POST /api/user/profile` (`avatar_url`) sehingga kolom `du.avatar_url as driver_avatar` pada query order (`gage-cloud/src/index.ts`) otomatis menampilkan foto driver asli di Customer & Merchant.
+   - **Bersihkan Nama & Teruskan `recipientAvatar` di `DriverChatListScreen`**: Hapus label `(Driver GAGE)`/`(24/7)` atau `AI Assistant` bila masih muncul pada daftar/room chat driver, dan teruskan `recipientAvatar: order.customerAvatar` / `order.merchantAvatar` ke `InAppChatScreen`.
+
+---
+
+## 10. Handoff Wave 16: Handoff Lengkap Seluruh File Chat (`lib/features/chat/`) untuk Eksekusi Portal Driver
+
+Dokumen ini merinci seluruh file Dart modul chat yang dipakai bersama serta daftar eksekusi wajib di Portal Driver (`lib/features/driver/`).
+
+### A. Kontrak File Chat Bersama (`gage-app/lib/features/chat/` & `shared/widgets/gage_avatar.dart`)
+1. [`chat_message.dart`](../../gage-app/lib/features/chat/domain/chat_message.dart): Model `ChatMessage` (`text`, `image`, `product`, `voice`, `senderRole`, `mediaUrl`, `timestamp`, `status`).
+2. [`in_app_chat_provider.dart`](../../gage-app/lib/features/chat/providers/in_app_chat_provider.dart): `InAppChatProvider` dengan seed ter-guard `GageApiClient.useDevSeedData`, method `getMessages(orderId)`, `sendMessage`, `sendVoiceMessage`, `sendMediaMessage`, `sendProductMessage`.
+3. [`in_app_chat_screen.dart`](../../gage-app/lib/features/chat/presentation/in_app_chat_screen.dart): Layar chat terpadu. Driver masuk dengan `currentRole: 'driver'`, menerima parameter `recipientAvatar` (`String?`), `recipientName`, `recipientRole` (`'customer' | 'merchant' | 'support' | 'admin'`), `recipientPhone`, `orderId`. Sudah memiliki quick replies khusus `currentRole == 'driver'`.
+4. [`gage_chat_input_bar.dart`](../../gage-app/lib/features/chat/presentation/widgets/gage_chat_input_bar.dart): Input bar dengan voice note (`GageAudioService`), kamera, galeri, dan katalog produk.
+5. [`gage_product_catalog_sheet.dart`](../../gage-app/lib/features/chat/presentation/widgets/gage_product_catalog_sheet.dart): Bottom sheet katalog item (aktif dari tombol berkas di `InAppChatScreen`).
+6. [`chat_hub_screen.dart`](../../gage-app/lib/features/chat/presentation/chat_hub_screen.dart): Implementasi referensi sisi Customer untuk filter kapsul `BorderRadius.circular(999)`, merge order riil, nama bersih, dan normalisasi avatar.
+7. [`gage_avatar.dart`](../../gage-app/lib/shared/widgets/gage_avatar.dart): Widget `GageAvatar` + `GageAvatar.resolveSourceUrl(...)` untuk merender foto Cloudflare `/api/chat/media/...` atau URL penuh, serta fallback inisial nama tanpa ikon chat statis.
+
+### B. Checklist Eksekusi Wajib untuk Portal Driver
+1. **Refactor [`driver_chat_list_screen.dart`](../../gage-app/lib/features/driver/presentation/driver_chat_list_screen.dart)**:
+   - Guard daftar `_chatRooms` statis dengan `GageApiClient.useDevSeedData` dan integrasikan thread nyata dari trip/order aktif di `DriverProvider` serta pesan terbaru di `InAppChatProvider`.
+   - Ganti `CircleAvatar(child: Icon(roleIcon))` (`L118-L122`) dengan `GageAvatar(imageUrl: avatarUrl, fallbackName: name, radius: 24)` yang mengambil `order.customerAvatar` (untuk pelanggan), `order.resolveMerchantAvatarAsset()` (untuk merchant), dan `'assets/images/gage_icon.png'` untuk entri dukungan.
+   - Teruskan `recipientAvatar` saat memanggil `InAppChatScreen(...)` (`L102-L109`).
+   - Pastikan label dukungan admin/bantuan bersih bernama `Pusat Bantuan` (tanpa embel-embel `AI` atau `24/7`) dan pertahankan badge peran yang jelas (`Pelanggan`, `Toko`).
+2. **Upload Foto Profil Driver ke Cloudflare D1 (`avatar_url`)**:
+   - Tambahkan pemilih foto profil di layar akun Driver (`DriverAccountScreen`), unggah ke R2 (`POST /api/chat/media/upload` atau endpoint upload R2), dan simpan hasilnya lewat `POST /api/user/profile` (`avatar_url`) agar `order.driverAvatar` otomatis tampil riil di Chat Customer & Merchant.
+3. **Sync OrderModel dari `GET /api/driver/orders`**:
+   - Koordinasi dengan Admin (lihat `HANDOFF_ADMIN.md` Bagian 19) agar query order driver turut mengembalikan `m.image_url as merchant_avatar`, `u.phone as customer_phone`, dan `u.avatar_url as customer_avatar`.
