@@ -67,12 +67,13 @@ void main() {
     // Buka Tab 2: Outlet
     await tester.tap(find.descendant(of: navFinder, matching: find.text('Outlet')));
     await tester.pumpAndSettle();
-    expect(find.text('Total Penjualan (Rp)'), findsOneWidget);
-    expect(find.text('Skor Outlet'), findsOneWidget);
-    expect(find.text('Menu & Stok'), findsOneWidget);
-    expect(find.text('Jadwal Toko'), findsOneWidget);
-    expect(find.text('Lokasi & Peta'), findsOneWidget);
-    expect(find.text('JADI STAR RESTO GAGE'), findsOneWidget);
+    expect(find.text('Pendapatan Bersih Hari Ini'), findsOneWidget);
+    expect(find.text('Performa Terima Order'), findsOneWidget);
+    expect(find.text('ETALASE DI APLIKASI CUSTOMER'), findsOneWidget);
+    expect(find.text('Kelola Produk & Stok'), findsOneWidget);
+    expect(find.text('Wawasan & Analitik Toko'), findsOneWidget);
+    expect(find.text('Skor Outlet'), findsNothing);
+    expect(find.text('JADI STAR RESTO GAGE'), findsNothing);
 
     // Buka Tab 3: Marketing
     await tester.tap(find.descendant(of: navFinder, matching: find.text('Marketing')));

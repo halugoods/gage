@@ -27,6 +27,7 @@ import 'package:gage_app/features/merchant/presentation/merchant_review_screen.d
 import 'package:gage_app/features/merchant/presentation/merchant_terms_and_privacy_screen.dart';
 import 'package:gage_app/features/merchant/presentation/tabs/gage_merchant_chat_tab.dart';
 import 'package:gage_app/features/merchant/presentation/tabs/gage_merchant_orders_tab.dart';
+import 'package:gage_app/features/merchant/presentation/tabs/gage_merchant_outlet_tab.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_branch_switcher_sheet.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_floating_nav_bar.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_help_center_sheet.dart';
@@ -410,9 +411,9 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('Wawasan & Analitik Dapur'), findsOneWidget);
-      expect(find.text('Waktu Masak'), findsOneWidget);
-      expect(find.text('Jam Sibuk Dapur & Pesanan'), findsOneWidget);
+      expect(find.text('Wawasan & Analitik Toko'), findsOneWidget);
+      expect(find.text('Waktu Siap Default'), findsOneWidget);
+      expect(find.text('Jam Sibuk Pesanan Toko'), findsOneWidget);
       expect(find.byType(AppBar), findsOneWidget);
     });
 
@@ -1732,6 +1733,50 @@ void main() {
       expect(prefs.getInt('merchant_cooking_time'), equals(20));
       expect(prefs.getBool('merchant_self_pickup'), isFalse);
       expect(prefs.getBool('merchant_auto_accept'), isTrue);
+
+      provider.dispose();
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 52: Wave 20: Tab Outlet Real-Data Overhaul & Zero Shopee Bloat
+    // -------------------------------------------------------------------------
+    testWidgets('Skenario 52: Wave 20: GageMerchantOutletTab bebas data palsu/duplikat dan menampilkan Rincian Pendapatan riil', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final provider = MerchantOrderProvider();
+      final formatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider<MerchantOrderProvider>.value(
+          value: provider,
+          child: MaterialApp(
+            home: Scaffold(
+              body: GageMerchantOutletTab(currencyFormatter: formatter),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Pendapatan Bersih Hari Ini'), findsOneWidget);
+      expect(find.text('ETALASE DI APLIKASI CUSTOMER'), findsOneWidget);
+      expect(find.text('KELOLA OUTLET & PERFORMA'), findsOneWidget);
+      expect(find.text('Kelola Produk & Stok'), findsOneWidget);
+      expect(find.text('Wawasan & Analitik Toko'), findsOneWidget);
+
+      // Pastikan seluruh data palsu & duplikat Pengaturan telah dihapus total
+      expect(find.textContaining('87.360'), findsNothing);
+      expect(find.text('Skor Outlet'), findsNothing);
+      expect(find.text('JADI STAR RESTO GAGE'), findsNothing);
+      expect(find.text('Cakupan Layanan GAGE'), findsNothing);
+      expect(find.text('ID: #MRCH-PRC-001'), findsNothing);
+      expect(find.text('Keluar Akun Mitra'), findsNothing);
+
+      // Tap strip Performa Terima Order membuka GageFloatingSheet rincian riil
+      await tester.tap(find.text('Performa Terima Order'));
+      await tester.pumpAndSettle();
+      expect(find.text('Rincian Pendapatan & Performa'), findsOneWidget);
+      expect(find.text('Biaya Platform GAGE (10%)'), findsOneWidget);
+      expect(find.text('Kelola Saldo di GagePay'), findsOneWidget);
 
       provider.dispose();
     });
