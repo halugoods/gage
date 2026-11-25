@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gage_app/core/models/merchant_branch_model.dart';
 import 'package:gage_app/core/network/gage_api_client.dart';
 import 'package:gage_app/core/services/gage_audio_service.dart';
@@ -27,7 +28,9 @@ class MerchantOrderProvider extends ChangeNotifier {
   String _selectedStageFilter = 'SEMUA'; // 'SEMUA' | 'NEW' | 'COOKING' | 'READY_FOR_PICKUP'
 
   // Pengaturan Audio Alarm Dapur Bising & Thermal Multi-Rangkap
+  bool _selfPickupEnabled = true;
   bool _soundAlarmEnabled = true;
+  bool _popupNotificationEnabled = true;
   bool _autoPrintOnAccept = true;
   bool _openCashDrawerOnPrint = false;
   int _receiptCopies = 2; // Default 2 rangkap: 1x Dapur, 1x Kurir/Pelanggan
@@ -85,6 +88,8 @@ class MerchantOrderProvider extends ChangeNotifier {
   DateTime? get busyUntil => _busyUntil;
   String? get busyReason => _busyReason;
   bool get autoAccept => _autoAccept;
+  bool get selfPickupEnabled => _selfPickupEnabled;
+  bool get popupNotificationEnabled => _popupNotificationEnabled;
   bool get printerConnected => _printerConnected;
   bool get isPrinterConnected => _printerConnected;
   String get printerDeviceName => _printerDeviceName;
@@ -157,8 +162,61 @@ class MerchantOrderProvider extends ChangeNotifier {
 
   MerchantOrderProvider() {
     _initDefaultOrders();
+    _loadOperationalSettings();
     _startCountdownTicker();
     startPolling();
+  }
+
+  Future<void> _loadOperationalSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _cookingTime = prefs.getInt('merchant_cooking_time') ?? _cookingTime;
+      _selfPickupEnabled = prefs.getBool('merchant_self_pickup') ?? _selfPickupEnabled;
+      _autoAccept = prefs.getBool('merchant_auto_accept') ?? _autoAccept;
+      _soundAlarmEnabled = prefs.getBool('merchant_alarm_repeating') ?? _soundAlarmEnabled;
+      _popupNotificationEnabled = prefs.getBool('merchant_popup_notif') ?? _popupNotificationEnabled;
+      _autoPrintOnAccept = prefs.getBool('merchant_auto_print') ?? _autoPrintOnAccept;
+      _openCashDrawerOnPrint = prefs.getBool('merchant_cash_drawer') ?? _openCashDrawerOnPrint;
+      _receiptCopies = (prefs.getInt('merchant_receipt_copies') ?? _receiptCopies).clamp(1, 3);
+      _preferredPaperSize = prefs.getString('merchant_paper_size') ?? _preferredPaperSize;
+      _printerDeviceName = prefs.getString('merchant_printer_name') ?? _printerDeviceName;
+      _printerConnected = prefs.getBool('merchant_printer_connected') ?? _printerConnected;
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> _saveOperationalSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('merchant_cooking_time', _cookingTime);
+      await prefs.setBool('merchant_self_pickup', _selfPickupEnabled);
+      await prefs.setBool('merchant_auto_accept', _autoAccept);
+      await prefs.setBool('merchant_alarm_repeating', _soundAlarmEnabled);
+      await prefs.setBool('merchant_popup_notif', _popupNotificationEnabled);
+      await prefs.setBool('merchant_auto_print', _autoPrintOnAccept);
+      await prefs.setBool('merchant_cash_drawer', _openCashDrawerOnPrint);
+      await prefs.setInt('merchant_receipt_copies', _receiptCopies);
+      await prefs.setString('merchant_paper_size', _preferredPaperSize);
+      await prefs.setString('merchant_printer_name', _printerDeviceName);
+      await prefs.setBool('merchant_printer_connected', _printerConnected);
+    } catch (_) {}
+  }
+
+  Future<void> updateActiveBranchName(String newName, {String? phone}) async {
+    final trimmed = newName.trim();
+    if (trimmed.isEmpty) return;
+    _activeBranchName = trimmed;
+    _branches = _branches.map((b) {
+      if (b.id == _activeBranchId) {
+        return b.copyWith(name: trimmed, phone: phone);
+      }
+      return b;
+    }).toList();
+    await MerchantStorefrontService.saveBranches(
+      MerchantStorefrontService.defaultPortalMerchantId,
+      _branches,
+    );
+    notifyListeners();
   }
 
   @override
@@ -567,12 +625,28 @@ class MerchantOrderProvider extends ChangeNotifier {
   void toggleAutoAccept(bool val) {
     HapticFeedback.lightImpact();
     _autoAccept = val;
+    _saveOperationalSettings();
+    notifyListeners();
+  }
+
+  void setSelfPickupEnabled(bool val) {
+    HapticFeedback.lightImpact();
+    _selfPickupEnabled = val;
+    _saveOperationalSettings();
+    notifyListeners();
+  }
+
+  void setPopupNotificationEnabled(bool val) {
+    HapticFeedback.lightImpact();
+    _popupNotificationEnabled = val;
+    _saveOperationalSettings();
     notifyListeners();
   }
 
   void togglePrinter(bool val) {
     HapticFeedback.lightImpact();
     _printerConnected = val;
+    _saveOperationalSettings();
     notifyListeners();
   }
 
@@ -580,40 +654,47 @@ class MerchantOrderProvider extends ChangeNotifier {
     HapticFeedback.lightImpact();
     _soundAlarmEnabled = val;
     _checkAndManageOrderAlert();
+    _saveOperationalSettings();
     notifyListeners();
   }
 
   void toggleAutoPrintOnAccept(bool val) {
     HapticFeedback.lightImpact();
     _autoPrintOnAccept = val;
+    _saveOperationalSettings();
     notifyListeners();
   }
 
   void setReceiptCopies(int copies) {
     HapticFeedback.selectionClick();
     _receiptCopies = copies.clamp(1, 3);
+    _saveOperationalSettings();
     notifyListeners();
   }
 
   void setPreferredPaperSize(String size) {
     HapticFeedback.selectionClick();
     _preferredPaperSize = size;
+    _saveOperationalSettings();
     notifyListeners();
   }
 
   void setPrinterConnected(bool val) => togglePrinter(val);
   void setPrinterDeviceName(String name) {
     _printerDeviceName = name;
+    _saveOperationalSettings();
     notifyListeners();
   }
   void setPrinterPaperSize(String size) => setPreferredPaperSize(size);
   void toggleAutoPrint(bool val) => toggleAutoPrintOnAccept(val);
   void setAutoPrintOrders(bool val) {
     _autoPrintOnAccept = val;
+    _saveOperationalSettings();
     notifyListeners();
   }
   void setOpenCashDrawerOnPrint(bool val) {
     _openCashDrawerOnPrint = val;
+    _saveOperationalSettings();
     notifyListeners();
   }
 
@@ -633,7 +714,9 @@ class MerchantOrderProvider extends ChangeNotifier {
   }
 
   void setCookingTime(int minutes) {
+    HapticFeedback.selectionClick();
     _cookingTime = minutes;
+    _saveOperationalSettings();
     notifyListeners();
   }
 

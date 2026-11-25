@@ -14,6 +14,11 @@ import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
 import 'package:gage_app/features/chat/presentation/widgets/gage_product_catalog_sheet.dart';
 import 'package:gage_app/features/chat/providers/in_app_chat_provider.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_profile_screen.dart';
+import 'package:gage_app/features/merchant/presentation/settings/merchant_location_and_requests_screen.dart';
+import 'package:gage_app/features/merchant/presentation/settings/merchant_operating_schedule_screen.dart';
+import 'package:gage_app/features/merchant/presentation/settings/merchant_printer_settings_screen.dart';
+import 'package:gage_app/features/merchant/presentation/settings/merchant_receipt_settings_screen.dart';
+import 'package:gage_app/features/merchant/presentation/settings/merchant_store_info_screen.dart';
 import 'package:gage_app/features/merchant/presentation/auth/merchant_store_setup_wizard_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_kitchen_insights_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_menu_screen.dart';
@@ -1148,9 +1153,9 @@ void main() {
     });
 
     // -------------------------------------------------------------------------
-    // Skenario 36: Wave 13 Shopee Partner Settings Grid & Pengajuan Pindah Lokasi Kios
+    // Skenario 36: Wave 19 Seamless Grouped Cards Pengaturan & Pengajuan Lokasi
     // -------------------------------------------------------------------------
-    testWidgets('Skenario 36: Wave 13 Shopee Partner Settings Grid & Pengajuan Pindah Lokasi Kios', (tester) async {
+    testWidgets('Skenario 36: Wave 19 Seamless Grouped Cards Pengaturan & Pengajuan Lokasi', (tester) async {
       SharedPreferences.setMockInitialValues({});
       await tester.pumpWidget(
         const MaterialApp(
@@ -1160,22 +1165,28 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      // Verifikasi Header Shopee Partner
+      // Verifikasi Header & Seamless Grouped Cards
       expect(find.text('Pengaturan'), findsOneWidget);
       expect(find.text('TERVERIFIKASI'), findsOneWidget);
       expect(find.textContaining('ID Toko:'), findsOneWidget);
       expect(find.widgetWithText(ElevatedButton, 'Menu'), findsNothing);
+      expect(find.text('Kepatuhan SOP'), findsNothing);
 
-      // Verifikasi 7 Tile Grid Menu Shopee Partner
-      expect(find.text('Informasi\nToko'), findsOneWidget);
-      expect(find.text('Pengaturan\nPesanan'), findsOneWidget);
-      expect(find.text('Pengaturan\nNotifikasi'), findsOneWidget);
-      expect(find.text('Printer\nThermal'), findsOneWidget);
-      expect(find.text('Pengaturan\nStruk'), findsOneWidget);
-      expect(find.text('Pengajuan\nSaya'), findsOneWidget);
-      expect(find.text('Pusat\nBantuan'), findsOneWidget);
+      // Verifikasi section headers & menu item tanpa grid '\n' lama maupun duplikasi Pusat Bantuan
+      expect(find.text('TOKO & OPERASIONAL'), findsOneWidget);
+      expect(find.text('PESANAN, NOTIFIKASI & PRINTER'), findsOneWidget);
+      expect(find.text('Informasi Toko'), findsOneWidget);
+      expect(find.text('Pengaturan Pesanan'), findsOneWidget);
+      expect(find.text('Pengaturan Notifikasi & Alarm'), findsOneWidget);
+      expect(find.text('Printer Bluetooth Thermal'), findsOneWidget);
+      expect(find.text('Pengaturan Struk'), findsOneWidget);
+      expect(find.text('Lokasi Toko & Pindah Alamat'), findsOneWidget);
+      expect(find.text('Pusat Bantuan & Hotline'), findsOneWidget);
 
-      // Verifikasi model & persistence Pengajuan Pindah Lokasi Kios
+      await tester.scrollUntilVisible(find.text('Keluar dari Akun Mitra'), 300);
+      expect(find.text('Keluar dari Akun Mitra'), findsOneWidget);
+
+      // Verifikasi model & persistence Pengajuan Pindah Lokasi Toko
       final req = MerchantLocationChangeRequest(
         id: 'test-req-01',
         merchantId: 'm-test',
@@ -1621,6 +1632,108 @@ void main() {
       expect(find.text('Diantar'), findsWidgets);
       expect(find.text('Selesai'), findsWidgets);
       expect(find.byIcon(Icons.shopping_bag_rounded), findsOneWidget);
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 51: Wave 19: Smart Split Full-Screen Sub-Pages & SharedPrefs Sync
+    // -------------------------------------------------------------------------
+    testWidgets('Skenario 51: Wave 19: Full-Screen Pengaturan Sub-Pages, Printer Rangkap & Persistence', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final provider = MerchantOrderProvider();
+
+      // 1. Verifikasi MerchantStoreInfoScreen Full Screen
+      await tester.pumpWidget(
+        ChangeNotifierProvider<MerchantOrderProvider>.value(
+          value: provider,
+          child: const MaterialApp(
+            home: MerchantStoreInfoScreen(
+              merchantId: 'm-test',
+              storeIdFormatted: 'GAGE-PRC-FD01',
+              initialName: 'Dimsum Sewu Uji',
+              initialWhatsapp: '085156955735',
+              initialLogo: 'assets/images/resto_dimsum_sewu.png',
+              initialBanner: 'assets/images/resto_dimsum_sewu.png',
+              storeAddress: 'Jl. Raya Pracimantoro No. 14',
+              landmark: 'Depan Pasar',
+              latitude: -8.0892,
+              longitude: 110.8374,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Informasi Toko'), findsOneWidget);
+      expect(find.text('Nama Toko / Outlet'), findsOneWidget);
+      expect(find.text('Simpan Informasi Toko'), findsOneWidget);
+
+      // 2. Verifikasi MerchantReceiptSettingsScreen Full Screen + Tampilkan Logo Toggle
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: MerchantReceiptSettingsScreen(storeName: 'Dimsum Sewu Uji'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Pengaturan Struk'), findsOneWidget);
+      expect(find.text('Tampilkan Logo Toko'), findsOneWidget);
+      expect(find.text('Simpan Pengaturan Struk'), findsOneWidget);
+
+      // 3. Verifikasi MerchantPrinterSettingsScreen Full Screen + Jumlah Rangkap (1x/2x/3x)
+      await tester.pumpWidget(
+        ChangeNotifierProvider<MerchantOrderProvider>.value(
+          value: provider,
+          child: const MaterialApp(
+            home: MerchantPrinterSettingsScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Printer Bluetooth Thermal'), findsOneWidget);
+      expect(find.text('Jumlah Rangkap'), findsOneWidget);
+      expect(find.text('1x'), findsOneWidget);
+      expect(find.text('2x'), findsOneWidget);
+      expect(find.text('3x'), findsOneWidget);
+      await tester.tap(find.text('3x'));
+      await tester.pumpAndSettle();
+      expect(provider.receiptCopies, equals(3));
+
+      // 4. Verifikasi MerchantOperatingScheduleScreen & MerchantLocationAndRequestsScreen
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: MerchantOperatingScheduleScreen(merchantId: 'm-test'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Jam Operasional Toko'), findsOneWidget);
+      expect(find.text('Simpan Jadwal Operasional'), findsOneWidget);
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: MerchantLocationAndRequestsScreen(
+            merchantId: 'm-test',
+            storeName: 'Dimsum Sewu Uji',
+            currentAddress: 'Jl. Raya Pracimantoro No. 14',
+            currentLandmark: 'Depan Pasar',
+            currentLatitude: -8.0892,
+            currentLongitude: 110.8374,
+            markerImagePath: 'assets/images/resto_dimsum_sewu.png',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Lokasi Toko & Pengajuan'), findsOneWidget);
+      expect(find.text('Kirim Pengajuan ke Admin GAGE'), findsOneWidget);
+
+      // 5. Verifikasi SharedPreferences sync pada MerchantOrderProvider
+      provider.setCookingTime(20);
+      provider.setSelfPickupEnabled(false);
+      provider.toggleAutoAccept(true);
+      await tester.pump(const Duration(milliseconds: 100));
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getInt('merchant_cooking_time'), equals(20));
+      expect(prefs.getBool('merchant_self_pickup'), isFalse);
+      expect(prefs.getBool('merchant_auto_accept'), isTrue);
+
+      provider.dispose();
     });
   });
 }

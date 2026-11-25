@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 
 /// Halaman Layar Penuh (Full Screen Page) untuk Penilaian & Ulasan Mitra Usaha GAGE
@@ -78,125 +79,95 @@ class _MerchantReviewScreenState extends State<MerchantReviewScreen> {
     HapticFeedback.lightImpact();
     final replyCtrl = TextEditingController(text: review['reply'] ?? '');
 
-    showModalBottomSheet(
+    GageFloatingSheet.show(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      title: 'Balas Ulasan ${review['name']}',
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(ctx).viewInsets.bottom,
         ),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white24 : Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '"${review['comment']}"',
+              style: TextStyle(
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+                color: isDark ? Colors.white60 : Colors.grey.shade600,
               ),
-              const SizedBox(height: 16),
-              Text(
-                'Balas Ulasan ${review['name']}',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '"${review['comment']}"',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontStyle: FontStyle.italic,
-                  color: isDark ? Colors.white60 : Colors.grey.shade600,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 16),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 14),
 
-              // Form Field Balasan Mewah Anti-Slop
-              Text(
-                'Tanggapan Resmi Toko',
-                style: TextStyle(
+            Text(
+              'Tanggapan Resmi Toko',
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 6),
+            TextField(
+              controller: replyCtrl,
+              maxLines: 3,
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
+              decoration: InputDecoration(
+                hintText: 'Tulis apresiasi atau tanggapan ramah dari toko...',
+                hintStyle: TextStyle(
                   fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  color: isDark ? Colors.white38 : Colors.grey.shade400,
                 ),
-              ),
-              const SizedBox(height: 6),
-              TextField(
-                controller: replyCtrl,
-                maxLines: 3,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                filled: true,
+                fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                contentPadding: const EdgeInsets.all(14),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(
+                    color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                    width: 1.0,
+                  ),
                 ),
-                decoration: InputDecoration(
-                  hintText: 'Tulis apresiasi atau tanggapan ramah dari resto...',
-                  hintStyle: TextStyle(
-                    fontSize: 12.5,
-                    color: isDark ? Colors.white38 : Colors.grey.shade400,
-                  ),
-                  filled: true,
-                  fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                  contentPadding: const EdgeInsets.all(14),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(
-                      color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-                      width: 1.0,
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(
-                      color: GageTheme.primary,
-                      width: 1.8,
-                    ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(
+                    color: GageTheme.primary,
+                    width: 1.8,
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                height: 46,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: GageTheme.primary,
-                    foregroundColor: Colors.white,
-                    shape: const StadiumBorder(),
-                    elevation: 0,
-                  ),
-                  onPressed: () {
-                    final text = replyCtrl.text.trim();
-                    if (text.isNotEmpty) {
-                      setState(() {
-                        review['reply'] = text;
-                      });
-                      Navigator.pop(ctx);
-                      GageToast.show(context, 'Balasan ulasan berhasil dipublikasikan');
-                    }
-                  },
-                  child: const Text('Kirim Tanggapan', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: GageTheme.primary,
+                  foregroundColor: Colors.white,
+                  shape: const StadiumBorder(),
+                  elevation: 0,
                 ),
+                onPressed: () {
+                  final text = replyCtrl.text.trim();
+                  if (text.isNotEmpty) {
+                    setState(() {
+                      review['reply'] = text;
+                    });
+                    Navigator.pop(ctx);
+                    GageToast.show(this.context, 'Balasan ulasan berhasil dipublikasikan', type: GageToastType.success);
+                  }
+                },
+                child: const Text('Kirim Tanggapan', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
-              const SizedBox(height: 8),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

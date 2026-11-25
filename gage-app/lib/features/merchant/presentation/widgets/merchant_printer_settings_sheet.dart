@@ -158,7 +158,7 @@ class _MerchantPrinterSettingsSheetState extends State<MerchantPrinterSettingsSh
 
     final provider = context.read<MerchantOrderProvider>();
     final bytes = MerchantReceiptPrinterService.instance.generateTestReceipt(
-      storeName: 'Dimsum Sewu Pracimantoro',
+      storeName: provider.activeBranchName,
       paperSize: provider.printerPaperSize,
     );
 
@@ -362,53 +362,125 @@ class _MerchantPrinterSettingsSheetState extends State<MerchantPrinterSettingsSh
               isDark: isDark,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                child: Row(
+                child: Column(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(7),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.withValues(alpha: isDark ? 0.2 : 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(
-                        Icons.table_rows_rounded,
-                        color: isDark ? Colors.white70 : const Color(0xFF475569),
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Ukuran Kertas',
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w700,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withValues(alpha: isDark ? 0.2 : 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            Icons.table_rows_rounded,
+                            color: isDark ? Colors.white70 : const Color(0xFF475569),
+                            size: 20,
+                          ),
                         ),
-                      ),
-                    ),
-                    Container(
-                      height: 36,
-                      padding: const EdgeInsets.all(2.5),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Ukuran Kertas',
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            ),
+                          ),
                         ),
-                      ),
-                      child: Row(
-                        children: [
-                          _buildPaperSizePill('58mm', provider.printerPaperSize == '58mm', () {
-                            HapticFeedback.selectionClick();
-                            provider.setPrinterPaperSize('58mm');
-                          }),
-                          _buildPaperSizePill('80mm', provider.printerPaperSize == '80mm', () {
-                            HapticFeedback.selectionClick();
-                            provider.setPrinterPaperSize('80mm');
-                          }),
-                        ],
-                      ),
+                        Container(
+                          height: 36,
+                          padding: const EdgeInsets.all(2.5),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              _buildPaperSizePill('58mm', provider.printerPaperSize == '58mm', () {
+                                HapticFeedback.selectionClick();
+                                provider.setPrinterPaperSize('58mm');
+                              }),
+                              _buildPaperSizePill('80mm', provider.printerPaperSize == '80mm', () {
+                                HapticFeedback.selectionClick();
+                                provider.setPrinterPaperSize('80mm');
+                              }),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Divider(
+                      height: 1,
+                      color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF8B5CF6).withValues(alpha: isDark ? 0.2 : 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.file_copy_rounded,
+                            color: Color(0xFF8B5CF6),
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Jumlah Rangkap',
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
+                              ),
+                              Text(
+                                'Salinan struk toko & tiket dapur',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isDark ? Colors.white60 : Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          height: 36,
+                          padding: const EdgeInsets.all(2.5),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                            ),
+                          ),
+                          child: Row(
+                            children: [1, 2, 3].map((copies) {
+                              return _buildPaperSizePill(
+                                '${copies}x',
+                                provider.receiptCopies == copies,
+                                () {
+                                  HapticFeedback.selectionClick();
+                                  provider.setReceiptCopies(copies);
+                                },
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -575,12 +647,19 @@ class _MerchantPrinterSettingsSheetState extends State<MerchantPrinterSettingsSh
   Widget _buildSettingCard({required bool isDark, required Widget child}) {
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(16),
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
           width: 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Material(
         type: MaterialType.transparency,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/merchant/services/merchant_receipt_printer_service.dart';
 import 'package:gage_app/providers/merchant_order_provider.dart';
@@ -48,6 +49,27 @@ class _MerchantThermalReceiptSheetState
   String _paperSize = '58mm'; // '58mm' | '80mm'
   int _activePreviewCopy = 1; // 1: Toko, 2: Dapur
   bool _isPrinting = false;
+  String? _customFooterText;
+
+  @override
+  void initState() {
+    super.initState();
+    try {
+      final prov = context.read<MerchantOrderProvider>();
+      _paperSize = prov.preferredPaperSize;
+    } catch (_) {}
+    _loadReceiptFooter();
+  }
+
+  Future<void> _loadReceiptFooter() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString('gage_receipt_footer_text');
+      if (saved != null && saved.trim().isNotEmpty && mounted) {
+        setState(() => _customFooterText = saved.trim());
+      }
+    } catch (_) {}
+  }
 
   String _generatePlainTextReceipt({int copyIndex = 1}) {
     return MerchantReceiptPrinterService.instance.generateReceiptText(
@@ -587,11 +609,11 @@ class _MerchantThermalReceiptSheetState
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Center(
+                    Center(
                       child: Text(
-                        '*** TERIMA KASIH ***\nSimpan bukti struk kasir ini',
+                        _customFooterText ?? '*** TERIMA KASIH ***\nSimpan bukti struk kasir ini',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontFamily: 'Courier',
                           fontSize: 9.5,
                           color: Colors.black45,

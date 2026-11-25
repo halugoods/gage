@@ -8,10 +8,10 @@ import 'package:gage_app/features/merchant/presentation/merchant_menu_screen.dar
 import 'package:gage_app/features/merchant/presentation/merchant_profile_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_review_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_kitchen_insights_screen.dart';
+import 'package:gage_app/features/merchant/presentation/settings/merchant_operating_schedule_screen.dart';
+import 'package:gage_app/features/merchant/presentation/settings/merchant_printer_settings_screen.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_branch_switcher_sheet.dart';
-import 'package:gage_app/features/merchant/presentation/widgets/merchant_printer_settings_sheet.dart';
-import 'package:gage_app/features/merchant/presentation/widgets/merchant_support_sheet.dart';
-import 'package:gage_app/features/merchant/presentation/widgets/operating_schedule_editor_sheet.dart';
+import 'package:gage_app/features/merchant/presentation/widgets/merchant_help_center_sheet.dart';
 import 'package:gage_app/providers/auth_provider.dart';
 import 'package:gage_app/providers/merchant_order_provider.dart';
 import 'package:gage_app/core/routing/portal_routes.dart';
@@ -197,47 +197,26 @@ class GageMerchantOutletTab extends StatelessWidget {
     );
   }
 
-  void _confirmLogout(BuildContext context, bool isDark) {
+  Future<void> _confirmLogout(BuildContext context, bool isDark) async {
     HapticFeedback.mediumImpact();
-    showDialog(
+    final confirm = await GageFloatingSheet.showConfirm(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Keluar Akun Mitra?', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-        content: const Text(
-          'Anda dapat masuk kembali kapan saja menggunakan nomor WhatsApp toko atau PIN mitra terdaftar.',
-          style: TextStyle(fontSize: 13),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: GageTheme.primary,
-              foregroundColor: Colors.white,
-              shape: const StadiumBorder(),
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-              elevation: 0,
-            ),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              final auth = Provider.of<AuthProvider>(context, listen: false);
-              await auth.signOut();
-              if (context.mounted) {
-                Navigator.of(context).pushNamedAndRemoveUntil(
-                  MerchantRoutes.login,
-                  (route) => false,
-                );
-              }
-            },
-            child: const Text('Ya, Keluar', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
+      title: 'Keluar Akun Mitra?',
+      message: 'Anda dapat masuk kembali kapan saja menggunakan nomor WhatsApp toko atau PIN mitra terdaftar.',
+      confirmLabel: 'Ya, Keluar',
+      cancelLabel: 'Batal',
+      confirmColor: const Color(0xFFDC2626),
+      icon: Icons.logout_rounded,
     );
+    if (confirm != true || !context.mounted) return;
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    await auth.signOut();
+    if (context.mounted) {
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        MerchantRoutes.login,
+        (route) => false,
+      );
+    }
   }
 
 
@@ -491,14 +470,16 @@ class GageMerchantOutletTab extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     side: BorderSide(color: GageTheme.primary.withValues(alpha: 0.5)),
                   ),
-                  onPressed: () async {
-                    final newSched = await showOperatingScheduleEditorSheet(
-                      context: context,
-                      initialSchedule: MerchantOperatingSchedule.defaults(open: '09:00', close: '21:00'),
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const MerchantOperatingScheduleScreen(
+                          merchantId: MerchantStorefrontService.defaultPortalMerchantId,
+                        ),
+                      ),
                     );
-                    if (newSched != null && context.mounted) {
-                      GageToast.show(context, 'Jadwal operasional toko diperbarui');
-                    }
                   },
                   child: const Text('Atur Jadwal', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: GageTheme.primary)),
                 ),
@@ -555,7 +536,12 @@ class GageMerchantOutletTab extends StatelessWidget {
                       label: 'Printer Thermal',
                       onTap: () {
                         HapticFeedback.lightImpact();
-                        MerchantPrinterSettingsSheet.show(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const MerchantPrinterSettingsScreen(),
+                          ),
+                        );
                       },
                       isDark: isDark,
                     ),
@@ -565,9 +551,13 @@ class GageMerchantOutletTab extends StatelessWidget {
                       label: 'Jadwal Toko',
                       onTap: () {
                         HapticFeedback.lightImpact();
-                        showOperatingScheduleEditorSheet(
-                          context: context,
-                          initialSchedule: MerchantOperatingSchedule.defaults(),
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const MerchantOperatingScheduleScreen(
+                              merchantId: MerchantStorefrontService.defaultPortalMerchantId,
+                            ),
+                          ),
                         );
                       },
                       isDark: isDark,
@@ -638,7 +628,11 @@ class GageMerchantOutletTab extends StatelessWidget {
                       label: 'Bantuan',
                       onTap: () {
                         HapticFeedback.lightImpact();
-                        MerchantSupportSheet.show(context);
+                        MerchantHelpCenterSheet.show(
+                          context,
+                          storeName: provider.activeBranchName,
+                          storeId: provider.activeBranchId,
+                        );
                       },
                       isDark: isDark,
                     ),

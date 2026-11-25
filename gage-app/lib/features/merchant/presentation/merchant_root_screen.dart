@@ -15,7 +15,6 @@ import 'package:gage_app/features/wallet/presentation/gagepay_screen.dart';
 import 'package:gage_app/features/notification/presentation/notification_screen.dart';
 import 'package:gage_app/providers/merchant_order_provider.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
-import 'package:gage_app/shared/widgets/gage_merchant_tier_badge.dart';
 
 const Color _redColor = Color(0xFFDC2626);
 const Color _orangeColor = Color(0xFFD97706);
