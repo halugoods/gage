@@ -427,7 +427,7 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
       ),
       child: const GageDeliveryTrackProgress(
         isSearchingDriver: true,
-        labelPrefix: 'Sedang mencari kurir terdekat',
+        labelPrefix: 'Sedang mencari driver',
         labelHighlight: '...',
       ),
     );

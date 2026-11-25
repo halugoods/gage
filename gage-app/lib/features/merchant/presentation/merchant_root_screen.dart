@@ -180,8 +180,6 @@ class _MerchantRootScreenState extends State<MerchantRootScreen> {
                       ),
                       const SizedBox(width: 4),
                       const Icon(Icons.keyboard_arrow_down_rounded, size: 16),
-                      const SizedBox(width: 4),
-                      const GageMerchantTierBadge(tier: 'star', height: 15),
                     ],
                   ),
                 ),

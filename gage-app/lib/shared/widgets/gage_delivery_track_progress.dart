@@ -101,48 +101,41 @@ class _GageDeliveryTrackProgressState extends State<GageDeliveryTrackProgress>
     final isFiveStage = widget.orderStatus != null;
     final activeIdx = isFiveStage ? _resolveActiveStageIndex() : 1;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        RichText(
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          text: TextSpan(
-            style: const TextStyle(fontSize: 12.5, height: 1.3),
-            children: [
-              TextSpan(
-                text: prefixText,
-                style: const TextStyle(
-                  color: GageTheme.primary,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              if (highlightText.isNotEmpty)
-                TextSpan(
-                  text: highlightText,
-                  style: TextStyle(
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-            ],
+    final labelWidget = RichText(
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      text: TextSpan(
+        style: const TextStyle(fontSize: 12.5, height: 1.3),
+        children: [
+          TextSpan(
+            text: prefixText,
+            style: const TextStyle(
+              color: GageTheme.primary,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: isFiveStage ? 46 : 26,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final totalWidth = constraints.maxWidth;
-              const riderWidth = 34.0;
-              const riderHeight = 22.0;
+          if (highlightText.isNotEmpty)
+            TextSpan(
+              text: highlightText,
+              style: TextStyle(
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+        ],
+      ),
+    );
 
-              final trackStart = isFiveStage ? 22.0 : 4.0;
-              final trackEnd = isFiveStage
-                  ? (totalWidth - 22.0).clamp(60.0, totalWidth)
-                  : (totalWidth - 24.0).clamp(40.0, totalWidth);
-              final cutleryX = trackStart + (trackEnd - trackStart) * 0.44;
+    final trackWidget = LayoutBuilder(
+      builder: (context, constraints) {
+        final totalWidth = constraints.maxWidth;
+        const riderWidth = 34.0;
+        const riderHeight = 22.0;
+
+        final trackStart = isFiveStage ? 22.0 : 4.0;
+        final trackEnd = isFiveStage
+            ? (totalWidth - 22.0).clamp(60.0, totalWidth)
+            : (totalWidth - 24.0).clamp(40.0, totalWidth);
 
               return AnimatedBuilder(
                 animation: _ctrl,
@@ -222,14 +215,30 @@ class _GageDeliveryTrackProgressState extends State<GageDeliveryTrackProgress>
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(
-                                  nodeIcons[idx],
-                                  size: 16,
-                                  color: isDoneOrActive
-                                      ? GageTheme.primary
-                                      : (isDark ? Colors.white30 : Colors.grey.shade400),
+                                Container(
+                                  width: 24,
+                                  height: 24,
+                                  decoration: BoxDecoration(
+                                    color: isDoneOrActive
+                                        ? (isDark ? const Color(0xFF2B1214) : const Color(0xFFFFF1F2))
+                                        : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: isDoneOrActive
+                                          ? GageTheme.primary.withValues(alpha: 0.35)
+                                          : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    nodeIcons[idx],
+                                    size: 14,
+                                    color: isDoneOrActive
+                                        ? GageTheme.primary
+                                        : (isDark ? Colors.white30 : Colors.grey.shade400),
+                                  ),
                                 ),
-                                const SizedBox(height: 5),
+                                const SizedBox(height: 4),
                                 Text(
                                   stages[idx],
                                   textAlign: TextAlign.center,
@@ -294,7 +303,32 @@ class _GageDeliveryTrackProgressState extends State<GageDeliveryTrackProgress>
                 },
               );
             },
+          );
+
+    if (!isFiveStage) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(child: labelWidget),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 92,
+            height: 26,
+            child: trackWidget,
           ),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        labelWidget,
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 48,
+          child: trackWidget,
         ),
       ],
     );

@@ -267,62 +267,9 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
 
     return Column(
       children: [
-        // 1. Sticky Header Segmented Tabs (Melayang Bersih Tanpa Box Kontainer Belakang)
+        // 1. Quick Search Bar Melayang Paritas Segmented Switch (Height 42, Radius 999 Kapsul Penuh)
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
-          child: Container(
-            height: 42,
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-                width: 1,
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildSegmentItem(
-                    index: 0,
-                    label: 'Disiapkan',
-                    count: countDisiapkan,
-                    isDark: isDark,
-                  ),
-                ),
-                Expanded(
-                  child: _buildSegmentItem(
-                    index: 1,
-                    label: 'Siap',
-                    count: countSiap,
-                    isDark: isDark,
-                  ),
-                ),
-                Expanded(
-                  child: _buildSegmentItem(
-                    index: 2,
-                    label: 'Diantar',
-                    count: countDiantar,
-                    isDark: isDark,
-                  ),
-                ),
-                Expanded(
-                  child: _buildSegmentItem(
-                    index: 3,
-                    label: 'Selesai',
-                    count: countSelesai,
-                    isDark: isDark,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-
-        // Quick Search Bar Melayang Paritas Segmented Switch (Height 42, Radius 999 Kapsul Penuh)
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: Container(
             height: 42,
             decoration: BoxDecoration(
@@ -382,6 +329,59 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                       color: isDark ? Colors.white60 : Colors.grey.shade500,
                     ),
                   ),
+              ],
+            ),
+          ),
+        ),
+
+        // 2. Sticky Header Segmented Tabs (Melayang Bersih Tanpa Box Kontainer Belakang)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: Container(
+            height: 42,
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildSegmentItem(
+                    index: 0,
+                    label: 'Disiapkan',
+                    count: countDisiapkan,
+                    isDark: isDark,
+                  ),
+                ),
+                Expanded(
+                  child: _buildSegmentItem(
+                    index: 1,
+                    label: 'Siap',
+                    count: countSiap,
+                    isDark: isDark,
+                  ),
+                ),
+                Expanded(
+                  child: _buildSegmentItem(
+                    index: 2,
+                    label: 'Diantar',
+                    count: countDiantar,
+                    isDark: isDark,
+                  ),
+                ),
+                Expanded(
+                  child: _buildSegmentItem(
+                    index: 3,
+                    label: 'Selesai',
+                    count: countSelesai,
+                    isDark: isDark,
+                  ),
+                ),
               ],
             ),
           ),
@@ -1055,7 +1055,7 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
               child: GageDeliveryTrackProgress(
                 isSearchingDriver: true,
                 domain: order.serviceType,
-                labelPrefix: 'Sedang mencari kurir terdekat',
+                labelPrefix: 'Sedang mencari driver',
                 labelHighlight: '...',
               ),
             ),
