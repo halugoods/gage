@@ -8,6 +8,7 @@ class GageDeliveryTrackProgress extends StatefulWidget {
   final bool isSearchingDriver;
   final bool isDriverArrived;
   final String domain; // 'food' | 'shop' | 'farm'
+  final String? orderStatus; // 'NEW' | 'COOKING' | 'READY_FOR_PICKUP' | 'ON_DELIVERY' | 'COMPLETED'
   final String? labelPrefix;
   final String? labelHighlight;
 
@@ -16,6 +17,7 @@ class GageDeliveryTrackProgress extends StatefulWidget {
     required this.isSearchingDriver,
     this.isDriverArrived = false,
     this.domain = 'food',
+    this.orderStatus,
     this.labelPrefix,
     this.labelHighlight,
   });
@@ -213,7 +215,48 @@ class _GageDeliveryTrackProgressState extends State<GageDeliveryTrackProgress>
             },
           ),
         ),
+        if (widget.orderStatus != null) ...[
+          const SizedBox(height: 8),
+          _buildMerchantStagesRow(isDark),
+        ],
       ],
+    );
+  }
+
+  Widget _buildMerchantStagesRow(bool isDark) {
+    final s = (widget.orderStatus ?? '').toUpperCase();
+    int activeIdx = 0;
+    if (s == 'COMPLETED') {
+      activeIdx = 4;
+    } else if (s == 'PICKED_UP' || s == 'ON_DELIVERY') {
+      activeIdx = 3;
+    } else if (s == 'READY_FOR_PICKUP' || s == 'DRIVER_ASSIGNED' || s == 'AT_MERCHANT') {
+      activeIdx = 2;
+    } else if (s == 'COOKING' || s == 'SEARCHING_DRIVER') {
+      activeIdx = 1;
+    } else {
+      activeIdx = 0;
+    }
+
+    const stages = ['Masuk', 'Disiapkan', 'Siap', 'Diantar', 'Selesai'];
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: List.generate(stages.length, (idx) {
+        final isDoneOrActive = idx <= activeIdx;
+        final isCurrent = idx == activeIdx;
+        return Text(
+          stages[idx],
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: isCurrent ? FontWeight.w700 : (isDoneOrActive ? FontWeight.w600 : FontWeight.w400),
+            color: isCurrent
+                ? GageTheme.primary
+                : (isDoneOrActive
+                    ? (isDark ? Colors.white70 : const Color(0xFF334155))
+                    : (isDark ? Colors.white30 : Colors.grey.shade400)),
+          ),
+        );
+      }),
     );
   }
 }

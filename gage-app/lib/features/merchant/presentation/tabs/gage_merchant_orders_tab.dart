@@ -563,11 +563,7 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                               children: [
                                 Flexible(
                                   child: Text(
-                                    order.orderNumber.startsWith('INV-')
-                                        ? '#${order.orderNumber}'
-                                        : (order.orderNumber.contains('/')
-                                            ? '#${order.orderNumber.split('/').last}'
-                                            : '#${order.orderNumber}'),
+                                    '#${order.orderNumber}',
                                     overflow: TextOverflow.ellipsis,
                                     maxLines: 1,
                                     style: const TextStyle(

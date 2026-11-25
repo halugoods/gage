@@ -6,12 +6,14 @@ import 'package:gage_app/data/mock/gage_mock_registry.dart';
 class GageProductCatalogSheet extends StatelessWidget {
   final String? merchantId;
   final String merchantName;
+  final bool isMerchantMode;
   final Function(String name, int price, String image) onProductSelected;
 
   const GageProductCatalogSheet({
     super.key,
     this.merchantId,
     this.merchantName = 'Merchant Toko',
+    this.isMerchantMode = false,
     required this.onProductSelected,
   });
 
@@ -19,6 +21,7 @@ class GageProductCatalogSheet extends StatelessWidget {
     BuildContext context, {
     String? merchantId,
     String merchantName = 'Toko Merchant',
+    bool isMerchantMode = false,
     required Function(String name, int price, String image) onProductSelected,
   }) {
     return showModalBottomSheet(
@@ -28,6 +31,7 @@ class GageProductCatalogSheet extends StatelessWidget {
       builder: (ctx) => GageProductCatalogSheet(
         merchantId: merchantId,
         merchantName: merchantName,
+        isMerchantMode: isMerchantMode,
         onProductSelected: onProductSelected,
       ),
     );
@@ -124,7 +128,9 @@ class GageProductCatalogSheet extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Katalog Produk $merchantName',
+                          isMerchantMode
+                              ? 'Kirim Katalog Produk'
+                              : 'Katalog Produk $merchantName',
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
@@ -135,7 +141,9 @@ class GageProductCatalogSheet extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Pilih menu di bawah untuk langsung ditanyakan di chat',
+                          isMerchantMode
+                              ? 'Pilih menu dari toko Anda untuk langsung dikirim ke pembeli'
+                              : 'Pilih menu di bawah untuk langsung ditanyakan di chat',
                           style: TextStyle(
                             fontSize: 11.5,
                             color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,

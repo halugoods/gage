@@ -11,6 +11,7 @@ import 'package:gage_app/core/services/gage_audio_service.dart';
 import 'package:gage_app/core/services/merchant_storefront_service.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
+import 'package:gage_app/features/chat/presentation/widgets/gage_product_catalog_sheet.dart';
 import 'package:gage_app/features/chat/providers/in_app_chat_provider.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_profile_screen.dart';
 import 'package:gage_app/features/merchant/presentation/auth/merchant_store_setup_wizard_screen.dart';
@@ -1573,6 +1574,53 @@ void main() {
       expect(find.text('Driver'), findsWidgets);
       expect(find.text('Pelanggan'), findsWidgets);
       provider.dispose();
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 49: Wave 17: Mode Kirim Katalog Produk di Chat Merchant
+    // -------------------------------------------------------------------------
+    testWidgets('Skenario 49: Wave 17: GageProductCatalogSheet mode merchant menampilkan Kirim Katalog Produk', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: GageProductCatalogSheet(
+              merchantId: 'm-dimsum-sewu',
+              merchantName: 'Dimsum Sewu Pracimantoro',
+              isMerchantMode: true,
+              onProductSelected: (_, _, _) {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Kirim Katalog Produk'), findsOneWidget);
+      expect(find.textContaining('langsung dikirim ke pembeli'), findsOneWidget);
+    });
+
+    // -------------------------------------------------------------------------
+    // Skenario 50: Wave 17: GageDeliveryTrackProgress 5-Stage Merchant Flow
+    // -------------------------------------------------------------------------
+    testWidgets('Skenario 50: Wave 17: GageDeliveryTrackProgress menampilkan 5 tahap alur merchant', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: GageDeliveryTrackProgress(
+              isSearchingDriver: false,
+              domain: 'shop',
+              orderStatus: 'COOKING',
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Masuk'), findsOneWidget);
+      expect(find.text('Disiapkan'), findsOneWidget);
+      expect(find.text('Siap'), findsOneWidget);
+      expect(find.text('Diantar'), findsOneWidget);
+      expect(find.text('Selesai'), findsOneWidget);
+      expect(find.byIcon(Icons.shopping_bag_rounded), findsOneWidget);
     });
   });
 }

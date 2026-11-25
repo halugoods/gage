@@ -398,6 +398,7 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
             isSearchingDriver: false,
             isDriverArrived: order.status == 'READY_FOR_PICKUP',
             domain: order.serviceType,
+            orderStatus: order.status,
             labelPrefix: order.status == 'READY_FOR_PICKUP' ? 'Pengemudi telah tiba di kios' : 'Menuju Kios',
             labelHighlight: order.status == 'READY_FOR_PICKUP' ? '' : ' • Est. 5 mnt',
           ),
@@ -603,31 +604,27 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
             ],
           ),
           if (order.notes != null && order.notes!.isNotEmpty) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
                 color: GageTheme.primary.withValues(alpha: isDark ? 0.14 : 0.06),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: GageTheme.primary.withValues(alpha: isDark ? 0.35 : 0.25),
-                  width: 1,
-                ),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Padding(
                     padding: EdgeInsets.only(top: 1),
-                    child: Icon(Icons.notes_rounded, size: 15, color: GageTheme.primary),
+                    child: Icon(Icons.notes_rounded, size: 13.5, color: GageTheme.primary),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   Expanded(
                     child: RichText(
                       text: TextSpan(
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           height: 1.35,
                           fontFamily: 'TikTok Sans',
                           color: isDark ? Colors.white : const Color(0xFF0F172A),
@@ -636,15 +633,15 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
                           const TextSpan(
                             text: 'Catatan Pembeli: ',
                             style: TextStyle(
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w600,
                               color: GageTheme.primary,
                             ),
                           ),
                           TextSpan(
                             text: order.notes!,
                             style: TextStyle(
-                              fontWeight: FontWeight.w500,
-                              color: isDark ? Colors.white70 : const Color(0xFF1E293B),
+                              fontWeight: FontWeight.w400,
+                              color: isDark ? Colors.white70 : const Color(0xFF334155),
                             ),
                           ),
                         ],
@@ -794,7 +791,7 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
             'Rincian Pembayaran & Pendapatan',
             style: TextStyle(
               fontSize: 13.5,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.bold,
               color: textColor,
             ),
           ),
@@ -813,11 +810,11 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
               children: [
                 Text(
                   'Total Bayar Pelanggan',
-                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: textColor),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: textColor),
                 ),
                 Text(
                   widget.currencyFormatter.format(order.totalAmount),
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: textColor),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: GageTheme.primary),
                 ),
               ],
             ),

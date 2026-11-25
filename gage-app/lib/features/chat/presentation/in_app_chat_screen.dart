@@ -296,9 +296,12 @@ class _InAppChatScreenState extends State<InAppChatScreen> {
   }
 
   void _handleFileCatalog() {
+    final isMerchant = widget.currentRole == 'merchant';
     GageProductCatalogSheet.show(
       context,
       merchantId: 'm-dimsum-sewu',
+      merchantName: isMerchant ? 'Dimsum Sewu Pracimantoro' : widget.recipientName,
+      isMerchantMode: isMerchant,
       onProductSelected: (name, price, image) {
         _sendProductMessage(
           productName: name,
