@@ -89,7 +89,7 @@ class MerchantBottomNavBar extends StatelessWidget {
                 _buildNavItem(context, 1, Icons.restaurant_menu_rounded, 'Katalog', isDark: isDark),
                 _buildNavItem(context, 2, Icons.account_balance_wallet_rounded, 'Transaksi', isDark: isDark),
                 _buildNavItem(context, 3, Icons.chat_bubble_rounded, 'Pesan', hasBadge: hasUnreadChat, isDark: isDark),
-                _buildNavItem(context, 4, Icons.storefront_rounded, 'Kios', isDark: isDark),
+                _buildNavItem(context, 4, Icons.storefront_rounded, 'Toko', isDark: isDark),
               ],
             );
           },

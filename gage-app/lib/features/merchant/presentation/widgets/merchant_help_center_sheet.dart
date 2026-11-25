@@ -42,7 +42,7 @@ class _MerchantHelpCenterSheetState extends State<MerchantHelpCenterSheet> {
 
   final List<Map<String, String>> _faqs = [
     {
-      'q': 'Kapan saldo penjualan kios otomatis dicairkan?',
+      'q': 'Kapan saldo penjualan toko otomatis dicairkan?',
       'a':
           'Saldo dari pesanan yang telah berstatus Selesai akan otomatis diproses settlement ke rekening bank atau e-wallet mitra pada H+1 hari kerja pukul 09.00 WIB tanpa potongan biaya admin.',
     },
@@ -62,9 +62,9 @@ class _MerchantHelpCenterSheetState extends State<MerchantHelpCenterSheet> {
           'Mitra dapat langsung membaca Catatan Pelanggan di kartu pesanan atau berkomunikasi via Chat Pembeli resmi di dalam aplikasi sebelum menekan tombol Terima Pesanan.',
     },
     {
-      'q': 'Bagaimana prosedur pindah alamat atau titik GPS kios?',
+      'q': 'Bagaimana prosedur pindah alamat atau titik GPS toko?',
       'a':
-          'Gunakan menu "Ajukan Pindah Lokasi Kios" di Pengaturan. Pilih titik koordinat baru di peta interaktif dan sertakan alasan. Admin GAGE akan memverifikasi dalam waktu maksimal 1x24 jam kerja.',
+          'Gunakan menu "Ajukan Pindah Lokasi Toko" di Pengaturan. Pilih titik koordinat baru di peta interaktif dan sertakan alasan. Admin GAGE akan memverifikasi dalam waktu maksimal 1x24 jam kerja.',
     },
   ];
 
@@ -102,7 +102,7 @@ class _MerchantHelpCenterSheetState extends State<MerchantHelpCenterSheet> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Layanan bantuan operasional, kendala teknis, dan investigasi order kios GAGE Pracimantoro.',
+          'Layanan bantuan operasional, kendala teknis, dan investigasi order toko GAGE Pracimantoro.',
           style: TextStyle(fontSize: 11.5, color: subColor),
         ),
         const SizedBox(height: 14),

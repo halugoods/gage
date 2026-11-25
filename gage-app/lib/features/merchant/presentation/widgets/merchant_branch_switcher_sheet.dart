@@ -228,7 +228,7 @@ class _MerchantBranchSwitcherSheetState extends State<MerchantBranchSwitcherShee
           ] else ...[
             _buildInput(_nameCtrl, 'Nama Cabang (Misal: Dimsum Sewu Baturetno)', Icons.store_rounded, isDark, cardBg, borderColor, textColor, subColor),
             const SizedBox(height: 10),
-            _buildInput(_addressCtrl, 'Alamat Lengkap Kios', Icons.location_on_outlined, isDark, cardBg, borderColor, textColor, subColor),
+            _buildInput(_addressCtrl, 'Alamat Lengkap Toko', Icons.location_on_outlined, isDark, cardBg, borderColor, textColor, subColor),
             const SizedBox(height: 10),
             _buildInput(_landmarkCtrl, 'Patokan / Landmark (Opsional)', Icons.place_outlined, isDark, cardBg, borderColor, textColor, subColor),
             const SizedBox(height: 10),

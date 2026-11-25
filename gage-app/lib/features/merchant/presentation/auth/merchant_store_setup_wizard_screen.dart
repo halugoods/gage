@@ -17,7 +17,7 @@ import 'package:gage_app/shared/widgets/storefront_image.dart';
 /// Alur bertahap:
 /// 1. Identitas Usaha & Nomor WhatsApp Operasional
 /// 2. Foto Profil (1:1) & Banner Toko (16:9) via Image Picker
-/// 3. Alamat Kios di Kecamatan Pracimantoro & Pin Peta
+/// 3. Alamat Toko di Kecamatan Pracimantoro & Pin Peta
 /// 4. Jam Operasional & Persetujuan Biaya Layanan MDR 10%
 class MerchantStoreSetupWizardScreen extends StatefulWidget {
   final String? initialEmail;
@@ -79,7 +79,7 @@ class _MerchantStoreSetupWizardScreenState extends State<MerchantStoreSetupWizar
       }
     } else if (_currentStep == 2) {
       if (_addressCtrl.text.trim().isEmpty) {
-        GageToast.show(context, 'Alamat kios toko di Pracimantoro wajib diisi', type: GageToastType.warning);
+        GageToast.show(context, 'Alamat toko toko di Pracimantoro wajib diisi', type: GageToastType.warning);
         return;
       }
     }
@@ -260,12 +260,12 @@ class _MerchantStoreSetupWizardScreenState extends State<MerchantStoreSetupWizar
         ),
         const SizedBox(height: 4),
         Text(
-          'Masukkan nomor WhatsApp aktif kios Anda untuk menerima notifikasi order dan koordinasi kurir GAGE.',
+          'Masukkan nomor WhatsApp aktif toko Anda untuk menerima notifikasi order dan koordinasi kurir GAGE.',
           style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : Colors.grey.shade600),
         ),
         const SizedBox(height: 20),
 
-        _buildLabel('Nama Kios / Usaha', isDark),
+        _buildLabel('Nama Toko / Usaha', isDark),
         const SizedBox(height: 6),
         _buildTextField(_storeNameCtrl, 'Misal: Dimsum Sewu Pracimantoro', Icons.storefront_rounded, isDark),
         const SizedBox(height: 16),
@@ -421,12 +421,12 @@ class _MerchantStoreSetupWizardScreenState extends State<MerchantStoreSetupWizar
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Lokasi Kios di Pracimantoro',
+          'Lokasi Toko di Pracimantoro',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: textColor),
         ),
         const SizedBox(height: 4),
         Text(
-          'Pastikan titik koordinat peta tepat di lokasi kios fisik Anda agar kurir GAGE tidak tersesat saat mengambil pesanan.',
+          'Pastikan titik koordinat peta tepat di lokasi toko fisik Anda agar kurir GAGE tidak tersesat saat mengambil pesanan.',
           style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : Colors.grey.shade600),
         ),
         const SizedBox(height: 20),
@@ -734,7 +734,7 @@ class _MerchantStoreSetupWizardScreenState extends State<MerchantStoreSetupWizar
     HapticFeedback.lightImpact();
     final res = await FullScreenMapPicker.open(
       context,
-      title: 'Tentukan Titik Kios Toko',
+      title: 'Tentukan Titik Toko Toko',
       initialLocation: LatLng(_latitude, _longitude),
       initialFullAddress: _addressCtrl.text,
     );

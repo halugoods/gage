@@ -88,7 +88,7 @@ class _MerchantScreenState extends State<MerchantScreen> with SingleTickerProvid
     );
   }
 
-  /// Header Kios Utama (Adopsi Header GoBiz + Customer Portal Style)
+  /// Header Toko Utama (Adopsi Header GoBiz + Customer Portal Style)
   PreferredSizeWidget _buildCustomHeader(BuildContext context, MerchantOrderProvider merchant, bool isDark) {
     return AppBar(
       titleSpacing: 16,
@@ -97,7 +97,7 @@ class _MerchantScreenState extends State<MerchantScreen> with SingleTickerProvid
       foregroundColor: isDark ? Colors.white : GageTheme.textPrimary,
       title: Row(
         children: [
-          // Logo Kios Bulat
+          // Logo Toko Bulat
           Container(
             width: 38,
             height: 38,
@@ -109,7 +109,7 @@ class _MerchantScreenState extends State<MerchantScreen> with SingleTickerProvid
             child: const Icon(Icons.restaurant_rounded, color: GageTheme.primary, size: 22),
           ),
           const SizedBox(width: 10),
-          // Nama Kios & Dropdown Status Buka
+          // Nama Toko & Dropdown Status Buka
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1199,7 +1199,7 @@ class _MerchantScreenState extends State<MerchantScreen> with SingleTickerProvid
               ),
               const SizedBox(height: 16),
               Text(
-                'Status Kios Dimsum Sewu',
+                'Status Toko Dimsum Sewu',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 14),
@@ -1207,11 +1207,11 @@ class _MerchantScreenState extends State<MerchantScreen> with SingleTickerProvid
               SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,
                 activeThumbColor: GageTheme.accentGreen,
-                title: const Text('Buka Kios untuk Terima Pesanan', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                title: const Text('Buka Toko untuk Terima Pesanan', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                 subtitle: Text(
                   merchant.isOpen
-                      ? 'Kios saat ini tampil di aplikasi pelanggan & siap terima pesanan.'
-                      : 'Kios saat ini tutup sementara. Pelanggan tidak dapat order.',
+                      ? 'Toko saat ini tampil di aplikasi pelanggan & siap terima pesanan.'
+                      : 'Toko saat ini tutup sementara. Pelanggan tidak dapat order.',
                   style: const TextStyle(fontSize: 12),
                 ),
                 value: merchant.isOpen,
@@ -1251,7 +1251,7 @@ class _MerchantScreenState extends State<MerchantScreen> with SingleTickerProvid
     HapticFeedback.lightImpact();
     final reasons = [
       'Bahan / Stok menu habis',
-      'Kios sedang sangat ramai / antre panjang',
+      'Toko sedang sangat ramai / antre panjang',
       'Resto mau tutup / jam operasional selesai',
       'Lainnya',
     ];

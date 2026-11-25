@@ -3,9 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
+import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
 import 'package:gage_app/features/merchant/presentation/merchant_order_detail_screen.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_thermal_receipt_sheet.dart';
 import 'package:gage_app/providers/merchant_order_provider.dart';
+import 'package:gage_app/shared/widgets/gage_avatar.dart';
 import 'package:gage_app/shared/widgets/gage_delivery_track_progress.dart';
 import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
@@ -1007,38 +1009,18 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                 children: [
                   Row(
                     children: [
-                      Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: GageTheme.primary,
-                            width: 1.5,
-                          ),
+                      GageAvatar(
+                        imageUrl: order.driverAvatar,
+                        fallbackName: InAppChatScreen.cleanDisplayName(
+                          order.driverName ?? 'Driver',
+                          role: 'driver',
                         ),
-                        child: ClipOval(
-                          child: order.driverAvatar != null && order.driverAvatar!.isNotEmpty
-                              ? Image.network(
-                                  order.driverAvatar!,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) => const Icon(
-                                    Icons.two_wheeler_rounded,
-                                    size: 16,
-                                    color: GageTheme.primary,
-                                  ),
-                                )
-                              : const Icon(
-                                  Icons.two_wheeler_rounded,
-                                  size: 16,
-                                  color: GageTheme.primary,
-                                ),
-                        ),
+                        radius: 14,
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          '${order.driverName ?? "Driver GAGE"} • ${order.driverPlate ?? "Plat Terverifikasi"}',
+                          '${InAppChatScreen.cleanDisplayName(order.driverName ?? "Driver", role: "driver")} • ${order.driverPlate ?? "Plat Terverifikasi"}',
                           style: TextStyle(
                             fontSize: 11.5,
                             fontWeight: FontWeight.w700,
@@ -1055,8 +1037,7 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
                     isSearchingDriver: false,
                     isDriverArrived: isReadyForPickup,
                     domain: order.serviceType,
-                    orderStatus: order.status,
-                    labelPrefix: isReadyForPickup ? 'Pengemudi telah tiba di kios' : 'Menuju Kios',
+                    labelPrefix: isReadyForPickup ? 'Pengemudi telah tiba di toko' : 'Menuju Toko',
                     labelHighlight: isReadyForPickup ? '' : ' • Est. 5 mnt',
                   ),
                 ],
@@ -1074,7 +1055,6 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
               child: GageDeliveryTrackProgress(
                 isSearchingDriver: true,
                 domain: order.serviceType,
-                orderStatus: order.status,
                 labelPrefix: 'Sedang mencari kurir terdekat',
                 labelHighlight: '...',
               ),

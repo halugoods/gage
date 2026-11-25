@@ -124,7 +124,7 @@ class _MerchantChatListScreenState extends State<MerchantChatListScreen> {
               'phone': '',
               'lastMessage': msgs.isNotEmpty
                   ? _formatChatPreview(msgs.last)
-                  : 'Pesanan #$shortOrd • Driver menuju kios',
+                  : 'Pesanan #$shortOrd • Driver menuju toko',
               'time': msgs.isNotEmpty
                   ? DateFormat('HH:mm').format(msgs.last.timestamp)
                   : DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(order.createdAt)),

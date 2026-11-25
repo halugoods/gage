@@ -13,7 +13,7 @@ import 'package:gage_app/shared/widgets/gage_toast.dart';
 /// Dompet kas operasional toko:
 /// - Saldo Siap Ditarik (Penjualan Makanan GAGE Food)
 /// - Penarikan Dana Instan ke Bank BRI / BCA / Mandiri via GageWithdrawSheet
-/// - Tampilkan QRIS Kasir Toko Dinamis untuk Pembayaran Offline di Kios
+/// - Tampilkan QRIS Kasir Toko Dinamis untuk Pembayaran Offline di Toko
 /// - Transfer Saldo GagePay & Riwayat Mutasi Lengkap
 class GageMerchantGagePayTab extends StatefulWidget {
   final NumberFormat currencyFormatter;

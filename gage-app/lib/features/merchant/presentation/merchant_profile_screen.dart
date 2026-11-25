@@ -21,7 +21,7 @@ import 'package:gage_app/shared/widgets/storefront_image.dart';
 
 /// Screen Pengaturan Merchant (Paritas Arsitektur Shopee Partner) - Tab 4
 /// Mengelola informasi toko, pengaturan pesanan, notifikasi alarm pesanan,
-/// konfigurasi printer thermal, pengajuan perubahan lokasi kios, dan jam operasional.
+/// konfigurasi printer thermal, pengajuan perubahan lokasi toko, dan jam operasional.
 class MerchantProfileScreen extends StatefulWidget {
   final String? merchantId;
   final String? merchantName;
@@ -442,7 +442,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
 
             const SizedBox(height: 18),
 
-            // 4. Operasional Kios
+            // 4. Operasional Toko
             Text(
               'OPERASIONAL KIOS',
               style: TextStyle(
@@ -466,9 +466,9 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                 child: Column(
                   children: [
                     SwitchListTile(
-                      title: const Text('Buka Kios untuk Pesanan Masuk', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                      title: const Text('Buka Toko untuk Pesanan Masuk', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
                       subtitle: Text(
-                        _isOpen ? 'Kios tampil buka di katalog pelanggan GAGE Pracimantoro' : 'Kios ditandai tutup sementara',
+                        _isOpen ? 'Toko tampil buka di katalog pelanggan GAGE Pracimantoro' : 'Toko ditandai tutup sementara',
                         style: TextStyle(fontSize: 11.5, color: subColor),
                       ),
                       value: _isOpen,
@@ -506,9 +506,9 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                     ListTile(
                       onTap: _openLocationChangeSheet,
                       leading: const Icon(Icons.share_location_rounded, color: GageTheme.primary, size: 20),
-                      title: const Text('Ajukan Pindah Lokasi Kios', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                      title: const Text('Ajukan Pindah Lokasi Toko', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                       subtitle: Text(
-                        'Pindah alamat fisik atau titik koordinat GPS kios',
+                        'Pindah alamat fisik atau titik koordinat GPS toko',
                         style: TextStyle(fontSize: 11.5, color: subColor),
                       ),
                       trailing: const Icon(Icons.chevron_right_rounded, size: 20, color: Colors.grey),
@@ -703,7 +703,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     if (req != null && mounted) {
       GageToast.show(
         context,
-        'Pengajuan pindah lokasi kios berhasil dicatat di menu Pengajuan Saya',
+        'Pengajuan pindah lokasi toko berhasil dicatat di menu Pengajuan Saya',
         type: GageToastType.success,
       );
     }
@@ -766,7 +766,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Logo Kios', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: textColor)),
+                          Text('Logo Toko', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: textColor)),
                           Text('Tampil di navigasi pembeli & struk', style: TextStyle(fontSize: 10.5, color: subColor)),
                         ],
                       ),
@@ -846,7 +846,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                   const SizedBox(height: 14),
 
                   // Nama Toko
-                  Text('Nama Toko / Kios', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textColor)),
+                  Text('Nama Toko / Toko', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textColor)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: nameCtrl,
@@ -886,8 +886,8 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                   ),
                   const SizedBox(height: 14),
 
-                  // Alamat Kios & Peta (Read-Only)
-                  Text('Lokasi Kios Fisik & Titik Peta (Terverifikasi)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textColor)),
+                  // Alamat Toko & Peta (Read-Only)
+                  Text('Lokasi Toko Fisik & Titik Peta (Terverifikasi)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textColor)),
                   const SizedBox(height: 6),
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -923,7 +923,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Alamat kios dan titik GPS adalah data resmi terverifikasi saat pendaftaran awal. Jika lapak berpindah lokasi, ajukan perubahan melalui tombol di bawah:',
+                          'Alamat toko dan titik GPS adalah data resmi terverifikasi saat pendaftaran awal. Jika lapak berpindah lokasi, ajukan perubahan melalui tombol di bawah:',
                           style: TextStyle(fontSize: 10.5, color: subColor, height: 1.25),
                         ),
                         const SizedBox(height: 8),
@@ -941,7 +941,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                               padding: const EdgeInsets.symmetric(vertical: 8),
                             ),
                             icon: const Icon(Icons.share_location_rounded, size: 14),
-                            label: const Text('Ajukan Pindah Lokasi Kios', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
+                            label: const Text('Ajukan Pindah Lokasi Toko', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
                           ),
                         ),
                       ],
@@ -1057,7 +1057,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Pesanan Ambil di Toko (Self-Pickup)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                subtitle: Text('Izinkan pelanggan mengambil pesanan langsung ke kios', style: TextStyle(fontSize: 11, color: subColor)),
+                subtitle: Text('Izinkan pelanggan mengambil pesanan langsung ke toko', style: TextStyle(fontSize: 11, color: subColor)),
                 value: tempPickup,
                 activeTrackColor: GageTheme.primary.withValues(alpha: 0.45),
                 activeThumbColor: GageTheme.primary,
@@ -1208,7 +1208,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Pindah Lokasi Kios Fisik',
+                          'Pindah Lokasi Toko Fisik',
                             style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: textColor),
                           ),
                           Container(
@@ -1255,7 +1255,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                       Text('Belum Ada Pengajuan Aktif', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: textColor)),
                       const SizedBox(height: 4),
                       Text(
-                        'Semua informasi kios Anda saat ini telah sesuai dengan data verifikasi pendaftaran awal.',
+                        'Semua informasi toko Anda saat ini telah sesuai dengan data verifikasi pendaftaran awal.',
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 11, color: subColor),
                       ),
@@ -1280,7 +1280,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                     _openLocationChangeSheet();
                   },
                   icon: const Icon(Icons.share_location_rounded, size: 16),
-                  label: const Text('Buat Pengajuan Pindah Kios Baru', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  label: const Text('Buat Pengajuan Pindah Toko Baru', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 ),
               ),
             ],

@@ -75,7 +75,7 @@ class _MerchantRegisterScreenState extends State<MerchantRegisterScreen> {
       return;
     }
     if (store.isEmpty) {
-      GageToast.show(context, 'Nama toko / kios usaha wajib diisi', type: GageToastType.warning);
+      GageToast.show(context, 'Nama toko / toko usaha wajib diisi', type: GageToastType.warning);
       return;
     }
     if (phone.isEmpty || phone.length < 8) {
@@ -328,9 +328,9 @@ class _MerchantRegisterScreenState extends State<MerchantRegisterScreen> {
 
                     const SizedBox(height: 14),
 
-                    // Nama Toko / Kios
+                    // Nama Toko / Toko
                     Text(
-                      'Nama Kios / Toko',
+                      'Nama Toko / Toko',
                       style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: textColor),
                     ),
                     const SizedBox(height: 6),
@@ -408,7 +408,7 @@ class _MerchantRegisterScreenState extends State<MerchantRegisterScreen> {
 
                     // Alamat Lengkap
                     Text(
-                      'Alamat Lengkap Toko / Kios',
+                      'Alamat Lengkap Toko / Toko',
                       style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: textColor),
                     ),
                     const SizedBox(height: 6),
@@ -421,7 +421,7 @@ class _MerchantRegisterScreenState extends State<MerchantRegisterScreen> {
                           padding: EdgeInsets.only(bottom: 24),
                           child: Icon(Icons.location_on_outlined, size: 20, color: GageTheme.primary),
                         ),
-                        hintText: 'Nama jalan, nomor kios, atau patokan lokasi',
+                        hintText: 'Nama jalan, nomor toko, atau patokan lokasi',
                         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         filled: true,
                         fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),

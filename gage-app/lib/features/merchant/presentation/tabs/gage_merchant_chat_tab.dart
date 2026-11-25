@@ -31,7 +31,7 @@ class _GageMerchantChatTabState extends State<GageMerchantChatTab>
         'id': 'seed-driver-01',
         'name': 'Budi Santoso',
         'role': 'driver',
-        'lastMessage': 'Siap Mas, saya sudah dekat kios, pesanan dimsum sedang dibungkus?',
+        'lastMessage': 'Siap Mas, saya sudah dekat toko, pesanan dimsum sedang dibungkus?',
         'time': '10:35',
         'unread': 1,
         'isOnline': true,
@@ -166,7 +166,7 @@ class _GageMerchantChatTabState extends State<GageMerchantChatTab>
             final msgs = chatProv?.getMessages(order.id) ?? const [];
             final lastMsg = msgs.isNotEmpty
                 ? _formatChatPreview(msgs.last)
-                : 'Pesanan #$shortOrd • $cleanDriver menuju kios';
+                : 'Pesanan #$shortOrd • $cleanDriver menuju toko';
             final timeStr = msgs.isNotEmpty
                 ? DateFormat('HH:mm').format(msgs.last.timestamp)
                 : DateFormat('HH:mm').format(

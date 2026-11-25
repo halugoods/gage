@@ -828,8 +828,8 @@ void main() {
       // Wave 15: Kartu pesanan luar bebas tombol Chat Pembeli
       expect(find.text('Chat Pembeli'), findsNothing);
 
-      // Verifikasi avatar lingkaran driver
-      expect(find.byType(ClipOval), findsWidgets);
+      // Verifikasi widget delivery track tampil pada kartu pesanan
+      expect(find.byType(GageDeliveryTrackProgress), findsWidgets);
 
       // Verifikasi tombol cooking menampilkan countdown timer MM:SS
       expect(find.textContaining('Pesanan Siap Diambil ('), findsWidgets);
@@ -1324,7 +1324,7 @@ void main() {
       expect(find.text('Hotline Darurat'), findsOneWidget);
       expect(find.text('Chat CS WhatsApp'), findsOneWidget);
       expect(find.text('PERTANYAAN UMUM (FAQ)'), findsOneWidget);
-      expect(find.textContaining('Kapan saldo penjualan kios otomatis dicairkan?'), findsOneWidget);
+      expect(find.textContaining('Kapan saldo penjualan toko otomatis dicairkan?'), findsOneWidget);
     });
 
     // -------------------------------------------------------------------------

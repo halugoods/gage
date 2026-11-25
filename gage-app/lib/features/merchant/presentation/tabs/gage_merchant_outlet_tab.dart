@@ -510,7 +510,7 @@ class GageMerchantOutletTab extends StatelessWidget {
 
           // 4. 8 Grid Fitur Cepat Toko
           Text(
-            'Layanan Operasional Kios',
+            'Layanan Operasional Toko',
             style: TextStyle(
               fontSize: 14.5,
               fontWeight: FontWeight.w800,
@@ -706,7 +706,7 @@ class GageMerchantOutletTab extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Seluruh Wilayah Kecamatan Pracimantoro dilayani penuh oleh armada resmi Driver Kurir GAGE tanpa batasan radius per-kios.',
+                        'Seluruh Wilayah Kecamatan Pracimantoro dilayani penuh oleh armada resmi Driver Kurir GAGE tanpa batasan radius per-toko.',
                         style: TextStyle(
                           fontSize: 11,
                           color: isDark ? Colors.white70 : Colors.grey.shade600,

@@ -103,7 +103,7 @@ class MerchantTermsAndPrivacyScreen extends StatelessWidget {
               content:
                   '• Mitra usaha dilarang keras menyimpan, menyalin, membagikan, atau memanfaatkan data nomor telepon, nama lengkap, dan alamat fisik pelanggan untuk keperluan di luar pemenuhan pesanan aktif.\n'
                   '• Seluruh komunikasi antara merchant dan pembeli terlindungi di dalam sistem perpesanan resmi aplikasi GAGE.\n'
-                  '• Data koordinat kios dan jam operasional toko ditampilkan secara publik kepada pengguna aplikasi untuk mempermudah navigasi penjemputan armada driver.',
+                  '• Data koordinat toko dan jam operasional toko ditampilkan secara publik kepada pengguna aplikasi untuk mempermudah navigasi penjemputan armada driver.',
             ),
             const SizedBox(height: 14),
 

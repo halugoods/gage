@@ -151,7 +151,7 @@ class _MerchantRootScreenState extends State<MerchantRootScreen> {
           ),
           const SizedBox(width: 10),
 
-          // Nama Kios & Dropdown Status Buka Kapsul Penuh
+          // Nama Toko & Dropdown Status Buka Kapsul Penuh
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -296,9 +296,9 @@ class _MerchantRootScreenState extends State<MerchantRootScreen> {
             },
           ),
 
-          // Pengaturan Kios
+          // Pengaturan Toko
           IconButton(
-            tooltip: 'Pengaturan Kios',
+            tooltip: 'Pengaturan Toko',
             icon: Icon(
               Icons.settings_outlined,
               size: 22,

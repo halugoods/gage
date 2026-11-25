@@ -9,8 +9,8 @@ import 'package:gage_app/shared/widgets/gage_floating_sheet.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 import 'package:gage_app/shared/widgets/mini_location_preview_map.dart';
 
-/// Bottom Sheet Formulir Pengajuan Perubahan Lokasi Kios ke Admin GAGE.
-/// Mengadopsi arsitektur Shopee Partner: lokasi fisik kios dan titik GPS
+/// Bottom Sheet Formulir Pengajuan Perubahan Lokasi Toko ke Admin GAGE.
+/// Mengadopsi arsitektur Shopee Partner: lokasi fisik toko dan titik GPS
 /// tidak diubah sembarangan, melainkan diajukan untuk diverifikasi tim Admin.
 class MerchantLocationChangeRequestSheet extends StatefulWidget {
   final String merchantId;
@@ -38,7 +38,7 @@ class MerchantLocationChangeRequestSheet extends StatefulWidget {
   }) {
     return GageFloatingSheet.show<MerchantLocationChangeRequest>(
       context: context,
-      title: 'Ajukan Pindah Lokasi Kios',
+      title: 'Ajukan Pindah Lokasi Toko',
       builder: (_) => MerchantLocationChangeRequestSheet(
         merchantId: merchantId,
         currentAddress: currentAddress,
@@ -88,11 +88,11 @@ class _MerchantLocationChangeRequestSheetState extends State<MerchantLocationCha
     final reason = _reasonCtrl.text.trim();
 
     if (newAddress.length < 5) {
-      GageToast.show(context, 'Alamat baru kios wajib diisi dengan jelas (min. 5 karakter)', type: GageToastType.warning);
+      GageToast.show(context, 'Alamat baru toko wajib diisi dengan jelas (min. 5 karakter)', type: GageToastType.warning);
       return;
     }
     if (reason.length < 3) {
-      GageToast.show(context, 'Harap sertakan alasan pemindahan lokasi kios', type: GageToastType.warning);
+      GageToast.show(context, 'Harap sertakan alasan pemindahan lokasi toko', type: GageToastType.warning);
       return;
     }
 
@@ -117,7 +117,7 @@ class _MerchantLocationChangeRequestSheetState extends State<MerchantLocationCha
     if (mounted) {
       GageToast.show(
         context,
-        'Pengajuan pindah lokasi kios terkirim! Menunggu verifikasi Admin GAGE.',
+        'Pengajuan pindah lokasi toko terkirim! Menunggu verifikasi Admin GAGE.',
         type: GageToastType.success,
       );
       Navigator.of(context).pop(req);
@@ -184,7 +184,7 @@ class _MerchantLocationChangeRequestSheetState extends State<MerchantLocationCha
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Lokasi Kios Saat Ini (Aktif)',
+                          'Lokasi Toko Saat Ini (Aktif)',
                           style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: subColor),
                         ),
                         const SizedBox(height: 2),
@@ -204,7 +204,7 @@ class _MerchantLocationChangeRequestSheetState extends State<MerchantLocationCha
 
             // Alamat Baru
             Text(
-              'Alamat Kios Baru (Kecamatan Pracimantoro)',
+              'Alamat Toko Baru (Kecamatan Pracimantoro)',
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: textColor),
             ),
             const SizedBox(height: 6),
@@ -342,7 +342,7 @@ class _MerchantLocationChangeRequestSheetState extends State<MerchantLocationCha
 
             // Alasan Pemindahan
             Text(
-              'Alasan Pemindahan Kios',
+              'Alasan Pemindahan Toko',
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: textColor),
             ),
             const SizedBox(height: 6),
@@ -405,7 +405,7 @@ class _MerchantLocationChangeRequestSheetState extends State<MerchantLocationCha
     HapticFeedback.lightImpact();
     final res = await FullScreenMapPicker.open(
       context,
-      title: 'Tentukan Titik Kios Baru',
+      title: 'Tentukan Titik Toko Baru',
       initialLocation: LatLng(_selectedLat, _selectedLng),
       initialFullAddress: _newAddressCtrl.text,
     );

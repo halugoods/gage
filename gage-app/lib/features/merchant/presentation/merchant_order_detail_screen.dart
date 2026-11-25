@@ -8,6 +8,7 @@ import 'package:gage_app/core/theme/gage_theme.dart';
 import 'package:gage_app/features/chat/presentation/in_app_chat_screen.dart';
 import 'package:gage_app/features/merchant/presentation/widgets/merchant_thermal_receipt_sheet.dart';
 import 'package:gage_app/providers/merchant_order_provider.dart';
+import 'package:gage_app/shared/widgets/gage_avatar.dart';
 import 'package:gage_app/shared/widgets/gage_delivery_track_progress.dart';
 import 'package:gage_app/shared/widgets/gage_toast.dart';
 
@@ -325,33 +326,13 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
           const SizedBox(height: 10),
           Row(
             children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: GageTheme.primary.withValues(alpha: 0.6),
-                    width: 1.5,
-                  ),
+              GageAvatar(
+                imageUrl: order.driverAvatar,
+                fallbackName: InAppChatScreen.cleanDisplayName(
+                  order.driverName ?? 'Driver',
+                  role: 'driver',
                 ),
-                child: ClipOval(
-                  child: order.driverAvatar != null && order.driverAvatar!.isNotEmpty
-                      ? Image.network(
-                          order.driverAvatar!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => const Icon(
-                            Icons.two_wheeler_rounded,
-                            size: 20,
-                            color: GageTheme.primary,
-                          ),
-                        )
-                      : const Icon(
-                          Icons.two_wheeler_rounded,
-                          size: 20,
-                          color: GageTheme.primary,
-                        ),
-                ),
+                radius: 19,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -359,7 +340,10 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      order.driverName!,
+                      InAppChatScreen.cleanDisplayName(
+                        order.driverName ?? 'Driver',
+                        role: 'driver',
+                      ),
                       style: TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.bold,
@@ -399,7 +383,7 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
             isDriverArrived: order.status == 'READY_FOR_PICKUP',
             domain: order.serviceType,
             orderStatus: order.status,
-            labelPrefix: order.status == 'READY_FOR_PICKUP' ? 'Pengemudi telah tiba di kios' : 'Menuju Kios',
+            labelPrefix: order.status == 'READY_FOR_PICKUP' ? 'Pengemudi telah tiba di toko' : 'Menuju Toko',
             labelHighlight: order.status == 'READY_FOR_PICKUP' ? '' : ' • Est. 5 mnt',
           ),
         ],

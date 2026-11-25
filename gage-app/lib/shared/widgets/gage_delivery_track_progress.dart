@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:gage_app/core/theme/gage_theme.dart';
 
-/// Delivery & driver tracking progress bar styled after Shopee Partner / ShopeeFood
-/// (Gambar 1): horizontal track line, cutlery outlet node, destination pin,
-/// and animated top-down courier scooter rider.
+/// Delivery & driver tracking progress bar styled after Shopee Partner / ShopeeFood:
+/// - 1-stage mode (when orderStatus == null): compact track for outer order card.
+/// - 5-stage mode (when orderStatus != null): symmetrical 5-node merchant flow
+///   (Masuk -> Disiapkan -> Siap -> Diantar -> Selesai) with per-segment motor movement.
+/// - Magnifying glass animation when searching for a driver.
 class GageDeliveryTrackProgress extends StatefulWidget {
   final bool isSearchingDriver;
   final bool isDriverArrived;
@@ -35,12 +37,12 @@ class _GageDeliveryTrackProgressState extends State<GageDeliveryTrackProgress>
     super.initState();
     _ctrl = AnimationController(
       vsync: this,
-      duration: Duration(milliseconds: widget.isSearchingDriver ? 1800 : 2600),
+      duration: Duration(milliseconds: widget.isSearchingDriver ? 1600 : 2400),
     );
     if (!WidgetsBinding.instance.runtimeType.toString().contains('Test')) {
       _ctrl.repeat(reverse: true);
     } else {
-      _ctrl.value = widget.isDriverArrived ? 0.5 : 0.65;
+      _ctrl.value = 0.5;
     }
   }
 
@@ -48,7 +50,7 @@ class _GageDeliveryTrackProgressState extends State<GageDeliveryTrackProgress>
   void didUpdateWidget(covariant GageDeliveryTrackProgress oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.isSearchingDriver != widget.isSearchingDriver) {
-      _ctrl.duration = Duration(milliseconds: widget.isSearchingDriver ? 1800 : 2600);
+      _ctrl.duration = Duration(milliseconds: widget.isSearchingDriver ? 1600 : 2400);
       if (!WidgetsBinding.instance.runtimeType.toString().contains('Test')) {
         _ctrl.repeat(reverse: true);
       }
@@ -73,18 +75,31 @@ class _GageDeliveryTrackProgressState extends State<GageDeliveryTrackProgress>
     }
   }
 
+  int _resolveActiveStageIndex() {
+    final s = (widget.orderStatus ?? '').toUpperCase();
+    if (s == 'COMPLETED') return 4;
+    if (s == 'PICKED_UP' || s == 'ON_DELIVERY') return 3;
+    if (s == 'READY_FOR_PICKUP' || s == 'DRIVER_ASSIGNED' || s == 'AT_MERCHANT') return 2;
+    if (s == 'COOKING' || s == 'SEARCHING_DRIVER') return 1;
+    return 0;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final trackBg = isDark ? Colors.white12 : const Color(0xFFFEE2E2);
     const trackFill = GageTheme.primary;
+    final nodeBg = isDark ? const Color(0xFF1E293B) : Colors.white;
 
     final prefixText = widget.labelPrefix ??
         (widget.isSearchingDriver
             ? 'Sedang mencari kurir terdekat'
-            : (widget.isDriverArrived ? 'Pengemudi telah tiba di outlet' : 'Driver menuju kios'));
+            : (widget.isDriverArrived ? 'Pengemudi telah tiba di toko' : 'Driver menuju toko'));
     final highlightText = widget.labelHighlight ??
         (widget.isSearchingDriver ? '...' : (widget.isDriverArrived ? '' : ' • Est. 5 mnt'));
+
+    final isFiveStage = widget.orderStatus != null;
+    final activeIdx = isFiveStage ? _resolveActiveStageIndex() : 1;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -116,43 +131,60 @@ class _GageDeliveryTrackProgressState extends State<GageDeliveryTrackProgress>
         ),
         const SizedBox(height: 8),
         SizedBox(
-          height: 26,
+          height: isFiveStage ? 46 : 26,
           child: LayoutBuilder(
             builder: (context, constraints) {
               final totalWidth = constraints.maxWidth;
-              const endIconSize = 20.0;
-              const cutlerySize = 20.0;
               const riderWidth = 34.0;
               const riderHeight = 22.0;
 
-              final trackStart = 2.0;
-              final trackEnd = (totalWidth - endIconSize - 6).clamp(40.0, totalWidth);
+              final trackStart = isFiveStage ? 22.0 : 4.0;
+              final trackEnd = isFiveStage
+                  ? (totalWidth - 22.0).clamp(60.0, totalWidth)
+                  : (totalWidth - 24.0).clamp(40.0, totalWidth);
               final cutleryX = trackStart + (trackEnd - trackStart) * 0.44;
 
               return AnimatedBuilder(
                 animation: _ctrl,
                 builder: (context, child) {
-                  // Rider position:
-                  // - Searching: scans between 0.08 and 0.36 (before outlet)
-                  // - Heading to outlet: glides between 0.50 and 0.84 toward pin/outlet
-                  final double minRatio = widget.isSearchingDriver ? 0.06 : 0.52;
-                  final double maxRatio = widget.isSearchingDriver
-                      ? 0.36
-                      : (widget.isDriverArrived ? 0.56 : 0.86);
                   final double t = Curves.easeInOut.transform(_ctrl.value);
+                  double minRatio;
+                  double maxRatio;
+
+                  if (widget.isSearchingDriver) {
+                    minRatio = 0.08;
+                    maxRatio = isFiveStage ? 0.35 : 0.38;
+                  } else if (isFiveStage) {
+                    minRatio = activeIdx / 4.0;
+                    maxRatio = ((activeIdx + 1).clamp(0, 4)) / 4.0;
+                  } else {
+                    minRatio = 0.52;
+                    maxRatio = widget.isDriverArrived ? 0.56 : 0.86;
+                  }
+
                   final double riderRatio = minRatio + (maxRatio - minRatio) * t;
                   final double riderCenterX =
                       (trackStart + (trackEnd - trackStart) * riderRatio)
-                          .clamp(riderWidth / 2, totalWidth - endIconSize - riderWidth / 2);
+                          .clamp(riderWidth / 2, totalWidth - riderWidth / 2);
                   final double fillWidth =
                       (riderCenterX - trackStart).clamp(0.0, trackEnd - trackStart);
 
+                  const stages = ['Masuk', 'Disiapkan', 'Siap', 'Diantar', 'Selesai'];
+                  final nodeIcons = [
+                    Icons.receipt_long_rounded,
+                    _outletIcon,
+                    Icons.inventory_2_rounded,
+                    Icons.two_wheeler_rounded,
+                    Icons.location_on_rounded,
+                  ];
+
                   return Stack(
-                    alignment: Alignment.centerLeft,
+                    alignment: Alignment.topLeft,
                     clipBehavior: Clip.none,
                     children: [
-                      // Full track background
+                      // Track background
                       Positioned(
+                        top: 11,
                         left: trackStart,
                         width: (trackEnd - trackStart).clamp(0.0, totalWidth),
                         child: Container(
@@ -163,8 +195,9 @@ class _GageDeliveryTrackProgressState extends State<GageDeliveryTrackProgress>
                           ),
                         ),
                       ),
-                      // Filled active progress line
+                      // Filled progress line
                       Positioned(
+                        top: 11,
                         left: trackStart,
                         width: fillWidth,
                         child: Container(
@@ -175,56 +208,61 @@ class _GageDeliveryTrackProgressState extends State<GageDeliveryTrackProgress>
                           ),
                         ),
                       ),
-                      // 5-Stage Node Pin-Points (jika orderStatus diset) atau 2-Node (Cutlery + Pin)
-                      if (widget.orderStatus != null)
+                      if (isFiveStage) ...[
+                        // 5-Stage Icons & Symmetrical Labels (No circular container)
                         ...List.generate(5, (idx) {
-                          final nodeIcons = [
-                            Icons.receipt_long_rounded,
-                            _outletIcon,
-                            Icons.inventory_2_rounded,
-                            Icons.two_wheeler_rounded,
-                            Icons.location_on_rounded,
-                          ];
-                          final s = (widget.orderStatus ?? '').toUpperCase();
-                          int activeIdx = 0;
-                          if (s == 'COMPLETED') {
-                            activeIdx = 4;
-                          } else if (s == 'PICKED_UP' || s == 'ON_DELIVERY') {
-                            activeIdx = 3;
-                          } else if (s == 'READY_FOR_PICKUP' || s == 'DRIVER_ASSIGNED' || s == 'AT_MERCHANT') {
-                            activeIdx = 2;
-                          } else if (s == 'COOKING' || s == 'SEARCHING_DRIVER') {
-                            activeIdx = 1;
-                          }
-                          final isActive = idx <= activeIdx;
-                          final ratio = idx / 4.0;
-                          final nodeX = trackStart + (trackEnd - trackStart) * ratio;
+                          final isDoneOrActive = idx <= activeIdx;
+                          final isCurrent = idx == activeIdx;
+                          final nodeX = trackStart + (trackEnd - trackStart) * (idx / 4.0);
 
                           return Positioned(
-                            left: (nodeX - 9).clamp(0.0, totalWidth - 18),
-                            child: Container(
-                              padding: const EdgeInsets.all(2),
-                              decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                nodeIcons[idx],
-                                size: 15,
-                                color: isActive
-                                    ? GageTheme.primary
-                                    : (isDark ? Colors.white30 : Colors.grey.shade400),
-                              ),
+                            top: 3,
+                            left: (nodeX - 24).clamp(0.0, totalWidth - 48),
+                            width: 48,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  color: nodeBg,
+                                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                                  child: Icon(
+                                    nodeIcons[idx],
+                                    size: 16,
+                                    color: isDoneOrActive
+                                        ? GageTheme.primary
+                                        : (isDark ? Colors.white30 : Colors.grey.shade400),
+                                  ),
+                                ),
+                                const SizedBox(height: 5),
+                                Text(
+                                  stages[idx],
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: isCurrent
+                                        ? FontWeight.w700
+                                        : (isDoneOrActive ? FontWeight.w600 : FontWeight.w400),
+                                    color: isCurrent
+                                        ? GageTheme.primary
+                                        : (isDoneOrActive
+                                            ? (isDark ? Colors.white70 : const Color(0xFF334155))
+                                            : (isDark ? Colors.white30 : Colors.grey.shade400)),
+                                  ),
+                                ),
+                              ],
                             ),
                           );
-                        })
-                      else ...[
-                        // Outlet node (Food: cutlery, Shop: shopping bag, Farm: eco leaf)
+                        }),
+                      ] else ...[
+                        // 1-Stage Compact Mode (Outer Order Card)
                         Positioned(
-                          left: cutleryX - (cutlerySize / 2),
+                          top: 4,
+                          left: cutleryX - 10,
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 3),
-                            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                            color: nodeBg,
                             child: Icon(
                               _outletIcon,
                               size: 16,
@@ -232,8 +270,8 @@ class _GageDeliveryTrackProgressState extends State<GageDeliveryTrackProgress>
                             ),
                           ),
                         ),
-                        // Destination Pin node
                         const Positioned(
+                          top: 2,
                           right: 0,
                           child: Icon(
                             Icons.location_on_rounded,
@@ -242,16 +280,33 @@ class _GageDeliveryTrackProgressState extends State<GageDeliveryTrackProgress>
                           ),
                         ),
                       ],
-                      // Top-down animated courier rider
+                      // Moving Icon: Magnifying Glass (Searching) OR Red G-Rider (Assigned)
                       Positioned(
+                        top: 2,
                         left: riderCenterX - (riderWidth / 2),
-                        child: CustomPaint(
-                          size: const Size(riderWidth, riderHeight),
-                          painter: _TopDownCourierRiderPainter(
-                            accentColor: GageTheme.primary,
-                            isSearching: widget.isSearchingDriver,
-                          ),
-                        ),
+                        child: widget.isSearchingDriver
+                            ? SizedBox(
+                                width: riderWidth,
+                                height: riderHeight,
+                                child: Center(
+                                  child: Container(
+                                    padding: const EdgeInsets.all(2),
+                                    color: nodeBg,
+                                    child: const Icon(
+                                      Icons.search_rounded,
+                                      size: 18,
+                                      color: GageTheme.primary,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : CustomPaint(
+                                size: const Size(riderWidth, riderHeight),
+                                painter: _TopDownCourierRiderPainter(
+                                  accentColor: GageTheme.primary,
+                                  isSearching: false,
+                                ),
+                              ),
                       ),
                     ],
                   );
@@ -260,48 +315,7 @@ class _GageDeliveryTrackProgressState extends State<GageDeliveryTrackProgress>
             },
           ),
         ),
-        if (widget.orderStatus != null) ...[
-          const SizedBox(height: 8),
-          _buildMerchantStagesRow(isDark),
-        ],
       ],
-    );
-  }
-
-  Widget _buildMerchantStagesRow(bool isDark) {
-    final s = (widget.orderStatus ?? '').toUpperCase();
-    int activeIdx = 0;
-    if (s == 'COMPLETED') {
-      activeIdx = 4;
-    } else if (s == 'PICKED_UP' || s == 'ON_DELIVERY') {
-      activeIdx = 3;
-    } else if (s == 'READY_FOR_PICKUP' || s == 'DRIVER_ASSIGNED' || s == 'AT_MERCHANT') {
-      activeIdx = 2;
-    } else if (s == 'COOKING' || s == 'SEARCHING_DRIVER') {
-      activeIdx = 1;
-    } else {
-      activeIdx = 0;
-    }
-
-    const stages = ['Masuk', 'Disiapkan', 'Siap', 'Diantar', 'Selesai'];
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: List.generate(stages.length, (idx) {
-        final isDoneOrActive = idx <= activeIdx;
-        final isCurrent = idx == activeIdx;
-        return Text(
-          stages[idx],
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: isCurrent ? FontWeight.w700 : (isDoneOrActive ? FontWeight.w600 : FontWeight.w400),
-            color: isCurrent
-                ? GageTheme.primary
-                : (isDoneOrActive
-                    ? (isDark ? Colors.white70 : const Color(0xFF334155))
-                    : (isDark ? Colors.white30 : Colors.grey.shade400)),
-          ),
-        );
-      }),
     );
   }
 }
@@ -367,7 +381,7 @@ class _TopDownCourierRiderPainter extends CustomPainter {
     canvas.drawLine(Offset(w * 0.50, cy - 6), Offset(w * 0.70, cy - 6.5), armPaint);
     canvas.drawLine(Offset(w * 0.50, cy + 6), Offset(w * 0.70, cy + 6.5), armPaint);
 
-    // Rear delivery box (GAGE primary red with darker border)
+    // Rear delivery box (GAGE primary red)
     final boxRect = Rect.fromCenter(center: Offset(w * 0.24, cy), width: 11, height: 12);
     final boxPaint = Paint()..color = accentColor;
     canvas.drawRRect(
