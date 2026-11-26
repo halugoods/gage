@@ -992,101 +992,115 @@ class _GageMerchantOrdersTabState extends State<GageMerchantOrdersTab> {
               ),
             ],
           ),
-          // Baris 7: Delivery Track Progress & Info Armada (Paritas Gambar 1)
+          // Baris 7: Delivery Track Progress & Info Armada
           if (order.hasAssignedDriver) ...[
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFFFF8F6),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      GageAvatar(
-                        imageUrl: order.driverAvatar,
-                        fallbackName: InAppChatScreen.cleanDisplayName(
-                          order.driverName ?? 'Driver',
-                          role: 'driver',
-                        ),
-                        radius: 14,
+            Builder(
+              builder: (context) {
+                final isTerminal =
+                    order.status == 'COMPLETED' || order.status == 'CANCELLED';
+                final hasDriverArrived = order.status == 'READY_FOR_PICKUP' ||
+                    order.status == 'AT_MERCHANT';
+                final isPickedUp = order.status == 'PICKED_UP' ||
+                    order.status == 'ON_DELIVERY';
+                final cleanDriverName = InAppChatScreen.cleanDisplayName(
+                  order.driverName ?? 'Driver',
+                  role: 'driver',
+                );
+                final etaMins = (order.distanceKm * 4).ceil().clamp(4, 30);
+
+                return Column(
+                  children: [
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isTerminal
+                            ? (isDark
+                                ? const Color(0xFF0F172A)
+                                : const Color(0xFFF8FAFC))
+                            : (isDark
+                                ? const Color(0xFF0F172A)
+                                : const Color(0xFFFFF8F6)),
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          '${InAppChatScreen.cleanDisplayName(order.driverName ?? "Driver", role: "driver")} • ${order.driverPlate ?? "Plat Terverifikasi"}',
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (order.status == 'COMPLETED') ...[
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? const Color(0xFF064E3B).withValues(alpha: 0.5)
-                                : const Color(0xFFECFDF5),
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(
-                              color: const Color(0xFF10B981).withValues(alpha: 0.3),
-                              width: 1,
-                            ),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
                             children: [
-                              Icon(Icons.check_circle_rounded, size: 11, color: Color(0xFF059669)),
-                              SizedBox(width: 4),
-                              Text(
-                                'Selesai Diantar',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF059669),
+                              GageAvatar(
+                                imageUrl: order.driverAvatar,
+                                fallbackName: cleanDriverName,
+                                radius: 15,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      cleanDriverName,
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF0F172A),
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 1),
+                                    Text(
+                                      '${order.driverVehicle ?? "Kurir G-Ride"} • ${order.driverPlate ?? "Plat Terverifikasi"}',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                        color: isDark
+                                            ? Colors.white60
+                                            : const Color(0xFF64748B),
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  if (order.status != 'COMPLETED' && order.status != 'CANCELLED') ...[
-                    const SizedBox(height: 9),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Container(
-                        height: 1,
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white12 : const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(1),
-                        ),
+                          if (!isTerminal) ...[
+                            const SizedBox(height: 10),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                              child: Container(
+                                height: 1,
+                                color: isDark
+                                    ? Colors.white.withValues(alpha: 0.10)
+                                    : GageTheme.primary.withValues(alpha: 0.14),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            GageDeliveryTrackProgress(
+                              isSearchingDriver: false,
+                              isDriverArrived: hasDriverArrived,
+                              domain: order.serviceType,
+                              labelPrefix: isPickedUp
+                                  ? 'Menuju Pembeli'
+                                  : (hasDriverArrived
+                                      ? 'Pengemudi telah tiba di toko'
+                                      : 'Menuju Toko'),
+                              labelHighlight: isPickedUp
+                                  ? ' • Est. $etaMins mnt'
+                                  : (hasDriverArrived ? '' : ' • Est. 5 mnt'),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 9),
-                    GageDeliveryTrackProgress(
-                      isSearchingDriver: false,
-                      isDriverArrived: isReadyForPickup,
-                      domain: order.serviceType,
-                      labelPrefix: order.status == 'PICKED_UP' || order.status == 'ON_DELIVERY'
-                          ? 'Sedang diantar ke pembeli'
-                          : (isReadyForPickup ? 'Pengemudi telah tiba di toko' : 'Menuju Toko'),
-                      labelHighlight: order.status == 'PICKED_UP' || order.status == 'ON_DELIVERY'
-                          ? ' • Dalam Perjalanan'
-                          : (isReadyForPickup ? '' : ' • Est. 5 mnt'),
-                    ),
                   ],
-                ],
-              ),
+                );
+              },
             ),
           ] else if (!order.isPickup && (isCooking || isReadyForPickup)) ...[
             const SizedBox(height: 12),

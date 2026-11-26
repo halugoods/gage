@@ -1109,14 +1109,14 @@ Dokumen ini merinci seluruh file Dart modul chat yang aktif di ekosistem Custome
 * **Tanggal Rilis**: `2026-11-26`
 * **Target Build & Flavor**: `v1.0.4+50` (`com.gagepracimantoro.merchant`).
 * **Poin Eksekusi**:
-  1. **Posisi Quick Search Bar**: Dipindahkan ke **bawah** Segmented Tab Switch (`Disiapkan`, `Siap`, `Diantar`, `Selesai`) agar filter navigasi utama selalu berada di posisi paling atas secara hierarkis.
-  2. **Tab Selesai Bebas Badge Count**: Segmented Tab Switch pada tab `'Selesai'` (`index: 3`) tidak lagi merender badge notif angka (`count: null`). Kapsul pill `'Selesai'` tetap bersih, proporsional, dan tidak crowded meski pesanan selesai mencapai puluhan/ratusan.
-  3. **Kartu Pesanan Selesai Bersih**: Pesanan berstatus `COMPLETED` atau `CANCELLED` tidak lagi menampilkan track animasi motor bergerak `"Menuju Toko"`. Jika pesanan diantar kurir, kartu menampilkan baris profil driver dengan badge status kapsul hijau `Selesai Diantar`.
-  4. **Spesialisasi Status "Pengemudi telah tiba di toko"**:
-     - Label menampilkan dot badge hijau dengan ikon check `✓` dan teks hijau zamrud (`#059669`).
-     - Jalur track delivery terisi penuh (`fillWidth = 100%`, warna hijau `#10B981`).
-     - Ikon tujuan outlet di sebelah kanan memiliki efek beacon halo berkedip lembut dengan checkmark mini.
-     - Posisi motor kurir diparkir tepat di sebelah outlet dengan getaran mesin idle statis halus (`0.94 - 0.96`).
-  5. **Pembatas Halus Baris Driver pada Kartu Pesanan**: Di antara baris avatar/nama/plat driver dan widget tracking di bawahnya ditambahkan garis pembatas horizontal tipis (1px, warna `#F1F5F9` / `Colors.white12`, `horizontal margin: 4px`) agar tidak kaku dan terstruktur rapi.
-  6. **Detail Order Parity**: `MerchantOrderDetailScreen` disinkronkan dengan pembatas horizontal tipis pada kartu driver dan label tracking dinamis (`Pesanan telah selesai diantar`, `Pesanan sedang diantar • Menuju Pelanggan`, `Pengemudi telah tiba di toko`, `Driver menuju toko • Est. 5 mnt`).
+  1. **Posisi Quick Search Bar**: Dipindahkan ke **bawah** Segmented Tab Switch (`Disiapkan`, `Siap`, `Diantar`, `Selesai`) agar filter navigasi utama tetap berada di posisi atas secara hierarkis.
+  2. **Tab Selesai Bebas Badge Count**: Segmented Tab Switch pada tab `'Selesai'` (`index: 3`) tidak merender badge notif angka (`count: null`). Kapsul pill `'Selesai'` tetap bersih dan proporsional tanpa angka ratusan memenuhi pill.
+  3. **Kartu Pesanan Selesai Bersih**: Pesanan berstatus `COMPLETED` atau `CANCELLED` tidak lagi memicu animasi motor bergerak `"Menuju Toko"`. Jika diantar kurir, kartu menampilkan blok profil driver netral (`#F8FAFC` / `#0F172A`, 2 baris: nama + tipe/plat) tanpa badge kapsul AI-slop redundan.
+  4. **Spesialisasi Status "Pengemudi telah tiba di toko" (Konsisten GAGE Red `#E52320`)**:
+     - Seluruh elemen pelacakan tetap konsisten menggunakan palet merah GAGE (`GageTheme.primary`, tanpa perubahan warna hijau).
+     - Jalur track terisi penuh menuju node toko kanan; ikon ujung beralih dari pin lokasi ke ikon toko (`Icons.storefront_rounded`) dengan animasi gelombang radar merah konsentris lembut, dan motor G-Rider diparkir rapi di sebelah kiri ikon toko dengan jarak aman tanpa tumpang-tindih.
+     - Pada tampilan 5 tahap (`MerchantOrderDetailScreen`), stage `'Siap'` menampilkan sonar pulse merah GAGE yang serasi dengan seluruh node tahap lainnya.
+  5. **Hierarki Baris Driver & Pembatas Inset Tipis**:
+     - Profil driver pada kartu luar disusun 2 baris bersih (nama bold + sublabel tipe kurir & plat) dan dipisahkan dari area tracking oleh garis pembatas horizontal tipis 1px tidak penuh (`horizontal: 10`, warna hairline rose lembut `GageTheme.primary @ 0.14` Light / `Colors.white @ 0.10` Dark).
+  6. **Detail Order Parity**: `MerchantOrderDetailScreen` disinkronkan dengan pembatas horizontal tipis pada kartu driver dan label status ringkas konsisten (`Menuju Toko`, `Pengemudi telah tiba di toko`, `Menuju Pembeli • Est. X mnt`, `Pesanan Selesai`).
 

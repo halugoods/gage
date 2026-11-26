@@ -404,46 +404,47 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Container(
-              height: 1,
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white12 : const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(1),
+          if (order.status != 'CANCELLED') ...[
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Container(
+                height: 1,
+                color: isDark ? Colors.white.withValues(alpha: 0.10) : borderColor,
               ),
             ),
-          ),
-          const SizedBox(height: 10),
-          Builder(
-            builder: (context) {
-              final isArrived = order.status == 'READY_FOR_PICKUP' || order.status == 'AT_MERCHANT';
-              final String trackPrefix;
-              final String trackHighlight;
-              if (order.status == 'COMPLETED') {
-                trackPrefix = 'Pesanan telah selesai diantar';
-                trackHighlight = '';
-              } else if (order.status == 'PICKED_UP' || order.status == 'ON_DELIVERY') {
-                trackPrefix = 'Pesanan sedang diantar';
-                trackHighlight = ' • Menuju Pelanggan';
-              } else if (isArrived) {
-                trackPrefix = 'Pengemudi telah tiba di toko';
-                trackHighlight = '';
-              } else {
-                trackPrefix = 'Driver menuju toko';
-                trackHighlight = ' • Est. 5 mnt';
-              }
-              return GageDeliveryTrackProgress(
-                isSearchingDriver: false,
-                isDriverArrived: isArrived,
-                domain: order.serviceType,
-                orderStatus: order.status,
-                labelPrefix: trackPrefix,
-                labelHighlight: trackHighlight,
-              );
-            },
-          ),
+            const SizedBox(height: 10),
+            Builder(
+              builder: (context) {
+                final isArrived =
+                    order.status == 'READY_FOR_PICKUP' || order.status == 'AT_MERCHANT';
+                final String trackPrefix;
+                final String trackHighlight;
+                if (order.status == 'COMPLETED') {
+                  trackPrefix = 'Pesanan Selesai';
+                  trackHighlight = '';
+                } else if (order.status == 'PICKED_UP' || order.status == 'ON_DELIVERY') {
+                  final etaMins = (order.distanceKm * 4).ceil().clamp(4, 30);
+                  trackPrefix = 'Menuju Pembeli';
+                  trackHighlight = ' • Est. $etaMins mnt';
+                } else if (isArrived) {
+                  trackPrefix = 'Pengemudi telah tiba di toko';
+                  trackHighlight = '';
+                } else {
+                  trackPrefix = 'Menuju Toko';
+                  trackHighlight = ' • Est. 5 mnt';
+                }
+                return GageDeliveryTrackProgress(
+                  isSearchingDriver: false,
+                  isDriverArrived: isArrived,
+                  domain: order.serviceType,
+                  orderStatus: order.status,
+                  labelPrefix: trackPrefix,
+                  labelHighlight: trackHighlight,
+                );
+              },
+            ),
+          ],
         ],
       ),
     );

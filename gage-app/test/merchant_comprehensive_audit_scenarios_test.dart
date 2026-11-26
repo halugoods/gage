@@ -1782,9 +1782,9 @@ void main() {
     });
 
     // -------------------------------------------------------------------------
-    // Skenario 53: Wave 21: Order Card & Tab Adjustments (Search Bar Bawah, Selesai No Badge, Track Selesai Bersih, Tiba di Toko Arrived Beacon)
+    // Skenario 53: Wave 21: Order Card, Search Bar Position, Tab Selesai Bersih & Storefront Beacon GAGE Red
     // -------------------------------------------------------------------------
-    testWidgets('Skenario 53: Wave 21: Search bar di bawah tab, Selesai tanpa badge, driver arrived beacon & track selesai bersih', (tester) async {
+    testWidgets('Skenario 53: Wave 21: Search bar di bawah tab, Selesai tanpa badge & AI slop, tiba di toko beacon merah tanpa tabrakan', (tester) async {
       SharedPreferences.setMockInitialValues({});
       final provider = MerchantOrderProvider();
       final formatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
@@ -1801,41 +1801,74 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // 1. Verifikasi 4 tab kapsul & search bar
+      // 1. Verifikasi 4 tab kapsul & search bar berada di bawah segmented tabs
       expect(find.text('Disiapkan'), findsOneWidget);
       expect(find.text('Siap'), findsOneWidget);
       expect(find.text('Diantar'), findsOneWidget);
       expect(find.text('Selesai'), findsOneWidget);
       expect(find.text('Cari invoice atau nama pelanggan...'), findsOneWidget);
 
-      // Verifikasi posisi vertikal: Segmented Tabs di atas, Search Bar di bawah
       final tabsTop = tester.getTopLeft(find.text('Disiapkan')).dy;
       final searchTop = tester.getTopLeft(find.text('Cari invoice atau nama pelanggan...')).dy;
       expect(tabsTop, lessThan(searchTop));
 
-      // 2. Verifikasi tab Selesai: Switch ke tab Selesai
+      // Verifikasi tab Selesai tidak punya badge notif angka '1' walaupun ada 1 order selesai di seed
+      final selesaiPill = find.ancestor(
+        of: find.text('Selesai'),
+        matching: find.byType(AnimatedContainer),
+      );
+      expect(find.descendant(of: selesaiPill, matching: find.text('1')), findsNothing);
+
+      // 2. Verifikasi tab Siap: driver arrived menggunakan beacon toko merah (zero green check slop)
+      await tester.tap(find.text('Siap'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Mas Agus'), findsOneWidget);
+      expect(find.textContaining('Pengemudi telah tiba di toko', findRichText: true), findsOneWidget);
+      expect(find.byIcon(Icons.storefront_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.check_rounded), findsNothing);
+
+      // 3. Verifikasi tab Selesai: bersih tanpa animasi 'Menuju Toko' & tanpa pill 'Selesai Diantar'
       await tester.tap(find.text('Selesai'));
       await tester.pumpAndSettle();
 
-      // Pada tab Selesai, order completed dengan driver tidak menampilkan track bergerak 'Menuju Toko'
-      expect(find.text('Menuju Toko'), findsNothing);
+      expect(find.text('Mas Bambang'), findsOneWidget);
+      expect(find.textContaining('Menuju Toko', findRichText: true), findsNothing);
+      expect(find.text('Selesai Diantar'), findsNothing);
 
-      // 3. Verifikasi widget GageDeliveryTrackProgress saat isDriverArrived == true
+      // 4. Verifikasi langsung widget GageDeliveryTrackProgress saat isDriverArrived == true
+      // Pastikan motor G-rider tidak bertabrakan dengan ikon storefront_rounded dan warna tetap merah GAGE
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: GageDeliveryTrackProgress(
-              isSearchingDriver: false,
-              isDriverArrived: true,
-              labelPrefix: 'Pengemudi telah tiba di toko',
+            body: Center(
+              child: SizedBox(
+                width: 340,
+                child: GageDeliveryTrackProgress(
+                  isSearchingDriver: false,
+                  isDriverArrived: true,
+                  labelPrefix: 'Pengemudi telah tiba di toko',
+                ),
+              ),
             ),
           ),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Pengemudi telah tiba di toko'), findsOneWidget);
-      expect(find.byIcon(Icons.check_rounded), findsOneWidget);
+      final storeIconFinder = find.byIcon(Icons.storefront_rounded);
+      expect(storeIconFinder, findsOneWidget);
+      final Icon storeIcon = tester.widget(storeIconFinder);
+      expect(storeIcon.color, equals(GageTheme.primary));
+
+      final riderPaintFinder = find.descendant(
+        of: find.byType(GageDeliveryTrackProgress),
+        matching: find.byType(CustomPaint),
+      );
+      expect(riderPaintFinder, findsOneWidget);
+      final riderRect = tester.getRect(riderPaintFinder);
+      final storeRect = tester.getRect(storeIconFinder);
+      expect(riderRect.right, lessThan(storeRect.left));
 
       provider.dispose();
     });
