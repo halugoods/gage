@@ -1819,13 +1819,14 @@ void main() {
       );
       expect(find.descendant(of: selesaiPill, matching: find.text('1')), findsNothing);
 
-      // 2. Verifikasi tab Siap: driver arrived menggunakan beacon toko merah (zero green check slop)
+      // 2. Verifikasi tab Siap: driver arrived menggunakan pin lokasi merah yang sama seperti Menuju Toko (zero outlet icon, zero green slop)
       await tester.tap(find.text('Siap'));
       await tester.pumpAndSettle();
 
       expect(find.text('Mas Agus'), findsOneWidget);
       expect(find.textContaining('Pengemudi telah tiba di toko', findRichText: true), findsOneWidget);
-      expect(find.byIcon(Icons.storefront_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.location_on_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.storefront_rounded), findsNothing);
       expect(find.byIcon(Icons.check_rounded), findsNothing);
 
       // 3. Verifikasi tab Selesai: bersih tanpa animasi 'Menuju Toko' & tanpa pill 'Selesai Diantar'
@@ -1837,7 +1838,7 @@ void main() {
       expect(find.text('Selesai Diantar'), findsNothing);
 
       // 4. Verifikasi langsung widget GageDeliveryTrackProgress saat isDriverArrived == true
-      // Pastikan motor G-rider tidak bertabrakan dengan ikon storefront_rounded dan warna tetap merah GAGE
+      // Compact mode: pin lokasi merah sama seperti Menuju Toko, tanpa tabrakan dengan G-Rider
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -1856,10 +1857,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final storeIconFinder = find.byIcon(Icons.storefront_rounded);
-      expect(storeIconFinder, findsOneWidget);
-      final Icon storeIcon = tester.widget(storeIconFinder);
-      expect(storeIcon.color, equals(GageTheme.primary));
+      final pinIconFinder = find.byIcon(Icons.location_on_rounded);
+      expect(pinIconFinder, findsOneWidget);
+      final Icon pinIcon = tester.widget(pinIconFinder);
+      expect(pinIcon.color, equals(GageTheme.primary));
 
       final riderPaintFinder = find.descendant(
         of: find.byType(GageDeliveryTrackProgress),
@@ -1867,8 +1868,34 @@ void main() {
       );
       expect(riderPaintFinder, findsOneWidget);
       final riderRect = tester.getRect(riderPaintFinder);
-      final storeRect = tester.getRect(storeIconFinder);
-      expect(riderRect.right, lessThan(storeRect.left));
+      final pinRect = tester.getRect(pinIconFinder);
+      expect(riderRect.right, lessThan(pinRect.left));
+
+      // 5. Verifikasi 5-Stage detail mode saat tiba di toko: semua label 5 tahap sejajar Y (tidak ada node Siap naik-turun)
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 340,
+                child: GageDeliveryTrackProgress(
+                  isSearchingDriver: false,
+                  isDriverArrived: true,
+                  orderStatus: 'READY_FOR_PICKUP',
+                  labelPrefix: 'Pengemudi telah tiba di toko',
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final masukY = tester.getTopLeft(find.text('Masuk')).dy;
+      final siapY = tester.getTopLeft(find.text('Siap')).dy;
+      final diantarY = tester.getTopLeft(find.text('Diantar')).dy;
+      expect(siapY, equals(masukY));
+      expect(siapY, equals(diantarY));
 
       provider.dispose();
     });
